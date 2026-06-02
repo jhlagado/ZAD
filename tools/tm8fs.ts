@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 
-const { readFileSync } = require('node:fs');
+const { readFileSync, writeFileSync } = require('node:fs');
 
-const { formatVolumeFile, listVolumePath, parseVolumeImage } = require('./tm8/format.ts');
+const {
+  createFileInVolumeImage,
+  formatVolumeFile,
+  listVolumePath,
+  parseVolumeImage,
+} = require('./tm8/format.ts');
 
 function usage(): never {
-  console.error('usage: tm8fs <format|info> VOLUME.TM8');
+  console.error('usage: tm8fs format VOLUME.TM8');
+  console.error('       tm8fs info VOLUME.TM8');
+  console.error('       tm8fs new VOLUME.TM8 /path/file');
   console.error('       tm8fs ls VOLUME.TM8 /path');
   process.exit(2);
 }
@@ -37,6 +44,10 @@ function printListing(volumePath: string, path: string): void {
   }
 }
 
+function createNewFile(volumePath: string, path: string): void {
+  writeFileSync(volumePath, createFileInVolumeImage(readFileSync(volumePath), path));
+}
+
 function main(argv: string[]): void {
   const [command, path, tm8Path] = argv;
   if (!command || !path) {
@@ -64,6 +75,14 @@ function main(argv: string[]): void {
       usage();
     }
     printListing(path, tm8Path);
+    return;
+  }
+
+  if (command === 'new') {
+    if (argv.length !== 3 || !tm8Path) {
+      usage();
+    }
+    createNewFile(path, tm8Path);
     return;
   }
 

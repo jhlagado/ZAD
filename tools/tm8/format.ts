@@ -2,6 +2,7 @@ const { writeFileSync } = require('node:fs');
 
 const ALLOCATION_FREE = 0x0000;
 const ALLOCATION_RESERVED = 0xffff;
+const ALLOCATION_END = 0xffff;
 const ENTRY_STATUS_FREE = 0x00;
 const ENTRY_STATUS_ACTIVE = 0x01;
 
@@ -225,7 +226,6 @@ function parseSuperblock(image: Buffer): Superblock {
     ['catalogEntrySize', TM8_FORMAT.catalogEntrySize],
     ['catalogEntryCount', TM8_FORMAT.catalogEntryCount],
     ['dataStartBlock', TM8_FORMAT.dataStartBlock],
-    ['freeBlockCount', freeBlockCount()],
   ];
 
   for (const [field, expected] of expectedFields) {
@@ -262,7 +262,9 @@ function assertZeroRange(
   }
 }
 
-function validateAllocation(allocation: number[]): void {
+function validateAllocation(allocation: number[]): number {
+  let freeBlocks = 0;
+
   for (let block = 0; block < TM8_FORMAT.dataStartBlock; block += 1) {
     if (allocation[block] !== ALLOCATION_RESERVED) {
       throw new Error(
@@ -272,9 +274,27 @@ function validateAllocation(allocation: number[]): void {
   }
 
   for (let block = TM8_FORMAT.dataStartBlock; block < TM8_FORMAT.totalBlocks; block += 1) {
-    if (allocation[block] !== ALLOCATION_FREE) {
-      throw new Error(`unexpected allocation entry for free block ${block}: ${allocation[block]}`);
+    const entry = allocation[block];
+    if (entry === ALLOCATION_FREE) {
+      freeBlocks += 1;
+      continue;
     }
+    if (entry === ALLOCATION_END) {
+      continue;
+    }
+    if (entry < TM8_FORMAT.dataStartBlock || entry >= TM8_FORMAT.totalBlocks || entry === block) {
+      throw new Error(`bad allocation entry for block ${block}: ${entry}`);
+    }
+  }
+
+  return freeBlocks;
+}
+
+function validateFreeBlockCount(superblock: Superblock, freeBlocks: number): void {
+  if (superblock.freeBlockCount !== freeBlocks) {
+    throw new Error(
+      `unexpected TM8 freeBlockCount: expected ${freeBlocks}, got ${superblock.freeBlockCount}`,
+    );
   }
 }
 
@@ -334,6 +354,7 @@ function parsePrefixEntries(image: Buffer): PrefixEntry[] {
   const startOffset = TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes;
   const prefixes: PrefixEntry[] = [];
   const seen = new Set<number>();
+  const seenPrefixes = new Set<string>();
 
   for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
     const offset = startOffset + index * TM8_FORMAT.prefixEntrySize;
@@ -360,6 +381,9 @@ function parsePrefixEntries(image: Buffer): PrefixEntry[] {
 
     const prefix = readAsciiField(entry, TM8_PREFIX_ENTRY.textOffset, length, 'prefix');
     assertPrefixText(prefix);
+    if (seenPrefixes.has(prefix)) {
+      throw new Error(`duplicate prefix ${JSON.stringify(prefix)} at entry ${index}`);
+    }
     assertZeroRange(
       entry,
       TM8_PREFIX_ENTRY.textOffset + length,
@@ -368,6 +392,7 @@ function parsePrefixEntries(image: Buffer): PrefixEntry[] {
     );
 
     seen.add(prefixId);
+    seenPrefixes.add(prefix);
     prefixes.push({ status, prefixId, prefix });
   }
 
@@ -378,6 +403,8 @@ function parseFileEntries(image: Buffer, prefixes: PrefixEntry[]): FileEntry[] {
   const startOffset = TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes;
   const knownPrefixIds = new Set([0, ...prefixes.map((prefix) => prefix.prefixId)]);
   const files: FileEntry[] = [];
+  const seenPaths = new Set<string>();
+  const seenFileIds = new Set<number>();
 
   for (let index = 0; index < TM8_FORMAT.catalogEntryCount; index += 1) {
     const offset = startOffset + index * TM8_FORMAT.catalogEntrySize;
@@ -405,6 +432,13 @@ function parseFileEntries(image: Buffer, prefixes: PrefixEntry[]): FileEntry[] {
 
     const name = readAsciiField(entry, TM8_CATALOG_ENTRY.nameOffset, nameLength, 'file name');
     assertFileNameText(name);
+    const pathKey = `${prefixId}:${name}`;
+    if (seenPaths.has(pathKey)) {
+      throw new Error(`duplicate file path at entry ${index}`);
+    }
+    if (seenFileIds.has(fileId)) {
+      throw new Error(`duplicate file id ${fileId} at entry ${index}`);
+    }
     assertZeroRange(
       entry,
       TM8_CATALOG_ENTRY.nameOffset + nameLength,
@@ -418,6 +452,8 @@ function parseFileEntries(image: Buffer, prefixes: PrefixEntry[]): FileEntry[] {
       `file entry ${index} reserved byte`,
     );
 
+    seenPaths.add(pathKey);
+    seenFileIds.add(fileId);
     files.push({
       status,
       fileId,
@@ -432,6 +468,40 @@ function parseFileEntries(image: Buffer, prefixes: PrefixEntry[]): FileEntry[] {
   return files;
 }
 
+function validateFileBlockChains(files: FileEntry[], allocation: number[]): void {
+  const usedBlocks = new Map<number, number>();
+
+  for (const [fileIndex, file] of files.entries()) {
+    let block = file.firstBlock;
+    const localBlocks = new Set<number>();
+
+    while (true) {
+      if (block < TM8_FORMAT.dataStartBlock || block >= TM8_FORMAT.totalBlocks) {
+        throw new Error(`file entry ${fileIndex} has bad first block ${block}`);
+      }
+      if (allocation[block] === ALLOCATION_FREE) {
+        throw new Error(`file entry ${fileIndex} points to free block ${block}`);
+      }
+      if (localBlocks.has(block)) {
+        throw new Error(`cycle in file block chain for entry ${fileIndex}`);
+      }
+      const existingFile = usedBlocks.get(block);
+      if (existingFile !== undefined && existingFile !== fileIndex) {
+        throw new Error(`shared file block ${block} in entries ${existingFile} and ${fileIndex}`);
+      }
+
+      localBlocks.add(block);
+      usedBlocks.set(block, fileIndex);
+
+      const nextBlock = allocation[block];
+      if (nextBlock === ALLOCATION_END) {
+        break;
+      }
+      block = nextBlock;
+    }
+  }
+}
+
 function parseVolumeImage(image: Buffer): ParsedVolume {
   if (image.byteLength !== TM8_FORMAT.volumeBytes) {
     throw new Error(
@@ -441,10 +511,12 @@ function parseVolumeImage(image: Buffer): ParsedVolume {
 
   const superblock = parseSuperblock(image);
   const allocation = parseAllocation(image);
-  validateAllocation(allocation);
+  const freeBlocks = validateAllocation(allocation);
+  validateFreeBlockCount(superblock, freeBlocks);
   validateAllocationTail(image);
   const prefixes = parsePrefixEntries(image);
   const files = parseFileEntries(image, prefixes);
+  validateFileBlockChains(files, allocation);
 
   return {
     superblock,
@@ -464,6 +536,168 @@ function normalizePrefixPath(path: string): string {
   const prefix = path.replace(/^\/+|\/+$/g, '');
   assertPathText(prefix);
   return prefix;
+}
+
+function splitFilePath(path: string): { prefix: string; name: string } {
+  if (!path.startsWith('/')) {
+    throw new Error(`TM8 paths must start with /: ${path}`);
+  }
+  if (path !== '/' && path.endsWith('/')) {
+    throw new Error(`missing local filename: ${path}`);
+  }
+
+  const normalized = path.replace(/^\/+/, '');
+  const separator = normalized.lastIndexOf('/');
+  const prefix = separator === -1 ? '' : normalized.slice(0, separator);
+  const name = separator === -1 ? normalized : normalized.slice(separator + 1);
+  if (!name) {
+    throw new Error(`missing local filename: ${path}`);
+  }
+  if (prefix) {
+    assertPrefixText(prefix);
+  }
+  assertFileNameText(name);
+  return { prefix, name };
+}
+
+function rewriteSuperblockChecksum(image: Buffer): void {
+  putU32(image, TM8_FORMAT.checksumOffset, 0);
+  putU32(image, TM8_FORMAT.checksumOffset, superblockChecksum(image));
+}
+
+function writeFreeBlockCount(image: Buffer, value: number): void {
+  putU16(image, 42, value);
+  rewriteSuperblockChecksum(image);
+}
+
+function prefixEntryOffset(index: number): number {
+  return TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes + index * TM8_FORMAT.prefixEntrySize;
+}
+
+function catalogEntryOffset(index: number): number {
+  return TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes + index * TM8_FORMAT.catalogEntrySize;
+}
+
+function allocationEntryOffset(block: number): number {
+  return TM8_FORMAT.allocationStartBlock * TM8_FORMAT.blockBytes + block * 2;
+}
+
+function findFreeEntryIndex(
+  image: Buffer,
+  startBlock: number,
+  entrySize: number,
+  entryCount: number,
+): number {
+  const startOffset = startBlock * TM8_FORMAT.blockBytes;
+  for (let index = 0; index < entryCount; index += 1) {
+    if (image[startOffset + index * entrySize] === ENTRY_STATUS_FREE) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function nextFreeByteId(used: number[], label: string): number {
+  const usedSet = new Set(used);
+  const firstId = label === 'file' ? 0 : 1;
+  for (let id = firstId; id <= 0xff; id += 1) {
+    if (!usedSet.has(id)) {
+      return id;
+    }
+  }
+  throw new Error(`${label} ids exhausted`);
+}
+
+function writeActivePrefixEntry(image: Buffer, index: number, prefixId: number, prefix: string): void {
+  const offset = prefixEntryOffset(index);
+  image[offset + TM8_PREFIX_ENTRY.statusOffset] = ENTRY_STATUS_ACTIVE;
+  image[offset + TM8_PREFIX_ENTRY.prefixIdOffset] = prefixId;
+  image[offset + TM8_PREFIX_ENTRY.lengthOffset] = prefix.length;
+  image.set(Buffer.from(prefix, 'ascii'), offset + TM8_PREFIX_ENTRY.textOffset);
+}
+
+function writeActiveFileEntry(
+  image: Buffer,
+  index: number,
+  options: { fileId: number; prefixId: number; name: string; firstBlock: number; fileType: number },
+): void {
+  const offset = catalogEntryOffset(index);
+  image[offset + TM8_CATALOG_ENTRY.statusOffset] = ENTRY_STATUS_ACTIVE;
+  image[offset + TM8_CATALOG_ENTRY.fileIdOffset] = options.fileId;
+  image[offset + TM8_CATALOG_ENTRY.prefixIdOffset] = options.prefixId;
+  image[offset + TM8_CATALOG_ENTRY.nameLengthOffset] = options.name.length;
+  image.set(Buffer.from(options.name, 'ascii'), offset + TM8_CATALOG_ENTRY.nameOffset);
+  putU16(image, offset + TM8_CATALOG_ENTRY.firstBlockOffset, options.firstBlock);
+  putU32(image, offset + TM8_CATALOG_ENTRY.fileSizeOffset, 0);
+  image[offset + TM8_CATALOG_ENTRY.fileTypeOffset] = options.fileType;
+}
+
+function createFileInVolumeImage(image: Buffer, path: string): Buffer {
+  const nextImage = Buffer.from(image);
+  const volume = parseVolumeImage(nextImage);
+  const { prefix, name } = splitFilePath(path);
+
+  if (volume.files.some((file) => {
+    const filePrefix =
+      file.prefixId === 0
+        ? ''
+        : volume.prefixes.find((entry) => entry.prefixId === file.prefixId)?.prefix;
+    return filePrefix === prefix && file.name === name;
+  })) {
+    throw new Error(`file already exists: ${path}`);
+  }
+
+  const freeBlock = volume.allocation.findIndex(
+    (entry, block) => block >= TM8_FORMAT.dataStartBlock && entry === ALLOCATION_FREE,
+  );
+  if (freeBlock === -1) {
+    throw new Error('no free blocks');
+  }
+
+  const fileEntryIndex = findFreeEntryIndex(
+    nextImage,
+    TM8_FORMAT.catalogStartBlock,
+    TM8_FORMAT.catalogEntrySize,
+    TM8_FORMAT.catalogEntryCount,
+  );
+  if (fileEntryIndex === -1) {
+    throw new Error('file catalog full');
+  }
+
+  let prefixId = 0;
+  if (prefix !== '') {
+    const existingPrefix = volume.prefixes.find((entry) => entry.prefix === prefix);
+    if (existingPrefix) {
+      prefixId = existingPrefix.prefixId;
+    } else {
+      const prefixEntryIndex = findFreeEntryIndex(
+        nextImage,
+        TM8_FORMAT.prefixStartBlock,
+        TM8_FORMAT.prefixEntrySize,
+        TM8_FORMAT.prefixEntryCount,
+      );
+      if (prefixEntryIndex === -1) {
+        throw new Error('prefix table full');
+      }
+      prefixId = nextFreeByteId(volume.prefixes.map((entry) => entry.prefixId), 'prefix');
+      writeActivePrefixEntry(nextImage, prefixEntryIndex, prefixId, prefix);
+    }
+  }
+
+  const fileId = nextFreeByteId(volume.files.map((entry) => entry.fileId), 'file');
+  putU16(nextImage, allocationEntryOffset(freeBlock), ALLOCATION_END);
+  nextImage.fill(0, freeBlock * TM8_FORMAT.blockBytes, (freeBlock + 1) * TM8_FORMAT.blockBytes);
+  writeActiveFileEntry(nextImage, fileEntryIndex, {
+    fileId,
+    prefixId,
+    name,
+    firstBlock: freeBlock,
+    fileType: 1,
+  });
+  writeFreeBlockCount(nextImage, volume.superblock.freeBlockCount - 1);
+
+  parseVolumeImage(nextImage);
+  return nextImage;
 }
 
 function listVolumePath(volume: ParsedVolume, path: string): ListedFile[] {
@@ -508,12 +742,14 @@ function formatVolumeFile(path: string, options: { overwrite?: boolean } = {}): 
 
 module.exports = {
   ALLOCATION_FREE,
+  ALLOCATION_END,
   ALLOCATION_RESERVED,
   ENTRY_STATUS_ACTIVE,
   ENTRY_STATUS_FREE,
   TM8_CATALOG_ENTRY,
   TM8_FORMAT,
   TM8_PREFIX_ENTRY,
+  createFileInVolumeImage,
   createVolumeImage,
   formatVolumeFile,
   listVolumePath,

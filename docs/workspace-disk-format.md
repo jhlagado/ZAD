@@ -93,7 +93,7 @@ Valid version 1 prefix status values:
 ```
 
 Prefix id `0` is reserved for the implicit root prefix and is not stored as an
-active prefix-table entry.
+active prefix-table entry. Active prefix strings must be unique.
 
 ## File Catalog
 
@@ -122,7 +122,13 @@ Valid version 1 file status values:
 ```
 
 File entries with prefix id `0` are in the root prefix. Other prefix ids must
-refer to active prefix-table entries.
+refer to active prefix-table entries. File ids are byte-sized values and may use
+the full `0x00`-`0xff` range because entry activity is controlled by the status
+byte.
+
+For active file entries, `first block` must refer to a data block whose
+allocation-table entry is not free. Block chains must end with `0xffff`, must
+not cycle, and must not share blocks with another active file.
 
 ## Host Commands
 
@@ -131,11 +137,16 @@ The first host-verifiable commands are:
 ```text
 node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
+node --experimental-strip-types tools/tm8fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/tm8fs.ts ls VOLUME.TM8 /
 ```
 
 `format` refuses to overwrite an existing file. `info` verifies the superblock,
-checksum, allocation table, prefix table entries, and file catalog entries, then
-reports the volume layout as JSON. `ls` parses the prefix table and file catalog
-and prints matching local filenames, one per line. A freshly formatted volume
-lists `/` successfully with no output.
+checksum, allocation table, prefix table entries, file catalog entries, and
+active file block chains, then reports the volume layout as JSON. `new` creates
+the needed prefix entry if it
+does not exist, allocates one 4K data block, initializes that block to zero,
+stores a zero-length file catalog entry, and updates the allocation table and
+free-block count. `ls` parses the prefix table and file catalog and prints
+matching local filenames, one per line. A freshly formatted volume lists `/`
+successfully with no output.

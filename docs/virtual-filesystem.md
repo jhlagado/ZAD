@@ -271,6 +271,10 @@ To create a file:
 8. Write the file catalog entry.
 9. Initialize file data.
 
+The current host-side `tm8fs new` implementation creates a zero-length file and
+allocates one initialized 4K block immediately. Later import/write commands can
+reuse the same allocation and catalog mechanics for non-empty content.
+
 ## Deletion
 
 Deletion can reclaim blocks immediately:
