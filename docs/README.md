@@ -10,7 +10,6 @@ Start here:
 
 - [Project Overview](project-overview.md)
 - [Storage Proof](storage-proof.md)
-- [Debug80 Emulation Notes](debug80-emulation-notes.md)
 - [Virtual Filesystem](virtual-filesystem.md)
 - [Editor Design](editor-design.md)
 - [Project Sizing Case Studies](project-sizing.md)

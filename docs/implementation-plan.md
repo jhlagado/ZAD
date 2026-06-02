@@ -4,17 +4,15 @@
 
 Goals:
 
-- Confirm MON3 sector read/write behavior on an existing FAT32 file.
-- Confirm whether Debug80 currently emulates the same storage path needed for
-  ZAD.
+- Keep the MON3/Debug80 storage proof passing against an existing FAT32 file.
 - Validate the proposed default workspace size: 4MB volume, 4K blocks, 256 file
   entries, and 128 prefix entries.
 - Decide exact superblock, allocation table, and catalog entry byte layouts.
 
 Deliverables:
 
-- Storage notes.
-- Test disk image or prepared card image.
+- Storage proof notes.
+- Test disk image.
 - Minimal sector read/write test.
 
 ## Phase 1: Workspace Disk Format

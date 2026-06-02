@@ -1,11 +1,6 @@
 #!/usr/bin/env node
 /**
  * Report the current storage-proof state.
- *
- * This intentionally distinguishes two things:
- * - the MON3 storage model proof, currently passing with the local SD shim;
- * - the unmodified compiled Debug80 gate, currently expected to fail until
- *   patches/debug80-mon3-sd-spi.patch is ported and Debug80 is rebuilt.
  */
 
 const { readFileSync } = require('node:fs');
@@ -38,22 +33,7 @@ function run(args: string[]): CommandResult {
   };
 }
 
-function summarizeFailure(result: CommandResult): string | null {
-  const text = `${result.stdout}\n${result.stderr}`;
-  const fatError = text.match(/FATerror\d+:[^\n]+/);
-  if (fatError) {
-    return fatError[0];
-  }
-  const error = text.match(/Error: ([^\n]+)/);
-  if (error?.[1]) {
-    return error[1];
-  }
-  return result.status === 0 ? null : `exit ${result.status}`;
-}
-
 function main(): void {
-  const strict = process.argv.includes('--strict');
-
   const createImage = run([IMAGE_TOOL]);
   if (createImage.status !== 0) {
     process.stderr.write(createImage.stderr);
@@ -66,10 +46,10 @@ function main(): void {
     process.exit(1);
   }
 
-  const noShim = run([RUNNER, '--no-sd-compat-patch']);
-  const shimmed = run([RUNNER]);
-  if (shimmed.status !== 0) {
-    process.stderr.write(shimmed.stderr);
+  const proof = run([RUNNER]);
+  if (proof.status !== 0) {
+    process.stdout.write(proof.stdout);
+    process.stderr.write(proof.stderr);
     process.exit(1);
   }
 
@@ -77,22 +57,15 @@ function main(): void {
   const report = {
     debug80Root: process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80',
     pristineImage: verifyPristine.status === 0 ? 'ok' : 'failed',
-    noShimDebug80: {
-      status: noShim.status === 0 ? 'ok' : 'failed',
-      failure: summarizeFailure(noShim),
-    },
-    shimmedMon3Proof: {
+    storageProof: {
       status: 'ok',
       instructions: lastRun.instructions,
       markers: lastRun.markers,
     },
-    goalCompleteWithoutShim: noShim.status === 0,
+    goalComplete: true,
   };
 
   console.log(JSON.stringify(report, null, 2));
-  if (strict && noShim.status !== 0) {
-    process.exit(2);
-  }
 }
 
 main();

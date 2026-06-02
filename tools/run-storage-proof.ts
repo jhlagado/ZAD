@@ -38,7 +38,6 @@ const MARKERS = [
   { sector: 79, label: 'markerCatalogLast', text: 'ZAD MON3 WRITE CATALOG 0079' },
   { sector: 80, label: 'markerDataFirst', text: 'ZAD MON3 WRITE DATA 0080' },
 ] as const;
-const USE_SD_COMPAT_PATCH = !process.argv.includes('--no-sd-compat-patch');
 const TRACE_POINTS: Record<number, string> = {
   0xf197: 'FATmount',
   0xf255: 'FATerror1: MBR read error',
@@ -95,97 +94,8 @@ type PlatformRuntime = {
   recordCycles: (cycles: number) => void;
 };
 
-type SdSpiPatchInstance = {
-  csMask: number;
-  csActiveLow: boolean;
-  csActive: boolean;
-  clk: boolean;
-  commandBytes: number[];
-  pendingResponse: number[] | null;
-  outputQueue: number[];
-  outShift: number;
-  outBitIndex: number;
-  writeState: unknown;
-  ioOut: number;
-  appCommand: boolean;
-  ready: boolean;
-  highCapacity: boolean;
-  handleCommand: (command: { cmd: number; arg: number; crc: number }) => void;
-  beginTransaction: () => void;
-  shiftIn: (bit: number) => void;
-  shiftOut: () => void;
-};
-
 function requireFromDebug80(modulePath: string): unknown {
   return require(resolve(DEBUG80_ROOT, modulePath));
-}
-
-function installMon3SdSpiCompatibilityPatch(): void {
-  const { SdSpi } = requireFromDebug80('out/platforms/tec1g/sd-spi.js') as {
-    SdSpi: { prototype: SdSpiPatchInstance & { __zadMon3CompatPatch?: boolean } };
-  };
-  const proto = SdSpi.prototype;
-  if (proto.__zadMon3CompatPatch) {
-    return;
-  }
-  const originalHandleCommand = proto.handleCommand;
-
-  proto.handleCommand = function handleCommandMon3Compatible(
-    this: SdSpiPatchInstance,
-    command: { cmd: number; arg: number; crc: number },
-  ): void {
-    if (command.cmd === 58) {
-      const ocr = this.highCapacity ? 0xc0 : 0x80;
-      this.pendingResponse = [this.ready ? 0x00 : 0x01, ocr, 0x00, 0x00, 0x00];
-      return;
-    }
-    originalHandleCommand.call(this, command);
-  };
-
-  proto.write = function writeMon3Compatible(this: SdSpiPatchInstance, value: number): void {
-    const nextClk = (value & 0x02) !== 0;
-    const csLineHigh = (value & this.csMask) !== 0;
-    const nextCsActive = this.csActiveLow ? !csLineHigh : csLineHigh;
-
-    if (!nextCsActive) {
-      this.csActive = false;
-      this.clk = nextClk;
-      return;
-    }
-
-    if (!this.csActive && nextCsActive) {
-      const hasActiveTransaction =
-        this.commandBytes.length > 0 ||
-        this.pendingResponse !== null ||
-        this.outputQueue.length > 0 ||
-        this.outShift !== 0xff ||
-        this.outBitIndex !== 0 ||
-        this.writeState !== null;
-      if (!hasActiveTransaction) {
-        const appCommand = this.appCommand;
-        this.beginTransaction();
-        this.appCommand = appCommand;
-      }
-    }
-
-    if (!this.clk && nextClk) {
-      const bit = (value & 0x01) !== 0 ? 1 : 0;
-      this.shiftIn(bit);
-      this.shiftOut();
-    }
-
-    this.csActive = nextCsActive;
-    this.clk = nextClk;
-  };
-
-  proto.read = function readMon3Compatible(this: SdSpiPatchInstance): number {
-    if (!this.csActive) {
-      return 0xff;
-    }
-    return this.ioOut ? 0x80 : 0x00;
-  };
-
-  proto.__zadMon3CompatPatch = true;
 }
 
 function low(value: number): number {
@@ -300,9 +210,6 @@ function makeConfig() {
 }
 
 function loadRuntime(): { runtime: Runtime; platformRuntime: PlatformRuntime; doneAddr: number } {
-  if (USE_SD_COMPAT_PATCH) {
-    installMon3SdSpiCompatibilityPatch();
-  }
   const { createTec1gRuntime } = requireFromDebug80('out/platforms/tec1g/runtime.js') as {
     createTec1gRuntime: Function;
   };

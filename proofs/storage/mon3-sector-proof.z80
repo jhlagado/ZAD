@@ -29,7 +29,7 @@ start:
         ; File-relative sector 0: proposed ZAD superblock.
         ld hl,0000H
         ld de,0000H
-        call patch_sector
+        call read_sector
         ld hl,marker_superblock
         ld bc,marker_superblock_end-marker_superblock
         call write_marker
@@ -37,7 +37,7 @@ start:
         ; File-relative sector 8: proposed ZAD allocation table block.
         ld hl,0000H
         ld de,1000H
-        call patch_sector
+        call read_sector
         ld hl,marker_alloc
         ld bc,marker_alloc_end-marker_alloc
         call write_marker
@@ -45,7 +45,7 @@ start:
         ; File-relative sector 16: first proposed catalog sector.
         ld hl,0000H
         ld de,2000H
-        call patch_sector
+        call read_sector
         ld hl,marker_catalog_first
         ld bc,marker_catalog_first_end-marker_catalog_first
         call write_marker
@@ -53,7 +53,7 @@ start:
         ; File-relative sector 79: last proposed catalog sector.
         ld hl,0000H
         ld de,9E00H
-        call patch_sector
+        call read_sector
         ld hl,marker_catalog_last
         ld bc,marker_catalog_last_end-marker_catalog_last
         call write_marker
@@ -61,7 +61,7 @@ start:
         ; File-relative sector 80: first proposed data sector.
         ld hl,0000H
         ld de,0A000H
-        call patch_sector
+        call read_sector
         ld hl,marker_data_first
         ld bc,marker_data_first_end-marker_data_first
         call write_marker
@@ -69,7 +69,7 @@ start:
 done:
         jp done
 
-patch_sector:
+read_sector:
         ; Input: HLDE = file-relative byte offset.
         call MON3_READ_SECTOR
         ret
