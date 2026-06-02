@@ -19,7 +19,7 @@ Deliverables:
 
 Goals:
 
-- Create `VOLUME.ZAD` format.
+- Create `VOLUME.TM8` format.
 - Implement superblock read/write.
 - Implement allocation table.
 - Implement prefix table and file catalog.
@@ -51,12 +51,12 @@ Goals:
 Host commands:
 
 ```text
-zadfs list VOLUME.ZAD
-zadfs import VOLUME.ZAD hostfile /path/in/zad
-zadfs export VOLUME.ZAD /path/in/zad hostfile
-zadfs copy LIBS.ZAD:/lib/file.z80 VOLUME.ZAD:/lib/file.z80
-zadfs unpack VOLUME.ZAD folder
-zadfs pack folder VOLUME.ZAD
+tm8fs list VOLUME.TM8
+tm8fs import VOLUME.TM8 hostfile /path/in/tm8
+tm8fs export VOLUME.TM8 /path/in/tm8 hostfile
+tm8fs copy LIBS.TM8:/lib/file.z80 VOLUME.TM8:/lib/file.z80
+tm8fs unpack VOLUME.TM8 folder
+tm8fs pack folder VOLUME.TM8
 ```
 
 Host-side cross-volume copy is the preferred early way to bring libraries and
@@ -67,7 +67,7 @@ volume workflow is stable.
 
 Goals:
 
-- Boot or jump into ZAD shell.
+- Boot or jump into TECM8 shell.
 - Read matrix keyboard input.
 - Print to GLCD terminal.
 - Navigate virtual prefixes.

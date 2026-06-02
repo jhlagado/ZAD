@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Create a minimal FAT32 SD-card image for ZAD storage proof work.
+ * Create a minimal FAT32 SD-card image for TM8 storage proof work.
  *
  * The image contains one host-created root file:
  *
- *   VOLUME.ZAD
+ *   VOLUME.TM8
  *
  * The file is contiguous and exactly 4 MiB. Its sectors are filled with
  * recognizable marker text so host tools can verify file-relative sectors that
- * map to the proposed ZAD layout.
+ * map to the proposed TECM8 layout.
  */
 
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
@@ -29,7 +29,7 @@ const VOLUME_CLUSTER = 3;
 const VOLUME_SIZE = 4 * MIB;
 const VOLUME_SECTORS = VOLUME_SIZE / SECTOR_SIZE;
 const VOLUME_CLUSTERS = VOLUME_SIZE / (SECTORS_PER_CLUSTER * SECTOR_SIZE);
-const VOLUME_LABEL = Buffer.from('ZADPROOF   ', 'ascii');
+const VOLUME_LABEL = Buffer.from('TM8PROOF   ', 'ascii');
 const FS_TYPE = Buffer.from('FAT32   ', 'ascii');
 
 type Manifest = Record<string, number | string>;
@@ -71,7 +71,7 @@ function makeMbr(): Buffer {
 function makeBpb(): Buffer {
   const sector = Buffer.alloc(SECTOR_SIZE);
   sector.set(Buffer.from([0xeb, 0x58, 0x90]), 0);
-  sector.set(Buffer.from('ZADPROOF', 'ascii'), 3);
+  sector.set(Buffer.from('TM8PROOF', 'ascii'), 3);
   putU16(sector, 0x0b, SECTOR_SIZE);
   sector[0x0d] = SECTORS_PER_CLUSTER;
   putU16(sector, 0x0e, RESERVED_SECTORS);
@@ -126,7 +126,7 @@ function makeFat(): Buffer {
 function makeRootDir(): Buffer {
   const cluster = Buffer.alloc(SECTORS_PER_CLUSTER * SECTOR_SIZE);
   const entry = Buffer.alloc(32);
-  entry.set(Buffer.from('VOLUME  ZAD', 'ascii'), 0);
+  entry.set(Buffer.from('VOLUME  TM8', 'ascii'), 0);
   entry[11] = 0x20;
   putU16(entry, 20, (VOLUME_CLUSTER >> 16) & 0xffff);
   putU16(entry, 26, VOLUME_CLUSTER & 0xffff);
@@ -139,7 +139,7 @@ function makeRootDir(): Buffer {
 function makeVolumeSector(index: number): Buffer {
   const sector = Buffer.alloc(SECTOR_SIZE);
   const marker = Buffer.from(
-    `ZADPROOF VOLUME.ZAD sector ${index.toString().padStart(8, '0')}\r\n`,
+    `TM8PROOF VOLUME.TM8 sector ${index.toString().padStart(8, '0')}\r\n`,
     'ascii',
   );
   sector.set(marker, 0);
@@ -159,16 +159,16 @@ function metadata(imagePath: string): Manifest {
     fat_start_lba: PARTITION_LBA + RESERVED_SECTORS,
     fat_size_sectors: FAT_SIZE_SECTORS,
     root_dir_lba: clusterLba(ROOT_CLUSTER),
-    volume_file_name: 'VOLUME.ZAD',
+    volume_file_name: 'VOLUME.TM8',
     volume_size_bytes: VOLUME_SIZE,
     volume_start_cluster: VOLUME_CLUSTER,
     volume_start_lba: startLba,
     volume_start_byte_offset: startLba * SECTOR_SIZE,
-    zad_block_0_lba: startLba,
-    zad_block_1_lba: startLba + 8,
-    zad_catalog_first_lba: startLba + 16,
-    zad_catalog_last_lba: startLba + 79,
-    zad_data_first_lba: startLba + 80,
+    tm8_block_0_lba: startLba,
+    tm8_block_1_lba: startLba + 8,
+    tm8_catalog_first_lba: startLba + 16,
+    tm8_catalog_last_lba: startLba + 79,
+    tm8_data_first_lba: startLba + 80,
   };
 }
 
@@ -216,19 +216,19 @@ function verifyImage(imagePath: string): Manifest {
     throw new Error('BPB bytes-per-sector is not 512');
   }
   const root = clusterLba(ROOT_CLUSTER) * SECTOR_SIZE;
-  if (!data.subarray(root, root + 11).equals(Buffer.from('VOLUME  ZAD', 'ascii'))) {
-    throw new Error('root directory does not contain VOLUME.ZAD');
+  if (!data.subarray(root, root + 11).equals(Buffer.from('VOLUME  TM8', 'ascii'))) {
+    throw new Error('root directory does not contain VOLUME.TM8');
   }
   const start = volumeStartLba() * SECTOR_SIZE;
   const checks = [0, 8, 16, 79, 80, VOLUME_SECTORS - 1];
   for (const sectorIndex of checks) {
     const marker = Buffer.from(
-      `ZADPROOF VOLUME.ZAD sector ${sectorIndex.toString().padStart(8, '0')}`,
+      `TM8PROOF VOLUME.TM8 sector ${sectorIndex.toString().padStart(8, '0')}`,
       'ascii',
     );
     const offset = start + sectorIndex * SECTOR_SIZE;
     if (!data.subarray(offset, offset + marker.length).equals(marker)) {
-      throw new Error(`missing marker at VOLUME.ZAD sector ${sectorIndex}`);
+      throw new Error(`missing marker at VOLUME.TM8 sector ${sectorIndex}`);
     }
   }
   return metadata(imagePath);
@@ -241,7 +241,7 @@ function manifestPath(imagePath: string): string {
 function parseArgs(argv: string[]): { imagePath: string; verifyOnly: boolean } {
   const verifyOnly = argv.includes('--verify-only');
   const imagePath =
-    argv.find((arg) => arg !== '--verify-only') ?? 'proofs/storage/zadproof-fat32.img';
+    argv.find((arg) => arg !== '--verify-only') ?? 'proofs/storage/tm8proof-fat32.img';
   return { imagePath, verifyOnly };
 }
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Run the ZAD storage-proof audit against the current Debug80 runtime.
+ * Run the TM8 storage-proof audit against the current Debug80 runtime.
  */
 
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const ZAD_ROOT = resolve(__dirname, '..');
-const STATUS_TOOL = resolve(ZAD_ROOT, 'tools/check-storage-proof-status.ts');
-const LAST_RUN = resolve(ZAD_ROOT, 'proofs/storage/last-run.json');
+const TECM8_ROOT = resolve(__dirname, '..');
+const STATUS_TOOL = resolve(TECM8_ROOT, 'tools/check-storage-proof-status.ts');
+const LAST_RUN = resolve(TECM8_ROOT, 'proofs/storage/last-run.json');
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 
 type CommandResult = {
@@ -26,7 +26,7 @@ type ProofMarker = {
 
 function runNode(args: string[]): CommandResult {
   const result = spawnSync(process.execPath, [...NODE_TS_ARGS, ...args], {
-    cwd: ZAD_ROOT,
+    cwd: TECM8_ROOT,
     encoding: 'utf8',
   });
   return {
@@ -50,17 +50,17 @@ function requirementReport(markers: ProofMarker[]) {
 
   return [
     {
-      requirement: 'Host-created VOLUME.ZAD exists on emulated/card FAT32 volume',
+      requirement: 'Host-created VOLUME.TM8 exists on emulated/card FAT32 volume',
       status: 'proven',
       evidence: 'tools/create-storage-proof-image.ts generated and verified the FAT32 image.',
     },
     {
       requirement: 'MON3 or Debug80/MON3 path opens the existing file',
       status: 'proven',
-      evidence: 'tools/run-storage-proof.ts opened VOLUME.ZAD through MON3 openFile.',
+      evidence: 'tools/run-storage-proof.ts opened VOLUME.TM8 through MON3 openFile.',
     },
     {
-      requirement: 'TEC-side code reads arbitrary 512-byte sectors inside VOLUME.ZAD',
+      requirement: 'TEC-side code reads arbitrary 512-byte sectors inside VOLUME.TM8',
       status: layoutSectorsCovered ? 'proven' : 'not-proven',
       evidence: `verified sectors: ${[...sectors].sort((a, b) => a - b).join(', ')}`,
     },

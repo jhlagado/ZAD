@@ -1,8 +1,8 @@
 {
-  "name": "zad",
+  "name": "tecm8",
   "version": "0.1.0",
   "private": true,
-  "description": "Proof and project tooling for the ZAD TEC-1G development environment.",
+  "description": "Proof and project tooling for TECM8, the TEC-1G development environment.",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "proof:storage:image": "node --experimental-strip-types tools/create-storage-proof-image.ts",

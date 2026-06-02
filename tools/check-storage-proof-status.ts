@@ -7,10 +7,10 @@ const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const ZAD_ROOT = resolve(__dirname, '..');
-const IMAGE_TOOL = resolve(ZAD_ROOT, 'tools/create-storage-proof-image.ts');
-const RUNNER = resolve(ZAD_ROOT, 'tools/run-storage-proof.ts');
-const LAST_RUN = resolve(ZAD_ROOT, 'proofs/storage/last-run.json');
+const TECM8_ROOT = resolve(__dirname, '..');
+const IMAGE_TOOL = resolve(TECM8_ROOT, 'tools/create-storage-proof-image.ts');
+const RUNNER = resolve(TECM8_ROOT, 'tools/run-storage-proof.ts');
+const LAST_RUN = resolve(TECM8_ROOT, 'proofs/storage/last-run.json');
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 
 type CommandResult = {
@@ -22,7 +22,7 @@ type CommandResult = {
 
 function run(args: string[]): CommandResult {
   const result = spawnSync(process.execPath, [...NODE_TS_ARGS, ...args], {
-    cwd: ZAD_ROOT,
+    cwd: TECM8_ROOT,
     encoding: 'utf8',
   });
   return {

@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 /**
- * Run the ZAD storage proof against Debug80's TEC-1G runtime and MON3 ROM.
+ * Run the TM8 storage proof against Debug80's TEC-1G runtime and MON3 ROM.
  *
- * This intentionally drives the same MON3 file API path ZAD expects to use:
- * openFile -> readSector -> writeSector. It does not implement ZAD FS logic.
+ * This intentionally drives the same MON3 file API path TECM8 expects to use:
+ * openFile -> readSector -> writeSector. It does not implement TM8 FS logic.
  */
 
 const { execFileSync } = require('node:child_process');
 const { existsSync, readFileSync, writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
-const ZAD_ROOT = resolve(__dirname, '..');
+const TECM8_ROOT = resolve(__dirname, '..');
 const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
 const MON3_ROM_PATH = resolve(
   process.env.MON3_ROM_PATH ?? '/Users/johnhardy/projects/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
 );
 
-const IMAGE_PATH = resolve(ZAD_ROOT, 'proofs/storage/zadproof-fat32.img');
-const IMAGE_TOOL = resolve(ZAD_ROOT, 'tools/create-storage-proof-image.ts');
+const IMAGE_PATH = resolve(TECM8_ROOT, 'proofs/storage/tm8proof-fat32.img');
+const IMAGE_TOOL = resolve(TECM8_ROOT, 'tools/create-storage-proof-image.ts');
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 
 const MON3_OPEN_FILE_ADDR = 0xf5a1;
@@ -32,11 +32,11 @@ const APP_START = 0x4000;
 const SECTOR_SIZE = 512;
 
 const MARKERS = [
-  { sector: 0, label: 'markerSuperblock', text: 'ZAD MON3 WRITE SUPERBLOCK 0000' },
-  { sector: 8, label: 'markerAlloc', text: 'ZAD MON3 WRITE ALLOC 0008' },
-  { sector: 16, label: 'markerCatalogFirst', text: 'ZAD MON3 WRITE CATALOG 0016' },
-  { sector: 79, label: 'markerCatalogLast', text: 'ZAD MON3 WRITE CATALOG 0079' },
-  { sector: 80, label: 'markerDataFirst', text: 'ZAD MON3 WRITE DATA 0080' },
+  { sector: 0, label: 'markerSuperblock', text: 'TM8 MON3 WRITE SUPERBLOCK 0000' },
+  { sector: 8, label: 'markerAlloc', text: 'TM8 MON3 WRITE ALLOC 0008' },
+  { sector: 16, label: 'markerCatalogFirst', text: 'TM8 MON3 WRITE CATALOG 0016' },
+  { sector: 79, label: 'markerCatalogLast', text: 'TM8 MON3 WRITE CATALOG 0079' },
+  { sector: 80, label: 'markerDataFirst', text: 'TM8 MON3 WRITE DATA 0080' },
 ] as const;
 const TRACE_POINTS: Record<number, string> = {
   0xf197: 'FATmount',
@@ -155,7 +155,7 @@ function buildProofProgram(): { bytes: Uint8Array; doneAddr: number } {
   jpLabel('done');
 
   label('volumeName');
-  push(...asciiZ('VOLUME.ZAD'));
+  push(...asciiZ('VOLUME.TM8'));
   for (const marker of MARKERS) {
     label(marker.label);
     push(...asciiZ(marker.text));
@@ -178,7 +178,7 @@ function buildProofProgram(): { bytes: Uint8Array; doneAddr: number } {
 
 function ensureImage(): void {
   execFileSync(process.execPath, [...NODE_TS_ARGS, IMAGE_TOOL], {
-    cwd: ZAD_ROOT,
+    cwd: TECM8_ROOT,
     stdio: 'inherit',
   });
 }
@@ -325,7 +325,7 @@ function main(): void {
   const instructions = runProof(runtime, platformRuntime, doneAddr);
   const markers = verifyMarkers();
   writeFileSync(
-    resolve(ZAD_ROOT, 'proofs/storage/last-run.json'),
+    resolve(TECM8_ROOT, 'proofs/storage/last-run.json'),
     JSON.stringify({ instructions, doneAddr, markers }, null, 2) + '\n',
     'ascii',
   );

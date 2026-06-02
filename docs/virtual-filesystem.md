@@ -7,17 +7,17 @@ sectors, and write a sector that has already been read. It does not appear to
 provide a complete DOS-style API for creating files, extending files, deleting
 files, writing long filenames, or managing subdirectories.
 
-ZAD therefore uses FAT32 as a transport layer and stores its own filesystem
+TECM8 therefore uses FAT32 as a transport layer and stores its own filesystem
 inside a single pre-existing FAT32 file.
 
 Host-visible file:
 
 ```text
-VOLUME.ZAD
+VOLUME.TM8
 ```
 
-ZAD treats that file as a private project volume. A FAT32 card can contain
-multiple ZAD volumes, but the TEC-1G normally works inside one active volume
+TECM8 treats that file as a private project volume. A FAT32 card can contain
+multiple TM8 volumes, but the TEC-1G normally works inside one active volume
 at a time.
 
 Default v1 volume sizing:
@@ -34,7 +34,7 @@ catalog size:     32K
 
 The outer FAT32 layer only needs these operations:
 
-- Open `VOLUME.ZAD`.
+- Open `VOLUME.TM8`.
 - Read sector at byte offset.
 - Write sector at byte offset.
 
@@ -117,21 +117,21 @@ Blocks do not need to be adjacent. Fragmentation is accepted initially.
 ## Prefix Table And File Catalog
 
 The catalog is flat. There are no real directories. To avoid repeating long
-path prefixes in every file entry, ZAD stores prefixes separately from local
+path prefixes in every file entry, TECM8 stores prefixes separately from local
 file names.
 
 Example logical paths:
 
 ```text
-/projects/zad/editor.z80
-/projects/zad/storage.z80
+/projects/tecm8/editor.z80
+/projects/tecm8/storage.z80
 /lib/glcd/terminal.z80
 ```
 
 These are represented internally as:
 
 ```text
-prefix id 3 = projects/zad
+prefix id 3 = projects/tecm8
   editor.z80
   storage.z80
 
@@ -175,7 +175,7 @@ max prefix length:   about 120 bytes
 Prefix strings are lowercase ASCII and omit leading/trailing slashes:
 
 ```text
-projects/zad/src/editor
+projects/tecm8/src/editor
 lib/glcd
 build
 ```
@@ -291,7 +291,7 @@ Use Unix command names.
 `mv` rewrites a path in the catalog:
 
 ```text
-mv /projects/zad/editor.z80 /projects/zad/edit.z80
+mv /projects/tecm8/editor.z80 /projects/tecm8/edit.z80
 ```
 
 No file data moves. If the destination path uses a different prefix, `mv` may
@@ -303,16 +303,16 @@ entries. That can be added later.
 
 ## Project Volumes And Imports
 
-A ZAD volume represents a project workspace. It is not intended to be a
+A TM8 volume represents a project workspace. It is not intended to be a
 general-purpose whole-card filesystem.
 
 The intended workflow is static copying:
 
 ```text
-importvol LIBS.ZAD /lib/glcd/terminal.z80 /lib/glcd/terminal.z80
+importvol LIBS.TM8 /lib/glcd/terminal.z80 /lib/glcd/terminal.z80
 ```
 
-This copies a file from another ZAD volume into the active project. After the
+This copies a file from another TM8 volume into the active project. After the
 copy, there is no live dependency relationship. This is deliberately closer to
 copying a source file into an 8-bit project than to modern package management or
 dynamic linking.
@@ -322,18 +322,18 @@ does not need to keep multiple volumes live during normal editing or building.
 
 ## Host Preservation Tools
 
-Because `VOLUME.ZAD` is opaque to a laptop, host tools are required for long-term
+Because `VOLUME.TM8` is opaque to a laptop, host tools are required for long-term
 preservation.
 
 Planned host commands:
 
 ```text
-zadfs list VOLUME.ZAD
-zadfs export VOLUME.ZAD /projects/demo/main.z80 ./main.z80
-zadfs import VOLUME.ZAD ./main.z80 /projects/demo/main.z80
-zadfs copy LIBS.ZAD:/lib/glcd/terminal.z80 VOLUME.ZAD:/lib/glcd/terminal.z80
-zadfs unpack VOLUME.ZAD ./workspace
-zadfs pack ./workspace VOLUME.ZAD
+tm8fs list VOLUME.TM8
+tm8fs export VOLUME.TM8 /projects/demo/main.z80 ./main.z80
+tm8fs import VOLUME.TM8 ./main.z80 /projects/demo/main.z80
+tm8fs copy LIBS.TM8:/lib/glcd/terminal.z80 VOLUME.TM8:/lib/glcd/terminal.z80
+tm8fs unpack VOLUME.TM8 ./workspace
+tm8fs pack ./workspace VOLUME.TM8
 ```
 
 These tools should be designed early, even if implemented later.

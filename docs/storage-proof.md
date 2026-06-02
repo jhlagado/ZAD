@@ -2,14 +2,14 @@
 
 ## Goal
 
-Prove the narrow storage assumption that ZAD depends on:
+Prove the narrow storage assumption that TECM8 depends on:
 
 ```text
-A pre-created .ZAD file can be treated as a block device by TEC-side code,
+A pre-created .TM8 file can be treated as a block device by TEC-side code,
 through the same storage path expected for the real project.
 ```
 
-This is not a filesystem proof. It proves that an existing `VOLUME.ZAD` file can
+This is not a filesystem proof. It proves that an existing `VOLUME.TM8` file can
 be opened through MON3, read in 512-byte units, written back after a read, and
 verified from the host side.
 
@@ -24,19 +24,19 @@ npm run proof:storage:check
 `tools/create-storage-proof-image.ts` creates a minimal FAT32 SD-card image at:
 
 ```text
-proofs/storage/zadproof-fat32.img
+proofs/storage/tm8proof-fat32.img
 ```
 
 The image contains one host-created root file:
 
 ```text
-VOLUME.ZAD
+VOLUME.TM8
 ```
 
 The file is 4 MiB, contiguous, and filled with recognizable 512-byte sector
 markers. The generated manifest records the exact LBAs and byte offsets.
 
-Proposed ZAD layout offsets covered by the proof:
+Proposed TECM8 layout offsets covered by the proof:
 
 ```text
 file-relative sector 0     block 0, superblock
@@ -71,7 +71,7 @@ DISK_BUFF   0600h
 
 The proof program:
 
-1. Opens `VOLUME.ZAD`.
+1. Opens `VOLUME.TM8`.
 2. Reads file-relative sectors `0`, `8`, `16`, `79`, and `80`.
 3. Copies a marker into `DISK_BUFF` after each read.
 4. Calls `writeSector` after each read.
@@ -87,12 +87,12 @@ Verified on 2026-06-02:
 
 ```text
 result: ok
-instructions: 2736755
-sector 0  offset 1134592  ZAD MON3 WRITE SUPERBLOCK 0000
-sector 8  offset 1138688  ZAD MON3 WRITE ALLOC 0008
-sector 16 offset 1142784  ZAD MON3 WRITE CATALOG 0016
-sector 79 offset 1175040  ZAD MON3 WRITE CATALOG 0079
-sector 80 offset 1175552  ZAD MON3 WRITE DATA 0080
+instructions: 2736745
+sector 0  offset 1134592  TM8 MON3 WRITE SUPERBLOCK 0000
+sector 8  offset 1138688  TM8 MON3 WRITE ALLOC 0008
+sector 16 offset 1142784  TM8 MON3 WRITE CATALOG 0016
+sector 79 offset 1175040  TM8 MON3 WRITE CATALOG 0079
+sector 80 offset 1175552  TM8 MON3 WRITE DATA 0080
 ```
 
 The runner writes the same data to `proofs/storage/last-run.json`.
@@ -114,23 +114,23 @@ Verified audit result on 2026-06-02:
 ```text
 result: ok
 storageProof.status: ok
-requirements: all ZAD storage requirements proven against the current Debug80 checkout
+requirements: all TM8 storage requirements proven against the current Debug80 checkout
 ```
 
 ## Requirement Status
 
 | Requirement | Current status |
 | --- | --- |
-| Host-created `VOLUME.ZAD` file can exist on an emulated/card FAT32 volume | Proven by `tools/create-storage-proof-image.ts`. |
+| Host-created `VOLUME.TM8` file can exist on an emulated/card FAT32 volume | Proven by `tools/create-storage-proof-image.ts`. |
 | MON3 or Debug80/MON3 path can open the existing file | Proven against the current Debug80 checkout. |
-| ZAD can read arbitrary 512-byte sectors inside the file | Proven for sectors 0, 8, 16, 79, and 80 through MON3 `readSector`. |
-| ZAD can write back sectors that were previously read | Proven for the same sectors through MON3 `writeSector`. |
+| TECM8 can read arbitrary 512-byte sectors inside the file | Proven for sectors 0, 8, 16, 79, and 80 through MON3 `readSector`. |
+| TECM8 can write back sectors that were previously read | Proven for the same sectors through MON3 `writeSector`. |
 | Writes can be verified from the host side | Proven by host byte checks in `tools/run-storage-proof.ts`, `tools/check-storage-proof-status.ts`, and `tools/audit-storage-proof.ts`. |
 | Proposed layout offsets are reliable | Proven for superblock, allocation table, catalog start/end, and first data sector. |
 
 ## Next Step
 
-Use this proof as the storage regression gate while moving on to the next ZAD
+Use this proof as the storage regression gate while moving on to the next TECM8
 storage layer:
 
 ```text

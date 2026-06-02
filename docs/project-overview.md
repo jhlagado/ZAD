@@ -1,8 +1,8 @@
-# ZAD Project Overview
+# TECM8 Project Overview
 
 ## Vision
 
-ZAD is intended to give the TEC-1G a Turbo Pascal-like development experience:
+TECM8 is intended to give the TEC-1G a Turbo Pascal-like development experience:
 edit code, save it, build it, run it, and eventually debug it from the machine
 itself.
 
@@ -16,7 +16,10 @@ strengths of a Z80 machine.
 
 ## Name
 
-`ZAD` is the working project name. The system still has two major halves:
+`TECM8` is pronounced "TecMate": a companion for the TEC. Use `TM8` where a
+short three-character identifier is needed, such as FAT 8.3 volume extensions.
+
+The system still has two major halves:
 
 - **Development workspace**: shell, filesystem, editor, assembler, build tools.
 - **Interactive debugging environment**: object loader, source map reader,
@@ -25,7 +28,7 @@ strengths of a Z80 machine.
 ## Guiding Principles
 
 - Disk is the source of truth.
-- A ZAD volume is a project workspace, not the whole mass-storage device.
+- A TM8 volume is a project workspace, not the whole mass-storage device.
 - Tools are overlays, not permanently resident applications.
 - Keep live RAM usage small by loading only the working view of a file.
 - Prefer fixed-size records and blocks where that simplifies Z80 arithmetic.
@@ -48,8 +51,8 @@ Example:
 
 ```text
 /
-> cd /projects/zad
-/projects/zad
+> cd /projects/tecm8
+/projects/tecm8
 > ls
 editor.z80
 storage.z80
@@ -95,22 +98,22 @@ Current assumptions, to be verified as work begins:
 - **Editor**: fixed-record source editor for GLCD.
 - **Import/export tools**: move files between host-visible FAT files and the
   internal virtual filesystem.
-- **Volume import tools**: copy libraries or examples from another ZAD volume
+- **Volume import tools**: copy libraries or examples from another TM8 volume
   into the active project volume as a one-off operation.
 - **Assembler/tool runner**: compile source into object and map files.
 - **Debugger**: source-aware runtime debugger, added later.
 
 ## Project Volumes
 
-The preferred model is one ZAD volume per active project.
+The preferred model is one TM8 volume per active project.
 
 The FAT32 card may contain several volumes:
 
 ```text
-VOLUME.ZAD      active project
-LIBS.ZAD       shared library sources
-DEMOS.ZAD      examples
-TETRO.ZAD      another project
+VOLUME.TM8      active project
+LIBS.TM8       shared library sources
+DEMOS.TM8      examples
+TETRO.TM8      another project
 ```
 
 The TEC-1G normally works inside one mounted volume. Files from another volume

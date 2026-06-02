@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This note records the sizing assumptions behind the current ZAD volume
+This note records the sizing assumptions behind the current TM8 volume
 proposal. The goal is to keep the limits large enough for serious TEC-1G work
 while preserving byte-sized identifiers and simple Z80 arithmetic.
 
@@ -34,7 +34,7 @@ This gives:
 
 The line count is more relevant than host file byte size, because host source
 files often contain long comments and spacing that will not map directly to the
-compact ZAD line-record format.
+compact TECM8 line-record format.
 
 ## Tetro Reference
 
@@ -72,7 +72,7 @@ space across small modules.
 ## MON3-Scale Reference
 
 The current MON3 `src` tree is a useful upper-end reference for a TEC-1G-scale
-system project. It is not organized in the style ZAD should encourage, because
+system project. It is not organized in the style TECM8 should encourage, because
 several files are large library-style monoliths.
 
 Current MON3 `src` line counts:
@@ -107,7 +107,7 @@ So even MON3-sized source occupies only about 360K before build artifacts.
 ## Decomposition Estimate
 
 The existing MON3 files are too large for comfortable GLCD editing. If split
-into smaller ZAD-style modules:
+into smaller TM8-style modules:
 
 ```text
 128-line modules: 90 files
@@ -203,7 +203,7 @@ while leaving substantial headroom.
 
 ## Build Artifact Model
 
-ZAD is expected to assemble through source-level inclusion rather than a C-like
+TECM8 is expected to assemble through source-level inclusion rather than a C-like
 compile/link pipeline.
 
 A project normally has:

@@ -1,10 +1,11 @@
-# ZAD Documentation
+# TECM8 Documentation
 
-ZAD is a self-hosted development environment for the TEC-1G. The long-term goal
+TECM8 is a self-hosted development environment for the TEC-1G. The long-term goal
 is a project workspace with a file browser, editor, assembler/tool runner, and
 eventually an interactive debugger.
 
-The name is pronounced "Zed-Ay-Dee", the Australian way to say "Z80".
+The name is spelled `TECM8` and pronounced "TecMate": a companion for the TEC.
+Use `TM8` where a short three-character identifier is needed.
 
 Install the maintained proof/tooling dependencies from the repo root:
 
