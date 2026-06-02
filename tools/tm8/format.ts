@@ -3,6 +3,7 @@ const { writeFileSync } = require('node:fs');
 const ALLOCATION_FREE = 0x0000;
 const ALLOCATION_RESERVED = 0xffff;
 const ENTRY_STATUS_FREE = 0x00;
+const ENTRY_STATUS_ACTIVE = 0x01;
 
 const TM8_FORMAT = {
   magic: 'TECM8VOL',
@@ -75,6 +76,33 @@ type Superblock = {
 type ParsedVolume = {
   superblock: Superblock;
   allocation: number[];
+  prefixes: PrefixEntry[];
+  files: FileEntry[];
+};
+
+type PrefixEntry = {
+  status: number;
+  prefixId: number;
+  prefix: string;
+};
+
+type FileEntry = {
+  status: number;
+  fileId: number;
+  prefixId: number;
+  name: string;
+  firstBlock: number;
+  size: number;
+  fileType: number;
+};
+
+type ListedFile = {
+  fileId: number;
+  path: string;
+  name: string;
+  prefix: string;
+  size: number;
+  fileType: number;
 };
 
 function putU16(buf: Buffer, offset: number, value: number): void {
@@ -259,15 +287,149 @@ function validateAllocationTail(image: Buffer): void {
   assertZeroRange(image, startOffset, endOffset, 'reserved allocation table byte');
 }
 
-function validateEmptyEntryRegion(
-  image: Buffer,
-  startBlock: number,
-  blockCount: number,
-  label: string,
-): void {
-  const startOffset = startBlock * TM8_FORMAT.blockBytes;
-  const endOffset = (startBlock + blockCount) * TM8_FORMAT.blockBytes;
-  assertZeroRange(image, startOffset, endOffset, label);
+function assertAsciiBytes(entry: Buffer, offset: number, length: number, label: string): void {
+  for (let index = 0; index < length; index += 1) {
+    const byte = entry[offset + index];
+    const isLower = byte >= 0x61 && byte <= 0x7a;
+    const isDigit = byte >= 0x30 && byte <= 0x39;
+    const isAllowedPunctuation = byte === 0x2e || byte === 0x2f || byte === 0x5f || byte === 0x2d;
+    if (!isLower && !isDigit && !isAllowedPunctuation) {
+      throw new Error(`bad ${label} byte 0x${byte.toString(16).padStart(2, '0')}`);
+    }
+  }
+}
+
+function assertPrefixText(text: string): void {
+  if (!/^[a-z0-9._/-]+$/.test(text) || text.includes('//') || text.startsWith('/') || text.endsWith('/')) {
+    throw new Error(`bad prefix: ${JSON.stringify(text)}`);
+  }
+}
+
+function assertFileNameText(text: string): void {
+  if (!/^[a-z0-9._-]+$/.test(text)) {
+    throw new Error(`bad file name: ${JSON.stringify(text)}`);
+  }
+}
+
+function assertPathText(text: string): void {
+  if (!/^[a-z0-9._/-]+$/.test(text) || text.includes('//') || text.startsWith('/') || text.endsWith('/')) {
+    throw new Error(`bad path: ${JSON.stringify(text)}`);
+  }
+}
+
+function assertInactiveEntryClean(entry: Buffer, label: string, index: number): void {
+  for (let offset = 1; offset < entry.byteLength; offset += 1) {
+    if (entry[offset] !== 0) {
+      throw new Error(`dirty inactive ${label} entry ${index} at byte ${offset}`);
+    }
+  }
+}
+
+function readAsciiField(entry: Buffer, offset: number, length: number, label: string): string {
+  assertAsciiBytes(entry, offset, length, label);
+  return entry.subarray(offset, offset + length).toString('ascii');
+}
+
+function parsePrefixEntries(image: Buffer): PrefixEntry[] {
+  const startOffset = TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes;
+  const prefixes: PrefixEntry[] = [];
+  const seen = new Set<number>();
+
+  for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
+    const offset = startOffset + index * TM8_FORMAT.prefixEntrySize;
+    const entry = image.subarray(offset, offset + TM8_FORMAT.prefixEntrySize);
+    const status = entry[TM8_PREFIX_ENTRY.statusOffset];
+
+    if (status === ENTRY_STATUS_FREE) {
+      assertInactiveEntryClean(entry, 'prefix', index);
+      continue;
+    }
+
+    if (status !== ENTRY_STATUS_ACTIVE) {
+      throw new Error(`bad prefix entry status ${status} at entry ${index}`);
+    }
+
+    const prefixId = entry[TM8_PREFIX_ENTRY.prefixIdOffset];
+    const length = entry[TM8_PREFIX_ENTRY.lengthOffset];
+    if (prefixId === 0 || seen.has(prefixId)) {
+      throw new Error(`bad prefix id ${prefixId} at entry ${index}`);
+    }
+    if (length < 1 || length > TM8_PREFIX_ENTRY.textBytes) {
+      throw new Error(`bad prefix length ${length} at entry ${index}`);
+    }
+
+    const prefix = readAsciiField(entry, TM8_PREFIX_ENTRY.textOffset, length, 'prefix');
+    assertPrefixText(prefix);
+    assertZeroRange(
+      entry,
+      TM8_PREFIX_ENTRY.textOffset + length,
+      TM8_PREFIX_ENTRY.reservedOffset + TM8_PREFIX_ENTRY.reservedBytes,
+      `prefix entry ${index} unused byte`,
+    );
+
+    seen.add(prefixId);
+    prefixes.push({ status, prefixId, prefix });
+  }
+
+  return prefixes;
+}
+
+function parseFileEntries(image: Buffer, prefixes: PrefixEntry[]): FileEntry[] {
+  const startOffset = TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes;
+  const knownPrefixIds = new Set([0, ...prefixes.map((prefix) => prefix.prefixId)]);
+  const files: FileEntry[] = [];
+
+  for (let index = 0; index < TM8_FORMAT.catalogEntryCount; index += 1) {
+    const offset = startOffset + index * TM8_FORMAT.catalogEntrySize;
+    const entry = image.subarray(offset, offset + TM8_FORMAT.catalogEntrySize);
+    const status = entry[TM8_CATALOG_ENTRY.statusOffset];
+
+    if (status === ENTRY_STATUS_FREE) {
+      assertInactiveEntryClean(entry, 'file', index);
+      continue;
+    }
+
+    if (status !== ENTRY_STATUS_ACTIVE) {
+      throw new Error(`bad file entry status ${status} at entry ${index}`);
+    }
+
+    const fileId = entry[TM8_CATALOG_ENTRY.fileIdOffset];
+    const prefixId = entry[TM8_CATALOG_ENTRY.prefixIdOffset];
+    const nameLength = entry[TM8_CATALOG_ENTRY.nameLengthOffset];
+    if (!knownPrefixIds.has(prefixId)) {
+      throw new Error(`unknown prefix id ${prefixId} at file entry ${index}`);
+    }
+    if (nameLength < 1 || nameLength > TM8_CATALOG_ENTRY.nameBytes) {
+      throw new Error(`bad file name length ${nameLength} at entry ${index}`);
+    }
+
+    const name = readAsciiField(entry, TM8_CATALOG_ENTRY.nameOffset, nameLength, 'file name');
+    assertFileNameText(name);
+    assertZeroRange(
+      entry,
+      TM8_CATALOG_ENTRY.nameOffset + nameLength,
+      TM8_CATALOG_ENTRY.firstBlockOffset,
+      `file entry ${index} unused name byte`,
+    );
+    assertZeroRange(
+      entry,
+      TM8_CATALOG_ENTRY.reservedOffset,
+      TM8_CATALOG_ENTRY.reservedOffset + TM8_CATALOG_ENTRY.reservedBytes,
+      `file entry ${index} reserved byte`,
+    );
+
+    files.push({
+      status,
+      fileId,
+      prefixId,
+      name,
+      firstBlock: readU16(entry, TM8_CATALOG_ENTRY.firstBlockOffset),
+      size: readU32(entry, TM8_CATALOG_ENTRY.fileSizeOffset),
+      fileType: entry[TM8_CATALOG_ENTRY.fileTypeOffset],
+    });
+  }
+
+  return files;
 }
 
 function parseVolumeImage(image: Buffer): ParsedVolume {
@@ -281,23 +443,56 @@ function parseVolumeImage(image: Buffer): ParsedVolume {
   const allocation = parseAllocation(image);
   validateAllocation(allocation);
   validateAllocationTail(image);
-  validateEmptyEntryRegion(
-    image,
-    TM8_FORMAT.prefixStartBlock,
-    TM8_FORMAT.prefixBlockCount,
-    'prefix table byte',
-  );
-  validateEmptyEntryRegion(
-    image,
-    TM8_FORMAT.catalogStartBlock,
-    TM8_FORMAT.catalogBlockCount,
-    'file catalog byte',
-  );
+  const prefixes = parsePrefixEntries(image);
+  const files = parseFileEntries(image, prefixes);
 
   return {
     superblock,
     allocation,
+    prefixes,
+    files,
   };
+}
+
+function normalizePrefixPath(path: string): string {
+  if (path === '/') {
+    return '';
+  }
+  if (!path.startsWith('/')) {
+    throw new Error(`TM8 paths must start with /: ${path}`);
+  }
+  const prefix = path.replace(/^\/+|\/+$/g, '');
+  assertPathText(prefix);
+  return prefix;
+}
+
+function listVolumePath(volume: ParsedVolume, path: string): ListedFile[] {
+  const prefix = normalizePrefixPath(path);
+  const prefixById = new Map(volume.prefixes.map((entry) => [entry.prefixId, entry.prefix]));
+  let targetPrefixId = 0;
+
+  if (prefix !== '') {
+    const match = volume.prefixes.find((entry) => entry.prefix === prefix);
+    if (!match) {
+      return [];
+    }
+    targetPrefixId = match.prefixId;
+  }
+
+  return volume.files
+    .filter((file) => file.prefixId === targetPrefixId)
+    .map((file) => {
+      const filePrefix = file.prefixId === 0 ? '' : prefixById.get(file.prefixId) ?? '';
+      const fullPath = `/${filePrefix ? `${filePrefix}/` : ''}${file.name}`;
+      return {
+        fileId: file.fileId,
+        path: fullPath,
+        name: file.name,
+        prefix: filePrefix,
+        size: file.size,
+        fileType: file.fileType,
+      };
+    });
 }
 
 function formatVolumeFile(path: string, options: { overwrite?: boolean } = {}): void {
@@ -314,11 +509,13 @@ function formatVolumeFile(path: string, options: { overwrite?: boolean } = {}): 
 module.exports = {
   ALLOCATION_FREE,
   ALLOCATION_RESERVED,
+  ENTRY_STATUS_ACTIVE,
   ENTRY_STATUS_FREE,
   TM8_CATALOG_ENTRY,
   TM8_FORMAT,
   TM8_PREFIX_ENTRY,
   createVolumeImage,
   formatVolumeFile,
+  listVolumePath,
   parseVolumeImage,
 };

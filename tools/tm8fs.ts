@@ -2,10 +2,11 @@
 
 const { readFileSync } = require('node:fs');
 
-const { formatVolumeFile, parseVolumeImage } = require('./tm8/format.ts');
+const { formatVolumeFile, listVolumePath, parseVolumeImage } = require('./tm8/format.ts');
 
 function usage(): never {
   console.error('usage: tm8fs <format|info> VOLUME.TM8');
+  console.error('       tm8fs ls VOLUME.TM8 /path');
   process.exit(2);
 }
 
@@ -29,19 +30,40 @@ function printInfo(path: string): void {
   console.log(JSON.stringify(info, null, 2));
 }
 
+function printListing(volumePath: string, path: string): void {
+  const volume = parseVolumeImage(readFileSync(volumePath));
+  for (const entry of listVolumePath(volume, path)) {
+    console.log(entry.name);
+  }
+}
+
 function main(argv: string[]): void {
-  const [command, path] = argv;
-  if (argv.length !== 2 || !command || !path) {
+  const [command, path, tm8Path] = argv;
+  if (!command || !path) {
     usage();
   }
 
   if (command === 'format') {
+    if (argv.length !== 2) {
+      usage();
+    }
     formatVolumeFile(path);
     return;
   }
 
   if (command === 'info') {
+    if (argv.length !== 2) {
+      usage();
+    }
     printInfo(path);
+    return;
+  }
+
+  if (command === 'ls') {
+    if (argv.length !== 3 || !tm8Path) {
+      usage();
+    }
+    printListing(path, tm8Path);
     return;
   }
 

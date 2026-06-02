@@ -85,6 +85,16 @@ offset  size  field
 124     4     reserved
 ```
 
+Valid version 1 prefix status values:
+
+```text
+0x00 = free/inactive entry; all remaining entry bytes must be zero
+0x01 = active prefix entry
+```
+
+Prefix id `0` is reserved for the implicit root prefix and is not stored as an
+active prefix-table entry.
+
 ## File Catalog
 
 The file catalog occupies blocks 6-9. It contains 256 entries of 64 bytes.
@@ -104,6 +114,16 @@ offset  size  field
 51      13    reserved
 ```
 
+Valid version 1 file status values:
+
+```text
+0x00 = free/inactive entry; all remaining entry bytes must be zero
+0x01 = active file entry
+```
+
+File entries with prefix id `0` are in the root prefix. Other prefix ids must
+refer to active prefix-table entries.
+
 ## Host Commands
 
 The first host-verifiable commands are:
@@ -111,8 +131,11 @@ The first host-verifiable commands are:
 ```text
 node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
+node --experimental-strip-types tools/tm8fs.ts ls VOLUME.TM8 /
 ```
 
 `format` refuses to overwrite an existing file. `info` verifies the superblock,
-checksum, allocation table, and empty formatted prefix/catalog regions, then
-reports the volume layout as JSON.
+checksum, allocation table, prefix table entries, and file catalog entries, then
+reports the volume layout as JSON. `ls` parses the prefix table and file catalog
+and prints matching local filenames, one per line. A freshly formatted volume
+lists `/` successfully with no output.

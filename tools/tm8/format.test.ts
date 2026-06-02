@@ -8,11 +8,46 @@ const { test } = require('node:test');
 const {
   ALLOCATION_FREE,
   ALLOCATION_RESERVED,
+  ENTRY_STATUS_ACTIVE,
+  ENTRY_STATUS_FREE,
   TM8_FORMAT,
   createVolumeImage,
   formatVolumeFile,
+  listVolumePath,
   parseVolumeImage,
 } = require('./format.ts');
+
+function writeCatalogEntry(
+  image: Buffer,
+  index: number,
+  options: { fileId: number; prefixId: number; name: string; size?: number; fileType?: number },
+): void {
+  const offset =
+    TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes +
+    index * TM8_FORMAT.catalogEntrySize;
+  image[offset] = ENTRY_STATUS_ACTIVE;
+  image[offset + 1] = options.fileId;
+  image[offset + 2] = options.prefixId;
+  image[offset + 3] = options.name.length;
+  image.set(Buffer.from(options.name, 'ascii'), offset + 4);
+  image.writeUInt16LE(0, offset + 44);
+  image.writeUInt32LE(options.size ?? 0, offset + 46);
+  image[offset + 50] = options.fileType ?? 1;
+}
+
+function writePrefixEntry(
+  image: Buffer,
+  index: number,
+  options: { prefixId: number; prefix: string },
+): void {
+  const offset =
+    TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes +
+    index * TM8_FORMAT.prefixEntrySize;
+  image[offset] = ENTRY_STATUS_ACTIVE;
+  image[offset + 1] = options.prefixId;
+  image[offset + 2] = options.prefix.length;
+  image.set(Buffer.from(options.prefix, 'ascii'), offset + 3);
+}
 
 test('formats and parses the default 4 MiB TM8 volume layout', () => {
   const image = createVolumeImage();
@@ -125,12 +160,22 @@ test('rejects non-zero reserved allocation table tail bytes', () => {
 
 test('rejects non-zero formatted prefix and catalog regions', () => {
   const corruptedPrefix = createVolumeImage();
-  corruptedPrefix[TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes] = 1;
-  assert.throws(() => parseVolumeImage(corruptedPrefix), /non-zero prefix table byte/);
+  corruptedPrefix[TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes + 1] = 1;
+  assert.throws(() => parseVolumeImage(corruptedPrefix), /dirty inactive prefix entry/);
 
   const corruptedCatalog = createVolumeImage();
-  corruptedCatalog[TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes] = 1;
-  assert.throws(() => parseVolumeImage(corruptedCatalog), /non-zero file catalog byte/);
+  corruptedCatalog[TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes + 1] = 1;
+  assert.throws(() => parseVolumeImage(corruptedCatalog), /dirty inactive file entry/);
+});
+
+test('rejects malformed prefix and catalog entry status bytes', () => {
+  const badPrefixStatus = createVolumeImage();
+  badPrefixStatus[TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes] = 0x02;
+  assert.throws(() => parseVolumeImage(badPrefixStatus), /bad prefix entry status/);
+
+  const badCatalogStatus = createVolumeImage();
+  badCatalogStatus[TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes] = 0x02;
+  assert.throws(() => parseVolumeImage(badCatalogStatus), /bad file entry status/);
 });
 
 test('rejects non-zero reserved superblock bytes even with a valid checksum', () => {
@@ -167,6 +212,123 @@ test('writes a formatted volume file that can be read back', () => {
   }
 });
 
+test('lists an empty root path on a freshly formatted volume', () => {
+  const volume = parseVolumeImage(createVolumeImage());
+
+  assert.deepEqual(listVolumePath(volume, '/'), []);
+});
+
+test('lists active root catalog entries by local filename', () => {
+  const image = createVolumeImage();
+  writeCatalogEntry(image, 0, {
+    fileId: 7,
+    prefixId: 0,
+    name: 'main.z80',
+    size: 123,
+    fileType: 1,
+  });
+
+  const listing = listVolumePath(parseVolumeImage(image), '/');
+
+  assert.deepEqual(listing, [
+    {
+      fileId: 7,
+      path: '/main.z80',
+      name: 'main.z80',
+      prefix: '',
+      size: 123,
+      fileType: 1,
+    },
+  ]);
+});
+
+test('lists active entries under a stored prefix', () => {
+  const image = createVolumeImage();
+  writePrefixEntry(image, 0, {
+    prefixId: 3,
+    prefix: 'projects/demo',
+  });
+  writeCatalogEntry(image, 0, {
+    fileId: 8,
+    prefixId: 3,
+    name: 'main.z80',
+    size: 456,
+    fileType: 1,
+  });
+
+  const listing = listVolumePath(parseVolumeImage(image), '/projects/demo');
+
+  assert.deepEqual(listing, [
+    {
+      fileId: 8,
+      path: '/projects/demo/main.z80',
+      name: 'main.z80',
+      prefix: 'projects/demo',
+      size: 456,
+      fileType: 1,
+    },
+  ]);
+});
+
+test('rejects malformed active file entries', () => {
+  const emptyName = createVolumeImage();
+  writeCatalogEntry(emptyName, 0, {
+    fileId: 1,
+    prefixId: 0,
+    name: '',
+  });
+  assert.throws(() => parseVolumeImage(emptyName), /bad file name length/);
+
+  const missingPrefix = createVolumeImage();
+  writeCatalogEntry(missingPrefix, 0, {
+    fileId: 1,
+    prefixId: 9,
+    name: 'main.z80',
+  });
+  assert.throws(() => parseVolumeImage(missingPrefix), /unknown prefix id 9/);
+
+  const slashName = createVolumeImage();
+  writeCatalogEntry(slashName, 0, {
+    fileId: 1,
+    prefixId: 0,
+    name: 'foo/bar',
+  });
+  assert.throws(() => parseVolumeImage(slashName), /bad file name/);
+
+  const highBitName = createVolumeImage();
+  writeCatalogEntry(highBitName, 0, {
+    fileId: 1,
+    prefixId: 0,
+    name: 'main.z80',
+  });
+  highBitName[TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes + 4] = 0xe1;
+  assert.throws(() => parseVolumeImage(highBitName), /bad file name byte/);
+});
+
+test('rejects malformed active prefix entries', () => {
+  const leadingSlash = createVolumeImage();
+  writePrefixEntry(leadingSlash, 0, {
+    prefixId: 1,
+    prefix: '/projects',
+  });
+  assert.throws(() => parseVolumeImage(leadingSlash), /bad prefix/);
+
+  const trailingSlash = createVolumeImage();
+  writePrefixEntry(trailingSlash, 0, {
+    prefixId: 1,
+    prefix: 'projects/',
+  });
+  assert.throws(() => parseVolumeImage(trailingSlash), /bad prefix/);
+
+  const highBitPrefix = createVolumeImage();
+  writePrefixEntry(highBitPrefix, 0, {
+    prefixId: 1,
+    prefix: 'projects',
+  });
+  highBitPrefix[TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes + 3] = 0xe1;
+  assert.throws(() => parseVolumeImage(highBitPrefix), /bad prefix byte/);
+});
+
 test('refuses to overwrite an existing volume file by default', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-format-'));
   try {
@@ -197,6 +359,24 @@ test('tm8fs rejects extra CLI arguments', () => {
         ),
       /usage: tm8fs <format\|info> VOLUME\.TM8/,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('tm8fs lists an empty root path', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const file = join(dir, 'VOLUME.TM8');
+    formatVolumeFile(file);
+
+    const output = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/'],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+
+    assert.equal(output, '');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
