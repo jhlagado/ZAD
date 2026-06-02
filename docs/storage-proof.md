@@ -13,10 +13,10 @@ This is not a filesystem proof. It proves that an existing `VOLUME.ZAD` file can
 be opened through MON3, read in 512-byte units, written back after a read, and
 verified from the host side.
 
-Run the TypeScript proof tools with Node's type-strip flag:
+Run the maintained storage proof check from the repo root:
 
 ```text
-node --experimental-strip-types tools/check-storage-proof-status.ts --strict
+npm run proof:storage:check
 ```
 
 ## Test Image
@@ -49,8 +49,8 @@ file-relative sector 80    block 10, first data sector
 Create and verify a pristine image:
 
 ```text
-node --experimental-strip-types tools/create-storage-proof-image.ts
-node --experimental-strip-types tools/create-storage-proof-image.ts --verify-only
+npm run proof:storage:image
+npm run proof:storage:image:verify
 ```
 
 `--verify-only` checks the pristine generated markers. After the MON3 proof has
@@ -80,7 +80,7 @@ The proof program:
 Run it:
 
 ```text
-node --experimental-strip-types tools/run-storage-proof.ts
+npm run proof:storage
 ```
 
 Verified on 2026-06-02:
@@ -100,13 +100,13 @@ The runner writes the same data to `proofs/storage/last-run.json`.
 Run the current-status check:
 
 ```text
-node --experimental-strip-types tools/check-storage-proof-status.ts --strict
+npm run proof:storage:check
 ```
 
 Run the complete proof audit with requirement-by-requirement evidence:
 
 ```text
-node --experimental-strip-types tools/audit-storage-proof.ts
+npm run audit:storage
 ```
 
 Verified audit result on 2026-06-02:
@@ -134,5 +134,5 @@ Use this proof as the storage regression gate while moving on to the next ZAD
 storage layer:
 
 ```text
-node --experimental-strip-types tools/check-storage-proof-status.ts --strict
+npm run proof:storage:check
 ```

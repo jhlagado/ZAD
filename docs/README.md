@@ -6,6 +6,21 @@ eventually an interactive debugger.
 
 The name is pronounced "Zed-Ay-Dee", the Australian way to say "Z80".
 
+Install the maintained proof/tooling dependencies from the repo root:
+
+```text
+npm install
+```
+
+Useful project commands:
+
+```text
+npm run check
+npm run proof:storage:check
+npm run audit:storage
+npm run quality
+```
+
 Start here:
 
 - [Project Overview](project-overview.md)
