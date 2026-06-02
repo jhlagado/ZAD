@@ -12,8 +12,15 @@ const { resolve } = require('node:path');
 
 const TECM8_ROOT = resolve(__dirname, '..');
 const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
+const MON3_ROM_CANDIDATES = [
+  resolve(DEBUG80_ROOT, 'resources/bundles/tec1g/mon3/v1/mon3.bin'),
+  '/Users/johnhardy/projects/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
+  '/Users/johnhardy/projects/2026/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
+];
 const MON3_ROM_PATH = resolve(
-  process.env.MON3_ROM_PATH ?? '/Users/johnhardy/projects/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
+  process.env.MON3_ROM_PATH ??
+    MON3_ROM_CANDIDATES.find((path: string) => existsSync(path)) ??
+    MON3_ROM_CANDIDATES[0],
 );
 
 const IMAGE_PATH = resolve(TECM8_ROOT, 'proofs/storage/tm8proof-fat32.img');

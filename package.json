@@ -5,13 +5,15 @@
   "description": "Proof and project tooling for TECM8, the TEC-1G development environment.",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tools/**/*.test.ts",
+    "tm8fs": "node --experimental-strip-types tools/tm8fs.ts",
     "proof:storage:image": "node --experimental-strip-types tools/create-storage-proof-image.ts",
     "proof:storage:image:verify": "node --experimental-strip-types tools/create-storage-proof-image.ts --verify-only",
     "proof:storage": "node --experimental-strip-types tools/run-storage-proof.ts",
     "proof:storage:check": "node --experimental-strip-types tools/check-storage-proof-status.ts --strict",
     "audit:storage": "node --experimental-strip-types tools/audit-storage-proof.ts",
     "quality": "fallow --root . --skip dead-code || true",
-    "check": "npm run typecheck && npm run proof:storage:check && npm run audit:storage"
+    "check": "npm run typecheck && npm run test && npm run proof:storage:check && npm run audit:storage"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

@@ -1,0 +1,118 @@
+# Workspace Disk Format
+
+`VOLUME.TM8` is a fixed-size TECM8 project volume stored inside a host-visible
+FAT32 file. Version 1 is deliberately small and byte-stable so the same image
+can be produced and checked by host tools before Z80 filesystem code exists.
+
+## Version 1 Defaults
+
+```text
+volume size:       4 MiB
+sector size:       512 bytes
+block size:        4096 bytes
+total blocks:      1024
+file entries:      256
+prefix entries:    128
+```
+
+## Block Layout
+
+```text
+block 0      superblock
+block 1      allocation table
+blocks 2-5   prefix table
+blocks 6-9   file catalog
+blocks 10-n  file data
+```
+
+The allocation table has one 16-bit little-endian entry per 4K block:
+
+```text
+0x0000 = free block
+0xffff = reserved block or end-of-file marker
+other  = next block number in a file chain
+```
+
+After formatting, blocks 0-9 are marked `0xffff`; blocks 10-1023 are `0x0000`.
+The remaining 2048 bytes in the 4K allocation table block are reserved and
+zero-filled.
+
+## Superblock
+
+The superblock occupies block 0. Version 1 stores the defined fields in the
+first 512 bytes and leaves the rest of the 4K block zero-filled.
+
+```text
+offset  size  field
+0       8     magic, ASCII "TECM8VOL"
+8       2     format version, uint16le, currently 1
+10      2     sector bytes, uint16le
+12      2     block bytes, uint16le
+14      2     total blocks, uint16le
+16      4     volume bytes, uint32le
+20      2     allocation table start block, uint16le
+22      2     allocation table block count, uint16le
+24      2     prefix table start block, uint16le
+26      2     prefix table block count, uint16le
+28      2     prefix entry size, uint16le
+30      2     prefix entry count, uint16le
+32      2     catalog start block, uint16le
+34      2     catalog block count, uint16le
+36      2     catalog entry size, uint16le
+38      2     catalog entry count, uint16le
+40      2     first data block, uint16le
+42      2     free block count, uint16le
+44      28    reserved, zero-filled
+72      4     superblock checksum, uint32le
+76      436   reserved, zero-filled
+```
+
+The checksum is the unsigned 32-bit sum of bytes 0-511 with the checksum field
+at offset 72 treated as zero.
+
+## Prefix Table
+
+The prefix table occupies blocks 2-5. It contains 128 entries of 128 bytes.
+Formatted entries are zero-filled and therefore inactive. These are the version
+1 entry fields.
+
+```text
+offset  size  field
+0       1     status/type, 0 means free
+1       1     prefix id
+2       1     prefix string length
+3       121   lowercase ASCII prefix string without leading/trailing slash
+124     4     reserved
+```
+
+## File Catalog
+
+The file catalog occupies blocks 6-9. It contains 256 entries of 64 bytes.
+Formatted entries are zero-filled and therefore inactive. These are the version
+1 entry fields.
+
+```text
+offset  size  field
+0       1     status/type, 0 means free
+1       1     file id
+2       1     prefix id
+3       1     local filename length
+4       40    lowercase ASCII local filename
+44      2     first block, uint16le
+46      4     file size in bytes, uint32le
+50      1     file format/type
+51      13    reserved
+```
+
+## Host Commands
+
+The first host-verifiable commands are:
+
+```text
+node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
+node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
+```
+
+`format` refuses to overwrite an existing file. `info` verifies the superblock,
+checksum, allocation table, and empty formatted prefix/catalog regions, then
+reports the volume layout as JSON.
