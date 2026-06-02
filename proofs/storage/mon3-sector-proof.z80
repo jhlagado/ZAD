@@ -1,0 +1,105 @@
+; ZAD storage proof sketch for MON3.
+;
+; Purpose:
+;   Exercise MON3's existing FAT32 file path against a pre-created VOLUME.ZAD
+;   file. This is intentionally a small proof, not the start of the filesystem.
+;
+; Calling convention used by tools/run-storage-proof.ts:
+;   openFile:    HL = zero-terminated filename
+;   readSector:  HLDE = byte offset within the open file, DISK_BUFF gets 512 bytes
+;   writeSector: requires readSector first, then writes DISK_BUFF back
+;
+; Matching MON3 ROM addresses from mon3.lst:
+;   openFile    F5A1h
+;   readSector  F5D5h
+;   writeSector F66Dh
+
+MON3_OPEN_FILE    .equ 0F5A1H
+MON3_READ_SECTOR  .equ 0F5D5H
+MON3_WRITE_SECTOR .equ 0F66DH
+DISK_BUFF         .equ 0600H
+
+        .org 4000H
+
+start:
+        ; Open host-created root file VOLUME.ZAD.
+        ld hl,volume_name
+        call MON3_OPEN_FILE
+
+        ; File-relative sector 0: proposed ZAD superblock.
+        ld hl,0000H
+        ld de,0000H
+        call patch_sector
+        ld hl,marker_superblock
+        ld bc,marker_superblock_end-marker_superblock
+        call write_marker
+
+        ; File-relative sector 8: proposed ZAD allocation table block.
+        ld hl,0000H
+        ld de,1000H
+        call patch_sector
+        ld hl,marker_alloc
+        ld bc,marker_alloc_end-marker_alloc
+        call write_marker
+
+        ; File-relative sector 16: first proposed catalog sector.
+        ld hl,0000H
+        ld de,2000H
+        call patch_sector
+        ld hl,marker_catalog_first
+        ld bc,marker_catalog_first_end-marker_catalog_first
+        call write_marker
+
+        ; File-relative sector 79: last proposed catalog sector.
+        ld hl,0000H
+        ld de,9E00H
+        call patch_sector
+        ld hl,marker_catalog_last
+        ld bc,marker_catalog_last_end-marker_catalog_last
+        call write_marker
+
+        ; File-relative sector 80: first proposed data sector.
+        ld hl,0000H
+        ld de,0A000H
+        call patch_sector
+        ld hl,marker_data_first
+        ld bc,marker_data_first_end-marker_data_first
+        call write_marker
+
+done:
+        jp done
+
+patch_sector:
+        ; Input: HLDE = file-relative byte offset.
+        call MON3_READ_SECTOR
+        ret
+
+write_marker:
+        ; Input: HL = marker, BC = marker length.
+        ld de,DISK_BUFF
+        ldir
+        call MON3_WRITE_SECTOR
+        ret
+
+volume_name:
+        .db "VOLUME.ZAD",0
+
+marker_superblock:
+        .db "ZAD MON3 WRITE SUPERBLOCK 0000",0
+marker_superblock_end:
+
+marker_alloc:
+        .db "ZAD MON3 WRITE ALLOC 0008",0
+marker_alloc_end:
+
+marker_catalog_first:
+        .db "ZAD MON3 WRITE CATALOG 0016",0
+marker_catalog_first_end:
+
+marker_catalog_last:
+        .db "ZAD MON3 WRITE CATALOG 0079",0
+marker_catalog_last_end:
+
+marker_data_first:
+        .db "ZAD MON3 WRITE DATA 0080",0
+marker_data_first_end:
