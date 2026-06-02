@@ -1,6 +1,6 @@
 const { strict: assert } = require('node:assert');
 const { execFileSync } = require('node:child_process');
-const { mkdtempSync, readFileSync, rmSync } = require('node:fs');
+const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { test } = require('node:test');
@@ -17,6 +17,7 @@ const {
   formatVolumeFile,
   listVolumePath,
   parseVolumeImage,
+  readFileFromVolumeImage,
 } = require('./format.ts');
 
 function writeU16(image: Buffer, offset: number, value: number): void {
@@ -83,6 +84,48 @@ function writePrefixEntry(
   image[offset + 1] = options.prefixId;
   image[offset + 2] = options.prefix.length;
   image.set(Buffer.from(options.prefix, 'ascii'), offset + 3);
+}
+
+function writeFileSize(image: Buffer, catalogIndex: number, size: number): void {
+  const offset =
+    TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes +
+    catalogIndex * TM8_FORMAT.catalogEntrySize +
+    46;
+  image.writeUInt32LE(size >>> 0, offset);
+}
+
+function writeFileContent(image: Buffer, path: string, content: Buffer): Buffer {
+  let updated = createFileInVolumeImage(image, path);
+  const firstBlock = parseVolumeImage(updated).files[0].firstBlock;
+  updated.set(content.subarray(0, TM8_FORMAT.blockBytes), firstBlock * TM8_FORMAT.blockBytes);
+  writeFileSize(updated, 0, content.byteLength);
+  return updated;
+}
+
+function writeTwoBlockFileContent(image: Buffer, path: string, content: Buffer): Buffer {
+  let updated = createFileInVolumeImage(image, path);
+  const volume = parseVolumeImage(updated);
+  const firstBlock = volume.files[0].firstBlock;
+  const secondBlock = firstBlock + 1;
+  writeU16(
+    updated,
+    TM8_FORMAT.allocationStartBlock * TM8_FORMAT.blockBytes + firstBlock * 2,
+    secondBlock,
+  );
+  writeU16(
+    updated,
+    TM8_FORMAT.allocationStartBlock * TM8_FORMAT.blockBytes + secondBlock * 2,
+    ALLOCATION_END,
+  );
+  rewriteFreeBlockCount(updated, volume.superblock.freeBlockCount - 1);
+  updated.set(content.subarray(0, TM8_FORMAT.blockBytes), firstBlock * TM8_FORMAT.blockBytes);
+  updated.set(
+    content.subarray(TM8_FORMAT.blockBytes),
+    secondBlock * TM8_FORMAT.blockBytes,
+  );
+  writeFileSize(updated, 0, content.byteLength);
+  parseVolumeImage(updated);
+  return updated;
 }
 
 test('formats and parses the default 4 MiB TM8 volume layout', () => {
@@ -391,6 +434,19 @@ test('rejects active file entries with invalid block chains', () => {
   assert.throws(() => parseVolumeImage(sharedBlock), /shared file block/);
 });
 
+test('rejects file sizes larger than their allocated block chains', () => {
+  const image = createVolumeImage();
+  writeCatalogEntry(image, 0, {
+    fileId: 1,
+    prefixId: 0,
+    name: 'too-big.bin',
+    size: TM8_FORMAT.blockBytes + 1,
+    firstBlock: TM8_FORMAT.dataStartBlock,
+  });
+
+  assert.throws(() => parseVolumeImage(image), /exceeds allocated block chain/);
+});
+
 test('rejects duplicate active catalog paths', () => {
   const image = createVolumeImage();
   writeCatalogEntry(image, 0, {
@@ -631,6 +687,77 @@ test('tm8fs new creates a file that can be listed', () => {
     );
 
     assert.equal(output, 'main.z80\n');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('reads root and prefixed file contents exactly', () => {
+  const rootContent = Buffer.from('root file\n', 'utf8');
+  const rootImage = writeFileContent(createVolumeImage(), '/main.z80', rootContent);
+  assert.deepEqual(readFileFromVolumeImage(rootImage, '/main.z80'), rootContent);
+
+  const prefixedContent = Buffer.from('prefixed file\n', 'utf8');
+  const prefixedImage = writeFileContent(
+    createVolumeImage(),
+    '/projects/demo/main.z80',
+    prefixedContent,
+  );
+  assert.deepEqual(
+    readFileFromVolumeImage(prefixedImage, '/projects/demo/main.z80'),
+    prefixedContent,
+  );
+});
+
+test('reads zero-length files created by new as empty output', () => {
+  const image = createFileInVolumeImage(createVolumeImage(), '/empty.z80');
+
+  assert.deepEqual(readFileFromVolumeImage(image, '/empty.z80'), Buffer.alloc(0));
+});
+
+test('reads exact bytes across a multi-block file chain', () => {
+  const content = Buffer.alloc(TM8_FORMAT.blockBytes + 17);
+  for (let index = 0; index < content.byteLength; index += 1) {
+    content[index] = index & 0xff;
+  }
+  const image = writeTwoBlockFileContent(createVolumeImage(), '/big.bin', content);
+
+  assert.deepEqual(readFileFromVolumeImage(image, '/big.bin'), content);
+});
+
+test('rejects missing and malformed cat paths', () => {
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+
+  assert.throws(() => readFileFromVolumeImage(image, '/missing.z80'), /file not found/);
+  assert.throws(() => readFileFromVolumeImage(image, 'main.z80'), /TM8 paths must start with/);
+  assert.throws(() => readFileFromVolumeImage(image, '/bad/name/'), /missing local filename/);
+});
+
+test('tm8fs cat prints file contents and zero-length files', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const file = join(dir, 'VOLUME.TM8');
+    const content = Buffer.from('hello from tm8\n', 'utf8');
+    writeFileSync(file, writeFileContent(createVolumeImage(), '/hello.txt', content));
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'new', file, '/empty.txt'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    const output = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/hello.txt'],
+      { cwd: process.cwd() },
+    );
+    const emptyOutput = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/empty.txt'],
+      { cwd: process.cwd() },
+    );
+
+    assert.deepEqual(output, content);
+    assert.equal(emptyOutput.byteLength, 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

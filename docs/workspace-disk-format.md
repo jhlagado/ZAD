@@ -128,7 +128,8 @@ byte.
 
 For active file entries, `first block` must refer to a data block whose
 allocation-table entry is not free. Block chains must end with `0xffff`, must
-not cycle, and must not share blocks with another active file.
+not cycle, must not share blocks with another active file, and must provide
+enough block capacity for the stored file size.
 
 ## Host Commands
 
@@ -139,6 +140,7 @@ node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/tm8fs.ts ls VOLUME.TM8 /
+node --experimental-strip-types tools/tm8fs.ts cat VOLUME.TM8 /path/file
 ```
 
 `format` refuses to overwrite an existing file. `info` verifies the superblock,
@@ -149,4 +151,6 @@ does not exist, allocates one 4K data block, initializes that block to zero,
 stores a zero-length file catalog entry, and updates the allocation table and
 free-block count. `ls` parses the prefix table and file catalog and prints
 matching local filenames, one per line. A freshly formatted volume lists `/`
-successfully with no output.
+successfully with no output. `cat` resolves a file path, walks the validated
+allocation block chain, and writes exactly the file's stored byte count to
+stdout.

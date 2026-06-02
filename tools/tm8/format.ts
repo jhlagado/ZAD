@@ -499,6 +499,13 @@ function validateFileBlockChains(files: FileEntry[], allocation: number[]): void
       }
       block = nextBlock;
     }
+
+    const capacity = localBlocks.size * TM8_FORMAT.blockBytes;
+    if (file.size > capacity) {
+      throw new Error(
+        `file entry ${fileIndex} size ${file.size} exceeds allocated block chain capacity ${capacity}`,
+      );
+    }
   }
 }
 
@@ -558,6 +565,35 @@ function splitFilePath(path: string): { prefix: string; name: string } {
   }
   assertFileNameText(name);
   return { prefix, name };
+}
+
+function prefixForFile(volume: ParsedVolume, file: FileEntry): string {
+  if (file.prefixId === 0) {
+    return '';
+  }
+  return volume.prefixes.find((entry) => entry.prefixId === file.prefixId)?.prefix ?? '';
+}
+
+function findFileByPath(volume: ParsedVolume, path: string): FileEntry {
+  const { prefix, name } = splitFilePath(path);
+  const file = volume.files.find((entry) => prefixForFile(volume, entry) === prefix && entry.name === name);
+  if (!file) {
+    throw new Error(`file not found: ${path}`);
+  }
+  return file;
+}
+
+function fileBlockChain(file: FileEntry, allocation: number[]): number[] {
+  const blocks: number[] = [];
+  let block = file.firstBlock;
+  while (true) {
+    blocks.push(block);
+    const nextBlock = allocation[block];
+    if (nextBlock === ALLOCATION_END) {
+      return blocks;
+    }
+    block = nextBlock;
+  }
 }
 
 function rewriteSuperblockChecksum(image: Buffer): void {
@@ -700,6 +736,33 @@ function createFileInVolumeImage(image: Buffer, path: string): Buffer {
   return nextImage;
 }
 
+function readFileFromVolumeImage(image: Buffer, path: string): Buffer {
+  const volume = parseVolumeImage(image);
+  const file = findFileByPath(volume, path);
+  const output = Buffer.alloc(file.size);
+  let outputOffset = 0;
+
+  for (const block of fileBlockChain(file, volume.allocation)) {
+    if (outputOffset >= file.size) {
+      break;
+    }
+    const bytesToCopy = Math.min(TM8_FORMAT.blockBytes, file.size - outputOffset);
+    image.copy(
+      output,
+      outputOffset,
+      block * TM8_FORMAT.blockBytes,
+      block * TM8_FORMAT.blockBytes + bytesToCopy,
+    );
+    outputOffset += bytesToCopy;
+  }
+
+  if (outputOffset !== file.size) {
+    throw new Error(`short read for ${path}: expected ${file.size}, got ${outputOffset}`);
+  }
+
+  return output;
+}
+
 function listVolumePath(volume: ParsedVolume, path: string): ListedFile[] {
   const prefix = normalizePrefixPath(path);
   const prefixById = new Map(volume.prefixes.map((entry) => [entry.prefixId, entry.prefix]));
@@ -754,4 +817,5 @@ module.exports = {
   formatVolumeFile,
   listVolumePath,
   parseVolumeImage,
+  readFileFromVolumeImage,
 };
