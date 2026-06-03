@@ -5,8 +5,8 @@
 TECM8 is intended to be a Z80 Assembly development environment for the TEC-1G.
 Its first complete user experience should borrow the useful parts of early
 Turbo Pascal: a project has a main source file, the environment remembers the
-current file of interest, and the common edit/assemble/run loop uses short
-commands rather than long command lines.
+project entry point, and the common edit/assemble/run loop uses short commands
+rather than long command lines.
 
 The first target is the TEC-1G with matrix keyboard, graphical LCD, and
 PATA/SD-backed FAT32 storage through MON3. A later display target is a TMS9918
@@ -87,10 +87,9 @@ environment. A project has a main source file, usually `/src/main.asm`, created
 or selected when the project is created. That file is the mainline of the
 program and includes the other project source files as needed.
 
-The shell should remember both:
-
-- **main file**: the file assembled and run by default.
-- **current file**: the file of interest for editing.
+The shell should remember the main file: the file assembled and run by default.
+Other source files can be opened by name with `edit driver`, `edit math`, or an
+absolute path.
 
 The remembered project state lives in `/.tecm8/project` inside the active
 volume. It is a small line-oriented ASCII file rather than JSON, so TEC-side
@@ -99,12 +98,11 @@ Z80 code can scan it without a complex parser:
 ```text
 tm8project=1
 main=/src/main.asm
-current=/src/main.asm
 ```
 
-The config records the main file and current edit target. Build output and map
-paths are derived from the main source filename by convention: `/src/main.asm`
-builds to `/build/main.bin` and `/build/main.map`. The exact TEC-side parse and
+The config records the main file only. Build output and map paths are derived
+from the main source filename by convention: `/src/main.asm` builds to
+`/build/main.bin` and `/build/main.map`. The exact TEC-side parse and
 resolution rules are defined in
 [TEC-Side Shell Command Contract](shell-command-contract.md).
 
@@ -117,9 +115,9 @@ asm
 run
 ```
 
-`edit` with no argument opens the current file. For source files, `edit math`
-sets the current file to `math.asm` and opens it. `asm` assembles the project's
-main file and writes derived `/build/<main-stem>.bin` and
+`edit` with no argument opens the main file. For source files, `edit math`
+opens `math.asm`. `asm` assembles the project's main file and writes derived
+`/build/<main-stem>.bin` and
 `/build/<main-stem>.map` outputs. `run` runs that derived project output. Most
 users should not need to type output paths or switches during ordinary work.
 

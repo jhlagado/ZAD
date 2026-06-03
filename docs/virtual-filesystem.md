@@ -349,8 +349,8 @@ as raw byte operations. `fs import-text` and `fs export-text` are implemented
 as source conversion commands for 32-byte editor records.
 
 `fs project-init` creates `/.tecm8/project`, a line-oriented ASCII config file
-for project defaults. It stores the main file and current file in `key=value`
-form so TEC-side code can read it without a JSON parser. Build output and map
-paths are derived from the main filename by convention. See
+for project defaults. It stores the main file in `key=value` form so TEC-side
+code can read it without a JSON parser. Build output and map paths are derived
+from the main filename by convention. See
 [TEC-Side Shell Command Contract](shell-command-contract.md) for the shell-side
 command resolution rules.

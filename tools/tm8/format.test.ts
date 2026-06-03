@@ -2164,7 +2164,6 @@ test('fs project-init creates Z80-readable project metadata and default main fil
       [
         'tm8project=1',
         'main=/src/main.asm',
-        'current=/src/main.asm',
         '',
       ].join('\n'),
     );
@@ -2173,7 +2172,7 @@ test('fs project-init creates Z80-readable project metadata and default main fil
   }
 });
 
-test('fs project commands inspect and update main and current file defaults', () => {
+test('fs project commands inspect and update main file defaults', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const volumePath = join(dir, 'VOLUME.TM8');
@@ -2188,12 +2187,6 @@ test('fs project commands inspect and update main and current file defaults', ()
       ['--experimental-strip-types', 'tools/fs.ts', 'project-set-main', volumePath, '/src/main.asm'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
-    execFileSync(
-      process.execPath,
-      ['--experimental-strip-types', 'tools/fs.ts', 'project-set-current', volumePath, '/src/draw.asm'],
-      { cwd: process.cwd(), stdio: 'pipe' },
-    );
-
     const info = JSON.parse(
       execFileSync(
         process.execPath,
@@ -2205,11 +2198,10 @@ test('fs project commands inspect and update main and current file defaults', ()
       format: 'tm8project',
       version: 1,
       mainFile: '/src/main.asm',
-      currentFile: '/src/draw.asm',
       outputFile: '/build/main.bin',
       mapFile: '/build/main.map',
       commands: {
-        edit: 'currentFile',
+        edit: 'mainFile',
         asm: 'mainFile',
         run: 'outputFile',
       },
@@ -2217,7 +2209,7 @@ test('fs project commands inspect and update main and current file defaults', ()
 
     const config = readFileFromVolumeImage(readFileSync(volumePath), '/.tecm8/project').toString('ascii');
     assert.match(config, /^main=\/src\/main\.asm$/m);
-    assert.match(config, /^current=\/src\/draw\.asm$/m);
+    assert.doesNotMatch(config, /^current=/m);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -2249,7 +2241,7 @@ test('fs project-info derives output and map paths from the main source stem', (
       outputFile: '/build/demo.bin',
       mapFile: '/build/demo.map',
       commands: {
-        edit: 'currentFile',
+        edit: 'mainFile',
         asm: 'mainFile',
         run: 'outputFile',
       },
@@ -2279,7 +2271,6 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
         Buffer.from(
           [
             'tm8project=1',
-            'main=/src/main.asm',
             '',
           ].join('\n'),
           'ascii',
@@ -2294,9 +2285,8 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
         Buffer.from(
           [
             'tm8project=1',
-            'main=/src/main.asm',
             '',
-            'current=/src/main.asm',
+            'main=/src/main.asm',
             '',
           ].join('\n'),
           'ascii',
@@ -2326,6 +2316,15 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
       () =>
         execFileSync(
           process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'project-set-current', volumePath, '/src/draw.asm'],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /usage: fs format/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
           ['--experimental-strip-types', 'tools/fs.ts', 'project-info', malformedVolumePath],
           { cwd: process.cwd(), stdio: 'pipe' },
         ),
@@ -2340,7 +2339,7 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
         ),
       /bad project config line/,
     );
-    for (const key of ['output', 'map', 'cmd.edit', 'cmd.asm', 'cmd.run']) {
+    for (const key of ['current', 'output', 'map', 'cmd.edit', 'cmd.asm', 'cmd.run']) {
       const unknownKeyVolumePath = join(dir, `UNKNOWN-${key.replace(/\W/g, '-')}.TM8`);
       writeFileSync(
         unknownKeyVolumePath,
@@ -2351,7 +2350,6 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
             [
               'tm8project=1',
               'main=/src/main.asm',
-              'current=/src/main.asm',
               `${key}=legacy`,
               '',
             ].join('\n'),

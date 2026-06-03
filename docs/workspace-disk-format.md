@@ -148,7 +148,6 @@ node --experimental-strip-types tools/fs.ts pack folder VOLUME.TM8
 node --experimental-strip-types tools/fs.ts project-init VOLUME.TM8 [/src/main.asm]
 node --experimental-strip-types tools/fs.ts project-info VOLUME.TM8
 node --experimental-strip-types tools/fs.ts project-set-main VOLUME.TM8 /path/file
-node --experimental-strip-types tools/fs.ts project-set-current VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts rm VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts mv VOLUME.TM8 /old/path /new/path
@@ -186,13 +185,12 @@ rather than JSON:
 ```text
 tm8project=1
 main=/src/main.asm
-current=/src/main.asm
 ```
 
 `project-info` validates that file and reports the host-readable JSON view.
-`project-set-main` and `project-set-current` update the corresponding config
-keys while preserving the strict TM8 path policy. Build output and map paths are
-derived from the main source filename by convention. See
+`project-set-main` updates the main file while preserving the strict TM8 path
+policy. Build output and map paths are derived from the main source filename by
+convention. See
 [TEC-Side Shell Command Contract](shell-command-contract.md) for how the
 TEC-side shell reads this file and resolves short commands.
 `rm`

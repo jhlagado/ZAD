@@ -78,8 +78,8 @@ Goals:
 - Print to GLCD terminal.
 - Navigate virtual prefixes with `cd` and `pwd`.
 - List files and virtual folder prefixes.
-- Read `/.tecm8/project` line-by-line to get `main` and `current`, then derive
-  build output and map paths from `main`.
+- Read `/.tecm8/project` line-by-line to get `main`, then derive build output
+  and map paths from `main`.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
 
@@ -90,7 +90,6 @@ format to target:
 fs project-init VOLUME.TM8 [/src/main.asm]
 fs project-info VOLUME.TM8
 fs project-set-main VOLUME.TM8 /path/file
-fs project-set-current VOLUME.TM8 /path/file
 ```
 
 The stored config is not JSON. It is an ASCII `key=value` file at

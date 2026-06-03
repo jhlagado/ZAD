@@ -23,7 +23,6 @@ The default config created by the host tool is:
 ```text
 tm8project=1
 main=/src/main.asm
-current=/src/main.asm
 ```
 
 Required keys:
@@ -31,7 +30,6 @@ Required keys:
 ```text
 tm8project
 main
-current
 ```
 
 `tm8project` must be `1`. The shell should reject duplicate keys, missing
@@ -76,8 +74,7 @@ append `.asm`.
 
 Relative command arguments are resolved against the shell current prefix, the
 same state changed by `cd` and reported by `pwd`. They are not resolved against
-the prefix of the current file unless the shell current prefix happens to be
-there.
+the main file's prefix unless the shell current prefix happens to be there.
 
 Examples when the shell current prefix is `/src`:
 
@@ -97,14 +94,14 @@ imported ASM80-era projects.
 The short command bindings are fixed in shell v1:
 
 ```text
-edit -> current
+edit -> main
 asm  -> main
 run  -> derived output
 ```
 
 They are not stored in `/.tecm8/project`. This keeps the Z80 parser and project
-state small. Future configuration screens can still change `main` or `current`,
-but the command names themselves remain part of the shell.
+state small. Future configuration screens can still change `main`, but the
+command names themselves remain part of the shell.
 
 ## Command Resolution
 
@@ -118,9 +115,9 @@ Shell commands are resolved in this order:
 For the default config, no-argument commands resolve to:
 
 ```text
-edit -> current -> /src/main.asm
-asm  -> main    -> /src/main.asm
-run  -> output  -> /build/main.bin
+edit -> main   -> /src/main.asm
+asm  -> main   -> /src/main.asm
+run  -> output -> /build/main.bin
 ```
 
 The map path is not directly targeted by a short command in shell v1. `asm`
@@ -137,7 +134,7 @@ No argument:
 edit
 ```
 
-The shell opens the file named by `current`.
+The shell opens the file named by `main`.
 
 With a file argument:
 
@@ -147,12 +144,10 @@ edit /src/draw.asm
 ```
 
 The shell resolves the argument to a TM8 path, appending `.asm` when no
-extension is present. It then updates `current` in `/.tecm8/project` and opens
-that file. If the file does not exist, the editor may create it after an
-explicit save; the shell should not need a separate `new` command for ordinary
-source editing.
-
-Changing the current file must not change `main`.
+extension is present, and opens that file. If the file does not exist, the
+editor may create it after an explicit save; the shell should not need a
+separate `new` command for ordinary source editing. Editing a named file does
+not change `main`.
 
 ## `asm`
 
@@ -218,7 +213,6 @@ The shell should report short, actionable errors and return to the prompt:
 no project config
 bad project config
 missing main
-missing current
 bad path
 file not found
 assemble failed
@@ -232,9 +226,8 @@ means the shell cannot know which file is authoritative.
 
 Shell v1 writes `/.tecm8/project` only when project state changes:
 
-- `edit name` updates `current`.
 - A future project configuration screen may update `main`.
-- `asm` and `run` do not change config merely because they ran.
+- `edit`, `asm`, and `run` do not change config merely because they ran.
 
 When rewriting the config, the shell should keep the file ASCII, keep required
 keys present, reject unknown keys, and write a final LF.
@@ -248,7 +241,6 @@ for this file:
 fs project-init VOLUME.TM8 [/src/main.asm]
 fs project-info VOLUME.TM8
 fs project-set-main VOLUME.TM8 /path/file
-fs project-set-current VOLUME.TM8 /path/file
 ```
 
 The TEC-side shell should match the same stored format rather than inventing a

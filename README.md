@@ -5,7 +5,7 @@ Z80 machine with a matrix keyboard, GLCD, and FAT32-backed storage through MON3.
 
 The target source language is Z80 Assembly. The first product target borrows the
 useful parts of early Turbo Pascal: a project has a main source file, the
-environment remembers the current file of interest, and common work uses short
+environment can open named source files directly, and common work uses short
 commands like `edit`, `asm`, and `run` rather than long command lines.
 `.Z80` source remains a compatibility path for imported ASM80-era projects, but
 TECM8 examples and tools should prefer `.ASM`.
