@@ -62,6 +62,20 @@ PathOutLen      .equ     64
 
         LD      A,7
         LD      (CaseMarker),A
+        LD      HL,ExpectedMain
+        LD      DE,ExpectedMapMain
+        CALL    AssertDerivedMap
+        JP      C,ProofFailed
+
+        LD      A,8
+        LD      (CaseMarker),A
+        LD      HL,ExpectedTest
+        LD      DE,ExpectedMapTest
+        CALL    AssertDerivedMap
+        JP      C,ProofFailed
+
+        LD      A,9
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -70,7 +84,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,8
+        LD      A,10
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -80,7 +94,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,9
+        LD      A,11
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -125,6 +139,24 @@ ProofFailed:
 
 AssertCommandBad:
         SCF
+        RET
+
+; AssertDerivedMap —
+; Derive a map path from one source path and compare it.
+; Input: HL = source path, DE = expected map path
+;!      in        DE,HL
+;!      out       DE,HL,A,carry,zero,B
+;!      clobbers  C
+@AssertDerivedMap:
+        LD      (ExpectedPathPtr),DE
+        LD      DE,PathOut
+        LD      B,PathOutLen
+        CALL    ShellDeriveBuildMap
+        RET     C
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,PathOut
+        CALL    AssertString
         RET
 
 ; AssertString —
@@ -207,6 +239,9 @@ ExpectedMain:
 ExpectedRunMain:
         .db     "/build/test.v1.bin",0
 
+ExpectedMapMain:
+        .db     "/build/test.v1.map",0
+
 ExpectedDraw:
         .db     "/src/draw.asm",0
 
@@ -215,6 +250,9 @@ ExpectedTest:
 
 ExpectedRunTest:
         .db     "/build/test.bin",0
+
+ExpectedMapTest:
+        .db     "/build/test.map",0
 
 ExpectedAction:
         .db     0

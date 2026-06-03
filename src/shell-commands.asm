@@ -380,9 +380,33 @@ ShellArgNoSlash:
 ; ShellDeriveBuildBin —
 ; Derive /build/<local-stem>.bin from an absolute source path.
 ;!      in        B,DE,HL
-;!      out       HL,B,carry,zero
+;!      out       HL,carry,B,zero
 ;!      clobbers  A,C,DE
 @ShellDeriveBuildBin:
+        LD      (ShellArgPtr),HL
+        LD      HL,ShellBinExt
+        LD      (ShellBuildExtPtr),HL
+        LD      HL,(ShellArgPtr)
+        JP      ShellDeriveBuildPath
+
+; ShellDeriveBuildMap —
+; Derive /build/<local-stem>.map from an absolute source path.
+;!      in        B,DE,HL
+;!      out       HL,carry,B,zero
+;!      clobbers  A,C,DE
+@ShellDeriveBuildMap:
+        LD      (ShellArgPtr),HL
+        LD      HL,ShellMapExt
+        LD      (ShellBuildExtPtr),HL
+        LD      HL,(ShellArgPtr)
+        JP      ShellDeriveBuildPath
+
+; ShellDeriveBuildPath —
+; Derive /build/<local-stem><extension> from an absolute source path.
+;!      in        B,DE,HL
+;!      out       HL,B,carry,zero
+;!      clobbers  A,C,DE
+@ShellDeriveBuildPath:
         LD      (ShellArgPtr),HL
         LD      (ShellWritePtr),DE
         CALL    ShellFindLocalName
@@ -402,7 +426,7 @@ ShellArgNoSlash:
         CALL    ShellCopyStem
         RET     C
 
-        LD      HL,ShellBinExt
+        LD      HL,(ShellBuildExtPtr)
         CALL    ShellAppendString
         RET     C
         XOR     A
@@ -554,6 +578,9 @@ ShellAsmExt:
 ShellBinExt:
         .db     ".bin",0
 
+ShellMapExt:
+        .db     ".map",0
+
 ShellOutPath:
         .dw     0
 
@@ -567,6 +594,9 @@ ShellCommandPtr:
         .dw     0
 
 ShellStemEnd:
+        .dw     0
+
+ShellBuildExtPtr:
         .dw     0
 
 ShellOutCap:
