@@ -186,7 +186,7 @@ function exportTextFile(volumePath: string, tm8Path: string, hostPath: string): 
   );
 }
 
-const PROJECT_CONFIG_PATH = '/.tecm8/project';
+const PROJECT_CONFIG_PATH = '/tecm8.prj';
 
 type ProjectConfig = {
   mainFile: string;

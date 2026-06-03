@@ -91,9 +91,9 @@ The shell should remember the main file: the file assembled and run by default.
 Other source files can be opened by name with `edit driver`, `edit math`, or an
 absolute path.
 
-The remembered project state lives in `/.tecm8/project` inside the active
-volume. It is a small line-oriented ASCII file rather than JSON, so TEC-side
-Z80 code can scan it without a complex parser:
+The remembered project state lives in the root `/tecm8.prj` file inside the
+active volume. It is a small line-oriented ASCII file rather than JSON, so
+TEC-side Z80 code can scan it without a complex parser:
 
 ```text
 tm8project=1

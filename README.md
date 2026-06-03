@@ -21,8 +21,8 @@ host tools create, inspect, import, export, copy, unpack, and pack files across
 these volumes so projects can move cleanly between a laptop and the TEC-1G.
 Separate `fs import-text` and `fs export-text` commands convert source text to
 and from TECM8's fixed 32-byte editor records.
-Project defaults are stored in `/.tecm8/project` as simple ASCII `key=value`
-metadata for the future TEC-side shell.
+The root `/tecm8.prj` file stores the project main file as simple ASCII
+`key=value` metadata for the future TEC-side shell.
 
 Start with the documentation:
 

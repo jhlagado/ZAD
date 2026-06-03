@@ -178,9 +178,9 @@ file prefix, and writes exact stored bytes to new host files while refusing
 overwrites. `pack` walks a host folder tree, converts relative file paths to
 strict TM8 paths, imports exact bytes into a new volume image, and refuses to
 overwrite an existing volume file.
-`project-init` creates `/.tecm8/project` and a default main source file when it
-does not already exist. The project config is stored as ASCII `key=value` lines
-rather than JSON:
+`project-init` creates root file `/tecm8.prj` and a default main source file
+when it does not already exist. The project config is stored as ASCII
+`key=value` lines rather than JSON:
 
 ```text
 tm8project=1

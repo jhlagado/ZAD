@@ -11,12 +11,14 @@ The shell operates on one active TM8 volume at a time. A project volume is
 configured when it contains:
 
 ```text
-/.tecm8/project
+/tecm8.prj
 ```
 
-That file is ASCII `key=value` text. Lines end with LF. A final LF is expected,
-but the TEC-side reader should accept a final non-empty line without one. Blank
-lines are only valid as the final LF terminator.
+`/tecm8.prj` is an ordinary root file in the TM8 volume, similar in role to
+`package.json`, `Makefile`, or `debug80.json` on a host system. Its content is
+ASCII `key=value` text. Lines end with LF. A final LF is expected, but the
+TEC-side reader should accept a final non-empty line without one. Blank lines
+are only valid as the final LF terminator.
 
 The default config created by the host tool is:
 
@@ -99,7 +101,7 @@ asm  -> main
 run  -> derived output
 ```
 
-They are not stored in `/.tecm8/project`. This keeps the Z80 parser and project
+They are not stored in `/tecm8.prj`. This keeps the Z80 parser and project
 state small. Future configuration screens can still change `main`, but the
 command names themselves remain part of the shell.
 
@@ -107,7 +109,7 @@ command names themselves remain part of the shell.
 
 Shell commands are resolved in this order:
 
-1. Parse `/.tecm8/project`.
+1. Parse `/tecm8.prj`.
 2. Resolve any user argument to an absolute TM8 path.
 3. If no argument is present, use the command's project default.
 4. Execute the tool against that resolved path.
@@ -219,12 +221,12 @@ assemble failed
 run failed
 ```
 
-Config parse errors should not launch tools. A malformed `/.tecm8/project`
+Config parse errors should not launch tools. A malformed `/tecm8.prj`
 means the shell cannot know which file is authoritative.
 
 ## Persistence Rules
 
-Shell v1 writes `/.tecm8/project` only when project state changes:
+Shell v1 writes `/tecm8.prj` only when project state changes:
 
 - A future project configuration screen may update `main`.
 - `edit`, `asm`, and `run` do not change config merely because they ran.

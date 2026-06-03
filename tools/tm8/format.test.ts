@@ -2160,7 +2160,7 @@ test('fs project-init creates Z80-readable project metadata and default main fil
     const image = readFileSync(volumePath);
     assert.deepEqual(readFileFromVolumeImage(image, '/src/main.asm'), Buffer.alloc(0));
     assert.equal(
-      readFileFromVolumeImage(image, '/.tecm8/project').toString('ascii'),
+      readFileFromVolumeImage(image, '/tecm8.prj').toString('ascii'),
       [
         'tm8project=1',
         'main=/src/main.asm',
@@ -2207,7 +2207,7 @@ test('fs project commands inspect and update main file defaults', () => {
       },
     });
 
-    const config = readFileFromVolumeImage(readFileSync(volumePath), '/.tecm8/project').toString('ascii');
+    const config = readFileFromVolumeImage(readFileSync(volumePath), '/tecm8.prj').toString('ascii');
     assert.match(config, /^main=\/src\/main\.asm$/m);
     assert.doesNotMatch(config, /^current=/m);
   } finally {
@@ -2267,7 +2267,7 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
       malformedVolumePath,
       importFileIntoVolumeImage(
         createVolumeImage(),
-        '/.tecm8/project',
+        '/tecm8.prj',
         Buffer.from(
           [
             'tm8project=1',
@@ -2281,7 +2281,7 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
       blankLineVolumePath,
       importFileIntoVolumeImage(
         createVolumeImage(),
-        '/.tecm8/project',
+        '/tecm8.prj',
         Buffer.from(
           [
             'tm8project=1',
@@ -2345,7 +2345,7 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
         unknownKeyVolumePath,
         importFileIntoVolumeImage(
           createVolumeImage(),
-          '/.tecm8/project',
+          '/tecm8.prj',
           Buffer.from(
             [
               'tm8project=1',

@@ -78,7 +78,7 @@ Goals:
 - Print to GLCD terminal.
 - Navigate virtual prefixes with `cd` and `pwd`.
 - List files and virtual folder prefixes.
-- Read `/.tecm8/project` line-by-line to get `main`, then derive build output
+- Read `/tecm8.prj` line-by-line to get `main`, then derive build output
   and map paths from `main`.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
@@ -93,7 +93,7 @@ fs project-set-main VOLUME.TM8 /path/file
 ```
 
 The stored config is not JSON. It is an ASCII `key=value` file at
-`/.tecm8/project`, chosen so Z80 code can parse it with simple line scanning.
+`/tecm8.prj`, chosen so Z80 code can parse it with simple line scanning.
 The authoritative shell behavior for parsing that file and resolving
 `edit`/`asm`/`run` is defined in
 [TEC-Side Shell Command Contract](shell-command-contract.md).
