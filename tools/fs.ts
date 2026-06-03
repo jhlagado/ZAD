@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
-const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
 
 const {
   createFileInVolumeImage,
+  createVolumeImage,
   formatVolumeFile,
   importFileIntoVolumeImage,
   listVolumePath,
@@ -19,6 +20,18 @@ type ParsedVolumeForCli = {
   files: Array<{ prefixId: number; name: string }>;
 };
 
+type HostDirent = {
+  name: string;
+  isSymbolicLink(): boolean;
+  isDirectory(): boolean;
+  isFile(): boolean;
+};
+
+type HostStats = {
+  isSymbolicLink(): boolean;
+  isDirectory(): boolean;
+};
+
 function usage(): never {
   console.error('usage: fs format VOLUME.TM8');
   console.error('       fs info VOLUME.TM8');
@@ -26,6 +39,7 @@ function usage(): never {
   console.error('       fs export VOLUME.TM8 /path/file hostfile');
   console.error('       fs copy SOURCE.TM8:/path/file DEST.TM8:/path/file');
   console.error('       fs unpack VOLUME.TM8 folder');
+  console.error('       fs pack folder VOLUME.TM8');
   console.error('       fs new VOLUME.TM8 /path/file');
   console.error('       fs rm VOLUME.TM8 /path/file');
   console.error('       fs mv VOLUME.TM8 /old/path /new/path');
@@ -182,6 +196,74 @@ function unpackVolume(volumePath: string, hostFolder: string): void {
   }
 }
 
+function tm8PathForHostParts(parts: string[]): string {
+  if (parts.length === 0) {
+    throw new Error('cannot pack folder root as a file');
+  }
+  for (const part of parts) {
+    if (part === '' || part === '.' || part === '..') {
+      throw new Error(`cannot pack unsafe host path: ${parts.join('/')}`);
+    }
+  }
+  return `/${parts.join('/')}`;
+}
+
+function collectHostFiles(folder: string, parts: string[] = []): Array<{ hostPath: string; tm8Path: string }> {
+  const entries = (readdirSync(join(folder, ...parts), { withFileTypes: true }) as HostDirent[])
+    .sort((left: HostDirent, right: HostDirent) => left.name.localeCompare(right.name));
+  const files: Array<{ hostPath: string; tm8Path: string }> = [];
+
+  for (const entry of entries) {
+    const entryParts = [...parts, entry.name];
+    const hostPath = join(folder, ...entryParts);
+    if (entry.isSymbolicLink()) {
+      throw new Error(`cannot pack symbolic link: ${hostPath}`);
+    }
+    if (entry.isDirectory()) {
+      files.push(...collectHostFiles(folder, entryParts));
+      continue;
+    }
+    if (!entry.isFile()) {
+      throw new Error(`cannot pack non-file entry: ${hostPath}`);
+    }
+    files.push({ hostPath, tm8Path: tm8PathForHostParts(entryParts) });
+  }
+
+  return files;
+}
+
+function packVolume(hostFolder: string, volumePath: string): void {
+  try {
+    lstatSync(volumePath);
+    throw new Error(`refusing to overwrite existing file: ${volumePath}`);
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
+      throw error;
+    }
+  }
+
+  const root = lstatSync(hostFolder) as HostStats;
+  if (root.isSymbolicLink()) {
+    throw new Error(`cannot pack symbolic link: ${hostFolder}`);
+  }
+  if (!root.isDirectory()) {
+    throw new Error(`cannot pack non-directory root: ${hostFolder}`);
+  }
+
+  let image = createVolumeImage();
+  for (const file of collectHostFiles(hostFolder)) {
+    image = importFileIntoVolumeImage(image, file.tm8Path, readFileSync(file.hostPath));
+  }
+  try {
+    writeFileSync(volumePath, image, { flag: 'wx' });
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+      throw new Error(`refusing to overwrite existing file: ${volumePath}`);
+    }
+    throw error;
+  }
+}
+
 function printFile(volumePath: string, path: string): void {
   process.stdout.write(readFileFromVolumeImage(readFileSync(volumePath), path));
 }
@@ -267,6 +349,14 @@ function main(argv: string[]): void {
       usage();
     }
     unpackVolume(path, tm8Path);
+    return;
+  }
+
+  if (command === 'pack') {
+    if (argv.length !== 3 || !tm8Path) {
+      usage();
+    }
+    packVolume(path, tm8Path);
     return;
   }
 

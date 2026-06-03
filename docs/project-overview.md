@@ -144,9 +144,8 @@ The laptop-side tools make the system practical without becoming the primary
 experience. They create and inspect TM8 project volumes today, and they can
 import and export raw host files. They can also copy raw files between TM8
 volumes so users can seed examples and move libraries into a project. The
-`fs unpack` command exports a TM8 volume into an ordinary host folder tree. The
-remaining Phase 2 target adds pack so users can rebuild a volume from a host
-folder.
+`fs unpack` command exports a TM8 volume into an ordinary host folder tree, and
+`fs pack` rebuilds a volume from a host folder.
 
 From a user's perspective:
 
@@ -156,11 +155,6 @@ fs import VOLUME.TM8 main.asm /src/main.asm
 fs export VOLUME.TM8 /src/main.asm main-backup.asm
 fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
 fs unpack VOLUME.TM8 my-project
-```
-
-Future Phase 2 commands should add:
-
-```text
 fs pack my-project VOLUME.TM8
 ```
 

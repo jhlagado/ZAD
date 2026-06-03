@@ -142,6 +142,7 @@ node --experimental-strip-types tools/fs.ts import VOLUME.TM8 hostfile /path/fil
 node --experimental-strip-types tools/fs.ts export VOLUME.TM8 /path/file hostfile
 node --experimental-strip-types tools/fs.ts copy SOURCE.TM8:/path/file DEST.TM8:/path/file
 node --experimental-strip-types tools/fs.ts unpack VOLUME.TM8 folder
+node --experimental-strip-types tools/fs.ts pack folder VOLUME.TM8
 node --experimental-strip-types tools/fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts rm VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts mv VOLUME.TM8 /old/path /new/path
@@ -166,7 +167,9 @@ validated source volume path and imports them into a validated destination
 volume path, rejecting destination collisions with the same rules as `import`.
 `unpack` parses one TM8 volume, creates a host folder tree from every active
 file prefix, and writes exact stored bytes to new host files while refusing
-overwrites.
+overwrites. `pack` walks a host folder tree, converts relative file paths to
+strict TM8 paths, imports exact bytes into a new volume image, and refuses to
+overwrite an existing volume file.
 `rm`
 resolves an existing file path, frees every block in its validated allocation
 chain, zeroes the file catalog entry, updates the free-block count and checksum,

@@ -1,6 +1,6 @@
 const { strict: assert } = require('node:assert');
 const { execFileSync } = require('node:child_process');
-const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { test } = require('node:test');
@@ -1726,6 +1726,178 @@ test('fs unpack rejects unsafe paths and file-directory collisions before writin
     assert.throws(
       () => readFileSync(join(collisionOutputFolder, 'src')),
       /ENOENT/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs pack writes root and nested host files into a TM8 volume', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const folder = join(dir, 'workspace');
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const rootContent = Buffer.from('org 2000h\n', 'utf8');
+    const nestedContent = Buffer.from('start:\n  ret\n', 'utf8');
+    mkdirSync(join(folder, 'src'), { recursive: true });
+    writeFileSync(join(folder, 'boot.asm'), rootContent);
+    writeFileSync(join(folder, 'src', 'main.asm'), nestedContent);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'pack', folder, volumePath],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/boot.asm'), rootContent);
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/src/main.asm'), nestedContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs pack preserves zero-length and multi-block file contents', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const folder = join(dir, 'workspace');
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const bigContent = Buffer.alloc(TM8_FORMAT.blockBytes + 37);
+    for (let index = 0; index < bigContent.byteLength; index += 1) {
+      bigContent[index] = index % 251;
+    }
+    mkdirSync(join(folder, 'bin'), { recursive: true });
+    writeFileSync(join(folder, 'empty.bin'), Buffer.alloc(0));
+    writeFileSync(join(folder, 'bin', 'big.bin'), bigContent);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'pack', folder, volumePath],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.equal(readFileFromVolumeImage(readFileSync(volumePath), '/empty.bin').byteLength, 0);
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/bin/big.bin'), bigContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs pack rejects illegal names, symlinks, and output overwrites', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const illegalFolder = join(dir, 'illegal');
+    const symlinkFolder = join(dir, 'symlinked');
+    const realRootFolder = join(dir, 'real-root');
+    const rootSymlinkFolder = join(dir, 'root-link');
+    const overwriteFolder = join(dir, 'overwrite');
+    const nestedOutputFolder = join(dir, 'nested-output');
+    const outsidePath = join(dir, 'outside.asm');
+    const illegalVolumePath = join(dir, 'ILLEGAL.TM8');
+    const symlinkVolumePath = join(dir, 'SYMLINK.TM8');
+    const rootSymlinkVolumePath = join(dir, 'ROOT-SYMLINK.TM8');
+    const overwriteVolumePath = join(dir, 'EXISTING.TM8');
+    const nestedOutputVolumePath = join(nestedOutputFolder, 'out.tm8');
+    const existingVolume = createVolumeImage();
+    mkdirSync(join(illegalFolder, 'src'), { recursive: true });
+    mkdirSync(symlinkFolder, { recursive: true });
+    mkdirSync(realRootFolder, { recursive: true });
+    mkdirSync(overwriteFolder, { recursive: true });
+    mkdirSync(nestedOutputFolder, { recursive: true });
+    writeFileSync(join(illegalFolder, 'src', 'Main.asm'), Buffer.from('bad name\n'));
+    writeFileSync(outsidePath, Buffer.from('outside\n'));
+    symlinkSync(outsidePath, join(symlinkFolder, 'outside.asm'));
+    writeFileSync(join(realRootFolder, 'main.asm'), Buffer.from('start:\n'));
+    symlinkSync(realRootFolder, rootSymlinkFolder);
+    writeFileSync(join(overwriteFolder, 'main.asm'), Buffer.from('start:\n'));
+    writeFileSync(overwriteVolumePath, existingVolume);
+    writeFileSync(join(nestedOutputFolder, 'main.asm'), Buffer.from('start:\n'));
+    writeFileSync(nestedOutputVolumePath, existingVolume);
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', illegalFolder, illegalVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /bad file name/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', symlinkFolder, symlinkVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /cannot pack symbolic link/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', rootSymlinkFolder, rootSymlinkVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /cannot pack symbolic link/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', overwriteFolder, overwriteVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /refusing to overwrite existing file/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', nestedOutputFolder, nestedOutputVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /refusing to overwrite existing file/,
+    );
+    assert.deepEqual(readFileSync(overwriteVolumePath), existingVolume);
+    assert.deepEqual(readFileSync(nestedOutputVolumePath), existingVolume);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs pack reports format-layer capacity errors', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const catalogFolder = join(dir, 'catalog-workspace');
+    const catalogVolumePath = join(dir, 'CATALOG.TM8');
+    const prefixFolder = join(dir, 'prefix-workspace');
+    const prefixVolumePath = join(dir, 'PREFIX.TM8');
+    mkdirSync(catalogFolder, { recursive: true });
+    for (let index = 0; index <= TM8_FORMAT.catalogEntryCount; index += 1) {
+      writeFileSync(join(catalogFolder, `file${index}.asm`), Buffer.from('x'));
+    }
+    for (let index = 0; index <= TM8_FORMAT.prefixEntryCount; index += 1) {
+      mkdirSync(join(prefixFolder, `p${index}`), { recursive: true });
+      writeFileSync(join(prefixFolder, `p${index}`, 'file.asm'), Buffer.from('x'));
+    }
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', catalogFolder, catalogVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /file catalog full/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'pack', prefixFolder, prefixVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /prefix table full/,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
