@@ -2,9 +2,10 @@
 
 ## Vision
 
-TECM8 is intended to give the TEC-1G a Turbo Pascal-like development experience:
-edit code, save it, build it, run it, and eventually debug it from the machine
-itself.
+TECM8 is intended to be a Z80 Assembly development environment for the TEC-1G.
+Its first complete user experience should feel Turbo Pascal 3-like: edit code,
+save it, assemble it, run it, and return to the shell without leaving the
+machine.
 
 The first target is the TEC-1G with matrix keyboard, graphical LCD, and
 PATA/SD-backed FAT32 storage through MON3. A later display target is a TMS9918
@@ -12,18 +13,22 @@ VDU board, likely using a 32x24 tile display.
 
 The project should not try to become a full modern operating system. It should
 be a practical single-user development environment shaped around the limits and
-strengths of a Z80 machine.
+strengths of a Z80 machine: a command shell that launches focused tools and
+applications, then returns to the shell when they exit.
 
 ## Name
 
 `TECM8` is pronounced "TecMate": a companion for the TEC. Use `TM8` where a
 short three-character identifier is needed, such as FAT 8.3 volume extensions.
 
-The system still has two major halves:
+The system has three user-facing layers:
 
-- **Development workspace**: shell, filesystem, editor, assembler, build tools.
-- **Interactive debugging environment**: object loader, source map reader,
-  breakpoint/step/run support, and source-aware debug display.
+- **Project workspace**: a portable `VOLUME.TM8` containing source files,
+  copied libraries, examples, build outputs, and metadata.
+- **Edit/assemble/run environment**: the first complete product target,
+  comparable in scope to a Turbo Pascal 3 baseline.
+- **Source-aware debugging environment**: the advanced goal, with object
+  loading, source maps, breakpoints, stepping, registers, and source context.
 
 ## Guiding Principles
 
@@ -37,6 +42,12 @@ The system still has two major halves:
 - Encourage small source files and decomposition.
 - Copy dependencies into a project volume rather than maintaining live external
   dependency links.
+- Prefer `.ASM` for user source files. `.Z80` should remain supported for
+  imported ASM80-era code, but TECM8 examples and tools should lead with
+  `.ASM`.
+- Target an assembly dialect based on the cleaner AZM baseline: compatible
+  with the useful core of ASM80, but without carrying every historical
+  compatibility wildcard.
 - Avoid FAT32 long filename and directory complexity by using a virtual
   filesystem inside one FAT32 container file.
 - Size the first volume format for a decomposed MON3-scale project while keeping
@@ -44,8 +55,10 @@ The system still has two major halves:
 
 ## First User Experience
 
-The first practical goal is not a full IDE. It is a small command-line workspace
-with a Notepad/WordStar-like editor.
+The first complete product goal is a small command-line workspace with a
+Notepad/WordStar-like editor and an assembler/run loop. The experience should
+feel closer to Turbo Pascal 3 than to a modern IDE: one compact shell, focused
+tools, fast exit back to the prompt, and project files that are easy to inspect.
 
 Example:
 
@@ -54,28 +67,70 @@ Example:
 > cd /projects/tecm8
 /projects/tecm8
 > ls
-editor.z80
-storage.z80
+editor.asm
+storage.asm
 
-> edit editor.z80
+> edit editor.asm
 ```
 
 The `cd` command changes the current path prefix. It does not require a real
 directory object. A path begins to feel real when files exist under that prefix.
 
-## Long-Term User Experience
+## Edit/Assemble/Run Baseline
+
+The baseline customer-facing result is an edit/assemble/run environment:
+
+```text
+edit /projects/demo/main.asm
+asm /projects/demo/main.asm -o /build/demo.bin -m /build/demo.map
+run /build/demo.bin
+```
+
+The user should be able to sit at the TEC-1G, open a project, edit a source
+file, assemble it, run the result, and return to the shell. This is the first
+major "done" line for the product.
+
+The assembler should treat `.ASM` as the preferred source extension. `.Z80`
+remains a compatibility extension for imported ASM80-style projects. The source
+dialect should follow an AZM-like baseline: a cleaned-up core derived from
+ASM80, deliberately avoiding the broadest historical ASM80 compatibility
+features unless they prove necessary.
+
+## Advanced User Experience
 
 Later versions should support workflows like:
 
 ```text
-edit /projects/demo/main.z80
-asm /projects/demo/main.z80 -o /build/demo.bin -m /build/demo.map
+edit /projects/demo/main.asm
+asm /projects/demo/main.asm -o /build/demo.bin -m /build/demo.map
 run /build/demo.bin
 debug /build/demo.bin /build/demo.map
 ```
 
-The long-term stretch goal is a source-aware debugger, closer to a Turbo Pascal
-5 experience than a simple monitor.
+The advanced goal is a source-aware debugger. It should show source context,
+registers, flags, current PC/SP, and breakpoint/run/step controls. This is a
+separate level of complexity beyond the Turbo Pascal 3-style baseline and
+should not block the first edit/assemble/run environment.
+
+## Host Companion Tools
+
+The laptop-side tools make the system practical without becoming the primary
+experience. They create, inspect, import, export, copy, pack, and unpack TM8
+project volumes so users can back up work, share projects, seed examples, and
+move libraries into a project.
+
+From a user's perspective:
+
+```text
+tm8fs format VOLUME.TM8
+tm8fs import VOLUME.TM8 main.asm /src/main.asm
+tm8fs export VOLUME.TM8 /src/main.asm main-backup.asm
+tm8fs unpack VOLUME.TM8 my-project
+tm8fs pack my-project VOLUME.TM8
+```
+
+The host tool remains stateless and absolute-path based. Interactive state such
+as `cd` and `pwd` belongs to the TEC-side shell.
 
 ## Platform Assumptions
 
@@ -100,7 +155,7 @@ Current assumptions, to be verified as work begins:
   internal virtual filesystem.
 - **Volume import tools**: copy libraries or examples from another TM8 volume
   into the active project volume as a one-off operation.
-- **Assembler/tool runner**: compile source into object and map files.
+- **Assembler/tool runner**: assemble `.ASM` source into object and map files.
 - **Debugger**: source-aware runtime debugger, added later.
 
 ## Project Volumes

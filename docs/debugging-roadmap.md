@@ -2,16 +2,17 @@
 
 ## Status
 
-The debugger is a stretch goal. The first working system should be a shell,
-virtual filesystem, and editor. However, the source format and filesystem should
-be designed so a debugger can be added later.
+The debugger is a stretch goal. The first internal milestone on the path there
+is a shell, virtual filesystem, and editor; the first customer-facing baseline
+is the full edit/assemble/run loop. The source format and filesystem should be
+designed so a debugger can be added later.
 
 ## Debugging Vision
 
 The goal is a source-aware interactive debugging environment:
 
 ```text
-asm /projects/demo/main.z80 -o /build/demo.bin -m /build/demo.map
+asm /projects/demo/main.asm -o /build/demo.bin -m /build/demo.map
 debug /build/demo.bin /build/demo.map
 ```
 
@@ -140,4 +141,3 @@ quit
 
 The first implementation may be command-line driven. A more visual GLCD or
 TMS9918 debugger view can come later.
-

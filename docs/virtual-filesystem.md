@@ -123,20 +123,20 @@ file names.
 Example logical paths:
 
 ```text
-/projects/tecm8/editor.z80
-/projects/tecm8/storage.z80
-/lib/glcd/terminal.z80
+/projects/tecm8/editor.asm
+/projects/tecm8/storage.asm
+/lib/glcd/terminal.asm
 ```
 
 These are represented internally as:
 
 ```text
 prefix id 3 = projects/tecm8
-  editor.z80
-  storage.z80
+  editor.asm
+  storage.asm
 
 prefix id 9 = lib/glcd
-  terminal.z80
+  terminal.asm
 ```
 
 The leading slash and the slash between prefix and file name are implied, not
@@ -225,8 +225,8 @@ total                    = 32K
 Local filenames are lowercase ASCII and do not contain slashes:
 
 ```text
-editor.z80
-glcd-terminal.z80
+editor.asm
+glcd-terminal.asm
 main.map
 ```
 
@@ -295,7 +295,7 @@ Use Unix command names.
 `mv` rewrites a path in the catalog:
 
 ```text
-mv /projects/tecm8/editor.z80 /projects/tecm8/edit.z80
+mv /projects/tecm8/editor.asm /projects/tecm8/edit.asm
 ```
 
 No file data moves. If the destination path uses a different prefix, `mv` may
@@ -313,7 +313,7 @@ general-purpose whole-card filesystem.
 The intended workflow is static copying:
 
 ```text
-importvol LIBS.TM8 /lib/glcd/terminal.z80 /lib/glcd/terminal.z80
+importvol LIBS.TM8 /lib/glcd/terminal.asm /lib/glcd/terminal.asm
 ```
 
 This copies a file from another TM8 volume into the active project. After the
@@ -333,9 +333,9 @@ Planned host commands:
 
 ```text
 tm8fs list VOLUME.TM8
-tm8fs export VOLUME.TM8 /projects/demo/main.z80 ./main.z80
-tm8fs import VOLUME.TM8 ./main.z80 /projects/demo/main.z80
-tm8fs copy LIBS.TM8:/lib/glcd/terminal.z80 VOLUME.TM8:/lib/glcd/terminal.z80
+tm8fs export VOLUME.TM8 /projects/demo/main.asm ./main.asm
+tm8fs import VOLUME.TM8 ./main.asm /projects/demo/main.asm
+tm8fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
 tm8fs unpack VOLUME.TM8 ./workspace
 tm8fs pack ./workspace VOLUME.TM8
 ```

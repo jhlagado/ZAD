@@ -28,6 +28,8 @@ viewport model that renderers can draw differently.
 ## Source Record Format
 
 Source files use fixed-size Pascal-string line records.
+The preferred user-facing extension is `.ASM`; `.Z80` remains a supported
+compatibility extension for imported ASM80-era source.
 
 Initial record:
 
@@ -175,10 +177,9 @@ requires conversion.
 Planned commands:
 
 ```text
-import MAIN.Z80 /projects/demo/main.z80
-export /projects/demo/main.z80 MAIN.Z80
+import MAIN.ASM /projects/demo/main.asm
+export /projects/demo/main.asm MAIN.ASM
 ```
 
 Import converts newline-separated text into 32-byte line records.
 Export writes text lines with host-friendly line endings.
-

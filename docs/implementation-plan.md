@@ -56,7 +56,7 @@ Host commands:
 tm8fs list VOLUME.TM8
 tm8fs import VOLUME.TM8 hostfile /path/in/tm8
 tm8fs export VOLUME.TM8 /path/in/tm8 hostfile
-tm8fs copy LIBS.TM8:/lib/file.z80 VOLUME.TM8:/lib/file.z80
+tm8fs copy LIBS.TM8:/lib/file.asm VOLUME.TM8:/lib/file.asm
 tm8fs unpack VOLUME.TM8 folder
 tm8fs pack folder VOLUME.TM8
 ```
@@ -111,7 +111,7 @@ redraw
 
 Goals:
 
-- Add assembler or interpreter tooling after editing is useful.
+- Add Z80 assembler tooling after editing is useful.
 - Generate object output.
 - Generate compact map data for future debugger.
 
