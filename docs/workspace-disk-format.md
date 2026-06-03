@@ -136,14 +136,14 @@ enough block capacity for the stored file size.
 The first host-verifiable commands are:
 
 ```text
-node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
-node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
-node --experimental-strip-types tools/tm8fs.ts import VOLUME.TM8 hostfile /path/file
-node --experimental-strip-types tools/tm8fs.ts new VOLUME.TM8 /path/file
-node --experimental-strip-types tools/tm8fs.ts rm VOLUME.TM8 /path/file
-node --experimental-strip-types tools/tm8fs.ts mv VOLUME.TM8 /old/path /new/path
-node --experimental-strip-types tools/tm8fs.ts ls VOLUME.TM8 /
-node --experimental-strip-types tools/tm8fs.ts cat VOLUME.TM8 /path/file
+node --experimental-strip-types tools/fs.ts format VOLUME.TM8
+node --experimental-strip-types tools/fs.ts info VOLUME.TM8
+node --experimental-strip-types tools/fs.ts import VOLUME.TM8 hostfile /path/file
+node --experimental-strip-types tools/fs.ts new VOLUME.TM8 /path/file
+node --experimental-strip-types tools/fs.ts rm VOLUME.TM8 /path/file
+node --experimental-strip-types tools/fs.ts mv VOLUME.TM8 /old/path /new/path
+node --experimental-strip-types tools/fs.ts ls VOLUME.TM8 /
+node --experimental-strip-types tools/fs.ts cat VOLUME.TM8 /path/file
 ```
 
 `format` refuses to overwrite an existing file. `info` verifies the superblock,
@@ -168,7 +168,7 @@ successfully with no output. `cat` resolves a file path, walks the validated
 allocation block chain, and writes exactly the file's stored byte count to
 stdout.
 
-The host `tm8fs` command set is stateless. It does not implement `cd` or `pwd`;
+The host `fs` command set is stateless. It does not implement `cd` or `pwd`;
 host commands use absolute TM8 paths so tests and preservation tools do not
 depend on ambient shell state. `cd` and `pwd` belong to the interactive GLCD
 shell, where a current prefix can live in shell state without changing the

@@ -43,12 +43,13 @@ allocation, truncation, and deletion on the Z80.
 
 ## Internal Layout
 
-Proposed initial layout:
+Version 1 layout:
 
 ```text
 block 0      superblock
 block 1      allocation table
-block 2..9   prefix table + file catalog
+blocks 2-5   prefix table
+blocks 6-9   file catalog
 block 10..n  file data blocks
 ```
 
@@ -73,7 +74,7 @@ The 4K block size maps well to editor source pages:
 
 ## Superblock
 
-The superblock should identify the disk and describe the layout:
+The superblock identifies the disk and describes the layout:
 
 ```text
 magic/version
@@ -85,10 +86,11 @@ catalog start block
 catalog block count
 free block count
 reserved fields
-optional checksum
+checksum
 ```
 
-The format should be simple enough for both Z80 code and host tools to parse.
+The format is kept simple enough for both Z80 code and host tools to parse.
+See [Workspace Disk Format](workspace-disk-format.md) for exact byte offsets.
 
 ## Allocation Table
 
@@ -152,7 +154,7 @@ For a file at the project root, the prefix can be the empty prefix.
 
 ## Prefix Table
 
-Proposed prefix table:
+Version 1 prefix table entries store:
 
 ```text
 status/type
@@ -160,7 +162,6 @@ prefix id
 prefix length
 prefix string
 reserved metadata
-optional checksum
 ```
 
 Working limits:
@@ -180,8 +181,8 @@ lib/glcd
 build
 ```
 
-The current shell location is a current prefix string. `cd` may move to a
-syntactically valid prefix that is not yet present in the prefix table. The
+The future TEC-side shell location is a current prefix string. `cd` may move to
+a syntactically valid prefix that is not yet present in the prefix table. The
 prefix entry is only needed when the first file is created there.
 
 If a user creates a file under a prefix that is not in the prefix table and all
@@ -190,7 +191,7 @@ full error.
 
 ## File Catalog
 
-Proposed file entry:
+Version 1 file catalog entries store:
 
 ```text
 status/type
@@ -202,7 +203,6 @@ first block
 file size in bytes
 file format/type
 reserved metadata
-optional checksum
 ```
 
 Working limits:
@@ -271,9 +271,10 @@ To create a file:
 8. Write the file catalog entry.
 9. Initialize file data.
 
-The current host-side `tm8fs new` implementation creates a zero-length file and
-allocates one initialized 4K block immediately. Later import/write commands can
-reuse the same allocation and catalog mechanics for non-empty content.
+The host-side `fs new` implementation creates a zero-length file and
+allocates one initialized 4K block immediately. `fs import` reuses the same
+catalog and allocation model for raw host bytes, allocating enough 4K blocks
+for the imported content.
 
 ## Deletion
 
@@ -313,7 +314,7 @@ general-purpose whole-card filesystem.
 The intended workflow is static copying:
 
 ```text
-importvol LIBS.TM8 /lib/glcd/terminal.asm /lib/glcd/terminal.asm
+fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
 ```
 
 This copies a file from another TM8 volume into the active project. After the
@@ -329,15 +330,15 @@ does not need to keep multiple volumes live during normal editing or building.
 Because `VOLUME.TM8` is opaque to a laptop, host tools are required for long-term
 preservation.
 
-Planned host commands:
+Host commands:
 
 ```text
-tm8fs list VOLUME.TM8
-tm8fs export VOLUME.TM8 /projects/demo/main.asm ./main.asm
-tm8fs import VOLUME.TM8 ./main.asm /projects/demo/main.asm
-tm8fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
-tm8fs unpack VOLUME.TM8 ./workspace
-tm8fs pack ./workspace VOLUME.TM8
+fs import VOLUME.TM8 ./main.asm /projects/demo/main.asm
+fs export VOLUME.TM8 /projects/demo/main.asm ./main.asm
+fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
+fs unpack VOLUME.TM8 ./workspace
+fs pack ./workspace VOLUME.TM8
 ```
 
-These tools should be designed early, even if implemented later.
+`fs import` is implemented as raw byte import. `export`, cross-volume `copy`,
+`unpack`, and `pack` are still Phase 2 work.

@@ -8,7 +8,7 @@
  *
  * The file is contiguous and exactly 4 MiB. Its sectors are filled with
  * recognizable marker text so host tools can verify file-relative sectors that
- * map to the proposed TECM8 layout.
+ * map to the TECM8 version 1 layout.
  */
 
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');

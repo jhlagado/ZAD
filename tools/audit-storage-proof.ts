@@ -75,7 +75,7 @@ function requirementReport(markers: ProofMarker[]) {
       evidence: markers,
     },
     {
-      requirement: 'Proposed layout offsets are reliable',
+      requirement: 'Version 1 layout offsets are reliable',
       status: layoutSectorsCovered ? 'proven' : 'not-proven',
       evidence: 'superblock, allocation table, catalog start/end, and first data sector markers verified.',
     },

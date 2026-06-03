@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This note records the sizing assumptions behind the current TM8 volume
-proposal. The goal is to keep the limits large enough for serious TEC-1G work
+This note records the sizing assumptions behind the version 1 TM8 volume
+defaults. The goal is to keep the limits large enough for serious TEC-1G work
 while preserving byte-sized identifiers and simple Z80 arithmetic.
 
 Current working limits:
@@ -203,8 +203,8 @@ while leaving substantial headroom.
 
 ## Build Artifact Model
 
-TECM8 is expected to assemble through source-level inclusion rather than a C-like
-compile/link pipeline.
+TECM8 is expected to assemble through source-level inclusion rather than a
+separate object/link pipeline.
 
 A project normally has:
 
@@ -221,4 +221,3 @@ file count and storage use under control.
 
 Future module or load-time linking systems may add more artifact types, but
 they are not part of the first assembler target.
-

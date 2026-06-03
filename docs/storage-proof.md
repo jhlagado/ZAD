@@ -36,7 +36,7 @@ VOLUME.TM8
 The file is 4 MiB, contiguous, and filled with recognizable 512-byte sector
 markers. The generated manifest records the exact LBAs and byte offsets.
 
-Proposed TECM8 layout offsets covered by the proof:
+TECM8 v1 layout offsets covered by the proof:
 
 ```text
 file-relative sector 0     block 0, superblock
@@ -126,7 +126,7 @@ requirements: all TM8 storage requirements proven against the current Debug80 ch
 | TECM8 can read arbitrary 512-byte sectors inside the file | Proven for sectors 0, 8, 16, 79, and 80 through MON3 `readSector`. |
 | TECM8 can write back sectors that were previously read | Proven for the same sectors through MON3 `writeSector`. |
 | Writes can be verified from the host side | Proven by host byte checks in `tools/run-storage-proof.ts`, `tools/check-storage-proof-status.ts`, and `tools/audit-storage-proof.ts`. |
-| Proposed layout offsets are reliable | Proven for superblock, allocation table, catalog start/end, and first data sector. |
+| Version 1 layout offsets are reliable | Proven for superblock, allocation table, catalog start/end, and first data sector. |
 
 ## Next Step
 

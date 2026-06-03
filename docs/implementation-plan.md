@@ -5,7 +5,7 @@
 Goals:
 
 - Keep the MON3/Debug80 storage proof passing against an existing FAT32 file.
-- Validate the proposed default workspace size: 4MB volume, 4K blocks, 256 file
+- Validate the default workspace size: 4MB volume, 4K blocks, 256 file
   entries, and 128 prefix entries.
 - Decide exact superblock, allocation table, and catalog entry byte layouts.
 
@@ -39,7 +39,7 @@ cat
 
 The Phase 1 host tool is intentionally stateless: commands take explicit
 absolute TM8 paths and do not persist a current prefix. `cd` and `pwd` are GLCD
-shell commands, not host `tm8fs` commands; they move to Phase 3 where there is
+shell commands, not host `fs` commands; they move to Phase 3 where there is
 an interactive shell state. For shell v1, `cd` changes the current prefix and
 always succeeds for syntactically valid paths.
 
@@ -53,17 +53,20 @@ Goals:
 Host commands:
 
 ```text
-tm8fs list VOLUME.TM8
-tm8fs import VOLUME.TM8 hostfile /path/in/tm8
-tm8fs export VOLUME.TM8 /path/in/tm8 hostfile
-tm8fs copy LIBS.TM8:/lib/file.asm VOLUME.TM8:/lib/file.asm
-tm8fs unpack VOLUME.TM8 folder
-tm8fs pack folder VOLUME.TM8
+fs ls VOLUME.TM8 /path
+fs import VOLUME.TM8 hostfile /path/in/tm8
+fs export VOLUME.TM8 /path/in/tm8 hostfile
+fs copy LIBS.TM8:/lib/file.asm VOLUME.TM8:/lib/file.asm
+fs unpack VOLUME.TM8 folder
+fs pack folder VOLUME.TM8
 ```
 
 Host-side cross-volume copy is the preferred early way to bring libraries and
 examples into a project. TEC-side cross-volume import can follow once the active
 volume workflow is stable.
+
+`fs import` is already implemented as raw byte import. Source-record
+conversion belongs to Phase 4.
 
 ## Phase 3: GLCD Shell
 

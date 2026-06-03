@@ -561,7 +561,7 @@ test('refuses to overwrite an existing volume file by default', () => {
   }
 });
 
-test('tm8fs rejects extra CLI arguments', () => {
+test('fs rejects extra CLI arguments', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const file = join(dir, 'VOLUME.TM8');
@@ -571,17 +571,17 @@ test('tm8fs rejects extra CLI arguments', () => {
       () =>
         execFileSync(
           process.execPath,
-          ['--experimental-strip-types', 'tools/tm8fs.ts', 'info', file, 'junk'],
+          ['--experimental-strip-types', 'tools/fs.ts', 'info', file, 'junk'],
           { cwd: process.cwd(), stdio: 'pipe' },
         ),
-      /usage: tm8fs format VOLUME\.TM8/,
+      /usage: fs format VOLUME\.TM8/,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('tm8fs lists an empty root path', () => {
+test('fs lists an empty root path', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const file = join(dir, 'VOLUME.TM8');
@@ -589,7 +589,7 @@ test('tm8fs lists an empty root path', () => {
 
     const output = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'ls', file, '/'],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
 
@@ -684,7 +684,7 @@ test('reports prefix table full, file catalog full, and no free block errors', (
   assert.throws(() => createFileInVolumeImage(noFreeBlocks, '/main.z80'), /no free blocks/);
 });
 
-test('tm8fs new creates a file that can be listed', () => {
+test('fs new creates a file that can be listed', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const file = join(dir, 'VOLUME.TM8');
@@ -692,12 +692,12 @@ test('tm8fs new creates a file that can be listed', () => {
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'new', file, '/projects/demo/main.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/projects/demo/main.z80'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const output = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/projects/demo'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'ls', file, '/projects/demo'],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
 
@@ -748,7 +748,7 @@ test('rejects missing and malformed cat paths', () => {
   assert.throws(() => readFileFromVolumeImage(image, '/bad/name/'), /missing local filename/);
 });
 
-test('tm8fs cat prints file contents and zero-length files', () => {
+test('fs cat prints file contents and zero-length files', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const file = join(dir, 'VOLUME.TM8');
@@ -756,18 +756,18 @@ test('tm8fs cat prints file contents and zero-length files', () => {
     writeFileSync(file, writeFileContent(createVolumeImage(), '/hello.txt', content));
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'new', file, '/empty.txt'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/empty.txt'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
 
     const output = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/hello.txt'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/hello.txt'],
       { cwd: process.cwd() },
     );
     const emptyOutput = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/empty.txt'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/empty.txt'],
       { cwd: process.cwd() },
     );
 
@@ -849,25 +849,25 @@ test('rejects missing and malformed rm paths', () => {
   assert.throws(() => removeFileFromVolumeImage(image, '/bad/name/'), /missing local filename/);
 });
 
-test('tm8fs rm removes files from listings and cat output', () => {
+test('fs rm removes files from listings and cat output', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const file = join(dir, 'VOLUME.TM8');
     formatVolumeFile(file);
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'new', file, '/projects/demo/main.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/projects/demo/main.z80'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'rm', file, '/projects/demo/main.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'rm', file, '/projects/demo/main.z80'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const listing = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/projects/demo'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'ls', file, '/projects/demo'],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
 
@@ -876,7 +876,7 @@ test('tm8fs rm removes files from listings and cat output', () => {
       () =>
         execFileSync(
           process.execPath,
-          ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/projects/demo/main.z80'],
+          ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/projects/demo/main.z80'],
           { cwd: process.cwd(), stdio: 'pipe' },
         ),
       /file not found/,
@@ -990,7 +990,7 @@ test('rejects missing, malformed, and colliding mv paths', () => {
   assert.throws(() => moveFileInVolumeImage(image, '/main.z80', '/existing.z80'), /file already exists/);
 });
 
-test('tm8fs mv updates listings and preserves cat output', () => {
+test('fs mv updates listings and preserves cat output', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const file = join(dir, 'VOLUME.TM8');
@@ -999,22 +999,22 @@ test('tm8fs mv updates listings and preserves cat output', () => {
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'mv', file, '/src/main.z80', '/dst/app.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'mv', file, '/src/main.z80', '/dst/app.z80'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const srcListing = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/src'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'ls', file, '/src'],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
     const dstListing = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/dst'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'ls', file, '/dst'],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
     const output = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/dst/app.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/dst/app.z80'],
       { cwd: process.cwd() },
     );
 
@@ -1141,7 +1141,7 @@ test('rejects catalog-full and prefix-full imports', () => {
   );
 });
 
-test('tm8fs import updates listings and cat output', () => {
+test('fs import updates listings and cat output', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const volumePath = join(dir, 'VOLUME.TM8');
@@ -1152,17 +1152,17 @@ test('tm8fs import updates listings and cat output', () => {
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'import', volumePath, hostPath, '/src/main.asm'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'import', volumePath, hostPath, '/src/main.asm'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const listing = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', volumePath, '/src'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'ls', volumePath, '/src'],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
     const output = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', volumePath, '/src/main.asm'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'cat', volumePath, '/src/main.asm'],
       { cwd: process.cwd() },
     );
 

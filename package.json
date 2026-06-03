@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tools/**/*.test.ts",
-    "tm8fs": "node --experimental-strip-types tools/tm8fs.ts",
+    "fs": "node --experimental-strip-types tools/fs.ts",
     "proof:storage:image": "node --experimental-strip-types tools/create-storage-proof-image.ts",
     "proof:storage:image:verify": "node --experimental-strip-types tools/create-storage-proof-image.ts --verify-only",
     "proof:storage": "node --experimental-strip-types tools/run-storage-proof.ts",

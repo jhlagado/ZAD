@@ -16,9 +16,10 @@ The advanced goal is a source-aware debugger with object loading, source maps,
 breakpoints, stepping, register display, and source context. That is deliberately
 separate from the first edit/assemble/run baseline.
 
-Project storage is built around a portable `VOLUME.TM8` workspace file. Host
-tools create, inspect, import, export, copy, pack, and unpack these volumes so
-projects can move cleanly between a laptop and the TEC-1G.
+Project storage is built around a portable `VOLUME.TM8` workspace file. Current
+host tools create, inspect, and import these volumes; Phase 2 adds export,
+cross-volume copy, pack, and unpack so projects can move cleanly between a
+laptop and the TEC-1G.
 
 Start with the documentation:
 

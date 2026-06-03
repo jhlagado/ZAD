@@ -14,14 +14,14 @@ const {
 } = require('./tm8/format.ts');
 
 function usage(): never {
-  console.error('usage: tm8fs format VOLUME.TM8');
-  console.error('       tm8fs info VOLUME.TM8');
-  console.error('       tm8fs import VOLUME.TM8 hostfile /path/file');
-  console.error('       tm8fs new VOLUME.TM8 /path/file');
-  console.error('       tm8fs rm VOLUME.TM8 /path/file');
-  console.error('       tm8fs mv VOLUME.TM8 /old/path /new/path');
-  console.error('       tm8fs ls VOLUME.TM8 /path');
-  console.error('       tm8fs cat VOLUME.TM8 /path/file');
+  console.error('usage: fs format VOLUME.TM8');
+  console.error('       fs info VOLUME.TM8');
+  console.error('       fs import VOLUME.TM8 hostfile /path/file');
+  console.error('       fs new VOLUME.TM8 /path/file');
+  console.error('       fs rm VOLUME.TM8 /path/file');
+  console.error('       fs mv VOLUME.TM8 /old/path /new/path');
+  console.error('       fs ls VOLUME.TM8 /path');
+  console.error('       fs cat VOLUME.TM8 /path/file');
   process.exit(2);
 }
 

@@ -169,16 +169,17 @@ Excluded from v1:
 - Horizontal scrolling.
 - True variable-length text storage.
 
-## Import And Export
+## Source Text Import And Export
 
 Internal source format is fixed-record binary text. Host-visible plain text
-requires conversion.
+requires conversion. This is separate from the Phase 2 raw-byte `fs import`
+command, which preserves file bytes exactly and does not convert line records.
 
-Planned commands:
+Possible future source-conversion commands:
 
 ```text
-import MAIN.ASM /projects/demo/main.asm
-export /projects/demo/main.asm MAIN.ASM
+import-text MAIN.ASM /projects/demo/main.asm
+export-text /projects/demo/main.asm MAIN.ASM
 ```
 
 Import converts newline-separated text into 32-byte line records.
