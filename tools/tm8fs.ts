@@ -6,6 +6,7 @@ const {
   createFileInVolumeImage,
   formatVolumeFile,
   listVolumePath,
+  moveFileInVolumeImage,
   parseVolumeImage,
   readFileFromVolumeImage,
   removeFileFromVolumeImage,
@@ -16,6 +17,7 @@ function usage(): never {
   console.error('       tm8fs info VOLUME.TM8');
   console.error('       tm8fs new VOLUME.TM8 /path/file');
   console.error('       tm8fs rm VOLUME.TM8 /path/file');
+  console.error('       tm8fs mv VOLUME.TM8 /old/path /new/path');
   console.error('       tm8fs ls VOLUME.TM8 /path');
   console.error('       tm8fs cat VOLUME.TM8 /path/file');
   process.exit(2);
@@ -58,6 +60,13 @@ function printFile(volumePath: string, path: string): void {
 
 function removeFile(volumePath: string, path: string): void {
   writeFileSync(volumePath, removeFileFromVolumeImage(readFileSync(volumePath), path));
+}
+
+function moveFile(volumePath: string, sourcePath: string, destinationPath: string): void {
+  writeFileSync(
+    volumePath,
+    moveFileInVolumeImage(readFileSync(volumePath), sourcePath, destinationPath),
+  );
 }
 
 function main(argv: string[]): void {
@@ -103,6 +112,15 @@ function main(argv: string[]): void {
       usage();
     }
     removeFile(path, tm8Path);
+    return;
+  }
+
+  if (command === 'mv') {
+    const destinationPath = argv[3];
+    if (argv.length !== 4 || !tm8Path || !destinationPath) {
+      usage();
+    }
+    moveFile(path, tm8Path, destinationPath);
     return;
   }
 

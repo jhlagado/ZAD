@@ -140,6 +140,7 @@ node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/tm8fs.ts rm VOLUME.TM8 /path/file
+node --experimental-strip-types tools/tm8fs.ts mv VOLUME.TM8 /old/path /new/path
 node --experimental-strip-types tools/tm8fs.ts ls VOLUME.TM8 /
 node --experimental-strip-types tools/tm8fs.ts cat VOLUME.TM8 /path/file
 ```
@@ -153,8 +154,11 @@ stores a zero-length file catalog entry, and updates the allocation table and
 free-block count. `rm` resolves an existing file path, frees every block in its
 validated allocation chain, zeroes the file catalog entry, updates the
 free-block count and checksum, and removes the prefix entry when no remaining
-file references it. `ls` parses the prefix table and file catalog and prints
-matching local filenames, one per line. A freshly formatted volume lists `/`
-successfully with no output. `cat` resolves a file path, walks the validated
-allocation block chain, and writes exactly the file's stored byte count to
-stdout.
+file references it. `mv` resolves an existing source file, rejects destination
+collisions, rewrites the catalog entry's prefix and local filename, creates or
+reuses the destination prefix, reclaims the source prefix when emptied, and
+preserves the file's data block chain and metadata. `ls` parses the prefix
+table and file catalog and prints matching local filenames, one per line. A
+freshly formatted volume lists `/` successfully with no output. `cat` resolves
+a file path, walks the validated allocation block chain, and writes exactly the
+file's stored byte count to stdout.

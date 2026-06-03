@@ -19,6 +19,7 @@ const {
   parseVolumeImage,
   readFileFromVolumeImage,
   removeFileFromVolumeImage,
+  moveFileInVolumeImage,
 } = require('./format.ts');
 
 function writeU16(image: Buffer, offset: number, value: number): void {
@@ -875,6 +876,146 @@ test('tm8fs rm removes files from listings and cat output', () => {
         ),
       /file not found/,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('renames a root file while preserving metadata and data', () => {
+  const content = Buffer.from('root rename\n', 'utf8');
+  const image = writeFileContent(createVolumeImage(), '/main.z80', content);
+  const before = parseVolumeImage(image).files[0];
+
+  const updated = moveFileInVolumeImage(image, '/main.z80', '/renamed.z80');
+  const volume = parseVolumeImage(updated);
+
+  assert.deepEqual(listVolumePath(volume, '/').map((entry: { name: string }) => entry.name), [
+    'renamed.z80',
+  ]);
+  assert.equal(volume.files[0].fileId, before.fileId);
+  assert.equal(volume.files[0].firstBlock, before.firstBlock);
+  assert.equal(volume.files[0].size, before.size);
+  assert.equal(volume.files[0].fileType, before.fileType);
+  assert.deepEqual(readFileFromVolumeImage(updated, '/renamed.z80'), content);
+  assert.throws(() => readFileFromVolumeImage(updated, '/main.z80'), /file not found/);
+});
+
+test('renames a prefixed file without changing its prefix', () => {
+  const image = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.z80');
+
+  const updated = moveFileInVolumeImage(
+    image,
+    '/projects/demo/main.z80',
+    '/projects/demo/app.z80',
+  );
+  const volume = parseVolumeImage(updated);
+
+  assert.deepEqual(
+    listVolumePath(volume, '/projects/demo').map((entry: { name: string }) => entry.name),
+    ['app.z80'],
+  );
+  assert.deepEqual(volume.prefixes.map((entry: { prefix: string }) => entry.prefix), [
+    'projects/demo',
+  ]);
+});
+
+test('moves a file across prefixes and reclaims the emptied source prefix', () => {
+  const content = Buffer.from('moved between prefixes\n', 'utf8');
+  const image = writeFileContent(createVolumeImage(), '/old/main.z80', content);
+
+  const updated = moveFileInVolumeImage(image, '/old/main.z80', '/new/main.z80');
+  const volume = parseVolumeImage(updated);
+
+  assert.deepEqual(listVolumePath(volume, '/old'), []);
+  assert.deepEqual(listVolumePath(volume, '/new').map((entry: { name: string }) => entry.name), [
+    'main.z80',
+  ]);
+  assert.deepEqual(volume.prefixes.map((entry: { prefix: string }) => entry.prefix), ['new']);
+  assert.deepEqual(readFileFromVolumeImage(updated, '/new/main.z80'), content);
+});
+
+test('moves a file into an existing prefix without reclaiming a still-used source prefix', () => {
+  let image = createFileInVolumeImage(createVolumeImage(), '/src/main.z80');
+  image = createFileInVolumeImage(image, '/src/other.z80');
+  image = createFileInVolumeImage(image, '/dst/existing.z80');
+  const before = parseVolumeImage(image);
+  const srcPrefixId = before.prefixes.find((entry: { prefix: string }) => entry.prefix === 'src')?.prefixId;
+  const dstPrefixId = before.prefixes.find((entry: { prefix: string }) => entry.prefix === 'dst')?.prefixId;
+
+  const updated = moveFileInVolumeImage(image, '/src/main.z80', '/dst/main.z80');
+  const volume = parseVolumeImage(updated);
+  const moved = volume.files.find((entry: { name: string }) => entry.name === 'main.z80');
+
+  assert.deepEqual(listVolumePath(volume, '/src').map((entry: { name: string }) => entry.name), [
+    'other.z80',
+  ]);
+  assert.deepEqual(listVolumePath(volume, '/dst').map((entry: { name: string }) => entry.name), [
+    'main.z80',
+    'existing.z80',
+  ]);
+  assert.equal(moved?.prefixId, dstPrefixId);
+  assert.ok(volume.prefixes.some((entry: { prefixId: number }) => entry.prefixId === srcPrefixId));
+});
+
+test('moves into a new prefix by reusing an emptied source prefix slot when the prefix table is full', () => {
+  let image = createVolumeImage();
+  for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
+    image = createFileInVolumeImage(image, `/p${index}/file.z80`);
+  }
+
+  const updated = moveFileInVolumeImage(image, '/p0/file.z80', '/new/file.z80');
+  const volume = parseVolumeImage(updated);
+
+  assert.deepEqual(listVolumePath(volume, '/p0'), []);
+  assert.deepEqual(listVolumePath(volume, '/new').map((entry: { name: string }) => entry.name), [
+    'file.z80',
+  ]);
+  assert.equal(volume.prefixes.length, TM8_FORMAT.prefixEntryCount);
+  assert.ok(!volume.prefixes.some((entry: { prefix: string }) => entry.prefix === 'p0'));
+  assert.ok(volume.prefixes.some((entry: { prefix: string }) => entry.prefix === 'new'));
+});
+
+test('rejects missing, malformed, and colliding mv paths', () => {
+  let image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+  image = createFileInVolumeImage(image, '/existing.z80');
+
+  assert.throws(() => moveFileInVolumeImage(image, '/missing.z80', '/renamed.z80'), /file not found/);
+  assert.throws(() => moveFileInVolumeImage(image, 'main.z80', '/renamed.z80'), /TM8 paths must start with/);
+  assert.throws(() => moveFileInVolumeImage(image, '/main.z80', '/bad/name/'), /missing local filename/);
+  assert.throws(() => moveFileInVolumeImage(image, '/main.z80', '/existing.z80'), /file already exists/);
+});
+
+test('tm8fs mv updates listings and preserves cat output', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const file = join(dir, 'VOLUME.TM8');
+    const content = Buffer.from('hello mv\n', 'utf8');
+    writeFileSync(file, writeFileContent(createVolumeImage(), '/src/main.z80', content));
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'mv', file, '/src/main.z80', '/dst/app.z80'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    const srcListing = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/src'],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+    const dstListing = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/dst'],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+    const output = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/dst/app.z80'],
+      { cwd: process.cwd() },
+    );
+
+    assert.equal(srcListing, '');
+    assert.equal(dstListing, 'app.z80\n');
+    assert.deepEqual(output, content);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

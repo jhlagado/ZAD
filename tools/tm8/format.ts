@@ -668,6 +668,31 @@ function writeActiveFileEntry(
   image[offset + TM8_CATALOG_ENTRY.fileTypeOffset] = options.fileType;
 }
 
+function prefixIdForPath(volume: ParsedVolume, image: Buffer, prefix: string): number {
+  if (prefix === '') {
+    return 0;
+  }
+
+  const existingPrefix = volume.prefixes.find((entry) => entry.prefix === prefix);
+  if (existingPrefix) {
+    return existingPrefix.prefixId;
+  }
+
+  const prefixEntryIndex = findFreeEntryIndex(
+    image,
+    TM8_FORMAT.prefixStartBlock,
+    TM8_FORMAT.prefixEntrySize,
+    TM8_FORMAT.prefixEntryCount,
+  );
+  if (prefixEntryIndex === -1) {
+    throw new Error('prefix table full');
+  }
+
+  const prefixId = nextFreeByteId(volume.prefixes.map((entry) => entry.prefixId), 'prefix');
+  writeActivePrefixEntry(image, prefixEntryIndex, prefixId, prefix);
+  return prefixId;
+}
+
 function createFileInVolumeImage(image: Buffer, path: string): Buffer {
   const nextImage = Buffer.from(image);
   const volume = parseVolumeImage(nextImage);
@@ -700,25 +725,7 @@ function createFileInVolumeImage(image: Buffer, path: string): Buffer {
     throw new Error('file catalog full');
   }
 
-  let prefixId = 0;
-  if (prefix !== '') {
-    const existingPrefix = volume.prefixes.find((entry) => entry.prefix === prefix);
-    if (existingPrefix) {
-      prefixId = existingPrefix.prefixId;
-    } else {
-      const prefixEntryIndex = findFreeEntryIndex(
-        nextImage,
-        TM8_FORMAT.prefixStartBlock,
-        TM8_FORMAT.prefixEntrySize,
-        TM8_FORMAT.prefixEntryCount,
-      );
-      if (prefixEntryIndex === -1) {
-        throw new Error('prefix table full');
-      }
-      prefixId = nextFreeByteId(volume.prefixes.map((entry) => entry.prefixId), 'prefix');
-      writeActivePrefixEntry(nextImage, prefixEntryIndex, prefixId, prefix);
-    }
-  }
+  const prefixId = prefixIdForPath(volume, nextImage, prefix);
 
   const fileId = nextFreeByteId(volume.files.map((entry) => entry.fileId), 'file');
   putU16(nextImage, allocationEntryOffset(freeBlock), ALLOCATION_END);
@@ -830,6 +837,58 @@ function removeFileFromVolumeImage(image: Buffer, path: string): Buffer {
   return nextImage;
 }
 
+function moveFileInVolumeImage(image: Buffer, sourcePath: string, destinationPath: string): Buffer {
+  const nextImage = Buffer.from(image);
+  const volume = parseVolumeImage(nextImage);
+  const sourceFile = findFileByPath(volume, sourcePath);
+  const destination = splitFilePath(destinationPath);
+
+  if (
+    volume.files.some(
+      (file) => prefixForFile(volume, file) === destination.prefix && file.name === destination.name,
+    )
+  ) {
+    throw new Error(`file already exists: ${destinationPath}`);
+  }
+
+  const fileEntryIndex = findCatalogIndexForFile(nextImage, sourceFile);
+  const sourcePrefixEmptied =
+    sourceFile.prefixId !== 0 &&
+    prefixForFile(volume, sourceFile) !== destination.prefix &&
+    !volume.files.some((entry) => entry !== sourceFile && entry.prefixId === sourceFile.prefixId);
+
+  if (sourcePrefixEmptied) {
+    const prefixEntryIndex = findPrefixIndexById(nextImage, sourceFile.prefixId);
+    nextImage.fill(
+      0,
+      prefixEntryOffset(prefixEntryIndex),
+      prefixEntryOffset(prefixEntryIndex) + TM8_FORMAT.prefixEntrySize,
+    );
+  }
+
+  const availablePrefixes = sourcePrefixEmptied
+    ? volume.prefixes.filter((entry) => entry.prefixId !== sourceFile.prefixId)
+    : volume.prefixes;
+  const destinationPrefixId = prefixIdForPath(
+    { ...volume, prefixes: availablePrefixes },
+    nextImage,
+    destination.prefix,
+  );
+  const fileEntryOffset = catalogEntryOffset(fileEntryIndex);
+
+  nextImage.fill(
+    0,
+    fileEntryOffset + TM8_CATALOG_ENTRY.prefixIdOffset,
+    fileEntryOffset + TM8_CATALOG_ENTRY.firstBlockOffset,
+  );
+  nextImage[fileEntryOffset + TM8_CATALOG_ENTRY.prefixIdOffset] = destinationPrefixId;
+  nextImage[fileEntryOffset + TM8_CATALOG_ENTRY.nameLengthOffset] = destination.name.length;
+  nextImage.set(Buffer.from(destination.name, 'ascii'), fileEntryOffset + TM8_CATALOG_ENTRY.nameOffset);
+
+  parseVolumeImage(nextImage);
+  return nextImage;
+}
+
 function listVolumePath(volume: ParsedVolume, path: string): ListedFile[] {
   const prefix = normalizePrefixPath(path);
   const prefixById = new Map(volume.prefixes.map((entry) => [entry.prefixId, entry.prefix]));
@@ -883,6 +942,7 @@ module.exports = {
   createVolumeImage,
   formatVolumeFile,
   listVolumePath,
+  moveFileInVolumeImage,
   parseVolumeImage,
   readFileFromVolumeImage,
   removeFileFromVolumeImage,
