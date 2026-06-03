@@ -78,14 +78,14 @@ several files are large library-style monoliths.
 Current MON3 `src` line counts:
 
 ```text
-3713  mon3.z80
-3097  glcd_library.z80
-1695  pata_fat32.z80
-1118  disassembler.z80
-1104  rtc.z80
-122   sound.z80
-122   api_includes.z80
-9     packages.z80
+3713  mon3.asm
+3097  glcd_library.asm
+1695  pata_fat32.asm
+1118  disassembler.asm
+1104  rtc.asm
+122   sound.asm
+122   api_includes.asm
+9     packages.asm
 ```
 
 Total:

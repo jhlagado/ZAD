@@ -317,7 +317,7 @@ test('lists active root catalog entries by local filename', () => {
   writeCatalogEntry(image, 0, {
     fileId: 7,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
     size: 123,
     fileType: 1,
   });
@@ -327,8 +327,8 @@ test('lists active root catalog entries by local filename', () => {
   assert.deepEqual(listing, [
     {
       fileId: 7,
-      path: '/main.z80',
-      name: 'main.z80',
+      path: '/main.asm',
+      name: 'main.asm',
       prefix: '',
       size: 123,
       fileType: 1,
@@ -345,7 +345,7 @@ test('lists active entries under a stored prefix', () => {
   writeCatalogEntry(image, 0, {
     fileId: 8,
     prefixId: 3,
-    name: 'main.z80',
+    name: 'main.asm',
     size: 456,
     fileType: 1,
   });
@@ -355,8 +355,8 @@ test('lists active entries under a stored prefix', () => {
   assert.deepEqual(listing, [
     {
       fileId: 8,
-      path: '/projects/demo/main.z80',
-      name: 'main.z80',
+      path: '/projects/demo/main.asm',
+      name: 'main.asm',
       prefix: 'projects/demo',
       size: 456,
       fileType: 1,
@@ -377,7 +377,7 @@ test('rejects malformed active file entries', () => {
   writeCatalogEntry(missingPrefix, 0, {
     fileId: 1,
     prefixId: 9,
-    name: 'main.z80',
+    name: 'main.asm',
   });
   assert.throws(() => parseVolumeImage(missingPrefix), /unknown prefix id 9/);
 
@@ -393,7 +393,7 @@ test('rejects malformed active file entries', () => {
   writeCatalogEntry(highBitName, 0, {
     fileId: 1,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
   });
   highBitName[TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes + 4] = 0xe1;
   assert.throws(() => parseVolumeImage(highBitName), /bad file name byte/);
@@ -404,7 +404,7 @@ test('rejects active file entries with invalid block chains', () => {
   writeCatalogEntry(freeBlockFile, 0, {
     fileId: 1,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
     firstBlock: TM8_FORMAT.dataStartBlock,
     allocate: false,
   });
@@ -414,7 +414,7 @@ test('rejects active file entries with invalid block chains', () => {
   writeCatalogEntry(cyclicFile, 0, {
     fileId: 1,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
     firstBlock: TM8_FORMAT.dataStartBlock,
   });
   writeU16(
@@ -436,13 +436,13 @@ test('rejects active file entries with invalid block chains', () => {
   writeCatalogEntry(sharedBlock, 0, {
     fileId: 1,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
     firstBlock: TM8_FORMAT.dataStartBlock,
   });
   writeCatalogEntry(sharedBlock, 1, {
     fileId: 2,
     prefixId: 0,
-    name: 'other.z80',
+    name: 'other.asm',
     firstBlock: TM8_FORMAT.dataStartBlock,
     allocate: false,
   });
@@ -467,12 +467,12 @@ test('rejects duplicate active catalog paths', () => {
   writeCatalogEntry(image, 0, {
     fileId: 1,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
   });
   writeCatalogEntry(image, 1, {
     fileId: 2,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
   });
 
   assert.throws(() => parseVolumeImage(image), /duplicate file path/);
@@ -483,12 +483,12 @@ test('rejects duplicate active file ids', () => {
   writeCatalogEntry(image, 0, {
     fileId: 1,
     prefixId: 0,
-    name: 'main.z80',
+    name: 'main.asm',
   });
   writeCatalogEntry(image, 1, {
     fileId: 1,
     prefixId: 0,
-    name: 'other.z80',
+    name: 'other.asm',
   });
 
   assert.throws(() => parseVolumeImage(image), /duplicate file id/);
@@ -602,14 +602,14 @@ test('fs lists an empty root path', () => {
 test('creates a root file with one allocated data block', () => {
   const image = createVolumeImage();
   image.fill(0xa5, TM8_FORMAT.dataStartBlock * TM8_FORMAT.blockBytes, (TM8_FORMAT.dataStartBlock + 1) * TM8_FORMAT.blockBytes);
-  const updated = createFileInVolumeImage(image, '/main.z80');
+  const updated = createFileInVolumeImage(image, '/main.asm');
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(listVolumePath(volume, '/'), [
     {
       fileId: 0,
-      path: '/main.z80',
-      name: 'main.z80',
+      path: '/main.asm',
+      name: 'main.asm',
       prefix: '',
       size: 0,
       fileType: 1,
@@ -628,7 +628,7 @@ test('creates a root file with one allocated data block', () => {
 });
 
 test('creates a prefixed file and makes ls show it under that prefix', () => {
-  const updated = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.z80');
+  const updated = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.asm');
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(volume.prefixes, [
@@ -641,8 +641,8 @@ test('creates a prefixed file and makes ls show it under that prefix', () => {
   assert.deepEqual(listVolumePath(volume, '/projects/demo'), [
     {
       fileId: 0,
-      path: '/projects/demo/main.z80',
-      name: 'main.z80',
+      path: '/projects/demo/main.asm',
+      name: 'main.asm',
       prefix: 'projects/demo',
       size: 0,
       fileType: 1,
@@ -651,10 +651,10 @@ test('creates a prefixed file and makes ls show it under that prefix', () => {
 });
 
 test('rejects duplicate and malformed new file paths', () => {
-  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.asm');
 
-  assert.throws(() => createFileInVolumeImage(image, '/main.z80'), /file already exists/);
-  assert.throws(() => createFileInVolumeImage(image, 'main.z80'), /TM8 paths must start with/);
+  assert.throws(() => createFileInVolumeImage(image, '/main.asm'), /file already exists/);
+  assert.throws(() => createFileInVolumeImage(image, 'main.asm'), /TM8 paths must start with/);
   assert.throws(() => createFileInVolumeImage(image, '/bad/name/'), /missing local filename/);
   assert.throws(() => createFileInVolumeImage(image, '/bad/foo*bar'), /bad file name/);
 });
@@ -662,18 +662,18 @@ test('rejects duplicate and malformed new file paths', () => {
 test('reports prefix table full, file catalog full, and no free block errors', () => {
   let prefixFull = createVolumeImage();
   for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
-    prefixFull = createFileInVolumeImage(prefixFull, `/p${index}/file.z80`);
+    prefixFull = createFileInVolumeImage(prefixFull, `/p${index}/file.asm`);
   }
   assert.throws(
-    () => createFileInVolumeImage(prefixFull, '/overflow/file.z80'),
+    () => createFileInVolumeImage(prefixFull, '/overflow/file.asm'),
     /prefix table full/,
   );
 
   let catalogFull = createVolumeImage();
   for (let index = 0; index < TM8_FORMAT.catalogEntryCount; index += 1) {
-    catalogFull = createFileInVolumeImage(catalogFull, `/file${index}.z80`);
+    catalogFull = createFileInVolumeImage(catalogFull, `/file${index}.asm`);
   }
-  assert.throws(() => createFileInVolumeImage(catalogFull, '/overflow.z80'), /file catalog full/);
+  assert.throws(() => createFileInVolumeImage(catalogFull, '/overflow.asm'), /file catalog full/);
 
   const noFreeBlocks = createVolumeImage();
   const allocationStart = TM8_FORMAT.allocationStartBlock * TM8_FORMAT.blockBytes;
@@ -681,7 +681,7 @@ test('reports prefix table full, file catalog full, and no free block errors', (
     writeU16(noFreeBlocks, allocationStart + block * 2, ALLOCATION_END);
   }
   rewriteFreeBlockCount(noFreeBlocks, 0);
-  assert.throws(() => createFileInVolumeImage(noFreeBlocks, '/main.z80'), /no free blocks/);
+  assert.throws(() => createFileInVolumeImage(noFreeBlocks, '/main.asm'), /no free blocks/);
 });
 
 test('fs new creates a file that can be listed', () => {
@@ -692,7 +692,7 @@ test('fs new creates a file that can be listed', () => {
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/projects/demo/main.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/projects/demo/main.asm'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const output = execFileSync(
@@ -701,7 +701,7 @@ test('fs new creates a file that can be listed', () => {
       { cwd: process.cwd(), encoding: 'utf8' },
     );
 
-    assert.equal(output, 'main.z80\n');
+    assert.equal(output, 'main.asm\n');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -709,25 +709,25 @@ test('fs new creates a file that can be listed', () => {
 
 test('reads root and prefixed file contents exactly', () => {
   const rootContent = Buffer.from('root file\n', 'utf8');
-  const rootImage = writeFileContent(createVolumeImage(), '/main.z80', rootContent);
-  assert.deepEqual(readFileFromVolumeImage(rootImage, '/main.z80'), rootContent);
+  const rootImage = writeFileContent(createVolumeImage(), '/main.asm', rootContent);
+  assert.deepEqual(readFileFromVolumeImage(rootImage, '/main.asm'), rootContent);
 
   const prefixedContent = Buffer.from('prefixed file\n', 'utf8');
   const prefixedImage = writeFileContent(
     createVolumeImage(),
-    '/projects/demo/main.z80',
+    '/projects/demo/main.asm',
     prefixedContent,
   );
   assert.deepEqual(
-    readFileFromVolumeImage(prefixedImage, '/projects/demo/main.z80'),
+    readFileFromVolumeImage(prefixedImage, '/projects/demo/main.asm'),
     prefixedContent,
   );
 });
 
 test('reads zero-length files created by new as empty output', () => {
-  const image = createFileInVolumeImage(createVolumeImage(), '/empty.z80');
+  const image = createFileInVolumeImage(createVolumeImage(), '/empty.asm');
 
-  assert.deepEqual(readFileFromVolumeImage(image, '/empty.z80'), Buffer.alloc(0));
+  assert.deepEqual(readFileFromVolumeImage(image, '/empty.asm'), Buffer.alloc(0));
 });
 
 test('reads exact bytes across a multi-block file chain', () => {
@@ -741,10 +741,10 @@ test('reads exact bytes across a multi-block file chain', () => {
 });
 
 test('rejects missing and malformed cat paths', () => {
-  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.asm');
 
-  assert.throws(() => readFileFromVolumeImage(image, '/missing.z80'), /file not found/);
-  assert.throws(() => readFileFromVolumeImage(image, 'main.z80'), /TM8 paths must start with/);
+  assert.throws(() => readFileFromVolumeImage(image, '/missing.asm'), /file not found/);
+  assert.throws(() => readFileFromVolumeImage(image, 'main.asm'), /TM8 paths must start with/);
   assert.throws(() => readFileFromVolumeImage(image, '/bad/name/'), /missing local filename/);
 });
 
@@ -779,26 +779,26 @@ test('fs cat prints file contents and zero-length files', () => {
 });
 
 test('removes a root file and frees its block', () => {
-  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.asm');
   const created = parseVolumeImage(image);
   const firstBlock = created.files[0].firstBlock;
 
-  const updated = removeFileFromVolumeImage(image, '/main.z80');
+  const updated = removeFileFromVolumeImage(image, '/main.asm');
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(listVolumePath(volume, '/'), []);
   assert.equal(volume.allocation[firstBlock], ALLOCATION_FREE);
   assert.equal(volume.superblock.freeBlockCount, created.superblock.freeBlockCount + 1);
-  assert.throws(() => readFileFromVolumeImage(updated, '/main.z80'), /file not found/);
+  assert.throws(() => readFileFromVolumeImage(updated, '/main.asm'), /file not found/);
 });
 
 test('removes prefixed files while reusing and reclaiming prefix entries', () => {
-  let image = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.z80');
+  let image = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.asm');
   image = createFileInVolumeImage(image, '/projects/demo/readme.txt');
   const prefixEntryOffset = prefixEntryStart(0);
   assert.equal(parseVolumeImage(image).prefixes[0].prefix, 'projects/demo');
 
-  const oneRemoved = removeFileFromVolumeImage(image, '/projects/demo/main.z80');
+  const oneRemoved = removeFileFromVolumeImage(image, '/projects/demo/main.asm');
   const partial = parseVolumeImage(oneRemoved);
   assert.deepEqual(listVolumePath(partial, '/projects/demo').map((entry: { name: string }) => entry.name), [
     'readme.txt',
@@ -842,10 +842,10 @@ test('removes a multi-block file chain and zeros the catalog entry', () => {
 });
 
 test('rejects missing and malformed rm paths', () => {
-  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.asm');
 
-  assert.throws(() => removeFileFromVolumeImage(image, '/missing.z80'), /file not found/);
-  assert.throws(() => removeFileFromVolumeImage(image, 'main.z80'), /TM8 paths must start with/);
+  assert.throws(() => removeFileFromVolumeImage(image, '/missing.asm'), /file not found/);
+  assert.throws(() => removeFileFromVolumeImage(image, 'main.asm'), /TM8 paths must start with/);
   assert.throws(() => removeFileFromVolumeImage(image, '/bad/name/'), /missing local filename/);
 });
 
@@ -856,13 +856,13 @@ test('fs rm removes files from listings and cat output', () => {
     formatVolumeFile(file);
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/projects/demo/main.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'new', file, '/projects/demo/main.asm'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/fs.ts', 'rm', file, '/projects/demo/main.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'rm', file, '/projects/demo/main.asm'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const listing = execFileSync(
@@ -876,7 +876,7 @@ test('fs rm removes files from listings and cat output', () => {
       () =>
         execFileSync(
           process.execPath,
-          ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/projects/demo/main.z80'],
+          ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/projects/demo/main.asm'],
           { cwd: process.cwd(), stdio: 'pipe' },
         ),
       /file not found/,
@@ -888,36 +888,36 @@ test('fs rm removes files from listings and cat output', () => {
 
 test('renames a root file while preserving metadata and data', () => {
   const content = Buffer.from('root rename\n', 'utf8');
-  const image = writeFileContent(createVolumeImage(), '/main.z80', content);
+  const image = writeFileContent(createVolumeImage(), '/main.asm', content);
   const before = parseVolumeImage(image).files[0];
 
-  const updated = moveFileInVolumeImage(image, '/main.z80', '/renamed.z80');
+  const updated = moveFileInVolumeImage(image, '/main.asm', '/renamed.asm');
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(listVolumePath(volume, '/').map((entry: { name: string }) => entry.name), [
-    'renamed.z80',
+    'renamed.asm',
   ]);
   assert.equal(volume.files[0].fileId, before.fileId);
   assert.equal(volume.files[0].firstBlock, before.firstBlock);
   assert.equal(volume.files[0].size, before.size);
   assert.equal(volume.files[0].fileType, before.fileType);
-  assert.deepEqual(readFileFromVolumeImage(updated, '/renamed.z80'), content);
-  assert.throws(() => readFileFromVolumeImage(updated, '/main.z80'), /file not found/);
+  assert.deepEqual(readFileFromVolumeImage(updated, '/renamed.asm'), content);
+  assert.throws(() => readFileFromVolumeImage(updated, '/main.asm'), /file not found/);
 });
 
 test('renames a prefixed file without changing its prefix', () => {
-  const image = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.z80');
+  const image = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.asm');
 
   const updated = moveFileInVolumeImage(
     image,
-    '/projects/demo/main.z80',
-    '/projects/demo/app.z80',
+    '/projects/demo/main.asm',
+    '/projects/demo/app.asm',
   );
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(
     listVolumePath(volume, '/projects/demo').map((entry: { name: string }) => entry.name),
-    ['app.z80'],
+    ['app.asm'],
   );
   assert.deepEqual(volume.prefixes.map((entry: { prefix: string }) => entry.prefix), [
     'projects/demo',
@@ -926,37 +926,37 @@ test('renames a prefixed file without changing its prefix', () => {
 
 test('moves a file across prefixes and reclaims the emptied source prefix', () => {
   const content = Buffer.from('moved between prefixes\n', 'utf8');
-  const image = writeFileContent(createVolumeImage(), '/old/main.z80', content);
+  const image = writeFileContent(createVolumeImage(), '/old/main.asm', content);
 
-  const updated = moveFileInVolumeImage(image, '/old/main.z80', '/new/main.z80');
+  const updated = moveFileInVolumeImage(image, '/old/main.asm', '/new/main.asm');
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(listVolumePath(volume, '/old'), []);
   assert.deepEqual(listVolumePath(volume, '/new').map((entry: { name: string }) => entry.name), [
-    'main.z80',
+    'main.asm',
   ]);
   assert.deepEqual(volume.prefixes.map((entry: { prefix: string }) => entry.prefix), ['new']);
-  assert.deepEqual(readFileFromVolumeImage(updated, '/new/main.z80'), content);
+  assert.deepEqual(readFileFromVolumeImage(updated, '/new/main.asm'), content);
 });
 
 test('moves a file into an existing prefix without reclaiming a still-used source prefix', () => {
-  let image = createFileInVolumeImage(createVolumeImage(), '/src/main.z80');
-  image = createFileInVolumeImage(image, '/src/other.z80');
-  image = createFileInVolumeImage(image, '/dst/existing.z80');
+  let image = createFileInVolumeImage(createVolumeImage(), '/src/main.asm');
+  image = createFileInVolumeImage(image, '/src/other.asm');
+  image = createFileInVolumeImage(image, '/dst/existing.asm');
   const before = parseVolumeImage(image);
   const srcPrefixId = before.prefixes.find((entry: { prefix: string }) => entry.prefix === 'src')?.prefixId;
   const dstPrefixId = before.prefixes.find((entry: { prefix: string }) => entry.prefix === 'dst')?.prefixId;
 
-  const updated = moveFileInVolumeImage(image, '/src/main.z80', '/dst/main.z80');
+  const updated = moveFileInVolumeImage(image, '/src/main.asm', '/dst/main.asm');
   const volume = parseVolumeImage(updated);
-  const moved = volume.files.find((entry: { name: string }) => entry.name === 'main.z80');
+  const moved = volume.files.find((entry: { name: string }) => entry.name === 'main.asm');
 
   assert.deepEqual(listVolumePath(volume, '/src').map((entry: { name: string }) => entry.name), [
-    'other.z80',
+    'other.asm',
   ]);
   assert.deepEqual(listVolumePath(volume, '/dst').map((entry: { name: string }) => entry.name), [
-    'main.z80',
-    'existing.z80',
+    'main.asm',
+    'existing.asm',
   ]);
   assert.equal(moved?.prefixId, dstPrefixId);
   assert.ok(volume.prefixes.some((entry: { prefixId: number }) => entry.prefixId === srcPrefixId));
@@ -965,15 +965,15 @@ test('moves a file into an existing prefix without reclaiming a still-used sourc
 test('moves into a new prefix by reusing an emptied source prefix slot when the prefix table is full', () => {
   let image = createVolumeImage();
   for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
-    image = createFileInVolumeImage(image, `/p${index}/file.z80`);
+    image = createFileInVolumeImage(image, `/p${index}/file.asm`);
   }
 
-  const updated = moveFileInVolumeImage(image, '/p0/file.z80', '/new/file.z80');
+  const updated = moveFileInVolumeImage(image, '/p0/file.asm', '/new/file.asm');
   const volume = parseVolumeImage(updated);
 
   assert.deepEqual(listVolumePath(volume, '/p0'), []);
   assert.deepEqual(listVolumePath(volume, '/new').map((entry: { name: string }) => entry.name), [
-    'file.z80',
+    'file.asm',
   ]);
   assert.equal(volume.prefixes.length, TM8_FORMAT.prefixEntryCount);
   assert.ok(!volume.prefixes.some((entry: { prefix: string }) => entry.prefix === 'p0'));
@@ -981,13 +981,13 @@ test('moves into a new prefix by reusing an emptied source prefix slot when the 
 });
 
 test('rejects missing, malformed, and colliding mv paths', () => {
-  let image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
-  image = createFileInVolumeImage(image, '/existing.z80');
+  let image = createFileInVolumeImage(createVolumeImage(), '/main.asm');
+  image = createFileInVolumeImage(image, '/existing.asm');
 
-  assert.throws(() => moveFileInVolumeImage(image, '/missing.z80', '/renamed.z80'), /file not found/);
-  assert.throws(() => moveFileInVolumeImage(image, 'main.z80', '/renamed.z80'), /TM8 paths must start with/);
-  assert.throws(() => moveFileInVolumeImage(image, '/main.z80', '/bad/name/'), /missing local filename/);
-  assert.throws(() => moveFileInVolumeImage(image, '/main.z80', '/existing.z80'), /file already exists/);
+  assert.throws(() => moveFileInVolumeImage(image, '/missing.asm', '/renamed.asm'), /file not found/);
+  assert.throws(() => moveFileInVolumeImage(image, 'main.asm', '/renamed.asm'), /TM8 paths must start with/);
+  assert.throws(() => moveFileInVolumeImage(image, '/main.asm', '/bad/name/'), /missing local filename/);
+  assert.throws(() => moveFileInVolumeImage(image, '/main.asm', '/existing.asm'), /file already exists/);
 });
 
 test('fs mv updates listings and preserves cat output', () => {
@@ -995,11 +995,11 @@ test('fs mv updates listings and preserves cat output', () => {
   try {
     const file = join(dir, 'VOLUME.TM8');
     const content = Buffer.from('hello mv\n', 'utf8');
-    writeFileSync(file, writeFileContent(createVolumeImage(), '/src/main.z80', content));
+    writeFileSync(file, writeFileContent(createVolumeImage(), '/src/main.asm', content));
 
     execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/fs.ts', 'mv', file, '/src/main.z80', '/dst/app.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'mv', file, '/src/main.asm', '/dst/app.asm'],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
     const srcListing = execFileSync(
@@ -1014,12 +1014,12 @@ test('fs mv updates listings and preserves cat output', () => {
     );
     const output = execFileSync(
       process.execPath,
-      ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/dst/app.z80'],
+      ['--experimental-strip-types', 'tools/fs.ts', 'cat', file, '/dst/app.asm'],
       { cwd: process.cwd() },
     );
 
     assert.equal(srcListing, '');
-    assert.equal(dstListing, 'app.z80\n');
+    assert.equal(dstListing, 'app.asm\n');
     assert.deepEqual(output, content);
   } finally {
     rmSync(dir, { recursive: true, force: true });

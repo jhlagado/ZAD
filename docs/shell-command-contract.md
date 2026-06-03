@@ -58,7 +58,7 @@ Examples:
 ```text
 main=/src/main.asm       -> output=/build/main.bin, map=/build/main.map
 main=/src/demo.asm       -> output=/build/demo.bin, map=/build/demo.map
-main=/src/monitor.z80    -> output=/build/monitor.bin, map=/build/monitor.map
+main=/src/monitor.asm    -> output=/build/monitor.bin, map=/build/monitor.map
 ```
 
 This is intentionally less flexible than a general build system. If a project
