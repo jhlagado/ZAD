@@ -139,6 +139,7 @@ The first host-verifiable commands are:
 node --experimental-strip-types tools/tm8fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts info VOLUME.TM8
 node --experimental-strip-types tools/tm8fs.ts new VOLUME.TM8 /path/file
+node --experimental-strip-types tools/tm8fs.ts rm VOLUME.TM8 /path/file
 node --experimental-strip-types tools/tm8fs.ts ls VOLUME.TM8 /
 node --experimental-strip-types tools/tm8fs.ts cat VOLUME.TM8 /path/file
 ```
@@ -149,7 +150,10 @@ active file block chains, then reports the volume layout as JSON. `new` creates
 the needed prefix entry if it
 does not exist, allocates one 4K data block, initializes that block to zero,
 stores a zero-length file catalog entry, and updates the allocation table and
-free-block count. `ls` parses the prefix table and file catalog and prints
+free-block count. `rm` resolves an existing file path, frees every block in its
+validated allocation chain, zeroes the file catalog entry, updates the
+free-block count and checksum, and removes the prefix entry when no remaining
+file references it. `ls` parses the prefix table and file catalog and prints
 matching local filenames, one per line. A freshly formatted volume lists `/`
 successfully with no output. `cat` resolves a file path, walks the validated
 allocation block chain, and writes exactly the file's stored byte count to

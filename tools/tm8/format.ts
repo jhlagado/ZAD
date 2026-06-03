@@ -763,6 +763,73 @@ function readFileFromVolumeImage(image: Buffer, path: string): Buffer {
   return output;
 }
 
+function findCatalogIndexForFile(image: Buffer, file: FileEntry): number {
+  for (let index = 0; index < TM8_FORMAT.catalogEntryCount; index += 1) {
+    const offset = catalogEntryOffset(index);
+    if (
+      image[offset + TM8_CATALOG_ENTRY.statusOffset] === ENTRY_STATUS_ACTIVE &&
+      image[offset + TM8_CATALOG_ENTRY.fileIdOffset] === file.fileId &&
+      image[offset + TM8_CATALOG_ENTRY.prefixIdOffset] === file.prefixId &&
+      image[offset + TM8_CATALOG_ENTRY.nameLengthOffset] === file.name.length &&
+      image.subarray(
+        offset + TM8_CATALOG_ENTRY.nameOffset,
+        offset + TM8_CATALOG_ENTRY.nameOffset + file.name.length,
+      ).toString('ascii') === file.name
+    ) {
+      return index;
+    }
+  }
+  throw new Error(`catalog entry not found for ${file.name}`);
+}
+
+function findPrefixIndexById(image: Buffer, prefixId: number): number {
+  for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
+    const offset = prefixEntryOffset(index);
+    if (
+      image[offset + TM8_PREFIX_ENTRY.statusOffset] === ENTRY_STATUS_ACTIVE &&
+      image[offset + TM8_PREFIX_ENTRY.prefixIdOffset] === prefixId
+    ) {
+      return index;
+    }
+  }
+  throw new Error(`prefix entry not found for id ${prefixId}`);
+}
+
+function removeFileFromVolumeImage(image: Buffer, path: string): Buffer {
+  const nextImage = Buffer.from(image);
+  const volume = parseVolumeImage(nextImage);
+  const file = findFileByPath(volume, path);
+  const blocks = fileBlockChain(file, volume.allocation);
+
+  for (const block of blocks) {
+    putU16(nextImage, allocationEntryOffset(block), ALLOCATION_FREE);
+    nextImage.fill(0, block * TM8_FORMAT.blockBytes, (block + 1) * TM8_FORMAT.blockBytes);
+  }
+
+  const fileEntryIndex = findCatalogIndexForFile(nextImage, file);
+  nextImage.fill(
+    0,
+    catalogEntryOffset(fileEntryIndex),
+    catalogEntryOffset(fileEntryIndex) + TM8_FORMAT.catalogEntrySize,
+  );
+
+  if (
+    file.prefixId !== 0 &&
+    !volume.files.some((entry) => entry !== file && entry.prefixId === file.prefixId)
+  ) {
+    const prefixEntryIndex = findPrefixIndexById(nextImage, file.prefixId);
+    nextImage.fill(
+      0,
+      prefixEntryOffset(prefixEntryIndex),
+      prefixEntryOffset(prefixEntryIndex) + TM8_FORMAT.prefixEntrySize,
+    );
+  }
+
+  writeFreeBlockCount(nextImage, volume.superblock.freeBlockCount + blocks.length);
+  parseVolumeImage(nextImage);
+  return nextImage;
+}
+
 function listVolumePath(volume: ParsedVolume, path: string): ListedFile[] {
   const prefix = normalizePrefixPath(path);
   const prefixById = new Map(volume.prefixes.map((entry) => [entry.prefixId, entry.prefix]));
@@ -818,4 +885,5 @@ module.exports = {
   listVolumePath,
   parseVolumeImage,
   readFileFromVolumeImage,
+  removeFileFromVolumeImage,
 };

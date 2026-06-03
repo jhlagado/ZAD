@@ -8,12 +8,14 @@ const {
   listVolumePath,
   parseVolumeImage,
   readFileFromVolumeImage,
+  removeFileFromVolumeImage,
 } = require('./tm8/format.ts');
 
 function usage(): never {
   console.error('usage: tm8fs format VOLUME.TM8');
   console.error('       tm8fs info VOLUME.TM8');
   console.error('       tm8fs new VOLUME.TM8 /path/file');
+  console.error('       tm8fs rm VOLUME.TM8 /path/file');
   console.error('       tm8fs ls VOLUME.TM8 /path');
   console.error('       tm8fs cat VOLUME.TM8 /path/file');
   process.exit(2);
@@ -54,6 +56,10 @@ function printFile(volumePath: string, path: string): void {
   process.stdout.write(readFileFromVolumeImage(readFileSync(volumePath), path));
 }
 
+function removeFile(volumePath: string, path: string): void {
+  writeFileSync(volumePath, removeFileFromVolumeImage(readFileSync(volumePath), path));
+}
+
 function main(argv: string[]): void {
   const [command, path, tm8Path] = argv;
   if (!command || !path) {
@@ -89,6 +95,14 @@ function main(argv: string[]): void {
       usage();
     }
     createNewFile(path, tm8Path);
+    return;
+  }
+
+  if (command === 'rm') {
+    if (argv.length !== 3 || !tm8Path) {
+      usage();
+    }
+    removeFile(path, tm8Path);
     return;
   }
 

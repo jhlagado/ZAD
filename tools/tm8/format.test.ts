@@ -18,6 +18,7 @@ const {
   listVolumePath,
   parseVolumeImage,
   readFileFromVolumeImage,
+  removeFileFromVolumeImage,
 } = require('./format.ts');
 
 function writeU16(image: Buffer, offset: number, value: number): void {
@@ -126,6 +127,14 @@ function writeTwoBlockFileContent(image: Buffer, path: string, content: Buffer):
   writeFileSize(updated, 0, content.byteLength);
   parseVolumeImage(updated);
   return updated;
+}
+
+function catalogEntryStart(index: number): number {
+  return TM8_FORMAT.catalogStartBlock * TM8_FORMAT.blockBytes + index * TM8_FORMAT.catalogEntrySize;
+}
+
+function prefixEntryStart(index: number): number {
+  return TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes + index * TM8_FORMAT.prefixEntrySize;
 }
 
 test('formats and parses the default 4 MiB TM8 volume layout', () => {
@@ -758,6 +767,114 @@ test('tm8fs cat prints file contents and zero-length files', () => {
 
     assert.deepEqual(output, content);
     assert.equal(emptyOutput.byteLength, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('removes a root file and frees its block', () => {
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+  const created = parseVolumeImage(image);
+  const firstBlock = created.files[0].firstBlock;
+
+  const updated = removeFileFromVolumeImage(image, '/main.z80');
+  const volume = parseVolumeImage(updated);
+
+  assert.deepEqual(listVolumePath(volume, '/'), []);
+  assert.equal(volume.allocation[firstBlock], ALLOCATION_FREE);
+  assert.equal(volume.superblock.freeBlockCount, created.superblock.freeBlockCount + 1);
+  assert.throws(() => readFileFromVolumeImage(updated, '/main.z80'), /file not found/);
+});
+
+test('removes prefixed files while reusing and reclaiming prefix entries', () => {
+  let image = createFileInVolumeImage(createVolumeImage(), '/projects/demo/main.z80');
+  image = createFileInVolumeImage(image, '/projects/demo/readme.txt');
+  const prefixEntryOffset = prefixEntryStart(0);
+  assert.equal(parseVolumeImage(image).prefixes[0].prefix, 'projects/demo');
+
+  const oneRemoved = removeFileFromVolumeImage(image, '/projects/demo/main.z80');
+  const partial = parseVolumeImage(oneRemoved);
+  assert.deepEqual(listVolumePath(partial, '/projects/demo').map((entry: { name: string }) => entry.name), [
+    'readme.txt',
+  ]);
+  assert.equal(partial.prefixes.length, 1);
+  assert.equal(oneRemoved[prefixEntryOffset], ENTRY_STATUS_ACTIVE);
+
+  const allRemoved = removeFileFromVolumeImage(oneRemoved, '/projects/demo/readme.txt');
+  const empty = parseVolumeImage(allRemoved);
+  assert.deepEqual(listVolumePath(empty, '/projects/demo'), []);
+  assert.deepEqual(empty.prefixes, []);
+  for (
+    let offset = prefixEntryOffset;
+    offset < prefixEntryOffset + TM8_FORMAT.prefixEntrySize;
+    offset += 1
+  ) {
+    assert.equal(allRemoved[offset], 0);
+  }
+});
+
+test('removes a multi-block file chain and zeros the catalog entry', () => {
+  const content = Buffer.alloc(TM8_FORMAT.blockBytes + 5, 0x7e);
+  const image = writeTwoBlockFileContent(createVolumeImage(), '/big.bin', content);
+  const created = parseVolumeImage(image);
+  const firstBlock = created.files[0].firstBlock;
+  const secondBlock = created.allocation[firstBlock];
+
+  const updated = removeFileFromVolumeImage(image, '/big.bin');
+  const volume = parseVolumeImage(updated);
+
+  assert.equal(volume.superblock.freeBlockCount, created.superblock.freeBlockCount + 2);
+  assert.equal(volume.allocation[firstBlock], ALLOCATION_FREE);
+  assert.equal(volume.allocation[secondBlock], ALLOCATION_FREE);
+  for (
+    let offset = catalogEntryStart(0);
+    offset < catalogEntryStart(0) + TM8_FORMAT.catalogEntrySize;
+    offset += 1
+  ) {
+    assert.equal(updated[offset], 0);
+  }
+});
+
+test('rejects missing and malformed rm paths', () => {
+  const image = createFileInVolumeImage(createVolumeImage(), '/main.z80');
+
+  assert.throws(() => removeFileFromVolumeImage(image, '/missing.z80'), /file not found/);
+  assert.throws(() => removeFileFromVolumeImage(image, 'main.z80'), /TM8 paths must start with/);
+  assert.throws(() => removeFileFromVolumeImage(image, '/bad/name/'), /missing local filename/);
+});
+
+test('tm8fs rm removes files from listings and cat output', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const file = join(dir, 'VOLUME.TM8');
+    formatVolumeFile(file);
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'new', file, '/projects/demo/main.z80'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'rm', file, '/projects/demo/main.z80'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    const listing = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', file, '/projects/demo'],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+
+    assert.equal(listing, '');
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', file, '/projects/demo/main.z80'],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /file not found/,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
