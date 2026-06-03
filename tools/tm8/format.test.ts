@@ -1337,6 +1337,247 @@ test('fs export rejects missing files, malformed volumes, and host overwrites', 
   }
 });
 
+test('fs import-text stores source as 32-byte editor records and export-text restores host text', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const hostPath = join(dir, 'MAIN.ASM');
+    const exportPath = join(dir, 'ROUNDTRIP.ASM');
+    const text = Buffer.from('start:\r\n  ld a,1\r\n  ret\r\n', 'utf8');
+    formatVolumeFile(volumePath);
+    writeFileSync(hostPath, text);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, hostPath, '/src/main.asm'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    const records = readFileFromVolumeImage(readFileSync(volumePath), '/src/main.asm');
+    assert.equal(records.byteLength, 3 * 32);
+    assert.equal(records[0], 6);
+    assert.equal(records.subarray(1, 7).toString('utf8'), 'start:');
+    assert.equal(records[32], 8);
+    assert.equal(records.subarray(33, 41).toString('utf8'), '  ld a,1');
+    assert.equal(records[64], 5);
+    assert.equal(records.subarray(65, 70).toString('utf8'), '  ret');
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'export-text', volumePath, '/src/main.asm', exportPath],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    assert.deepEqual(readFileSync(exportPath), Buffer.from('start:\n  ld a,1\n  ret\n', 'utf8'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs import-text preserves empty files and single blank-line files distinctly', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const emptyPath = join(dir, 'EMPTY.ASM');
+    const blankPath = join(dir, 'BLANK.ASM');
+    const emptyOut = join(dir, 'EMPTY-OUT.ASM');
+    const blankOut = join(dir, 'BLANK-OUT.ASM');
+    formatVolumeFile(volumePath);
+    writeFileSync(emptyPath, Buffer.alloc(0));
+    writeFileSync(blankPath, Buffer.from('\n', 'utf8'));
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, emptyPath, '/src/empty.asm'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, blankPath, '/src/blank.asm'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.equal(readFileFromVolumeImage(readFileSync(volumePath), '/src/empty.asm').byteLength, 0);
+    const blankRecords = readFileFromVolumeImage(readFileSync(volumePath), '/src/blank.asm');
+    assert.equal(blankRecords.byteLength, 32);
+    assert.equal(blankRecords[0], 0);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'export-text', volumePath, '/src/empty.asm', emptyOut],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'export-text', volumePath, '/src/blank.asm', blankOut],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    assert.equal(readFileSync(emptyOut).byteLength, 0);
+    assert.deepEqual(readFileSync(blankOut), Buffer.from('\n', 'utf8'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs import-text rejects unsupported source text and bad TM8 paths', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const longLinePath = join(dir, 'LONG.ASM');
+    const shortLinePath = join(dir, 'SHORT.ASM');
+    const bareCrPath = join(dir, 'CR.ASM');
+    const invalidUtf8Path = join(dir, 'BADUTF8.ASM');
+    formatVolumeFile(volumePath);
+    writeFileSync(longLinePath, Buffer.from('01234567890123456789012345678901\n', 'utf8'));
+    writeFileSync(shortLinePath, Buffer.from('start:\n', 'utf8'));
+    writeFileSync(bareCrPath, Buffer.from('start:\r  ret\n', 'utf8'));
+    writeFileSync(invalidUtf8Path, Buffer.from([0xff]));
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, longLinePath, '/src/long.asm'],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /exceeds 31 bytes/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, bareCrPath, '/src/cr.asm'],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /bare carriage returns/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, invalidUtf8Path, '/src/bad.asm'],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /valid UTF-8/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'import-text', volumePath, shortLinePath, '/src/Main.asm'],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /bad file name/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs export-text rejects malformed records and host overwrites', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const malformedLengthPath = join(dir, 'BADLEN.TM8');
+    const malformedPaddingPath = join(dir, 'BADPAD.TM8');
+    const malformedSizePath = join(dir, 'BADSIZE.TM8');
+    const malformedUtf8Path = join(dir, 'BADUTF8.TM8');
+    const existingPath = join(dir, 'EXISTING.ASM');
+    const goodRecord = Buffer.alloc(32);
+    goodRecord[0] = 5;
+    goodRecord.set(Buffer.from('start', 'utf8'), 1);
+    const badLength = Buffer.from(goodRecord);
+    badLength[0] = 32;
+    const badPadding = Buffer.from(goodRecord);
+    badPadding[31] = 1;
+    const badUtf8 = Buffer.alloc(32);
+    badUtf8[0] = 1;
+    badUtf8[1] = 0xff;
+    writeFileSync(volumePath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', goodRecord));
+    writeFileSync(malformedLengthPath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', badLength));
+    writeFileSync(malformedPaddingPath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', badPadding));
+    writeFileSync(malformedSizePath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', Buffer.alloc(31)));
+    writeFileSync(malformedUtf8Path, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', badUtf8));
+    writeFileSync(existingPath, Buffer.from('keep\n', 'utf8'));
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'export-text', malformedLengthPath, '/src/main.asm', join(dir, 'badlen.asm')],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /length 32 exceeds 31/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'export-text', malformedPaddingPath, '/src/main.asm', join(dir, 'badpad.asm')],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /non-zero padding byte/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'export-text', malformedSizePath, '/src/main.asm', join(dir, 'badsize.asm')],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /not a multiple of 32/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'export-text', malformedUtf8Path, '/src/main.asm', join(dir, 'badutf8.asm')],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /invalid UTF-8/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'export-text', volumePath, '/src/main.asm', existingPath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /refusing to overwrite existing file/,
+    );
+    assert.deepEqual(readFileSync(existingPath), Buffer.from('keep\n', 'utf8'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('raw fs import and export do not convert source text records', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const hostPath = join(dir, 'MAIN.ASM');
+    const exportPath = join(dir, 'RAW.ASM');
+    const content = Buffer.from('start:\n  ret\n', 'utf8');
+    formatVolumeFile(volumePath);
+    writeFileSync(hostPath, content);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'import', volumePath, hostPath, '/src/main.asm'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'export', volumePath, '/src/main.asm', exportPath],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/src/main.asm'), content);
+    assert.deepEqual(readFileSync(exportPath), content);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('fs copy copies root and prefixed TM8 files between volumes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {

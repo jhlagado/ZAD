@@ -37,6 +37,8 @@ function usage(): never {
   console.error('       fs info VOLUME.TM8');
   console.error('       fs import VOLUME.TM8 hostfile /path/file');
   console.error('       fs export VOLUME.TM8 /path/file hostfile');
+  console.error('       fs import-text VOLUME.TM8 hostfile /path/file');
+  console.error('       fs export-text VOLUME.TM8 /path/file hostfile');
   console.error('       fs copy SOURCE.TM8:/path/file DEST.TM8:/path/file');
   console.error('       fs unpack VOLUME.TM8 folder');
   console.error('       fs pack folder VOLUME.TM8');
@@ -97,6 +99,88 @@ function exportFile(volumePath: string, tm8Path: string, hostPath: string): void
     }
     throw error;
   }
+}
+
+function encodeSourceTextRecords(content: Buffer): Buffer {
+  const text = content.toString('utf8');
+  if (Buffer.from(text, 'utf8').compare(content) !== 0) {
+    throw new Error('source text must be valid UTF-8');
+  }
+  if (text.includes('\0')) {
+    throw new Error('source text cannot contain NUL bytes');
+  }
+
+  const normalized = text.replace(/\r\n/g, '\n');
+  if (normalized.includes('\r')) {
+    throw new Error('source text cannot contain bare carriage returns');
+  }
+
+  if (normalized === '') {
+    return Buffer.alloc(0);
+  }
+
+  const lines = normalized.endsWith('\n')
+    ? normalized.slice(0, -1).split('\n')
+    : normalized.split('\n');
+
+  const records = Buffer.alloc(lines.length * 32);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const bytes = Buffer.from(line, 'utf8');
+    if (bytes.length > 31) {
+      throw new Error(`source line ${index + 1} exceeds 31 bytes`);
+    }
+    records[index * 32] = bytes.length;
+    bytes.copy(records, index * 32 + 1);
+  }
+  return records;
+}
+
+function decodeSourceTextRecords(records: Buffer): Buffer {
+  if (records.byteLength % 32 !== 0) {
+    throw new Error(`malformed source records: byte length ${records.byteLength} is not a multiple of 32`);
+  }
+
+  const lines: string[] = [];
+  for (let offset = 0; offset < records.byteLength; offset += 32) {
+    const length = records[offset];
+    if (length > 31) {
+      throw new Error(`malformed source record ${offset / 32 + 1}: length ${length} exceeds 31`);
+    }
+    for (let padding = offset + 1 + length; padding < offset + 32; padding += 1) {
+      if (records[padding] !== 0) {
+        throw new Error(`malformed source record ${offset / 32 + 1}: non-zero padding byte`);
+      }
+    }
+    const text = records.subarray(offset + 1, offset + 1 + length).toString('utf8');
+    if (Buffer.from(text, 'utf8').compare(records.subarray(offset + 1, offset + 1 + length)) !== 0) {
+      throw new Error(`malformed source record ${offset / 32 + 1}: invalid UTF-8`);
+    }
+    if (text.includes('\0') || text.includes('\r') || text.includes('\n')) {
+      throw new Error(`malformed source record ${offset / 32 + 1}: unsupported control character`);
+    }
+    lines.push(text);
+  }
+
+  return Buffer.from(lines.length === 0 ? '' : `${lines.join('\n')}\n`, 'utf8');
+}
+
+function importTextFile(volumePath: string, hostPath: string, tm8Path: string): void {
+  writeFileSync(
+    volumePath,
+    importFileIntoVolumeImage(
+      readFileSync(volumePath),
+      tm8Path,
+      encodeSourceTextRecords(readFileSync(hostPath)),
+    ),
+  );
+}
+
+function exportTextFile(volumePath: string, tm8Path: string, hostPath: string): void {
+  writeNewHostFile(
+    hostPath,
+    decodeSourceTextRecords(readFileFromVolumeImage(readFileSync(volumePath), tm8Path)),
+  );
 }
 
 function parseVolumeFileSpec(spec: string): { volumePath: string; tm8Path: string } {
@@ -332,6 +416,24 @@ function main(argv: string[]): void {
       usage();
     }
     exportFile(path, tm8Path, hostPath);
+    return;
+  }
+
+  if (command === 'import-text') {
+    const destinationPath = argv[3];
+    if (argv.length !== 4 || !tm8Path || !destinationPath) {
+      usage();
+    }
+    importTextFile(path, tm8Path, destinationPath);
+    return;
+  }
+
+  if (command === 'export-text') {
+    const hostPath = argv[3];
+    if (argv.length !== 4 || !tm8Path || !hostPath) {
+      usage();
+    }
+    exportTextFile(path, tm8Path, hostPath);
     return;
   }
 

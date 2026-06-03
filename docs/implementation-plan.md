@@ -66,7 +66,8 @@ examples into a project. TEC-side cross-volume import can follow once the active
 volume workflow is stable.
 
 `fs import`, `fs export`, `fs copy`, `fs unpack`, and `fs pack` are already
-implemented as raw byte operations. Source-record conversion belongs to Phase 4.
+implemented as raw byte operations. Source-record conversion is tracked in
+Phase 4 below.
 
 ## Phase 3: GLCD Shell
 
@@ -84,9 +85,9 @@ This phase can use MON3 GLCD terminal routines before a custom renderer exists.
 
 Goals:
 
-- Define fixed-record source file type.
-- Convert text import into 32-byte Pascal-string records.
-- Convert records back to plain text on export.
+- Fixed-record source file type is defined as 32-byte Pascal-string records.
+- `fs import-text` converts host text into 32-byte source records.
+- `fs export-text` converts source records back to LF-terminated host text.
 - Read source by sector and line number.
 
 ## Phase 5: GLCD Editor V1

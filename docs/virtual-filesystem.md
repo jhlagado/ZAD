@@ -335,10 +335,13 @@ Host commands:
 ```text
 fs import VOLUME.TM8 ./main.asm /projects/demo/main.asm
 fs export VOLUME.TM8 /projects/demo/main.asm ./main.asm
+fs import-text VOLUME.TM8 ./main.asm /projects/demo/main.asm
+fs export-text VOLUME.TM8 /projects/demo/main.asm ./main.asm
 fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
 fs unpack VOLUME.TM8 ./workspace
 fs pack ./workspace VOLUME.TM8
 ```
 
 `fs import`, `fs export`, `fs copy`, `fs unpack`, and `fs pack` are implemented
-as raw byte operations.
+as raw byte operations. `fs import-text` and `fs export-text` are implemented
+as source conversion commands for 32-byte editor records.

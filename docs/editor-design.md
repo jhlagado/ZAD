@@ -175,12 +175,13 @@ Internal source format is fixed-record binary text. Host-visible plain text
 requires conversion. This is separate from the Phase 2 raw-byte `fs import`
 command, which preserves file bytes exactly and does not convert line records.
 
-Possible future source-conversion commands:
+Implemented source-conversion commands:
 
 ```text
-import-text MAIN.ASM /projects/demo/main.asm
-export-text /projects/demo/main.asm MAIN.ASM
+fs import-text VOLUME.TM8 MAIN.ASM /projects/demo/main.asm
+fs export-text VOLUME.TM8 /projects/demo/main.asm MAIN.ASM
 ```
 
-Import converts newline-separated text into 32-byte line records.
-Export writes text lines with host-friendly line endings.
+Import converts UTF-8 newline-separated text into 32-byte line records.
+CRLF input is normalized to LF. Each stored line may occupy at most 31 bytes.
+Export validates the source records and writes LF-terminated host text.

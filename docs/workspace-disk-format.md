@@ -140,6 +140,8 @@ node --experimental-strip-types tools/fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/fs.ts info VOLUME.TM8
 node --experimental-strip-types tools/fs.ts import VOLUME.TM8 hostfile /path/file
 node --experimental-strip-types tools/fs.ts export VOLUME.TM8 /path/file hostfile
+node --experimental-strip-types tools/fs.ts import-text VOLUME.TM8 hostfile /path/file
+node --experimental-strip-types tools/fs.ts export-text VOLUME.TM8 /path/file hostfile
 node --experimental-strip-types tools/fs.ts copy SOURCE.TM8:/path/file DEST.TM8:/path/file
 node --experimental-strip-types tools/fs.ts unpack VOLUME.TM8 folder
 node --experimental-strip-types tools/fs.ts pack folder VOLUME.TM8
@@ -162,7 +164,10 @@ even for a zero-length file, stores the exact byte count, zero-fills final-block
 padding, and updates the allocation table, free-block count, and checksum.
 `export` resolves a TM8 file path, walks the validated allocation block chain,
 and writes exactly the file's stored byte count to a new host file, refusing to
-overwrite an existing host path. `copy` reads exact stored bytes from a
+overwrite an existing host path. `import-text` and `export-text` are separate
+source conversion commands: they convert between UTF-8 host text and 32-byte
+Pascal-string source line records without changing raw `import` or `export`
+behavior. `copy` reads exact stored bytes from a
 validated source volume path and imports them into a validated destination
 volume path, rejecting destination collisions with the same rules as `import`.
 `unpack` parses one TM8 volume, creates a host folder tree from every active
