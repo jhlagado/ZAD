@@ -13,9 +13,10 @@
     "proof:storage:check": "node --experimental-strip-types tools/check-storage-proof-status.ts --strict",
     "proof:project-config": "node --experimental-strip-types tools/run-project-config-proof.ts",
     "proof:project-config:storage": "node --experimental-strip-types tools/run-project-config-storage-proof.ts",
+    "proof:shell-commands": "node --experimental-strip-types tools/run-shell-commands-proof.ts",
     "audit:storage": "node --experimental-strip-types tools/audit-storage-proof.ts",
     "quality": "fallow --root . --skip dead-code || true",
-    "check": "npm run typecheck && npm run test && npm run proof:project-config && npm run proof:project-config:storage && npm run proof:storage:check && npm run audit:storage"
+    "check": "npm run typecheck && npm run test && npm run proof:project-config && npm run proof:project-config:storage && npm run proof:shell-commands && npm run proof:storage:check && npm run audit:storage"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

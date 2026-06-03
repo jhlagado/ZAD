@@ -81,12 +81,16 @@ Goals:
 - Read `/tecm8.prj` line-by-line to get `main`, then derive build output
   and map paths from `main`.
 - Use the first TEC-side project config parser in `src/project-config.asm`;
-  `npm run proof:project-config` assembles and runs its proof harness. The
+  `npm run proof:project-config` assembles and runs its proof harness.
 - Use the first TEC-side project config loader in `src/project-config-loader.asm`;
   `npm run proof:project-config:storage` assembles it, creates a FAT32 SD image
   containing a real TM8 `VOLUME.TM8`, opens that file through MON3, scans the
   TM8 catalog for `/tecm8.prj`, loads the config bytes, and then calls
   `ParseProjectConfig`.
+- Use the first TEC-side shell command resolver in `src/shell-commands.asm`;
+  `npm run proof:shell-commands` verifies that `edit`, `asm`, and `run`
+  resolve project defaults and named one-off targets while returning action
+  codes instead of launching the editor, assembler, or program runner.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
 
