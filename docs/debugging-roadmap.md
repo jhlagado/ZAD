@@ -12,8 +12,9 @@ designed so a debugger can be added later.
 The goal is a source-aware interactive debugging environment:
 
 ```text
-asm /projects/demo/main.asm -o /build/demo.bin -m /build/demo.map
-debug /build/demo.bin /build/demo.map
+project demo
+asm
+debug
 ```
 
 At a breakpoint or step location, the debugger should show:
@@ -32,14 +33,16 @@ The debugger does not need the editor in memory.
 Workflow:
 
 ```text
-edit source
-save source
-exit editor
-asm source -> object + map
-debug object + map
+edit
+save
+quit
+asm
+debug
 ```
 
-The editor memory can be reused by assembler, runner, or debugger overlays.
+`asm` assembles the configured project main file and writes the configured
+object/map outputs. `debug` opens those project outputs by default. The editor
+memory can be reused by assembler, runner, or debugger overlays.
 
 ## Source Paging
 

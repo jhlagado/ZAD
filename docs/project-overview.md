@@ -3,9 +3,10 @@
 ## Vision
 
 TECM8 is intended to be a Z80 Assembly development environment for the TEC-1G.
-Its first complete user experience should feel Turbo Pascal 3-like: edit code,
-save it, assemble it, run it, and return to the shell without leaving the
-machine.
+Its first complete user experience should borrow the useful parts of early
+Turbo Pascal: a project has a main source file, the environment remembers the
+current file of interest, and the common edit/assemble/run loop uses short
+commands rather than long command lines.
 
 The first target is the TEC-1G with matrix keyboard, graphical LCD, and
 PATA/SD-backed FAT32 storage through MON3. A later display target is a TMS9918
@@ -25,8 +26,8 @@ The system has three user-facing layers:
 
 - **Project workspace**: a portable `VOLUME.TM8` containing source files,
   copied libraries, examples, build outputs, and metadata.
-- **Edit/assemble/run environment**: the first complete product target,
-  comparable in scope to a Turbo Pascal 3 baseline.
+- **Edit/assemble/run environment**: the first complete product target, with a
+  Turbo Pascal 3-like emphasis on project defaults and short commands.
 - **Source-aware debugging environment**: the advanced goal, with object
   loading, source maps, breakpoints, stepping, registers, and source context.
 
@@ -57,8 +58,9 @@ The system has three user-facing layers:
 
 The first complete product goal is a small command-line workspace with a
 Notepad/WordStar-like editor and an assembler/run loop. The experience should
-feel closer to Turbo Pascal 3 than to a modern IDE: one compact shell, focused
-tools, fast exit back to the prompt, and project files that are easy to inspect.
+feel closer to early Turbo Pascal than to a Unix build pipeline or modern IDE:
+one compact shell, focused tools, project-level defaults, fast exit back to the
+prompt, and project files that are easy to inspect.
 
 Example:
 
@@ -70,25 +72,48 @@ Example:
 editor.asm
 storage.asm
 
-> edit editor.asm
+> edit editor
 ```
 
 The `cd` command changes the current path prefix. It does not require a real
 directory object. A path begins to feel real when files exist under that prefix.
+For source files, the `.ASM` extension is assumed when the user omits an
+extension.
 
 ## Edit/Assemble/Run Baseline
 
-The baseline customer-facing result is an edit/assemble/run environment:
+The baseline customer-facing result is a project-centered edit/assemble/run
+environment. A project has a main source file, usually `/src/main.asm`, created
+or selected when the project is created. That file is the mainline of the
+program and includes the other project source files as needed.
+
+The shell should remember both:
+
+- **main file**: the file assembled and run by default.
+- **current file**: the file of interest for editing.
+
+The common flow should therefore be short:
 
 ```text
-edit /projects/demo/main.asm
-asm /projects/demo/main.asm -o /build/demo.bin -m /build/demo.map
-run /build/demo.bin
+project demo
+edit
+asm
+run
 ```
 
-The user should be able to sit at the TEC-1G, open a project, edit a source
-file, assemble it, run the result, and return to the shell. This is the first
-major "done" line for the product.
+`edit` with no argument opens the current file. For source files, `edit math`
+sets the current file to `math.asm` and opens it. `asm` assembles the project's
+main file and writes the configured object/map outputs. `run` runs the current
+project output. Most users should not need to type output paths or switches
+during ordinary work.
+
+Project configuration screens can handle less common settings: changing the
+main file, choosing output names, selecting map/debug output, and adjusting
+assembler options. The command line remains deliberately simple.
+
+The user should be able to sit at the TEC-1G, open a project, edit any source
+file, assemble the main file, run the result, and return to the shell. This is
+the first major "done" line for the product.
 
 The assembler should treat `.ASM` as the preferred source extension. `.Z80`
 remains a compatibility extension for imported ASM80-style projects. The source
@@ -101,10 +126,11 @@ features unless they prove necessary.
 Later versions should support workflows like:
 
 ```text
-edit /projects/demo/main.asm
-asm /projects/demo/main.asm -o /build/demo.bin -m /build/demo.map
-run /build/demo.bin
-debug /build/demo.bin /build/demo.map
+project demo
+edit draw
+asm
+run
+debug
 ```
 
 The advanced goal is a source-aware debugger. It should show source context,

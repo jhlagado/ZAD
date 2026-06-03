@@ -1,9 +1,9 @@
 # TECM8 Documentation
 
 TECM8 is a self-hosted Z80 Assembly development environment for the TEC-1G. The
-first customer-facing target is a Turbo Pascal 3-style edit/assemble/run
-workflow on the machine itself: shell, project workspace, editor,
-assembler/tool runner, and return to the prompt.
+first customer-facing target is an early Turbo Pascal-style project workflow on
+the machine itself: a remembered main file, a current file of interest, short
+`edit`/`asm`/`run` commands, and return to the prompt.
 
 The preferred source extension is `.ASM`. `.Z80` remains supported for imported
 ASM80-era code, but TECM8 examples should lead with `.ASM`. The advanced goal is

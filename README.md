@@ -3,10 +3,10 @@
 TECM8 is a self-contained development environment for the TEC-1G: a small
 Z80 machine with a matrix keyboard, GLCD, and FAT32-backed storage through MON3.
 
-The target source language is Z80 Assembly. The first product target is a Turbo
-Pascal 3-style edit/assemble/run workflow: a user should be able to boot into a
-compact shell, browse a project volume, edit `.ASM` source, assemble it, run the
-result, and return to the prompt.
+The target source language is Z80 Assembly. The first product target borrows the
+useful parts of early Turbo Pascal: a project has a main source file, the
+environment remembers the current file of interest, and common work uses short
+commands like `edit`, `asm`, and `run` rather than long command lines.
 `.Z80` source remains a compatibility path for imported ASM80-era projects, but
 TECM8 examples and tools should prefer `.ASM`.
 The intended assembly dialect is an AZM-like cleaned-up ASM80 baseline: the
