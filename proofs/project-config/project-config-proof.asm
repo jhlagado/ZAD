@@ -1,0 +1,71 @@
+; Project config parser proof.
+;
+; Assembled by tools/run-project-config-proof.ts, then run in the Debug80 Z80
+; runtime. The proof succeeds when ResultMarker is ProofPass and MainPathOut is
+; "/src/main.asm".
+
+        .org    0x4000
+
+ProofPass       .equ     0x42
+ProofFail       .equ     0xE0
+MainPathOutLen  .equ     64
+
+;!      out       carry,zero
+;!      clobbers  A,BC,DE,HL
+@Start:
+        LD      HL,GoodProjectConfig
+        LD      DE,MainPathOut
+        LD      B,MainPathOutLen
+        CALL    ParseProjectConfig
+        JR      C,ProofFailed
+
+        LD      HL,ExpectedMainPath
+        LD      DE,MainPathOut
+        CALL    AssertString
+        JR      C,ProofFailed
+
+        LD      A,ProofPass
+        LD      (ResultMarker),A
+        HALT
+
+ProofFailed:
+        OR      ProofFail
+        LD      (ResultMarker),A
+        HALT
+
+; AssertString —
+; Compare two NUL-terminated strings.
+; Input: HL = expected, DE = actual
+; Output: carry clear on match, carry set on mismatch
+;!      in        DE,HL
+;!      out       carry,zero
+;!      clobbers  A,DE,HL
+@AssertString:
+        LD      A,(DE)
+        CP      (HL)
+        JR      NZ,AssertStringBad
+        OR      A
+        RET     Z
+        INC     DE
+        INC     HL
+        JR      AssertString
+
+AssertStringBad:
+        SCF
+        RET
+
+        .include "../../src/project-config.asm"
+
+GoodProjectConfig:
+        .db     "tm8project=1",0x0A
+        .db     "main=/src/main.asm",0x0A
+        .db     0
+
+ExpectedMainPath:
+        .db     "/src/main.asm",0
+
+ResultMarker:
+        .db     0
+
+MainPathOut:
+        .ds     MainPathOutLen

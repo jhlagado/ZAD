@@ -1,0 +1,161 @@
+; TECM8 project config parser.
+;
+; Parses the loaded /tecm8.prj text buffer. File I/O is deliberately separate:
+; the shell storage layer should load the root file, then call this parser on
+; the bytes it read. This first parser accepts the canonical v1 key order only:
+; tm8project line first, main line second.
+
+Lf              .equ     0x0A
+Nul             .equ     0x00
+
+ProjectCfgOk        .equ 0
+ProjectCfgErrHeader .equ 1
+ProjectCfgErrMain   .equ 2
+ProjectCfgErrEmpty  .equ 3
+ProjectCfgErrLong   .equ 4
+ProjectCfgErrExtra  .equ 5
+
+; ParseProjectConfig —
+; Validate a /tecm8.prj buffer and copy the main path.
+; Expected v1 file:
+;   tm8project=1\n
+;   main=/src/main.asm\n
+; Input:
+;   HL = zero-terminated project file text
+;   DE = destination buffer for the main path
+;   B  = destination byte capacity, including final NUL
+; Output:
+;   carry clear, A=ProjectCfgOk, destination is NUL-terminated main path
+;   carry set, A=ProjectCfgErr*
+;!      in        B,DE,HL
+;!      out       A,carry,zero
+;!      clobbers  B,C,DE,HL
+@ParseProjectConfig:
+        PUSH    DE
+        LD      DE,ProjectCfgMagicLine
+        CALL    ProjectCfgMatchLine
+        POP     DE
+        JP      C,ProjectCfgHeaderErr
+
+        PUSH    DE
+        LD      DE,ProjectCfgMainKey
+        CALL    ProjectCfgMatchText
+        POP     DE
+        JP      C,ProjectCfgMainErr
+
+        LD      A,B
+        OR      A
+        JP      Z,ProjectCfgLongErr
+
+        LD      C,B
+        LD      B,0
+
+ParseCfgPathLoop:
+        LD      A,(HL)
+        CP      Lf
+        JR      Z,ParseCfgPathEnd
+        OR      A
+        JR      Z,ParseCfgPathEnd
+
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DEC     C
+        JP      Z,ProjectCfgLongErr
+        INC     B
+        JR      ParseCfgPathLoop
+
+ParseCfgPathEnd:
+        LD      A,B
+        OR      A
+        JP      Z,ProjectCfgEmptyErr
+
+        LD      A,(HL)
+        CP      Lf
+        JR      NZ,ParseCfgCheckFinalNul
+        INC     HL
+
+ParseCfgCheckFinalNul:
+        LD      A,(HL)
+        OR      A
+        JP      NZ,ProjectCfgExtraErr
+
+        XOR     A
+        LD      (DE),A
+        RET
+
+ProjectCfgHeaderErr:
+        LD      A,ProjectCfgErrHeader
+        SCF
+        RET
+
+ProjectCfgMainErr:
+        LD      A,ProjectCfgErrMain
+        SCF
+        RET
+
+ProjectCfgEmptyErr:
+        LD      A,ProjectCfgErrEmpty
+        SCF
+        RET
+
+ProjectCfgLongErr:
+        LD      A,ProjectCfgErrLong
+        SCF
+        RET
+
+ProjectCfgExtraErr:
+        LD      A,ProjectCfgErrExtra
+        SCF
+        RET
+
+; ProjectCfgMatchLine —
+; Match zero-terminated text at DE against HL, then require LF.
+; Input: HL = source, DE = literal
+; Output: carry clear on match, HL after LF; carry set on mismatch
+;!      in        DE,HL
+;!      out       carry,zero
+;!      clobbers  A,DE,HL
+@ProjectCfgMatchLine:
+        CALL    ProjectCfgMatchText
+        RET     C
+        LD      A,(HL)
+        CP      Lf
+        JR      Z,ProjectCfgLineOk
+        SCF
+        RET
+
+ProjectCfgLineOk:
+        INC     HL
+        OR      A
+        RET
+
+; ProjectCfgMatchText —
+; Match zero-terminated literal at DE against bytes at HL.
+; Input: HL = source, DE = literal
+; Output: carry clear on match, HL after literal; carry set on mismatch
+;!      in        DE,HL
+;!      out       carry,zero
+;!      clobbers  A,DE,HL
+@ProjectCfgMatchText:
+        LD      A,(DE)
+        OR      A
+        RET     Z
+        CP      (HL)
+        JR      NZ,ProjectCfgTextBad
+        INC     DE
+        INC     HL
+        JR      ProjectCfgMatchText
+
+ProjectCfgTextBad:
+        SCF
+        RET
+
+ProjectCfgMagicLine:
+        .db     "tm8project=1",0
+
+ProjectCfgMainKey:
+        .db     "main=",0
+
+ProjectCfgFileName:
+        .db     "/tecm8.prj",0

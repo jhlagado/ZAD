@@ -11,9 +11,10 @@
     "proof:storage:image:verify": "node --experimental-strip-types tools/create-storage-proof-image.ts --verify-only",
     "proof:storage": "node --experimental-strip-types tools/run-storage-proof.ts",
     "proof:storage:check": "node --experimental-strip-types tools/check-storage-proof-status.ts --strict",
+    "proof:project-config": "node --experimental-strip-types tools/run-project-config-proof.ts",
     "audit:storage": "node --experimental-strip-types tools/audit-storage-proof.ts",
     "quality": "fallow --root . --skip dead-code || true",
-    "check": "npm run typecheck && npm run test && npm run proof:storage:check && npm run audit:storage"
+    "check": "npm run typecheck && npm run test && npm run proof:project-config && npm run proof:storage:check && npm run audit:storage"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

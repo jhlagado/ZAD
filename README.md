@@ -31,6 +31,7 @@ Start with the documentation:
 - [Workspace Disk Format](docs/workspace-disk-format.md)
 - [Virtual Filesystem](docs/virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](docs/shell-command-contract.md)
+- [TECM8 AZM Style Guide](docs/azm-style-guide.md)
 - [Editor Design](docs/editor-design.md)
 - [Debugging Roadmap](docs/debugging-roadmap.md)
 

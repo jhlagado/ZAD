@@ -80,6 +80,10 @@ Goals:
 - List files and virtual folder prefixes.
 - Read `/tecm8.prj` line-by-line to get `main`, then derive build output
   and map paths from `main`.
+- Use the first TEC-side project config parser in `src/project-config.asm`;
+  `npm run proof:project-config` assembles and runs its proof harness. The
+  parser exports `ProjectCfgFileName` for the future storage reader and
+  `ParseProjectConfig` for validating loaded file text.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
 

@@ -23,6 +23,7 @@ Useful project commands:
 
 ```text
 npm run check
+npm run proof:project-config
 npm run proof:storage:check
 npm run audit:storage
 npm run quality
@@ -34,6 +35,7 @@ Start here:
 - [Storage Proof](storage-proof.md)
 - [Virtual Filesystem](virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](shell-command-contract.md)
+- [TECM8 AZM Style Guide](azm-style-guide.md)
 - [Editor Design](editor-design.md)
 - [Project Sizing Case Studies](project-sizing.md)
 - [Debugging Roadmap](debugging-roadmap.md)
