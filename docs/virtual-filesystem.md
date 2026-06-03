@@ -340,5 +340,5 @@ fs unpack VOLUME.TM8 ./workspace
 fs pack ./workspace VOLUME.TM8
 ```
 
-`fs import`, `fs export`, and `fs copy` are implemented as raw byte operations.
-`unpack` and `pack` are still Phase 2 work.
+`fs import`, `fs export`, `fs copy`, and `fs unpack` are implemented as raw byte
+operations. `pack` is still Phase 2 work.

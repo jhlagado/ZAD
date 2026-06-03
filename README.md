@@ -17,8 +17,8 @@ breakpoints, stepping, register display, and source context. That is deliberatel
 separate from the first edit/assemble/run baseline.
 
 Project storage is built around a portable `VOLUME.TM8` workspace file. Current
-host tools create, inspect, import, export, and copy files across these volumes;
-Phase 2 also adds pack and unpack so projects can move cleanly between a laptop
+host tools create, inspect, import, export, copy, and unpack files across these
+volumes; Phase 2 also adds pack so projects can move cleanly between a laptop
 and the TEC-1G.
 
 Start with the documentation:

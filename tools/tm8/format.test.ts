@@ -1,6 +1,6 @@
 const { strict: assert } = require('node:assert');
 const { execFileSync } = require('node:child_process');
-const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { test } = require('node:test');
@@ -1551,6 +1551,181 @@ test('fs copy rejects missing sources, destination collisions, malformed specs, 
     assert.deepEqual(
       readFileFromVolumeImage(readFileSync(destinationPath), '/existing.asm'),
       destinationContent,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs unpack writes root and prefixed files into a host folder tree', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const outputFolder = join(dir, 'workspace');
+    const rootContent = Buffer.from('org 2000h\n', 'utf8');
+    const prefixedContent = Buffer.from('start:\n  ret\n', 'utf8');
+    writeFileSync(
+      volumePath,
+      importFileIntoVolumeImage(
+        importFileIntoVolumeImage(createVolumeImage(), '/boot.asm', rootContent),
+        '/src/main.asm',
+        prefixedContent,
+      ),
+    );
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'unpack', volumePath, outputFolder],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.deepEqual(readFileSync(join(outputFolder, 'boot.asm')), rootContent);
+    assert.deepEqual(readFileSync(join(outputFolder, 'src', 'main.asm')), prefixedContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs unpack preserves zero-length and multi-block file contents', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const outputFolder = join(dir, 'workspace');
+    const bigContent = Buffer.alloc(TM8_FORMAT.blockBytes + 37);
+    for (let index = 0; index < bigContent.byteLength; index += 1) {
+      bigContent[index] = index % 251;
+    }
+    writeFileSync(
+      volumePath,
+      importFileIntoVolumeImage(
+        importFileIntoVolumeImage(createVolumeImage(), '/empty.bin', Buffer.alloc(0)),
+        '/bin/big.bin',
+        bigContent,
+      ),
+    );
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'unpack', volumePath, outputFolder],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.equal(readFileSync(join(outputFolder, 'empty.bin')).byteLength, 0);
+    assert.deepEqual(readFileSync(join(outputFolder, 'bin', 'big.bin')), bigContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs unpack rejects host overwrites and malformed volumes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const malformedVolumePath = join(dir, 'BAD.TM8');
+    const badChecksumVolumePath = join(dir, 'BAD-CHECKSUM.TM8');
+    const outputFolder = join(dir, 'workspace');
+    const existingContent = Buffer.from('keep me\n', 'utf8');
+    writeFileSync(
+      volumePath,
+      importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', Buffer.from('start:\n')),
+    );
+    writeFileSync(malformedVolumePath, Buffer.from('not a tm8 volume'));
+    const badChecksum = createVolumeImage();
+    badChecksum[100] ^= 0xff;
+    writeFileSync(badChecksumVolumePath, badChecksum);
+    mkdirSync(join(outputFolder, 'src'), { recursive: true });
+    writeFileSync(join(outputFolder, 'src', 'main.asm'), existingContent);
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'unpack', volumePath, outputFolder],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /refusing to overwrite existing file/,
+    );
+    assert.deepEqual(readFileSync(join(outputFolder, 'src', 'main.asm')), existingContent);
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'unpack', malformedVolumePath, outputFolder],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /unexpected TM8 volume size/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'unpack',
+            badChecksumVolumePath,
+            outputFolder,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /bad TM8 superblock checksum/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs unpack rejects unsafe paths and file-directory collisions before writing output', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const unsafeVolumePath = join(dir, 'UNSAFE.TM8');
+    const collisionVolumePath = join(dir, 'COLLISION.TM8');
+    const unsafeOutputFolder = join(dir, 'unsafe-workspace');
+    const collisionOutputFolder = join(dir, 'collision-workspace');
+    writeFileSync(
+      unsafeVolumePath,
+      importFileIntoVolumeImage(createVolumeImage(), '/../outside.asm', Buffer.from('outside\n')),
+    );
+    writeFileSync(
+      collisionVolumePath,
+      importFileIntoVolumeImage(
+        importFileIntoVolumeImage(createVolumeImage(), '/src', Buffer.from('root file\n')),
+        '/src/main.asm',
+        Buffer.from('prefixed file\n'),
+      ),
+    );
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'unpack', unsafeVolumePath, unsafeOutputFolder],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /cannot unpack unsafe TM8 path/,
+    );
+    assert.throws(
+      () => readFileSync(join(dir, 'outside.asm')),
+      /ENOENT/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'unpack',
+            collisionVolumePath,
+            collisionOutputFolder,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /cannot unpack both file and directory/,
+    );
+    assert.throws(
+      () => readFileSync(join(collisionOutputFolder, 'src')),
+      /ENOENT/,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
