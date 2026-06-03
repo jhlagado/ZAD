@@ -106,6 +106,34 @@ PathOutLen      .equ     64
 
         LD      A,13
         LD      (CaseMarker),A
+        LD      HL,CmdRun
+        LD      A,SHELL_RUN_DEFAULT
+        LD      DE,ExpectedRunMain
+        CALL    AssertRunRequest
+        JP      C,ProofFailed
+
+        LD      A,14
+        LD      (CaseMarker),A
+        LD      HL,CmdRunTest
+        LD      A,SHELL_RUN_EXPLICIT
+        LD      DE,ExpectedRunTest
+        CALL    AssertRunRequest
+        JP      C,ProofFailed
+
+        LD      A,15
+        LD      (CaseMarker),A
+        LD      HL,CmdEdit
+        CALL    AssertRunRequestSyntaxErr
+        JP      C,ProofFailed
+
+        LD      A,16
+        LD      (CaseMarker),A
+        LD      HL,CmdAsm
+        CALL    AssertRunRequestSyntaxErr
+        JP      C,ProofFailed
+
+        LD      A,17
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -114,7 +142,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,14
+        LD      A,18
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -124,7 +152,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,15
+        LD      A,19
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -217,6 +245,58 @@ AssertCommandBad:
         RET     Z
 
 AssertAsmRequestSyntaxBad:
+        SCF
+        RET
+
+; AssertRunRequest —
+; Resolve one run command and compare mode plus runnable path.
+; Input: HL = command text, A = expected mode, DE = expected path
+;!      in        A,DE,HL
+;!      out       DE,HL,A,carry,zero
+;!      clobbers  BC
+@AssertRunRequest:
+        LD      (ExpectedAction),A
+        LD      (ExpectedPathPtr),DE
+        LD      DE,RunRequest
+        LD      B,PathOutLen
+        CALL    ResolveShellRunRequest
+        RET     C
+
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertRunRequestBad
+
+        LD      A,(RunRequest)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertRunRequestBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,RunRequest + 1
+        CALL    AssertString
+        RET
+
+AssertRunRequestBad:
+        SCF
+        RET
+
+; AssertRunRequestSyntaxErr —
+; Resolve one non-run command and require an immediate syntax error.
+; Input: HL = command text
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertRunRequestSyntaxErr:
+        LD      DE,RunRequest
+        LD      B,PathOutLen
+        CALL    ResolveShellRunRequest
+        JR      NC,AssertRunRequestSyntaxBad
+        CP      SHELL_ERR_SYNTAX
+        RET     Z
+
+AssertRunRequestSyntaxBad:
         SCF
         RET
 
@@ -356,3 +436,6 @@ PathOut:
 
 BuildRequest:
         .ds     PathOutLen * 3
+
+RunRequest:
+        .ds     PathOutLen + 1

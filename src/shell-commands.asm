@@ -7,6 +7,9 @@ SHELL_CMD_EDIT      .equ     0x10
 SHELL_CMD_ASM       .equ     0x11
 SHELL_CMD_RUN       .equ     0x12
 
+SHELL_RUN_DEFAULT   .equ     0x20
+SHELL_RUN_EXPLICIT  .equ     0x21
+
 SHELL_OK            .equ     0
 SHELL_ERR_UNKNOWN   .equ     0x40
 SHELL_ERR_SYNTAX    .equ     0x41
@@ -14,6 +17,65 @@ SHELL_ERR_LONG      .equ     0x42
 SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
+
+; ResolveShellRunRequest —
+; Resolve a run command into a launch request block:
+;   +0       run mode, SHELL_RUN_DEFAULT or SHELL_RUN_EXPLICIT
+;   +1       runnable path
+; Input:
+;   HL = NUL-terminated run command line
+;   DE = request block with one mode byte followed by one path slot
+;   B  = path capacity, including final NUL
+; Output:
+;   carry clear, A=run mode, request path is NUL-terminated
+;   carry set, A=SHELL_ERR_* or project loader error
+;!      in        B,DE,HL
+;!      out       carry,A,zero
+;!      clobbers  BC,DE,HL
+@ResolveShellRunRequest:
+        LD      (ShellRequestPtr),DE
+        LD      A,B
+        LD      (ShellOutCap),A
+        CALL    ShellSkipSpaces
+        LD      (ShellRequestCommandPtr),HL
+        LD      DE,ShellRunText
+        CALL    ShellMatchCommand
+        JR      NC,ShellRunRequestCommandOk
+        LD      A,SHELL_ERR_SYNTAX
+        SCF
+        RET
+
+ShellRunRequestCommandOk:
+        CALL    ShellSkipSpaces
+        LD      A,(HL)
+        OR      A
+        JR      Z,ShellRunRequestDefault
+        LD      A,SHELL_RUN_EXPLICIT
+        JR      ShellRunRequestResolve
+
+ShellRunRequestDefault:
+        LD      A,SHELL_RUN_DEFAULT
+
+ShellRunRequestResolve:
+        LD      (ShellRunMode),A
+        LD      DE,(ShellRequestPtr)
+        INC     DE
+        LD      HL,(ShellRequestCommandPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ResolveShellCommand
+        RET     C
+        CP      SHELL_CMD_RUN
+        JR      Z,ShellRunRequestOk
+        LD      A,SHELL_ERR_SYNTAX
+        SCF
+        RET
+
+ShellRunRequestOk:
+        LD      HL,(ShellRequestPtr)
+        LD      A,(ShellRunMode)
+        LD      (HL),A
+        RET
 
 ; ResolveShellAsmRequest —
 ; Resolve an asm command into a build request block:
@@ -690,6 +752,9 @@ ShellRemainingCap:
         .db     0
 
 ShellAction:
+        .db     0
+
+ShellRunMode:
         .db     0
 
 ShellArgHadDot:
