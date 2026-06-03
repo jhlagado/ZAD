@@ -139,6 +139,7 @@ The first host-verifiable commands are:
 node --experimental-strip-types tools/fs.ts format VOLUME.TM8
 node --experimental-strip-types tools/fs.ts info VOLUME.TM8
 node --experimental-strip-types tools/fs.ts import VOLUME.TM8 hostfile /path/file
+node --experimental-strip-types tools/fs.ts export VOLUME.TM8 /path/file hostfile
 node --experimental-strip-types tools/fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts rm VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts mv VOLUME.TM8 /old/path /new/path
@@ -155,7 +156,10 @@ stores a zero-length file catalog entry, and updates the allocation table and
 free-block count. `import` reads exact bytes from a host file, creates the
 destination TM8 file, allocates enough 4K data blocks with at least one block
 even for a zero-length file, stores the exact byte count, zero-fills final-block
-padding, and updates the allocation table, free-block count, and checksum. `rm`
+padding, and updates the allocation table, free-block count, and checksum.
+`export` resolves a TM8 file path, walks the validated allocation block chain,
+and writes exactly the file's stored byte count to a new host file, refusing to
+overwrite an existing host path. `rm`
 resolves an existing file path, frees every block in its validated allocation
 chain, zeroes the file catalog entry, updates the free-block count and checksum,
 and removes the prefix entry when no remaining file references it. `mv` resolves

@@ -141,21 +141,22 @@ should not block the first edit/assemble/run environment.
 ## Host Companion Tools
 
 The laptop-side tools make the system practical without becoming the primary
-experience. They create, inspect, and import TM8 project volumes today. The
-Phase 2 target adds export, cross-volume copy, pack, and unpack so users can
-back up work, share projects, seed examples, and move libraries into a project.
+experience. They create and inspect TM8 project volumes today, and they can
+import and export raw host files. The remaining Phase 2 target adds cross-volume
+copy, pack, and unpack so users can back up work, share projects, seed examples,
+and move libraries into a project.
 
 From a user's perspective:
 
 ```text
 fs format VOLUME.TM8
 fs import VOLUME.TM8 main.asm /src/main.asm
+fs export VOLUME.TM8 /src/main.asm main-backup.asm
 ```
 
 Future Phase 2 commands should add:
 
 ```text
-fs export VOLUME.TM8 /src/main.asm main-backup.asm
 fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
 fs unpack VOLUME.TM8 my-project
 fs pack my-project VOLUME.TM8

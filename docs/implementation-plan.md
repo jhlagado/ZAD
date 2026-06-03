@@ -65,8 +65,8 @@ Host-side cross-volume copy is the preferred early way to bring libraries and
 examples into a project. TEC-side cross-volume import can follow once the active
 volume workflow is stable.
 
-`fs import` is already implemented as raw byte import. Source-record
-conversion belongs to Phase 4.
+`fs import` and `fs export` are already implemented as raw byte operations.
+Source-record conversion belongs to Phase 4.
 
 ## Phase 3: GLCD Shell
 

@@ -17,6 +17,7 @@ function usage(): never {
   console.error('usage: fs format VOLUME.TM8');
   console.error('       fs info VOLUME.TM8');
   console.error('       fs import VOLUME.TM8 hostfile /path/file');
+  console.error('       fs export VOLUME.TM8 /path/file hostfile');
   console.error('       fs new VOLUME.TM8 /path/file');
   console.error('       fs rm VOLUME.TM8 /path/file');
   console.error('       fs mv VOLUME.TM8 /old/path /new/path');
@@ -61,6 +62,19 @@ function importFile(volumePath: string, hostPath: string, tm8Path: string): void
     volumePath,
     importFileIntoVolumeImage(readFileSync(volumePath), tm8Path, readFileSync(hostPath)),
   );
+}
+
+function exportFile(volumePath: string, tm8Path: string, hostPath: string): void {
+  try {
+    writeFileSync(hostPath, readFileFromVolumeImage(readFileSync(volumePath), tm8Path), {
+      flag: 'wx',
+    });
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+      throw new Error(`refusing to overwrite existing file: ${hostPath}`);
+    }
+    throw error;
+  }
 }
 
 function printFile(volumePath: string, path: string): void {
@@ -122,6 +136,15 @@ function main(argv: string[]): void {
       usage();
     }
     importFile(path, tm8Path, destinationPath);
+    return;
+  }
+
+  if (command === 'export') {
+    const hostPath = argv[3];
+    if (argv.length !== 4 || !tm8Path || !hostPath) {
+      usage();
+    }
+    exportFile(path, tm8Path, hostPath);
     return;
   }
 
