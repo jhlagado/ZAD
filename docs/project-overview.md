@@ -69,10 +69,10 @@ Example:
 > cd /projects/tecm8
 /projects/tecm8
 > ls
-editor.asm
+main.asm
 storage.asm
 
-> edit editor
+> edit main
 ```
 
 The `cd` command changes the current path prefix. It does not require a real
