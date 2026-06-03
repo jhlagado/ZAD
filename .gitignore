@@ -1,2 +1,16 @@
 node_modules/
 .fallow/
+
+### Debug80 (do not remove this line) ###
+# Assembled output (scaffold default is "build/"; match your debug80.json outputDir)
+build/
+out/
+dist/
+# Materialized platform ROM bundles are local copies; debug80.json references extension bundles by profile
+roms/
+# Optional local launch; the extension also contributes "Debug80: Current Project"
+.vscode/launch.json
+# OS / editor
+.DS_Store
+Thumbs.db
+### end Debug80 ###
