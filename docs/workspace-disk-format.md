@@ -162,3 +162,9 @@ table and file catalog and prints matching local filenames, one per line. A
 freshly formatted volume lists `/` successfully with no output. `cat` resolves
 a file path, walks the validated allocation block chain, and writes exactly the
 file's stored byte count to stdout.
+
+The host `tm8fs` command set is stateless. It does not implement `cd` or `pwd`;
+host commands use absolute TM8 paths so tests and preservation tools do not
+depend on ambient shell state. `cd` and `pwd` belong to the interactive GLCD
+shell, where a current prefix can live in shell state without changing the
+version 1 disk format.

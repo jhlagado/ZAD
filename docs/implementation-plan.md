@@ -31,15 +31,17 @@ Commands:
 format
 info
 ls
-cd
-pwd
 new
 rm
 mv
 cat
 ```
 
-For v1, `cd` changes a prefix and always succeeds for valid paths.
+The Phase 1 host tool is intentionally stateless: commands take explicit
+absolute TM8 paths and do not persist a current prefix. `cd` and `pwd` are GLCD
+shell commands, not host `tm8fs` commands; they move to Phase 3 where there is
+an interactive shell state. For shell v1, `cd` changes the current prefix and
+always succeeds for syntactically valid paths.
 
 ## Phase 2: Host Tooling
 
@@ -70,7 +72,7 @@ Goals:
 - Boot or jump into TECM8 shell.
 - Read matrix keyboard input.
 - Print to GLCD terminal.
-- Navigate virtual prefixes.
+- Navigate virtual prefixes with `cd` and `pwd`.
 - List files and virtual folder prefixes.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
