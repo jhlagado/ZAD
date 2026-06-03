@@ -340,8 +340,15 @@ fs export-text VOLUME.TM8 /projects/demo/main.asm ./main.asm
 fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm
 fs unpack VOLUME.TM8 ./workspace
 fs pack ./workspace VOLUME.TM8
+fs project-init VOLUME.TM8 /src/main.asm
+fs project-info VOLUME.TM8
 ```
 
 `fs import`, `fs export`, `fs copy`, `fs unpack`, and `fs pack` are implemented
 as raw byte operations. `fs import-text` and `fs export-text` are implemented
 as source conversion commands for 32-byte editor records.
+
+`fs project-init` creates `/.tecm8/project`, a line-oriented ASCII config file
+for project defaults. It stores the main file, current file, build output, map
+path, and short-command bindings in `key=value` form so TEC-side code can read
+it without a JSON parser.

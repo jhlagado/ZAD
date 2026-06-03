@@ -92,6 +92,26 @@ The shell should remember both:
 - **main file**: the file assembled and run by default.
 - **current file**: the file of interest for editing.
 
+The remembered project state lives in `/.tecm8/project` inside the active
+volume. It is a small line-oriented ASCII file rather than JSON, so TEC-side
+Z80 code can scan it without a complex parser:
+
+```text
+tm8project=1
+main=/src/main.asm
+current=/src/main.asm
+output=/build/main.bin
+map=/build/main.map
+cmd.edit=current
+cmd.asm=main
+cmd.run=output
+```
+
+The `cmd.*` lines define the default short-command bindings: `edit` opens the
+current file, `asm` assembles the main file, and `run` runs the configured
+output file. Later configuration screens can rewrite these keys without
+changing the shell command shape.
+
 The common flow should therefore be short:
 
 ```text
@@ -151,6 +171,7 @@ From a user's perspective:
 
 ```text
 fs format VOLUME.TM8
+fs project-init VOLUME.TM8 /src/main.asm
 fs import VOLUME.TM8 main.asm /src/main.asm
 fs export VOLUME.TM8 /src/main.asm main-backup.asm
 fs copy LIBS.TM8:/lib/glcd/terminal.asm VOLUME.TM8:/lib/glcd/terminal.asm

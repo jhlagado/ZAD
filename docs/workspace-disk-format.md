@@ -145,6 +145,10 @@ node --experimental-strip-types tools/fs.ts export-text VOLUME.TM8 /path/file ho
 node --experimental-strip-types tools/fs.ts copy SOURCE.TM8:/path/file DEST.TM8:/path/file
 node --experimental-strip-types tools/fs.ts unpack VOLUME.TM8 folder
 node --experimental-strip-types tools/fs.ts pack folder VOLUME.TM8
+node --experimental-strip-types tools/fs.ts project-init VOLUME.TM8 [/src/main.asm]
+node --experimental-strip-types tools/fs.ts project-info VOLUME.TM8
+node --experimental-strip-types tools/fs.ts project-set-main VOLUME.TM8 /path/file
+node --experimental-strip-types tools/fs.ts project-set-current VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts new VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts rm VOLUME.TM8 /path/file
 node --experimental-strip-types tools/fs.ts mv VOLUME.TM8 /old/path /new/path
@@ -175,6 +179,24 @@ file prefix, and writes exact stored bytes to new host files while refusing
 overwrites. `pack` walks a host folder tree, converts relative file paths to
 strict TM8 paths, imports exact bytes into a new volume image, and refuses to
 overwrite an existing volume file.
+`project-init` creates `/.tecm8/project` and a default main source file when it
+does not already exist. The project config is stored as ASCII `key=value` lines
+rather than JSON:
+
+```text
+tm8project=1
+main=/src/main.asm
+current=/src/main.asm
+output=/build/main.bin
+map=/build/main.map
+cmd.edit=current
+cmd.asm=main
+cmd.run=output
+```
+
+`project-info` validates that file and reports the host-readable JSON view.
+`project-set-main` and `project-set-current` update the corresponding config
+keys while preserving the strict TM8 path policy.
 `rm`
 resolves an existing file path, frees every block in its validated allocation
 chain, zeroes the file catalog entry, updates the free-block count and checksum,

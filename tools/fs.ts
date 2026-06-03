@@ -42,6 +42,10 @@ function usage(): never {
   console.error('       fs copy SOURCE.TM8:/path/file DEST.TM8:/path/file');
   console.error('       fs unpack VOLUME.TM8 folder');
   console.error('       fs pack folder VOLUME.TM8');
+  console.error('       fs project-init VOLUME.TM8 [/src/main.asm]');
+  console.error('       fs project-info VOLUME.TM8');
+  console.error('       fs project-set-main VOLUME.TM8 /path/file');
+  console.error('       fs project-set-current VOLUME.TM8 /path/file');
   console.error('       fs new VOLUME.TM8 /path/file');
   console.error('       fs rm VOLUME.TM8 /path/file');
   console.error('       fs mv VOLUME.TM8 /old/path /new/path');
@@ -181,6 +185,176 @@ function exportTextFile(volumePath: string, tm8Path: string, hostPath: string): 
     hostPath,
     decodeSourceTextRecords(readFileFromVolumeImage(readFileSync(volumePath), tm8Path)),
   );
+}
+
+const PROJECT_CONFIG_PATH = '/.tecm8/project';
+
+type ProjectConfig = {
+  mainFile: string;
+  currentFile: string;
+  outputFile: string;
+  mapFile: string;
+  editCommand: string;
+  asmCommand: string;
+  runCommand: string;
+};
+
+function validateTm8FilePath(path: string): void {
+  importFileIntoVolumeImage(createVolumeImage(), path, Buffer.alloc(0));
+}
+
+function defaultProjectConfig(mainFile = '/src/main.asm'): ProjectConfig {
+  validateTm8FilePath(mainFile);
+  return {
+    mainFile,
+    currentFile: mainFile,
+    outputFile: '/build/main.bin',
+    mapFile: '/build/main.map',
+    editCommand: 'current',
+    asmCommand: 'main',
+    runCommand: 'output',
+  };
+}
+
+function encodeProjectConfig(config: ProjectConfig): Buffer {
+  return Buffer.from(
+    [
+      'tm8project=1',
+      `main=${config.mainFile}`,
+      `current=${config.currentFile}`,
+      `output=${config.outputFile}`,
+      `map=${config.mapFile}`,
+      `cmd.edit=${config.editCommand}`,
+      `cmd.asm=${config.asmCommand}`,
+      `cmd.run=${config.runCommand}`,
+      '',
+    ].join('\n'),
+    'ascii',
+  );
+}
+
+function decodeProjectConfig(content: Buffer): ProjectConfig {
+  const text = content.toString('ascii');
+  if (Buffer.from(text, 'ascii').compare(content) !== 0) {
+    throw new Error('bad project config encoding');
+  }
+
+  const values = new Map<string, string>();
+  for (const [index, rawLine] of text.split('\n').entries()) {
+    if (rawLine === '') {
+      continue;
+    }
+    const separator = rawLine.indexOf('=');
+    if (separator <= 0) {
+      throw new Error(`bad project config line ${index + 1}`);
+    }
+    const key = rawLine.slice(0, separator);
+    const value = rawLine.slice(separator + 1);
+    if (values.has(key)) {
+      throw new Error(`duplicate project config key: ${key}`);
+    }
+    values.set(key, value);
+  }
+
+  if (
+    values.get('tm8project') !== '1'
+  ) {
+    throw new Error('bad project config header');
+  }
+
+  const mainFile = values.get('main');
+  const currentFile = values.get('current');
+  const outputFile = values.get('output');
+  const mapFile = values.get('map');
+  const editCommand = values.get('cmd.edit');
+  const asmCommand = values.get('cmd.asm');
+  const runCommand = values.get('cmd.run');
+  if (!mainFile || !currentFile || !outputFile || !mapFile || !editCommand || !asmCommand || !runCommand) {
+    throw new Error('missing project config key');
+  }
+
+  validateTm8FilePath(mainFile);
+  validateTm8FilePath(currentFile);
+  validateTm8FilePath(outputFile);
+  validateTm8FilePath(mapFile);
+  return { mainFile, currentFile, outputFile, mapFile, editCommand, asmCommand, runCommand };
+}
+
+function hasVolumeFile(image: Buffer, path: string): boolean {
+  try {
+    readFileFromVolumeImage(image, path);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('file not found')) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function writeVolumeFileReplacing(image: Buffer, path: string, content: Buffer): Buffer {
+  const withoutExisting = hasVolumeFile(image, path)
+    ? removeFileFromVolumeImage(image, path)
+    : image;
+  return importFileIntoVolumeImage(withoutExisting, path, content);
+}
+
+function readProjectConfig(image: Buffer): ProjectConfig {
+  return decodeProjectConfig(readFileFromVolumeImage(image, PROJECT_CONFIG_PATH));
+}
+
+function initProject(volumePath: string, mainFile = '/src/main.asm'): void {
+  let image = readFileSync(volumePath);
+  if (hasVolumeFile(image, PROJECT_CONFIG_PATH)) {
+    throw new Error(`project config already exists: ${PROJECT_CONFIG_PATH}`);
+  }
+
+  const config = defaultProjectConfig(mainFile);
+  if (!hasVolumeFile(image, config.mainFile)) {
+    image = importFileIntoVolumeImage(image, config.mainFile, Buffer.alloc(0));
+  }
+  image = importFileIntoVolumeImage(image, PROJECT_CONFIG_PATH, encodeProjectConfig(config));
+  writeFileSync(volumePath, image);
+}
+
+function printProjectInfo(volumePath: string): void {
+  const config = readProjectConfig(readFileSync(volumePath));
+  console.log(JSON.stringify({
+    format: 'tm8project',
+    version: 1,
+    mainFile: config.mainFile,
+    currentFile: config.currentFile,
+    outputFile: config.outputFile,
+    mapFile: config.mapFile,
+    commands: {
+      edit: config.editCommand,
+      asm: config.asmCommand,
+      run: config.runCommand,
+    },
+  }, null, 2));
+}
+
+function updateProjectConfig(
+  volumePath: string,
+  update: (config: ProjectConfig) => ProjectConfig,
+): void {
+  const image = readFileSync(volumePath);
+  const config = update(readProjectConfig(image));
+  validateTm8FilePath(config.mainFile);
+  validateTm8FilePath(config.currentFile);
+  validateTm8FilePath(config.outputFile);
+  validateTm8FilePath(config.mapFile);
+  writeFileSync(volumePath, writeVolumeFileReplacing(image, PROJECT_CONFIG_PATH, encodeProjectConfig(config)));
+}
+
+function setProjectMainFile(volumePath: string, mainFile: string): void {
+  validateTm8FilePath(mainFile);
+  updateProjectConfig(volumePath, (config) => ({ ...config, mainFile }));
+}
+
+function setProjectCurrentFile(volumePath: string, currentFile: string): void {
+  validateTm8FilePath(currentFile);
+  updateProjectConfig(volumePath, (config) => ({ ...config, currentFile }));
 }
 
 function parseVolumeFileSpec(spec: string): { volumePath: string; tm8Path: string } {
@@ -459,6 +633,39 @@ function main(argv: string[]): void {
       usage();
     }
     packVolume(path, tm8Path);
+    return;
+  }
+
+  if (command === 'project-init') {
+    const mainFile = argv[2];
+    if (argv.length > 3) {
+      usage();
+    }
+    initProject(path, mainFile);
+    return;
+  }
+
+  if (command === 'project-info') {
+    if (argv.length !== 2) {
+      usage();
+    }
+    printProjectInfo(path);
+    return;
+  }
+
+  if (command === 'project-set-main') {
+    if (argv.length !== 3 || !tm8Path) {
+      usage();
+    }
+    setProjectMainFile(path, tm8Path);
+    return;
+  }
+
+  if (command === 'project-set-current') {
+    if (argv.length !== 3 || !tm8Path) {
+      usage();
+    }
+    setProjectCurrentFile(path, tm8Path);
     return;
   }
 

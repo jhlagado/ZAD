@@ -78,8 +78,23 @@ Goals:
 - Print to GLCD terminal.
 - Navigate virtual prefixes with `cd` and `pwd`.
 - List files and virtual folder prefixes.
+- Read `/.tecm8/project` line-by-line to get `main`, `current`, `output`, and
+  short-command bindings.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
+
+Host-side project metadata commands are implemented so shell work has a stable
+format to target:
+
+```text
+fs project-init VOLUME.TM8 [/src/main.asm]
+fs project-info VOLUME.TM8
+fs project-set-main VOLUME.TM8 /path/file
+fs project-set-current VOLUME.TM8 /path/file
+```
+
+The stored config is not JSON. It is an ASCII `key=value` file at
+`/.tecm8/project`, chosen so Z80 code can parse it with simple line scanning.
 
 ## Phase 4: Source Record Files
 
