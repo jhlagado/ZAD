@@ -18,6 +18,7 @@ function usage(): never {
   console.error('       fs info VOLUME.TM8');
   console.error('       fs import VOLUME.TM8 hostfile /path/file');
   console.error('       fs export VOLUME.TM8 /path/file hostfile');
+  console.error('       fs copy SOURCE.TM8:/path/file DEST.TM8:/path/file');
   console.error('       fs new VOLUME.TM8 /path/file');
   console.error('       fs rm VOLUME.TM8 /path/file');
   console.error('       fs mv VOLUME.TM8 /old/path /new/path');
@@ -75,6 +76,35 @@ function exportFile(volumePath: string, tm8Path: string, hostPath: string): void
     }
     throw error;
   }
+}
+
+function parseVolumeFileSpec(spec: string): { volumePath: string; tm8Path: string } {
+  const separator = spec.lastIndexOf(':/');
+  if (separator <= 0) {
+    throw new Error(`expected VOLUME.TM8:/path/file: ${spec}`);
+  }
+
+  const volumePath = spec.slice(0, separator);
+  const tm8Path = spec.slice(separator + 1);
+  if (!volumePath || tm8Path === '/') {
+    throw new Error(`expected VOLUME.TM8:/path/file: ${spec}`);
+  }
+
+  return { volumePath, tm8Path };
+}
+
+function copyFile(sourceSpec: string, destinationSpec: string): void {
+  const source = parseVolumeFileSpec(sourceSpec);
+  const destination = parseVolumeFileSpec(destinationSpec);
+  const content = readFileFromVolumeImage(readFileSync(source.volumePath), source.tm8Path);
+  writeFileSync(
+    destination.volumePath,
+    importFileIntoVolumeImage(
+      readFileSync(destination.volumePath),
+      destination.tm8Path,
+      content,
+    ),
+  );
 }
 
 function printFile(volumePath: string, path: string): void {
@@ -145,6 +175,15 @@ function main(argv: string[]): void {
       usage();
     }
     exportFile(path, tm8Path, hostPath);
+    return;
+  }
+
+  if (command === 'copy') {
+    const destinationSpec = argv[2];
+    if (argv.length !== 3 || !tm8Path || !destinationSpec) {
+      usage();
+    }
+    copyFile(path, tm8Path);
     return;
   }
 

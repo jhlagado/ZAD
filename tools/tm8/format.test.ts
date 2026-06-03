@@ -1336,3 +1336,223 @@ test('fs export rejects missing files, malformed volumes, and host overwrites', 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('fs copy copies root and prefixed TM8 files between volumes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const sourcePath = join(dir, 'SOURCE.TM8');
+    const destinationPath = join(dir, 'DEST.TM8');
+    const rootContent = Buffer.from('org 2000h\n', 'utf8');
+    const prefixedContent = Buffer.from('start:\n  ret\n', 'utf8');
+    writeFileSync(
+      sourcePath,
+      importFileIntoVolumeImage(
+        importFileIntoVolumeImage(createVolumeImage(), '/boot.asm', rootContent),
+        '/src/main.asm',
+        prefixedContent,
+      ),
+    );
+    formatVolumeFile(destinationPath);
+
+    execFileSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        'tools/fs.ts',
+        'copy',
+        `${sourcePath}:/boot.asm`,
+        `${destinationPath}:/boot.asm`,
+      ],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        'tools/fs.ts',
+        'copy',
+        `${sourcePath}:/src/main.asm`,
+        `${destinationPath}:/copy/main.asm`,
+      ],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(destinationPath), '/boot.asm'), rootContent);
+    assert.deepEqual(
+      readFileFromVolumeImage(readFileSync(destinationPath), '/copy/main.asm'),
+      prefixedContent,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs copy preserves zero-length and multi-block file contents', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const sourcePath = join(dir, 'SOURCE.TM8');
+    const destinationPath = join(dir, 'DEST.TM8');
+    const bigContent = Buffer.alloc(TM8_FORMAT.blockBytes + 37);
+    for (let index = 0; index < bigContent.byteLength; index += 1) {
+      bigContent[index] = index % 251;
+    }
+    writeFileSync(
+      sourcePath,
+      importFileIntoVolumeImage(
+        importFileIntoVolumeImage(createVolumeImage(), '/empty.bin', Buffer.alloc(0)),
+        '/big.bin',
+        bigContent,
+      ),
+    );
+    formatVolumeFile(destinationPath);
+
+    execFileSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        'tools/fs.ts',
+        'copy',
+        `${sourcePath}:/empty.bin`,
+        `${destinationPath}:/empty.bin`,
+      ],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        'tools/fs.ts',
+        'copy',
+        `${sourcePath}:/big.bin`,
+        `${destinationPath}:/big.bin`,
+      ],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.equal(readFileFromVolumeImage(readFileSync(destinationPath), '/empty.bin').byteLength, 0);
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(destinationPath), '/big.bin'), bigContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs copy rejects missing sources, destination collisions, malformed specs, and bad volumes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const sourcePath = join(dir, 'SOURCE.TM8');
+    const destinationPath = join(dir, 'DEST.TM8');
+    const malformedSourcePath = join(dir, 'BAD-SOURCE.TM8');
+    const malformedDestinationPath = join(dir, 'BAD-DEST.TM8');
+    const sourceContent = Buffer.from('start:\n', 'utf8');
+    const destinationContent = Buffer.from('existing:\n', 'utf8');
+    writeFileSync(
+      sourcePath,
+      importFileIntoVolumeImage(createVolumeImage(), '/main.asm', sourceContent),
+    );
+    writeFileSync(
+      destinationPath,
+      importFileIntoVolumeImage(createVolumeImage(), '/existing.asm', destinationContent),
+    );
+    writeFileSync(malformedSourcePath, Buffer.from('not a tm8 volume'));
+    const malformedDestination = createVolumeImage();
+    malformedDestination[100] ^= 0xff;
+    writeFileSync(malformedDestinationPath, malformedDestination);
+
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'copy',
+            `${sourcePath}:/missing.asm`,
+            `${destinationPath}:/copy.asm`,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /file not found/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'copy',
+            `${sourcePath}:/main.asm`,
+            `${destinationPath}:/existing.asm`,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /file already exists/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'copy',
+            `${sourcePath}/main.asm`,
+            `${destinationPath}:/copy.asm`,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /expected VOLUME\.TM8:\/path\/file/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'copy',
+            `${sourcePath}:/main.asm`,
+            `${destinationPath}/copy.asm`,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /expected VOLUME\.TM8:\/path\/file/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'copy',
+            `${malformedSourcePath}:/main.asm`,
+            `${destinationPath}:/copy.asm`,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /unexpected TM8 volume size/,
+    );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            'tools/fs.ts',
+            'copy',
+            `${sourcePath}:/main.asm`,
+            `${malformedDestinationPath}:/copy.asm`,
+          ],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /bad TM8 superblock checksum/,
+    );
+    assert.deepEqual(
+      readFileFromVolumeImage(readFileSync(destinationPath), '/existing.asm'),
+      destinationContent,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
