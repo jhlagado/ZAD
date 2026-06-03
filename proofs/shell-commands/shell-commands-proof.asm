@@ -76,6 +76,36 @@ PathOutLen      .equ     64
 
         LD      A,9
         LD      (CaseMarker),A
+        LD      HL,CmdAsm
+        LD      DE,ExpectedMain
+        LD      BC,ExpectedRunMain
+        LD      IX,ExpectedMapMain
+        CALL    AssertAsmRequest
+        JP      C,ProofFailed
+
+        LD      A,10
+        LD      (CaseMarker),A
+        LD      HL,CmdAsmTest
+        LD      DE,ExpectedTest
+        LD      BC,ExpectedRunTest
+        LD      IX,ExpectedMapTest
+        CALL    AssertAsmRequest
+        JP      C,ProofFailed
+
+        LD      A,11
+        LD      (CaseMarker),A
+        LD      HL,CmdEdit
+        CALL    AssertAsmRequestSyntaxErr
+        JP      C,ProofFailed
+
+        LD      A,12
+        LD      (CaseMarker),A
+        LD      HL,CmdRun
+        CALL    AssertAsmRequestSyntaxErr
+        JP      C,ProofFailed
+
+        LD      A,13
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -84,7 +114,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,10
+        LD      A,14
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -94,7 +124,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,11
+        LD      A,15
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -138,6 +168,55 @@ ProofFailed:
         RET
 
 AssertCommandBad:
+        SCF
+        RET
+
+; AssertAsmRequest —
+; Resolve one asm command and compare source, output, and map paths.
+; Input: HL = command text, DE = expected source, BC = expected output,
+;        IX = expected map
+;!      in        BC,DE,HL,IX
+;!      out       DE,HL,A,carry,zero
+;!      clobbers  BC,IX
+@AssertAsmRequest:
+        LD      (ExpectedPathPtr),DE
+        LD      (ExpectedOutputPtr),BC
+        LD      (ExpectedMapPtr),IX
+        LD      DE,BuildRequest
+        LD      B,PathOutLen
+        CALL    ResolveShellAsmRequest
+        RET     C
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,BuildRequest
+        CALL    AssertString
+        RET     C
+
+        LD      HL,(ExpectedOutputPtr)
+        LD      DE,BuildRequest + PathOutLen
+        CALL    AssertString
+        RET     C
+
+        LD      HL,(ExpectedMapPtr)
+        LD      DE,BuildRequest + PathOutLen + PathOutLen
+        CALL    AssertString
+        RET
+
+; AssertAsmRequestSyntaxErr —
+; Resolve one non-asm command and require an immediate syntax error.
+; Input: HL = command text
+;!      in        HL
+;!      out       A,H,carry,zero
+;!      clobbers  BC,DE,L
+@AssertAsmRequestSyntaxErr:
+        LD      DE,BuildRequest
+        LD      B,PathOutLen
+        CALL    ResolveShellAsmRequest
+        JR      NC,AssertAsmRequestSyntaxBad
+        CP      SHELL_ERR_SYNTAX
+        RET     Z
+
+AssertAsmRequestSyntaxBad:
         SCF
         RET
 
@@ -260,6 +339,12 @@ ExpectedAction:
 ExpectedPathPtr:
         .dw     0
 
+ExpectedOutputPtr:
+        .dw     0
+
+ExpectedMapPtr:
+        .dw     0
+
 ResultMarker:
         .db     0
 
@@ -268,3 +353,6 @@ CaseMarker:
 
 PathOut:
         .ds     PathOutLen
+
+BuildRequest:
+        .ds     PathOutLen * 3

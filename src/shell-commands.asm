@@ -15,6 +15,64 @@ SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
 
+; ResolveShellAsmRequest —
+; Resolve an asm command into a build request block:
+;   +0       source path
+;   +B       derived /build/<stem>.bin
+;   +B+B     derived /build/<stem>.map
+; Input:
+;   HL = NUL-terminated asm command line
+;   DE = request block with three path slots
+;   B  = per-path capacity, including final NUL
+; Output:
+;   carry clear, A=SHELL_CMD_ASM, request block paths are NUL-terminated
+;   carry set, A=SHELL_ERR_* or project loader error
+;!      in        B,DE,HL
+;!      out       A,H,zero,carry
+;!      clobbers  BC,DE,L
+@ResolveShellAsmRequest:
+        LD      (ShellRequestPtr),DE
+        LD      A,B
+        LD      (ShellOutCap),A
+        CALL    ShellSkipSpaces
+        LD      (ShellRequestCommandPtr),HL
+        LD      DE,ShellAsmText
+        CALL    ShellMatchCommand
+        JR      NC,ShellAsmRequestCommandOk
+        LD      A,SHELL_ERR_SYNTAX
+        SCF
+        RET
+
+ShellAsmRequestCommandOk:
+        LD      HL,(ShellRequestCommandPtr)
+        LD      DE,(ShellRequestPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ResolveShellCommand
+        RET     C
+
+        LD      DE,(ShellRequestPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ShellAddBToDE
+        RET     C
+        LD      HL,(ShellRequestPtr)
+        CALL    ShellDeriveBuildBin
+        RET     C
+
+        LD      DE,(ShellRequestPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ShellAddBToDE
+        RET     C
+        CALL    ShellAddBToDE
+        RET     C
+        LD      HL,(ShellRequestPtr)
+        CALL    ShellDeriveBuildMap
+        RET     C
+        LD      A,SHELL_CMD_ASM
+        RET
+
 ; ResolveShellCommand —
 ; Parse edit/asm/run and resolve the command target path.
 ; Input:
@@ -377,6 +435,26 @@ ShellArgNoSlash:
         XOR     A
         RET
 
+; ShellAddBToDE —
+; Add unsigned B to DE. Carry set if the 16-bit pointer wraps.
+;!      in        B,DE
+;!      out       DE,A,carry,zero
+;!      clobbers  HL
+@ShellAddBToDE:
+        LD      H,0
+        LD      L,B
+        ADD     HL,DE
+        JR      C,ShellAddBToDEOverflow
+        LD      D,H
+        LD      E,L
+        XOR     A
+        RET
+
+ShellAddBToDEOverflow:
+        LD      A,SHELL_ERR_LONG
+        SCF
+        RET
+
 ; ShellDeriveBuildBin —
 ; Derive /build/<local-stem>.bin from an absolute source path.
 ;!      in        B,DE,HL
@@ -597,6 +675,12 @@ ShellStemEnd:
         .dw     0
 
 ShellBuildExtPtr:
+        .dw     0
+
+ShellRequestPtr:
+        .dw     0
+
+ShellRequestCommandPtr:
         .dw     0
 
 ShellOutCap:
