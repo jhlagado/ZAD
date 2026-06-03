@@ -655,7 +655,7 @@ function writeActivePrefixEntry(image: Buffer, index: number, prefixId: number, 
 function writeActiveFileEntry(
   image: Buffer,
   index: number,
-  options: { fileId: number; prefixId: number; name: string; firstBlock: number; fileType: number },
+  options: { fileId: number; prefixId: number; name: string; firstBlock: number; fileType: number; size?: number },
 ): void {
   const offset = catalogEntryOffset(index);
   image[offset + TM8_CATALOG_ENTRY.statusOffset] = ENTRY_STATUS_ACTIVE;
@@ -664,7 +664,7 @@ function writeActiveFileEntry(
   image[offset + TM8_CATALOG_ENTRY.nameLengthOffset] = options.name.length;
   image.set(Buffer.from(options.name, 'ascii'), offset + TM8_CATALOG_ENTRY.nameOffset);
   putU16(image, offset + TM8_CATALOG_ENTRY.firstBlockOffset, options.firstBlock);
-  putU32(image, offset + TM8_CATALOG_ENTRY.fileSizeOffset, 0);
+  putU32(image, offset + TM8_CATALOG_ENTRY.fileSizeOffset, options.size ?? 0);
   image[offset + TM8_CATALOG_ENTRY.fileTypeOffset] = options.fileType;
 }
 
@@ -738,6 +738,72 @@ function createFileInVolumeImage(image: Buffer, path: string): Buffer {
     fileType: 1,
   });
   writeFreeBlockCount(nextImage, volume.superblock.freeBlockCount - 1);
+
+  parseVolumeImage(nextImage);
+  return nextImage;
+}
+
+function freeDataBlocks(volume: ParsedVolume): number[] {
+  return volume.allocation
+    .map((entry, block) => ({ entry, block }))
+    .filter(({ entry, block }) => block >= TM8_FORMAT.dataStartBlock && entry === ALLOCATION_FREE)
+    .map(({ block }) => block);
+}
+
+function importFileIntoVolumeImage(image: Buffer, path: string, content: Buffer): Buffer {
+  const nextImage = Buffer.from(image);
+  const volume = parseVolumeImage(nextImage);
+  const { prefix, name } = splitFilePath(path);
+
+  if (
+    volume.files.some(
+      (file) => prefixForFile(volume, file) === prefix && file.name === name,
+    )
+  ) {
+    throw new Error(`file already exists: ${path}`);
+  }
+
+  const fileEntryIndex = findFreeEntryIndex(
+    nextImage,
+    TM8_FORMAT.catalogStartBlock,
+    TM8_FORMAT.catalogEntrySize,
+    TM8_FORMAT.catalogEntryCount,
+  );
+  if (fileEntryIndex === -1) {
+    throw new Error('file catalog full');
+  }
+
+  const blockCount = Math.max(1, Math.ceil(content.byteLength / TM8_FORMAT.blockBytes));
+  const blocks = freeDataBlocks(volume).slice(0, blockCount);
+  if (blocks.length < blockCount) {
+    throw new Error('no free blocks');
+  }
+
+  const prefixId = prefixIdForPath(volume, nextImage, prefix);
+  const fileId = nextFreeByteId(volume.files.map((entry) => entry.fileId), 'file');
+
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index];
+    const nextBlock = blocks[index + 1] ?? ALLOCATION_END;
+    putU16(nextImage, allocationEntryOffset(block), nextBlock);
+    nextImage.fill(0, block * TM8_FORMAT.blockBytes, (block + 1) * TM8_FORMAT.blockBytes);
+    content.copy(
+      nextImage,
+      block * TM8_FORMAT.blockBytes,
+      index * TM8_FORMAT.blockBytes,
+      Math.min(content.byteLength, (index + 1) * TM8_FORMAT.blockBytes),
+    );
+  }
+
+  writeActiveFileEntry(nextImage, fileEntryIndex, {
+    fileId,
+    prefixId,
+    name,
+    firstBlock: blocks[0],
+    fileType: 1,
+    size: content.byteLength,
+  });
+  writeFreeBlockCount(nextImage, volume.superblock.freeBlockCount - blocks.length);
 
   parseVolumeImage(nextImage);
   return nextImage;
@@ -941,6 +1007,7 @@ module.exports = {
   createFileInVolumeImage,
   createVolumeImage,
   formatVolumeFile,
+  importFileIntoVolumeImage,
   listVolumePath,
   moveFileInVolumeImage,
   parseVolumeImage,

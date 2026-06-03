@@ -5,6 +5,7 @@ const { readFileSync, writeFileSync } = require('node:fs');
 const {
   createFileInVolumeImage,
   formatVolumeFile,
+  importFileIntoVolumeImage,
   listVolumePath,
   moveFileInVolumeImage,
   parseVolumeImage,
@@ -15,6 +16,7 @@ const {
 function usage(): never {
   console.error('usage: tm8fs format VOLUME.TM8');
   console.error('       tm8fs info VOLUME.TM8');
+  console.error('       tm8fs import VOLUME.TM8 hostfile /path/file');
   console.error('       tm8fs new VOLUME.TM8 /path/file');
   console.error('       tm8fs rm VOLUME.TM8 /path/file');
   console.error('       tm8fs mv VOLUME.TM8 /old/path /new/path');
@@ -52,6 +54,13 @@ function printListing(volumePath: string, path: string): void {
 
 function createNewFile(volumePath: string, path: string): void {
   writeFileSync(volumePath, createFileInVolumeImage(readFileSync(volumePath), path));
+}
+
+function importFile(volumePath: string, hostPath: string, tm8Path: string): void {
+  writeFileSync(
+    volumePath,
+    importFileIntoVolumeImage(readFileSync(volumePath), tm8Path, readFileSync(hostPath)),
+  );
 }
 
 function printFile(volumePath: string, path: string): void {
@@ -104,6 +113,15 @@ function main(argv: string[]): void {
       usage();
     }
     createNewFile(path, tm8Path);
+    return;
+  }
+
+  if (command === 'import') {
+    const destinationPath = argv[3];
+    if (argv.length !== 4 || !tm8Path || !destinationPath) {
+      usage();
+    }
+    importFile(path, tm8Path, destinationPath);
     return;
   }
 

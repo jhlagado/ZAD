@@ -15,6 +15,7 @@ const {
   createFileInVolumeImage,
   createVolumeImage,
   formatVolumeFile,
+  importFileIntoVolumeImage,
   listVolumePath,
   parseVolumeImage,
   readFileFromVolumeImage,
@@ -136,6 +137,10 @@ function catalogEntryStart(index: number): number {
 
 function prefixEntryStart(index: number): number {
   return TM8_FORMAT.prefixStartBlock * TM8_FORMAT.blockBytes + index * TM8_FORMAT.prefixEntrySize;
+}
+
+function initialFreeBlockCount(): number {
+  return TM8_FORMAT.totalBlocks - TM8_FORMAT.dataStartBlock;
 }
 
 test('formats and parses the default 4 MiB TM8 volume layout', () => {
@@ -1015,6 +1020,153 @@ test('tm8fs mv updates listings and preserves cat output', () => {
 
     assert.equal(srcListing, '');
     assert.equal(dstListing, 'app.z80\n');
+    assert.deepEqual(output, content);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('imports host bytes into root and prefixed TM8 paths', () => {
+  const rootContent = Buffer.from('org 8000h\nret\n', 'utf8');
+  const rootImage = importFileIntoVolumeImage(createVolumeImage(), '/main.asm', rootContent);
+  const rootVolume = parseVolumeImage(rootImage);
+
+  assert.deepEqual(listVolumePath(rootVolume, '/').map((entry: { name: string }) => entry.name), [
+    'main.asm',
+  ]);
+  assert.deepEqual(readFileFromVolumeImage(rootImage, '/main.asm'), rootContent);
+  assert.equal(rootVolume.files[0].size, rootContent.byteLength);
+
+  const prefixedContent = Buffer.from('call init\nret\n', 'utf8');
+  const prefixedImage = importFileIntoVolumeImage(
+    createVolumeImage(),
+    '/src/lib.asm',
+    prefixedContent,
+  );
+  const prefixedVolume = parseVolumeImage(prefixedImage);
+
+  assert.deepEqual(
+    listVolumePath(prefixedVolume, '/src').map((entry: { name: string }) => entry.name),
+    ['lib.asm'],
+  );
+  assert.deepEqual(readFileFromVolumeImage(prefixedImage, '/src/lib.asm'), prefixedContent);
+  assert.deepEqual(prefixedVolume.prefixes.map((entry: { prefix: string }) => entry.prefix), [
+    'src',
+  ]);
+});
+
+test('imports zero-length files with one allocated block', () => {
+  const image = importFileIntoVolumeImage(createVolumeImage(), '/empty.asm', Buffer.alloc(0));
+  const volume = parseVolumeImage(image);
+  const firstBlock = volume.files[0].firstBlock;
+
+  assert.equal(volume.files[0].size, 0);
+  assert.equal(volume.allocation[firstBlock], ALLOCATION_END);
+  assert.equal(volume.superblock.freeBlockCount, initialFreeBlockCount() - 1);
+  assert.deepEqual(readFileFromVolumeImage(image, '/empty.asm'), Buffer.alloc(0));
+});
+
+test('imports multi-block files and zero-fills final block padding', () => {
+  const content = Buffer.alloc(TM8_FORMAT.blockBytes * 2 + 17);
+  for (let index = 0; index < content.byteLength; index += 1) {
+    content[index] = index & 0xff;
+  }
+
+  const image = importFileIntoVolumeImage(createVolumeImage(), '/big.asm', content);
+  const volume = parseVolumeImage(image);
+  const file = volume.files[0];
+  const blocks = [
+    file.firstBlock,
+    volume.allocation[file.firstBlock],
+    volume.allocation[volume.allocation[file.firstBlock]],
+  ];
+  const finalBlock = blocks[2];
+
+  assert.deepEqual(readFileFromVolumeImage(image, '/big.asm'), content);
+  assert.equal(volume.allocation[blocks[0]], blocks[1]);
+  assert.equal(volume.allocation[blocks[1]], blocks[2]);
+  assert.equal(volume.allocation[blocks[2]], ALLOCATION_END);
+  assert.equal(volume.superblock.freeBlockCount, initialFreeBlockCount() - 3);
+  for (
+    let offset = finalBlock * TM8_FORMAT.blockBytes + 17;
+    offset < (finalBlock + 1) * TM8_FORMAT.blockBytes;
+    offset += 1
+  ) {
+    assert.equal(image[offset], 0);
+  }
+});
+
+test('rejects colliding, malformed, and no-space imports', () => {
+  const image = importFileIntoVolumeImage(createVolumeImage(), '/main.asm', Buffer.from('one'));
+
+  assert.throws(
+    () => importFileIntoVolumeImage(image, '/main.asm', Buffer.from('two')),
+    /file already exists/,
+  );
+  assert.throws(
+    () => importFileIntoVolumeImage(image, 'main.asm', Buffer.from('two')),
+    /TM8 paths must start with/,
+  );
+  assert.throws(
+    () => importFileIntoVolumeImage(image, '/bad/name/', Buffer.from('two')),
+    /missing local filename/,
+  );
+
+  const noSpace = createVolumeImage();
+  const allocationStart = TM8_FORMAT.allocationStartBlock * TM8_FORMAT.blockBytes;
+  for (let block = TM8_FORMAT.dataStartBlock; block < TM8_FORMAT.totalBlocks; block += 1) {
+    writeU16(noSpace, allocationStart + block * 2, ALLOCATION_END);
+  }
+  rewriteFreeBlockCount(noSpace, 0);
+  assert.throws(() => importFileIntoVolumeImage(noSpace, '/main.asm', Buffer.from('x')), /no free blocks/);
+});
+
+test('rejects catalog-full and prefix-full imports', () => {
+  let catalogFull = createVolumeImage();
+  for (let index = 0; index < TM8_FORMAT.catalogEntryCount; index += 1) {
+    catalogFull = importFileIntoVolumeImage(catalogFull, `/file${index}.asm`, Buffer.from('x'));
+  }
+  assert.throws(
+    () => importFileIntoVolumeImage(catalogFull, '/overflow.asm', Buffer.from('x')),
+    /file catalog full/,
+  );
+
+  let prefixFull = createVolumeImage();
+  for (let index = 0; index < TM8_FORMAT.prefixEntryCount; index += 1) {
+    prefixFull = importFileIntoVolumeImage(prefixFull, `/p${index}/file.asm`, Buffer.from('x'));
+  }
+  assert.throws(
+    () => importFileIntoVolumeImage(prefixFull, '/overflow/file.asm', Buffer.from('x')),
+    /prefix table full/,
+  );
+});
+
+test('tm8fs import updates listings and cat output', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const hostPath = join(dir, 'MAIN.ASM');
+    const content = Buffer.from('start:\n  ret\n', 'utf8');
+    formatVolumeFile(volumePath);
+    writeFileSync(hostPath, content);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'import', volumePath, hostPath, '/src/main.asm'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    const listing = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'ls', volumePath, '/src'],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+    const output = execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/tm8fs.ts', 'cat', volumePath, '/src/main.asm'],
+      { cwd: process.cwd() },
+    );
+
+    assert.equal(listing, 'main.asm\n');
     assert.deepEqual(output, content);
   } finally {
     rmSync(dir, { recursive: true, force: true });
