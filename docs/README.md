@@ -38,6 +38,7 @@ Start here:
 - [Virtual Filesystem](virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](shell-command-contract.md)
 - [TECM8 AZM Style Guide](azm-style-guide.md)
+- [AZM Register-Care Feedback Loop](azm-register-care-feedback.md)
 - [Editor Design](editor-design.md)
 - [Project Sizing Case Studies](project-sizing.md)
 - [Debugging Roadmap](debugging-roadmap.md)
