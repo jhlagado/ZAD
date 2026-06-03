@@ -7,6 +7,9 @@ SHELL_CMD_EDIT      .equ     0x10
 SHELL_CMD_ASM       .equ     0x11
 SHELL_CMD_RUN       .equ     0x12
 
+SHELL_EDIT_DEFAULT  .equ     0x18
+SHELL_EDIT_EXPLICIT .equ     0x19
+
 SHELL_RUN_DEFAULT   .equ     0x20
 SHELL_RUN_EXPLICIT  .equ     0x21
 
@@ -17,6 +20,65 @@ SHELL_ERR_LONG      .equ     0x42
 SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
+
+; ResolveShellEditRequest —
+; Resolve an edit command into an editor request block:
+;   +0       edit mode, SHELL_EDIT_DEFAULT or SHELL_EDIT_EXPLICIT
+;   +1       source path
+; Input:
+;   HL = NUL-terminated edit command line
+;   DE = request block with one mode byte followed by one path slot
+;   B  = path capacity, including final NUL
+; Output:
+;   carry clear, A=edit mode, request path is NUL-terminated
+;   carry set, A=SHELL_ERR_* or project loader error
+;!      in        B,DE,HL
+;!      out       carry,A,zero
+;!      clobbers  BC,DE,HL
+@ResolveShellEditRequest:
+        LD      (ShellRequestPtr),DE
+        LD      A,B
+        LD      (ShellOutCap),A
+        CALL    ShellSkipSpaces
+        LD      (ShellRequestCommandPtr),HL
+        LD      DE,ShellEditText
+        CALL    ShellMatchCommand
+        JR      NC,ShellEditRequestCommandOk
+        LD      A,SHELL_ERR_SYNTAX
+        SCF
+        RET
+
+ShellEditRequestCommandOk:
+        CALL    ShellSkipSpaces
+        LD      A,(HL)
+        OR      A
+        JR      Z,ShellEditRequestDefault
+        LD      A,SHELL_EDIT_EXPLICIT
+        JR      ShellEditRequestResolve
+
+ShellEditRequestDefault:
+        LD      A,SHELL_EDIT_DEFAULT
+
+ShellEditRequestResolve:
+        LD      (ShellEditMode),A
+        LD      DE,(ShellRequestPtr)
+        INC     DE
+        LD      HL,(ShellRequestCommandPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ResolveShellCommand
+        RET     C
+        CP      SHELL_CMD_EDIT
+        JR      Z,ShellEditRequestOk
+        LD      A,SHELL_ERR_SYNTAX
+        SCF
+        RET
+
+ShellEditRequestOk:
+        LD      HL,(ShellRequestPtr)
+        LD      A,(ShellEditMode)
+        LD      (HL),A
+        RET
 
 ; ResolveShellRunRequest —
 ; Resolve a run command into a launch request block:
@@ -752,6 +814,9 @@ ShellRemainingCap:
         .db     0
 
 ShellAction:
+        .db     0
+
+ShellEditMode:
         .db     0
 
 ShellRunMode:

@@ -11,21 +11,22 @@ not only as a proof-runner compile option. The goal is twofold:
 For any Z80-heavy change:
 
 1. Write or update the emulator proof that exercises the behavior.
-2. Run AZM register-care strict mode on the changed proof or module:
+2. Run AZM register-contract diagnostics on the changed proof or module:
 
    ```text
-   azm --rc strict --reg-report \
-     --interface src/mon3-storage.asmi \
-     proofs/shell-commands/shell-commands-proof.asm
+   node --experimental-strip-types tools/run-shell-commands-proof.ts
    ```
 
-   Include every required `--interface` file for external monitor or storage
-   calls used by the proof.
+   The TypeScript proof runners use the AZM API so they do not write
+   `.regcontracts.txt` audit files into the tree.
 
-3. Inspect the generated register-care report before changing contracts. Direct
-   AZM CLI runs can currently exit successfully while printing
-   `AZMN_REGISTER_CARE` warnings; for TECM8, any such diagnostic means the
-   strict check failed and must be fixed or captured as AZM feedback.
+3. If the strict proof fails, inspect the returned diagnostics before changing
+   contracts. Direct AZM CLI runs are still useful for one-off AZM development
+   diagnostics. In ordinary use, run AZM with `--rc audit`, `--rc warn`,
+   `--rc error`, or `--rc strict` and read the warnings or errors printed by the
+   compiler. Do not enable `--reg-report` as part of normal TECM8 proof work.
+   For TECM8, any strict `AZMN_REGISTER_CONTRACTS` diagnostic means the strict
+   check failed and must be fixed or captured as AZM feedback.
 
 4. If AZM's inferred contract is correct, regenerate the source contracts and
    review the generated diff:
@@ -45,11 +46,44 @@ For any Z80-heavy change:
 6. Keep emulator proofs as the behavioral authority. Register-care is the
    calling-convention authority.
 
-The TypeScript proof runners call AZM with `registerCare: 'strict'` and
-`registerCareProfile: 'mon3'`, and they fail on any returned diagnostic. Direct
-AZM runs are still useful because `--reg-report`, `--reg-interface`, and
-`--contracts` expose more of the analyzer's reasoning than a pass/fail proof
-runner.
+The TypeScript proof runners call AZM with `registerContracts: 'strict'` and
+`registerContractsProfile: 'mon3'`, and they fail on any returned diagnostic.
+Direct AZM runs are still useful because `--reg-interface` and `--contracts`
+expose more of the analyzer's reasoning than a pass/fail proof runner.
+
+Register contracts are a diagnostics-first development feature. These are the
+normal CLI shapes:
+
+```sh
+azm --rc audit program.asm
+azm --contracts --rc audit program.asm
+azm --rc error program.asm
+azm --rc strict program.asm
+```
+
+Use the modes this way:
+
+- `audit`: analyze contracts without failing the build; useful while editing.
+- `warn`: print warnings but still build.
+- `error`: fail on proven register contract conflicts.
+- `strict`: fail on anything AZM cannot prove safe, including unknown routine
+  boundaries and stack effects.
+
+The important persistent surfaces are:
+
+- AZMDoc contract comments in source, such as `;! in A`, `;! out HL`, and
+  `;! clobbers BC`
+- `.asmi` files for external routines or monitor/system APIs
+- compiler diagnostics from `--rc warn`, `--rc error`, and `--rc strict`
+- `--contracts` and `--fix` for source annotation and conservative contract
+  updates
+
+AZM can also write a text report with `--reg-report`, producing
+`program.regcontracts.txt`. This is mainly for debugging, CI evidence, or large
+audit sessions. It is not required for normal development and should not be
+checked into source control. Avoid default examples such as
+`azm --rc audit --reg-report program.asm`; use `azm --rc audit program.asm`
+instead.
 
 ## Safe Annotation Rules
 
@@ -110,13 +144,13 @@ register-care path was run:
 
 ```text
 AZM register-care: proof runner strict passed
-AZM report reviewed: yes/no
+AZM diagnostics reviewed: yes/no
 Contracts changed: yes/no
 Feedback captured for AZM: yes/no
 ```
 
-If a direct AZM report cannot be run, say why and keep the emulator proof result
-separate from the register-care result.
+If direct AZM diagnostics cannot be run, say why and keep the emulator proof
+result separate from the register-care result.
 
 ## Resolved Feedback Candidates
 
@@ -125,7 +159,7 @@ separate from the register-care result.
 Initial direct CLI audit:
 
 ```text
-azm --rc strict --reg-profile mon3 --reg-report \
+azm --rc strict --reg-profile mon3 \
   --source-root /Users/johnhardy/projects/TECM8 \
   -t bin -o proofs/shell-commands/azm-strict.bin \
   proofs/shell-commands/shell-commands-proof.asm
@@ -156,3 +190,62 @@ The fix was to localize the routine:
 After the rewrite, strict register-care succeeds for the current proof entry
 points. This is the preferred outcome: use AZM's crude-but-useful `@` boundary
 discipline to improve TECM8 structure before treating a report as an AZM issue.
+
+### Strict Stack Effect Regression After AZM Register Contracts Rename
+
+Routine: shell command proof and all direct callees
+Source file: `proofs/shell-commands/shell-commands-proof.asm`,
+`src/shell-commands.asm`
+Command:
+
+```text
+node --experimental-strip-types tools/run-shell-commands-proof.ts
+```
+
+Expected contract: routines with ordinary `CALL`/`RET` structure and no unmatched
+`PUSH`/`POP` should remain provable under strict register contracts when their
+callee summaries are known.
+
+AZM inferred/reported: current AZM at `/Users/johnhardy/projects/AZM`, commit
+`9c8e8fc` (`Rename register care to register contracts`), reports
+`AZMN_REGISTER_CONTRACTS` for the proof entry and nearly every routine in the
+shell command resolver:
+
+```text
+Register contracts cannot prove stack discipline for Start: stack effect is unknown.
+Register contracts cannot prove stack discipline for ResolveShellEditRequest: stack effect is unknown.
+Register contracts cannot prove stack discipline for ResolveShellRunRequest: stack effect is unknown.
+Register contracts cannot prove stack discipline for ResolveShellCommand: stack effect is unknown.
+```
+
+Why TECM8 expected something different: the same shell proof structure had
+previously passed strict after the earlier `ShellCopyStem` localization work.
+The current failure also reproduces against the previous TECM8 commit before the
+edit-request change, so it is not caused by the new editor request resolver.
+
+Minimal repro: current TECM8 shell proof is the useful repro because it contains
+ordinary nested local calls, proof stubs, and an existing strict-clean history.
+
+TECM8 examples:
+
+- `@Start` calls proof assertion helpers and halts.
+- `@AssertEditRequest` calls `ResolveShellEditRequest` and compares a mode byte
+  plus source path.
+- `@ResolveShellEditRequest` calls `ShellSkipSpaces`, `ShellMatchCommand`, and
+  `ResolveShellCommand`, then returns normally.
+- Existing `@ResolveShellRunRequest` now reports the same unknown stack effect,
+  which shows the failure is broader than the new edit API.
+
+Related TECM8 commit before fix: `e99fbe0c47990eaafc7e86323c4f60914c7f28e3`
+(`Resolve shell run launch requests`)
+Related TECM8 commit after fix: pending TECM8 commit for the edit request layer.
+Related AZM fix: `fb123b42fcb59ed6e22768fa390d1738853a34a4`.
+Workaround cost: TECM8 could temporarily run the behavioral proof with AZM
+`error` mode, but that weakened the strict stack-discipline gate and was only
+useful as a diagnostic fallback.
+Suggested AZM feature, hint, or ignore modifier: provide a source-level way to
+declare or infer that a direct callee is stack-balanced, or adjust strict
+fixed-point inference so known internal `CALL`/terminal `RET` paths do not keep
+propagating `hasUnknownStackEffect` once callee summaries have stabilized.
+Outcome: resolved upstream in AZM; strict TECM8 shell proof passes again with
+AZM `fb123b42`.

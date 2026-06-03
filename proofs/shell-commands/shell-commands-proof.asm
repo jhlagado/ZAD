@@ -134,6 +134,42 @@ PathOutLen      .equ     64
 
         LD      A,17
         LD      (CaseMarker),A
+        LD      HL,CmdEdit
+        LD      A,SHELL_EDIT_DEFAULT
+        LD      DE,ExpectedMain
+        CALL    AssertEditRequest
+        JP      C,ProofFailed
+
+        LD      A,18
+        LD      (CaseMarker),A
+        LD      HL,CmdEditDraw
+        LD      A,SHELL_EDIT_EXPLICIT
+        LD      DE,ExpectedDraw
+        CALL    AssertEditRequest
+        JP      C,ProofFailed
+
+        LD      A,19
+        LD      (CaseMarker),A
+        LD      HL,CmdEditDrawZ80
+        LD      A,SHELL_EDIT_EXPLICIT
+        LD      DE,ExpectedDrawZ80
+        CALL    AssertEditRequest
+        JP      C,ProofFailed
+
+        LD      A,20
+        LD      (CaseMarker),A
+        LD      HL,CmdAsm
+        CALL    AssertEditRequestSyntaxErr
+        JP      C,ProofFailed
+
+        LD      A,21
+        LD      (CaseMarker),A
+        LD      HL,CmdRun
+        CALL    AssertEditRequestSyntaxErr
+        JP      C,ProofFailed
+
+        LD      A,22
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -142,7 +178,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,18
+        LD      A,23
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -152,7 +188,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,19
+        LD      A,24
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -300,6 +336,58 @@ AssertRunRequestSyntaxBad:
         SCF
         RET
 
+; AssertEditRequest —
+; Resolve one edit command and compare mode plus source path.
+; Input: HL = command text, A = expected mode, DE = expected path
+;!      in        A,DE,HL
+;!      out       DE,HL,A,carry,zero
+;!      clobbers  BC
+@AssertEditRequest:
+        LD      (ExpectedAction),A
+        LD      (ExpectedPathPtr),DE
+        LD      DE,EditRequest
+        LD      B,PathOutLen
+        CALL    ResolveShellEditRequest
+        RET     C
+
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertEditRequestBad
+
+        LD      A,(EditRequest)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertEditRequestBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,EditRequest + 1
+        CALL    AssertString
+        RET
+
+AssertEditRequestBad:
+        SCF
+        RET
+
+; AssertEditRequestSyntaxErr —
+; Resolve one non-edit command and require an immediate syntax error.
+; Input: HL = command text
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertEditRequestSyntaxErr:
+        LD      DE,EditRequest
+        LD      B,PathOutLen
+        CALL    ResolveShellEditRequest
+        JR      NC,AssertEditRequestSyntaxBad
+        CP      SHELL_ERR_SYNTAX
+        RET     Z
+
+AssertEditRequestSyntaxBad:
+        SCF
+        RET
+
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
 ; Input: HL = source path, DE = expected map path
@@ -377,6 +465,9 @@ CmdRun:
 CmdEditDraw:
         .db     "edit draw",0
 
+CmdEditDrawZ80:
+        .db     "edit /src/draw.z80",0
+
 CmdAsmTest:
         .db     "asm test",0
 
@@ -403,6 +494,9 @@ ExpectedMapMain:
 
 ExpectedDraw:
         .db     "/src/draw.asm",0
+
+ExpectedDrawZ80:
+        .db     "/src/draw.z80",0
 
 ExpectedTest:
         .db     "/src/test.asm",0
@@ -438,4 +532,7 @@ BuildRequest:
         .ds     PathOutLen * 3
 
 RunRequest:
+        .ds     PathOutLen + 1
+
+EditRequest:
         .ds     PathOutLen + 1

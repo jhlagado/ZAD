@@ -54,8 +54,8 @@ async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] 
       d8mInputs: {
         bin: 'build/shell-commands-proof.bin',
       },
-      registerCare: 'strict',
-      registerCareProfile: 'mon3',
+      registerContracts: 'strict',
+      registerContractsProfile: 'mon3',
     },
     { formats: defaultFormatWriters },
   ) as CompileResult;
