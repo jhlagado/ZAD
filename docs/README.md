@@ -10,7 +10,7 @@ ASM80-era code, but TECM8 examples should lead with `.ASM`. The advanced goal is
 a source-aware debugger with source maps, breakpoints, stepping, and register
 display.
 
-The name is spelled `TECM8` and pronounced "TecMate": a companion for the TEC.
+The name is spelled `TECM8` and pronounced "TecMate": a companion for the TEC-1.
 Use `TM8` where a short three-character identifier is needed.
 
 Install the maintained proof/tooling dependencies from the repo root:

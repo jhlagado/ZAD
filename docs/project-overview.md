@@ -19,7 +19,7 @@ applications, then returns to the shell when they exit.
 
 ## Name
 
-`TECM8` is pronounced "TecMate": a companion for the TEC. Use `TM8` where a
+`TECM8` is pronounced "TecMate": a companion for the TEC-1. Use `TM8` where a
 short three-character identifier is needed, such as FAT 8.3 volume extensions.
 
 The system has three user-facing layers:
