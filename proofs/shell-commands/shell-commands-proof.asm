@@ -103,8 +103,8 @@ ProofFailed:
 ; Resolve one command and compare action plus resolved path.
 ; Input: HL = command text, A = expected action, DE = expected path
 ;!      in        A,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      out       DE,HL,A,carry,zero
+;!      clobbers  BC
 @AssertCommand:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -132,8 +132,7 @@ AssertCommandBad:
 ; Input: HL = expected, DE = actual
 ; Output: carry clear on match, carry set on mismatch
 ;!      in        DE,HL
-;!      out       carry,zero
-;!      clobbers  A,DE,HL
+;!      out       DE,HL,A,carry,zero
 @AssertString:
         LD      A,(DE)
         CP      (HL)
@@ -150,8 +149,8 @@ AssertStringBad:
 
 ; Stub LoadProjectConfig for command resolver proof.
 ;!      in        B,DE
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      out       DE,HL,A,C,carry,zero
+;!      clobbers  B
 @LoadProjectConfig:
         LD      HL,ExpectedMain
         LD      C,B

@@ -1,0 +1,11 @@
+extern MON3_OPEN_FILE
+in HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_READ_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end

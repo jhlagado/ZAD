@@ -41,8 +41,7 @@ ProofFailedDone:
 ; Input: HL = expected, DE = actual
 ; Output: carry clear on match, carry set on mismatch
 ;!      in        DE,HL
-;!      out       carry,zero
-;!      clobbers  A,DE,HL
+;!      out       DE,HL,A,carry,zero
 @AssertString:
         LD      A,(DE)
         CP      (HL)

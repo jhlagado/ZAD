@@ -26,7 +26,7 @@ SHELL_MAIN_PATH_LEN .equ     64
 ;   carry set, A=SHELL_ERR_* or project loader error
 ;!      in        B,DE,HL
 ;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      clobbers  BC,DE,HL
 @ResolveShellCommand:
         LD      (ShellOutPath),DE
         LD      A,B
@@ -77,8 +77,8 @@ ShellResolveRun:
 ; source path under the default source prefix.
 ; Input: A = command action, HL = text after command
 ;!      in        A,HL
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      out       A,B,zero,carry
+;!      clobbers  C,DE,HL
 @ShellResolveSourceCommand:
         LD      (ShellAction),A
         CALL    ShellSkipSpaces
@@ -92,8 +92,6 @@ ShellResolveRun:
         JP      ShellCopySourceArgument
 
 ShellCopyProjectMain:
-        CALL    ShellLoadProjectMain
-        RET     C
         LD      HL,ShellMainPath
         LD      DE,(ShellOutPath)
         LD      A,(ShellOutCap)
@@ -104,8 +102,6 @@ ShellCopyProjectMain:
         RET
 
 ShellResolveProjectRun:
-        CALL    ShellLoadProjectMain
-        RET     C
         LD      HL,ShellMainPath
         LD      DE,(ShellOutPath)
         LD      A,(ShellOutCap)
@@ -154,7 +150,11 @@ ShellCopyExplicitPath:
         LD      A,SHELL_CMD_RUN
         RET
 
-ShellLoadProjectMain:
+; ShellLoadProjectMain —
+; Load and validate /tecm8.prj, then cache the project main path.
+;!      out       DE,HL,A,C,carry,zero
+;!      clobbers  B
+@ShellLoadProjectMain:
         LD      DE,ShellMainPath
         LD      B,SHELL_MAIN_PATH_LEN
         CALL    LoadProjectConfig
@@ -171,8 +171,8 @@ ShellProjectErr:
 ; Match command literal at DE against HL. The next char must be space or NUL.
 ; Output: carry clear on match with HL after command; carry set on mismatch.
 ;!      in        DE,HL
-;!      out       carry,zero
-;!      clobbers  A,DE,HL
+;!      out       DE,A,carry,zero
+;!      clobbers  HL
 @ShellMatchCommand:
         LD      A,(DE)
         OR      A
@@ -197,8 +197,7 @@ ShellMatchCommandBad:
 ; ShellSkipSpaces —
 ; Advance HL past ASCII spaces.
 ;!      in        HL
-;!      out       HL
-;!      clobbers  A
+;!      out       HL,A,carry
 @ShellSkipSpaces:
         LD      A,(HL)
         CP      0x20
@@ -210,8 +209,8 @@ ShellMatchCommandBad:
 ; Copy NUL-terminated string from HL to DE with capacity B.
 ; Stores ShellWritePtr and ShellRemainingCap on success.
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,DE,HL
+;!      out       HL,A,carry,zero
+;!      clobbers  B,DE
 @ShellCopyString:
         LD      A,B
         OR      A
@@ -239,8 +238,8 @@ ShellCopyStringDone:
 ; Copy one argument from HL to DE. Spaces after the argument are accepted only
 ; when followed by NUL.
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,DE,HL
+;!      out       B,carry,zero
+;!      clobbers  A,DE,HL
 @ShellCopyArgument:
         LD      A,B
         OR      A
@@ -281,8 +280,8 @@ ShellCopyArgumentEnd:
 ; ShellCopyArgWithAsmDefault —
 ; Copy one argument and append .asm when no dot appears before the terminator.
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,C,DE,HL
+;!      out       HL,B,carry,zero
+;!      clobbers  A,C,DE
 @ShellCopyArgWithAsmDefault:
         LD      A,B
         OR      A
@@ -343,8 +342,7 @@ ShellCopyAsmArgNul:
 ; ShellAppendString —
 ; Append NUL-terminated HL text before the final NUL. B is remaining capacity.
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,DE,HL
+;!      out       DE,HL,A,B,carry,zero
 @ShellAppendString:
         LD      A,(HL)
         OR      A
@@ -359,8 +357,7 @@ ShellCopyAsmArgNul:
 ; ShellArgHasSlash —
 ; Return carry set when the argument contains '/' before space or NUL.
 ;!      in        HL
-;!      out       carry,zero
-;!      clobbers  A,HL
+;!      out       HL,A,carry,zero
 @ShellArgHasSlash:
         LD      A,(HL)
         OR      A
@@ -383,8 +380,8 @@ ShellArgNoSlash:
 ; ShellDeriveBuildBin —
 ; Derive /build/<local-stem>.bin from an absolute source path.
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,C,DE,HL
+;!      out       HL,B,carry,zero
+;!      clobbers  A,C,DE
 @ShellDeriveBuildBin:
         LD      (ShellArgPtr),HL
         LD      (ShellWritePtr),DE
@@ -415,8 +412,8 @@ ShellArgNoSlash:
 ; ShellFindLocalName —
 ; Return HL pointing at the byte after the last slash.
 ;!      in        HL
-;!      out       HL
-;!      clobbers  A,DE,HL
+;!      out       HL,A,carry
+;!      clobbers  DE
 @ShellFindLocalName:
         LD      D,H
         LD      E,L
@@ -444,14 +441,13 @@ ShellFindLocalDone:
 ; ShellCopyStem —
 ; Copy a filename stem from HL to DE until dot or NUL.
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,C,DE,HL
+;!      out       DE,HL,A,B,carry,zero
+;!      clobbers  C
 @ShellCopyStem:
         LD      C,0
 
 ShellCopyStemLoop:
         LD      (ShellWritePtr),DE
-        PUSH    HL
         LD      DE,(ShellStemEnd)
         LD      A,H
         CP      D
@@ -461,7 +457,6 @@ ShellCopyStemLoop:
         JR      Z,ShellCopyStemAtEnd
 
 ShellCopyStemNotEnd:
-        POP     HL
         LD      DE,(ShellWritePtr)
         LD      A,(HL)
         OR      A
@@ -471,24 +466,32 @@ ShellCopyStemNotEnd:
         INC     DE
         INC     C
         DEC     B
-        JP      Z,ShellLongErr
+        JR      Z,ShellCopyStemLongErr
         JR      ShellCopyStemLoop
 
 ShellCopyStemAtEnd:
-        POP     HL
         LD      DE,(ShellWritePtr)
 
 ShellCopyStemEnd:
         LD      A,C
         OR      A
-        JP      Z,ShellSyntaxErr
+        JR      Z,ShellCopyStemSyntaxErr
+        RET
+
+ShellCopyStemSyntaxErr:
+        LD      A,SHELL_ERR_SYNTAX
+        SCF
+        RET
+
+ShellCopyStemLongErr:
+        LD      A,SHELL_ERR_LONG
+        SCF
         RET
 
 ; ShellFindStemEnd —
 ; Return HL pointing at the final dot in a local filename, or at NUL if none.
 ;!      in        HL
-;!      out       HL
-;!      clobbers  A,DE,HL
+;!      out       A,DE,HL
 @ShellFindStemEnd:
         LD      D,0
         LD      E,0
@@ -514,12 +517,18 @@ ShellFindStemDone:
         LD      L,E
         RET
 
-ShellSyntaxErr:
+; ShellSyntaxErr —
+; Return a shell syntax error.
+;!      out       A,carry
+@ShellSyntaxErr:
         LD      A,SHELL_ERR_SYNTAX
         SCF
         RET
 
-ShellLongErr:
+; ShellLongErr —
+; Return a shell buffer-too-long error.
+;!      out       A,carry
+@ShellLongErr:
         LD      A,SHELL_ERR_LONG
         SCF
         RET

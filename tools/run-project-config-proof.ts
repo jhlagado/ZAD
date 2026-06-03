@@ -54,7 +54,7 @@ async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] 
       d8mInputs: {
         bin: 'build/project-config-proof.bin',
       },
-      registerCare: 'audit',
+      registerCare: 'strict',
       registerCareProfile: 'mon3',
     },
     { formats: defaultFormatWriters },

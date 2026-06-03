@@ -41,7 +41,7 @@ PROJECT_CFG_TEXT_BUF    .equ 0x0A00
 ;   carry set, A=PROJECT_LOAD_ERR_* or PROJECT_CFG_ERR_*
 ;!      in        B,DE
 ;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      clobbers  BC,DE,HL
 @LoadProjectConfig:
         LD      (ProjectLoadMainDest),DE
         LD      A,B
@@ -78,7 +78,7 @@ ProjectLoadOpenErr:
 ; ProjectLoadReadSuperblock —
 ; Read sector 0 of VOLUME.TM8 and validate the fixed v1 fields needed here.
 ;!      out       A,carry,zero
-;!      clobbers  A,DE,HL
+;!      clobbers  DE,HL
 @ProjectLoadReadSuperblock:
         LD      HL,0
         LD      DE,0
@@ -142,8 +142,8 @@ ProjectLoadReadErr:
 
 ; ProjectLoadFindConfig —
 ; Scan the v1 file catalog for root file tecm8.prj.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      out       HL,A,carry,zero
+;!      clobbers  BC,DE
 @ProjectLoadFindConfig:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
@@ -157,7 +157,7 @@ ProjectLoadCatalogSector:
         JP      C,ProjectLoadReadErr
 
         LD      HL,DISK_BUFF
-        LD      B,TM8_ENTRIES_SECTOR
+        LD      BC,TM8_ENTRIES_SECTOR * 256
 
 ProjectLoadCatalogEntry:
         PUSH    BC
@@ -195,7 +195,7 @@ ProjectLoadCatalogEntry:
 ; Output: carry clear on match and ProjectLoadFirstBlock/Size set.
 ;!      in        HL
 ;!      out       A,carry,zero
-;!      clobbers  A,DE,HL
+;!      clobbers  DE,HL
 @ProjectLoadMatchCatalogEntry:
         LD      (ProjectLoadEntryBase),HL
         LD      A,(HL)
@@ -279,8 +279,8 @@ ProjectLoadBlockErr:
 ; ProjectLoadReadConfigText —
 ; Read the first sector of the config file's first block and NUL-terminate the
 ; exact byte count in PROJECT_CFG_TEXT_BUF.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;!      out       carry,zero,A
+;!      clobbers  BC,DE,HL
 @ProjectLoadReadConfigText:
         LD      HL,(ProjectLoadFirstBlock)
         CALL    ProjectLoadBlockToOffset
@@ -337,8 +337,8 @@ ProjectLoadEmptyText:
 ; Compare B bytes from HL and DE.
 ; Output: carry clear on match, carry set on mismatch
 ;!      in        B,DE,HL
-;!      out       carry,zero
-;!      clobbers  A,B,DE,HL
+;!      out       A,carry,zero
+;!      clobbers  B,DE,HL
 @ProjectLoadMatchBytes:
         LD      A,(DE)
         CP      (HL)

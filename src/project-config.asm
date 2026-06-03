@@ -28,8 +28,8 @@ ProjectCfgErrExtra  .equ 5
 ;   carry clear, A=ProjectCfgOk, destination is NUL-terminated main path
 ;   carry set, A=ProjectCfgErr*
 ;!      in        B,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  B,C,DE,HL
+;!      out       A,C,carry,zero
+;!      clobbers  B,DE,HL
 @ParseProjectConfig:
         PUSH    DE
         LD      DE,ProjectCfgMagicLine
@@ -114,8 +114,8 @@ ProjectCfgExtraErr:
 ; Input: HL = source, DE = literal
 ; Output: carry clear on match, HL after LF; carry set on mismatch
 ;!      in        DE,HL
-;!      out       carry,zero
-;!      clobbers  A,DE,HL
+;!      out       HL,A,carry,zero
+;!      clobbers  DE
 @ProjectCfgMatchLine:
         CALL    ProjectCfgMatchText
         RET     C
@@ -135,8 +135,7 @@ ProjectCfgLineOk:
 ; Input: HL = source, DE = literal
 ; Output: carry clear on match, HL after literal; carry set on mismatch
 ;!      in        DE,HL
-;!      out       carry,zero
-;!      clobbers  A,DE,HL
+;!      out       DE,HL,A,carry,zero
 @ProjectCfgMatchText:
         LD      A,(DE)
         OR      A

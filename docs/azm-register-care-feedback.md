@@ -11,19 +11,31 @@ not only as a proof-runner compile option. The goal is twofold:
 For any Z80-heavy change:
 
 1. Write or update the emulator proof that exercises the behavior.
-2. Run AZM register-care audit on the changed proof or module:
+2. Run AZM register-care strict mode on the changed proof or module:
 
    ```text
-   azm --rc audit --reg-report proofs/shell-commands/shell-commands-proof.asm
+   azm --rc strict --reg-report \
+     --interface src/mon3-storage.asmi \
+     proofs/shell-commands/shell-commands-proof.asm
    ```
 
-3. Inspect the generated register-care report before changing contracts.
-4. If AZM's inferred contract is correct, update the handwritten `;!` block or
-   let AZM annotate the source on a throwaway diff:
+   Include every required `--interface` file for external monitor or storage
+   calls used by the proof.
+
+3. Inspect the generated register-care report before changing contracts. Direct
+   AZM CLI runs can currently exit successfully while printing
+   `AZMN_REGISTER_CARE` warnings; for TECM8, any such diagnostic means the
+   strict check failed and must be fixed or captured as AZM feedback.
+
+4. If AZM's inferred contract is correct, regenerate the source contracts and
+   review the generated diff:
 
    ```text
-   azm --contracts --rc audit proofs/shell-commands/shell-commands-proof.asm
+   azm --contracts --rc strict proofs/shell-commands/shell-commands-proof.asm
    ```
+
+   Hand-edit `;!` blocks only as an explicit exception when the generator cannot
+   express the intended contract, and record why.
 
 5. If AZM reports something surprising, decide whether it is:
    - a real TECM8 register bug
@@ -33,10 +45,11 @@ For any Z80-heavy change:
 6. Keep emulator proofs as the behavioral authority. Register-care is the
    calling-convention authority.
 
-The existing TypeScript proof runners already call AZM with
-`registerCare: 'audit'` and `registerCareProfile: 'mon3'`. Direct AZM runs are
-still useful because `--reg-report`, `--reg-interface`, and `--contracts` expose
-more of the analyzer's reasoning than a pass/fail proof runner.
+The TypeScript proof runners call AZM with `registerCare: 'strict'` and
+`registerCareProfile: 'mon3'`, and they fail on any returned diagnostic. Direct
+AZM runs are still useful because `--reg-report`, `--reg-interface`, and
+`--contracts` expose more of the analyzer's reasoning than a pass/fail proof
+runner.
 
 ## Safe Annotation Rules
 
@@ -65,8 +78,21 @@ Expected contract:
 AZM inferred/reported:
 Why TECM8 expected something different:
 Minimal repro:
+TECM8 examples:
+Related TECM8 commit before fix:
+Related TECM8 commit after fix:
+Workaround cost:
+Suggested AZM feature, hint, or ignore modifier:
 Outcome:
 ```
+
+Include all examples that are still readable and relevant. A minimal repro is
+useful for AZM tests, but the original TECM8 code is useful for understanding
+whether the workaround improved structure or forced awkward code. When the code
+has already been fixed, include the fixing commit hash so the AZM team can pull
+the project, inspect the before/after, and judge whether the contract system
+encouraged good localization or exposed a gap that needs a future hint or ignore
+mechanism.
 
 Useful TECM8 cases for AZM feedback include:
 
@@ -83,7 +109,7 @@ For a completed Z80 goal, the final verification notes should say which
 register-care path was run:
 
 ```text
-AZM register-care: proof runner audit passed
+AZM register-care: proof runner strict passed
 AZM report reviewed: yes/no
 Contracts changed: yes/no
 Feedback captured for AZM: yes/no
@@ -92,16 +118,16 @@ Feedback captured for AZM: yes/no
 If a direct AZM report cannot be run, say why and keep the emulator proof result
 separate from the register-care result.
 
-## Current Feedback Candidates
+## Resolved Feedback Candidates
 
 ### `ShellCopyStem` Stack Report
 
 Initial direct CLI audit:
 
 ```text
-azm --rc audit --reg-profile mon3 --reg-report \
+azm --rc strict --reg-profile mon3 --reg-report \
   --source-root /Users/johnhardy/projects/TECM8 \
-  -t bin -o proofs/shell-commands/azm-regcare.bin \
+  -t bin -o proofs/shell-commands/azm-strict.bin \
   proofs/shell-commands/shell-commands-proof.asm
 ```
 
@@ -112,14 +138,21 @@ Routine: ShellCopyStem
   stack: unbalanced
 ```
 
-The routine uses a local `PUSH HL` before comparing the current source pointer
-with `ShellStemEnd`, then exits through either `ShellCopyStemNotEnd` or
-`ShellCopyStemAtEnd`, both of which pop `HL` before continuing. The emulator
-proof passes, so this is a good candidate to reduce before changing the code.
+The root cause was TECM8 structure, not an AZM bug. `ShellCopyStem` jumped to
+shared error labels that sat after the next `@` routine boundary. AZM checks
+stack balance within routine regions bounded by `@` entries, so those cross-
+boundary exits made the routine harder to prove and also exposed spaghetti-like
+control flow.
 
-Possible outcomes:
+The fix was to localize the routine:
 
-- AZM is correctly seeing an edge path that leaves the stack unbalanced.
-- AZM cannot prove the loop-local push/pop balance through the split branch.
-- The routine should be rewritten to avoid stack-temporary comparison if the
-  reduced repro shows the source is unnecessarily hard for the analyzer.
+- promote called helpers such as `ShellLoadProjectMain` to explicit `@` routine
+  entries
+- keep error exits inside the routine region that jumps to them, or avoid
+  shared cross-boundary exits
+- make post-call live registers explicit, such as initializing `BC` after MON3
+  calls before saving/restoring it
+
+After the rewrite, strict register-care succeeds for the current proof entry
+points. This is the preferred outcome: use AZM's crude-but-useful `@` boundary
+discipline to improve TECM8 structure before treating a report as an AZM issue.
