@@ -100,17 +100,13 @@ Z80 code can scan it without a complex parser:
 tm8project=1
 main=/src/main.asm
 current=/src/main.asm
-output=/build/main.bin
-map=/build/main.map
-cmd.edit=current
-cmd.asm=main
-cmd.run=output
 ```
 
-The `cmd.*` lines define the default short-command bindings: `edit` opens the
-current file, `asm` assembles the main file, and `run` runs the configured
-output file. Later configuration screens can rewrite these keys without
-changing the shell command shape.
+The config records the main file and current edit target. Build output and map
+paths are derived from the main source filename by convention: `/src/main.asm`
+builds to `/build/main.bin` and `/build/main.map`. The exact TEC-side parse and
+resolution rules are defined in
+[TEC-Side Shell Command Contract](shell-command-contract.md).
 
 The common flow should therefore be short:
 
@@ -123,13 +119,14 @@ run
 
 `edit` with no argument opens the current file. For source files, `edit math`
 sets the current file to `math.asm` and opens it. `asm` assembles the project's
-main file and writes the configured object/map outputs. `run` runs the current
-project output. Most users should not need to type output paths or switches
-during ordinary work.
+main file and writes derived `/build/<main-stem>.bin` and
+`/build/<main-stem>.map` outputs. `run` runs that derived project output. Most
+users should not need to type output paths or switches during ordinary work.
 
-Project configuration screens can handle less common settings: changing the
-main file, choosing output names, selecting map/debug output, and adjusting
-assembler options. The command line remains deliberately simple.
+Project configuration screens can handle less common settings such as changing
+the main file and adjusting assembler options. Output and map names are
+conventions derived from the main file, not separate project fields. The
+command line remains deliberately simple.
 
 The user should be able to sit at the TEC-1G, open a project, edit any source
 file, assemble the main file, run the result, and return to the shell. This is

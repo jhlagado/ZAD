@@ -30,6 +30,7 @@ Start with the documentation:
 - [Implementation Plan](docs/implementation-plan.md)
 - [Workspace Disk Format](docs/workspace-disk-format.md)
 - [Virtual Filesystem](docs/virtual-filesystem.md)
+- [TEC-Side Shell Command Contract](docs/shell-command-contract.md)
 - [Editor Design](docs/editor-design.md)
 - [Debugging Roadmap](docs/debugging-roadmap.md)
 

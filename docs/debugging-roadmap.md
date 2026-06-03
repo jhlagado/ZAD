@@ -40,9 +40,10 @@ asm
 debug
 ```
 
-`asm` assembles the configured project main file and writes the configured
-object/map outputs. `debug` opens those project outputs by default. The editor
-memory can be reused by assembler, runner, or debugger overlays.
+`asm` assembles the configured project main file and writes derived
+`/build/<main-stem>.bin` and `/build/<main-stem>.map` outputs. `debug` opens
+those derived project outputs by default. The editor memory can be reused by
+assembler, runner, or debugger overlays.
 
 ## Source Paging
 

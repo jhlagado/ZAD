@@ -187,16 +187,14 @@ rather than JSON:
 tm8project=1
 main=/src/main.asm
 current=/src/main.asm
-output=/build/main.bin
-map=/build/main.map
-cmd.edit=current
-cmd.asm=main
-cmd.run=output
 ```
 
 `project-info` validates that file and reports the host-readable JSON view.
 `project-set-main` and `project-set-current` update the corresponding config
-keys while preserving the strict TM8 path policy.
+keys while preserving the strict TM8 path policy. Build output and map paths are
+derived from the main source filename by convention. See
+[TEC-Side Shell Command Contract](shell-command-contract.md) for how the
+TEC-side shell reads this file and resolves short commands.
 `rm`
 resolves an existing file path, frees every block in its validated allocation
 chain, zeroes the file catalog entry, updates the free-block count and checksum,

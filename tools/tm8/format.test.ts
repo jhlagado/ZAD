@@ -2165,11 +2165,6 @@ test('fs project-init creates Z80-readable project metadata and default main fil
         'tm8project=1',
         'main=/src/main.asm',
         'current=/src/main.asm',
-        'output=/build/main.bin',
-        'map=/build/main.map',
-        'cmd.edit=current',
-        'cmd.asm=main',
-        'cmd.run=output',
         '',
       ].join('\n'),
     );
@@ -2214,9 +2209,9 @@ test('fs project commands inspect and update main and current file defaults', ()
       outputFile: '/build/main.bin',
       mapFile: '/build/main.map',
       commands: {
-        edit: 'current',
-        asm: 'main',
-        run: 'output',
+        edit: 'currentFile',
+        asm: 'mainFile',
+        run: 'outputFile',
       },
     });
 
@@ -2228,30 +2223,15 @@ test('fs project commands inspect and update main and current file defaults', ()
   }
 });
 
-test('fs project-info preserves configured short-command bindings', () => {
+test('fs project-info derives output and map paths from the main source stem', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const volumePath = join(dir, 'VOLUME.TM8');
-    writeFileSync(
-      volumePath,
-      importFileIntoVolumeImage(
-        createVolumeImage(),
-        '/.tecm8/project',
-        Buffer.from(
-          [
-            'tm8project=1',
-            'main=/src/main.asm',
-            'current=/src/draw.asm',
-            'output=/build/demo.bin',
-            'map=/build/demo.map',
-            'cmd.edit=main',
-            'cmd.asm=current',
-            'cmd.run=output',
-            '',
-          ].join('\n'),
-          'ascii',
-        ),
-      ),
+    formatVolumeFile(volumePath);
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'project-init', volumePath, '/src/demo.asm'],
+      { cwd: process.cwd(), stdio: 'pipe' },
     );
 
     const info = JSON.parse(
@@ -2261,10 +2241,18 @@ test('fs project-info preserves configured short-command bindings', () => {
         { cwd: process.cwd(), encoding: 'utf8' },
       ),
     );
-    assert.deepEqual(info.commands, {
-      edit: 'main',
-      asm: 'current',
-      run: 'output',
+    assert.deepEqual({
+      outputFile: info.outputFile,
+      mapFile: info.mapFile,
+      commands: info.commands,
+    }, {
+      outputFile: '/build/demo.bin',
+      mapFile: '/build/demo.map',
+      commands: {
+        edit: 'currentFile',
+        asm: 'mainFile',
+        run: 'outputFile',
+      },
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -2276,6 +2264,7 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
   try {
     const volumePath = join(dir, 'VOLUME.TM8');
     const malformedVolumePath = join(dir, 'BAD.TM8');
+    const blankLineVolumePath = join(dir, 'BLANK.TM8');
     formatVolumeFile(volumePath);
     execFileSync(
       process.execPath,
@@ -2291,9 +2280,23 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
           [
             'tm8project=1',
             'main=/src/main.asm',
-            'cmd.edit=current',
-            'cmd.asm=main',
-            'cmd.run=output',
+            '',
+          ].join('\n'),
+          'ascii',
+        ),
+      ),
+    );
+    writeFileSync(
+      blankLineVolumePath,
+      importFileIntoVolumeImage(
+        createVolumeImage(),
+        '/.tecm8/project',
+        Buffer.from(
+          [
+            'tm8project=1',
+            'main=/src/main.asm',
+            '',
+            'current=/src/main.asm',
             '',
           ].join('\n'),
           'ascii',
@@ -2328,6 +2331,44 @@ test('fs project commands reject duplicates, bad paths, and malformed metadata',
         ),
       /missing project config key/,
     );
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'tools/fs.ts', 'project-info', blankLineVolumePath],
+          { cwd: process.cwd(), stdio: 'pipe' },
+        ),
+      /bad project config line/,
+    );
+    for (const key of ['output', 'map', 'cmd.edit', 'cmd.asm', 'cmd.run']) {
+      const unknownKeyVolumePath = join(dir, `UNKNOWN-${key.replace(/\W/g, '-')}.TM8`);
+      writeFileSync(
+        unknownKeyVolumePath,
+        importFileIntoVolumeImage(
+          createVolumeImage(),
+          '/.tecm8/project',
+          Buffer.from(
+            [
+              'tm8project=1',
+              'main=/src/main.asm',
+              'current=/src/main.asm',
+              `${key}=legacy`,
+              '',
+            ].join('\n'),
+            'ascii',
+          ),
+        ),
+      );
+      assert.throws(
+        () =>
+          execFileSync(
+            process.execPath,
+            ['--experimental-strip-types', 'tools/fs.ts', 'project-info', unknownKeyVolumePath],
+            { cwd: process.cwd(), stdio: 'pipe' },
+          ),
+        /unknown project config key/,
+      );
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

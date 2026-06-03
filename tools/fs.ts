@@ -192,11 +192,6 @@ const PROJECT_CONFIG_PATH = '/.tecm8/project';
 type ProjectConfig = {
   mainFile: string;
   currentFile: string;
-  outputFile: string;
-  mapFile: string;
-  editCommand: string;
-  asmCommand: string;
-  runCommand: string;
 };
 
 function validateTm8FilePath(path: string): void {
@@ -208,12 +203,21 @@ function defaultProjectConfig(mainFile = '/src/main.asm'): ProjectConfig {
   return {
     mainFile,
     currentFile: mainFile,
-    outputFile: '/build/main.bin',
-    mapFile: '/build/main.map',
-    editCommand: 'current',
-    asmCommand: 'main',
-    runCommand: 'output',
   };
+}
+
+function fileStem(path: string): string {
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const extension = name.lastIndexOf('.');
+  return extension > 0 ? name.slice(0, extension) : name;
+}
+
+function projectOutputFile(config: ProjectConfig): string {
+  return `/build/${fileStem(config.mainFile)}.bin`;
+}
+
+function projectMapFile(config: ProjectConfig): string {
+  return `/build/${fileStem(config.mainFile)}.map`;
 }
 
 function encodeProjectConfig(config: ProjectConfig): Buffer {
@@ -222,11 +226,6 @@ function encodeProjectConfig(config: ProjectConfig): Buffer {
       'tm8project=1',
       `main=${config.mainFile}`,
       `current=${config.currentFile}`,
-      `output=${config.outputFile}`,
-      `map=${config.mapFile}`,
-      `cmd.edit=${config.editCommand}`,
-      `cmd.asm=${config.asmCommand}`,
-      `cmd.run=${config.runCommand}`,
       '',
     ].join('\n'),
     'ascii',
@@ -239,10 +238,15 @@ function decodeProjectConfig(content: Buffer): ProjectConfig {
     throw new Error('bad project config encoding');
   }
 
+  const allowedKeys = new Set(['tm8project', 'main', 'current']);
   const values = new Map<string, string>();
-  for (const [index, rawLine] of text.split('\n').entries()) {
+  const lines = text.split('\n');
+  for (const [index, rawLine] of lines.entries()) {
     if (rawLine === '') {
-      continue;
+      if (index === lines.length - 1) {
+        continue;
+      }
+      throw new Error(`bad project config line ${index + 1}`);
     }
     const separator = rawLine.indexOf('=');
     if (separator <= 0) {
@@ -250,6 +254,9 @@ function decodeProjectConfig(content: Buffer): ProjectConfig {
     }
     const key = rawLine.slice(0, separator);
     const value = rawLine.slice(separator + 1);
+    if (!allowedKeys.has(key)) {
+      throw new Error(`unknown project config key: ${key}`);
+    }
     if (values.has(key)) {
       throw new Error(`duplicate project config key: ${key}`);
     }
@@ -264,20 +271,15 @@ function decodeProjectConfig(content: Buffer): ProjectConfig {
 
   const mainFile = values.get('main');
   const currentFile = values.get('current');
-  const outputFile = values.get('output');
-  const mapFile = values.get('map');
-  const editCommand = values.get('cmd.edit');
-  const asmCommand = values.get('cmd.asm');
-  const runCommand = values.get('cmd.run');
-  if (!mainFile || !currentFile || !outputFile || !mapFile || !editCommand || !asmCommand || !runCommand) {
+  if (!mainFile || !currentFile) {
     throw new Error('missing project config key');
   }
 
   validateTm8FilePath(mainFile);
   validateTm8FilePath(currentFile);
-  validateTm8FilePath(outputFile);
-  validateTm8FilePath(mapFile);
-  return { mainFile, currentFile, outputFile, mapFile, editCommand, asmCommand, runCommand };
+  validateTm8FilePath(projectOutputFile({ mainFile, currentFile }));
+  validateTm8FilePath(projectMapFile({ mainFile, currentFile }));
+  return { mainFile, currentFile };
 }
 
 function hasVolumeFile(image: Buffer, path: string): boolean {
@@ -324,12 +326,12 @@ function printProjectInfo(volumePath: string): void {
     version: 1,
     mainFile: config.mainFile,
     currentFile: config.currentFile,
-    outputFile: config.outputFile,
-    mapFile: config.mapFile,
+    outputFile: projectOutputFile(config),
+    mapFile: projectMapFile(config),
     commands: {
-      edit: config.editCommand,
-      asm: config.asmCommand,
-      run: config.runCommand,
+      edit: 'currentFile',
+      asm: 'mainFile',
+      run: 'outputFile',
     },
   }, null, 2));
 }
@@ -342,8 +344,8 @@ function updateProjectConfig(
   const config = update(readProjectConfig(image));
   validateTm8FilePath(config.mainFile);
   validateTm8FilePath(config.currentFile);
-  validateTm8FilePath(config.outputFile);
-  validateTm8FilePath(config.mapFile);
+  validateTm8FilePath(projectOutputFile(config));
+  validateTm8FilePath(projectMapFile(config));
   writeFileSync(volumePath, writeVolumeFileReplacing(image, PROJECT_CONFIG_PATH, encodeProjectConfig(config)));
 }
 

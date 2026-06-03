@@ -33,6 +33,7 @@ Start here:
 - [Project Overview](project-overview.md)
 - [Storage Proof](storage-proof.md)
 - [Virtual Filesystem](virtual-filesystem.md)
+- [TEC-Side Shell Command Contract](shell-command-contract.md)
 - [Editor Design](editor-design.md)
 - [Project Sizing Case Studies](project-sizing.md)
 - [Debugging Roadmap](debugging-roadmap.md)
