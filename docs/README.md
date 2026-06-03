@@ -24,6 +24,7 @@ Useful project commands:
 ```text
 npm run check
 npm run proof:project-config
+npm run proof:project-config:storage
 npm run proof:storage:check
 npm run audit:storage
 npm run quality

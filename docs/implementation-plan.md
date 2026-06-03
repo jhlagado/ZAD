@@ -82,8 +82,11 @@ Goals:
   and map paths from `main`.
 - Use the first TEC-side project config parser in `src/project-config.asm`;
   `npm run proof:project-config` assembles and runs its proof harness. The
-  parser exports `ProjectCfgFileName` for the future storage reader and
-  `ParseProjectConfig` for validating loaded file text.
+- Use the first TEC-side project config loader in `src/project-config-loader.asm`;
+  `npm run proof:project-config:storage` assembles it, creates a FAT32 SD image
+  containing a real TM8 `VOLUME.TM8`, opens that file through MON3, scans the
+  TM8 catalog for `/tecm8.prj`, loads the config bytes, and then calls
+  `ParseProjectConfig`.
 
 This phase can use MON3 GLCD terminal routines before a custom renderer exists.
 
