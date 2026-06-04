@@ -1,13 +1,11 @@
 ; TECM8 project config loader.
 ;
-; Loads /tecm8.prj from the root of VOLUME.TM8 through MON3, then calls the
-; project config parser. This is a deliberately small v1 reader: it validates
-; the TM8 superblock fields needed for the fixed catalog layout, finds the root
-; file catalog entry for tecm8.prj, and reads one 512-byte sector from the
-; entry's first data block.
+; Loads /tecm8.prj from the root of VOLUME.TM8 through the TECM8 BIOS storage
+; wrappers, then calls the project config parser. This is a deliberately small
+; v1 reader: it validates the TM8 superblock fields needed for the fixed catalog
+; layout, finds the root file catalog entry for tecm8.prj, and reads one
+; 512-byte sector from the entry's first data block.
 
-MON3_OPEN_FILE      .equ     0xF5A1
-MON3_READ_SECTOR    .equ     0xF5D5
 DISK_BUFF           .equ     0x0600
 
 TM8_SECTOR_BYTES    .equ     512
@@ -48,7 +46,7 @@ PROJECT_CFG_TEXT_BUF    .equ 0x0A00
         LD      (ProjectLoadMainCap),A
 
         LD      HL,ProjectLoadVolumeName
-        CALL    MON3_OPEN_FILE
+        CALL    TECM8_BIOS_FILE_OPEN
         JP      C,ProjectLoadOpenErr
 
         CALL    ProjectLoadReadSuperblock
@@ -82,7 +80,7 @@ ProjectLoadOpenErr:
 @ProjectLoadReadSuperblock:
         LD      HL,0
         LD      DE,0
-        CALL    MON3_READ_SECTOR
+        CALL    TECM8_BIOS_FILE_READ_SECTOR
         JP      C,ProjectLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -152,7 +150,7 @@ ProjectLoadReadErr:
 ProjectLoadCatalogSector:
         PUSH    DE
         LD      HL,0
-        CALL    MON3_READ_SECTOR
+        CALL    TECM8_BIOS_FILE_READ_SECTOR
         POP     DE
         JP      C,ProjectLoadReadErr
 
@@ -284,7 +282,7 @@ ProjectLoadBlockErr:
 @ProjectLoadReadConfigText:
         LD      HL,(ProjectLoadFirstBlock)
         CALL    ProjectLoadBlockToOffset
-        CALL    MON3_READ_SECTOR
+        CALL    TECM8_BIOS_FILE_READ_SECTOR
         JP      C,ProjectLoadReadErr
 
         LD      HL,DISK_BUFF

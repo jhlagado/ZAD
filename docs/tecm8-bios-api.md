@@ -155,8 +155,10 @@ TECM8_BIOS_FILE_CLOSE
 ```
 
 The current source interface is [src/tecm8-bios.asmi](../src/tecm8-bios.asmi).
-It intentionally starts with direct MON3-compatible storage contracts and
-wrapper placeholders. It does not duplicate every RST-numbered MON3 API call.
+The first implementation module is [src/tecm8-bios.asm](../src/tecm8-bios.asm),
+which currently keeps the storage wrappers as thin MON3-compatible calls. The
+interface intentionally starts with direct MON3-compatible storage contracts and
+wrapper contracts. It does not duplicate every RST-numbered MON3 API call.
 
 Open issue: current TECM8 proof code relies on MON3's fixed `DISK_BUFF`. A
 future wrapper could add caller-supplied buffers, but the compatibility layer
