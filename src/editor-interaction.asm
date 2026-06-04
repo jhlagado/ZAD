@@ -135,6 +135,8 @@ EditorKeyCursorRight:
         JP      EditorKeyLoop
 
 EditorKeyDone:
+        CALL    TECM8_EDITOR_RENDER_CURRENT
+        RET     C
         CALL    TECM8_EDITOR_RENDER_CURSOR
         RET
 

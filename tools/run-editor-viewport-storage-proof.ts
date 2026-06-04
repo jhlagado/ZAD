@@ -514,6 +514,8 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
   const displayRow = 8;
   const cursorByte = 15;
   const cursorMask = 0x80;
+  const previousCursorByte = 14;
+  const previousCursorMask = 0x20;
   const glcd = getGlcdBytes(platformRuntime);
 
   for (let y = 0; y < 6; y += 1) {
@@ -530,6 +532,22 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
     if ((visibleValue & cursorMask) !== cursorMask) {
       throw new Error(
         `shell edit cursor missing visible bit at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(cursorMask)}`,
+      );
+    }
+
+    const previousAddress = mon3Tgbuf + displayRow * rowStride + y * rowBytes + previousCursorByte;
+    const previousValue = runtime.hardware.memory[previousAddress];
+    if ((previousValue & previousCursorMask) !== 0) {
+      throw new Error(
+        `shell edit previous cursor TGBUF bit still set at 0x${previousAddress.toString(16)}: got ${resultToString(previousValue)} unexpected mask ${resultToString(previousCursorMask)}`,
+      );
+    }
+
+    const previousGlcdOffset = displayRow * rowStride + y * rowBytes + previousCursorByte;
+    const previousVisibleValue = glcd[previousGlcdOffset] ?? 0;
+    if ((previousVisibleValue & previousCursorMask) !== 0) {
+      throw new Error(
+        `shell edit previous cursor visible bit still set at GLCD offset 0x${previousGlcdOffset.toString(16)}: got ${resultToString(previousVisibleValue)} unexpected mask ${resultToString(previousCursorMask)}`,
       );
     }
   }

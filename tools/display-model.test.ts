@@ -49,6 +49,7 @@ test('structured display model has assembly entry points and contracts', () => {
   }
   assert.match(source, /^MON3_TGBUF\s+\.equ\s+0x13C0$/m);
   assert.match(source, /@TECM8_DISPLAY_RENDER_GUTTER:\n\s+LD\s+\(DisplayRow\),A/);
+  assert.match(source, /@TECM8_DISPLAY_RENDER_SCREEN:\n\s+LD\s+\(DisplayCursor\),HL\n\s+CALL\s+TECM8_BIOS_DISPLAY_CLEAR/);
   assert.match(source, /AND\s+0x0F/);
   assert.match(source, /@TECM8_DISPLAY_RENDER_CURSOR_CELL:/);
   assert.match(source, /CP\s+TECM8_DISPLAY_EDIT_ROWS/);

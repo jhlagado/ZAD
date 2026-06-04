@@ -22,6 +22,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(iface, /^in HL$/m);
   assert.match(source, /CALL\s+TECM8_EDITOR_PAGE_DOWN/);
   assert.match(source, /CALL\s+TECM8_EDITOR_PAGE_UP/);
+  assert.match(source, /CALL\s+TECM8_EDITOR_RENDER_CURRENT/);
   assert.match(source, /CALL\s+TECM8_DISPLAY_RENDER_CURSOR_CELL/);
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorCol:\n\s+\.db\s+0/);
@@ -48,6 +49,8 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(proof, /\.db\s+"ljHKLJHK"/);
   assert.match(proof, /\.db\s+"hhhhhhhhhhhk"/);
   assert.match(proof, /\.db\s+"d",0/);
+  assert.match(proof, /EditorKeyLeft:\n\s+\.db\s+"h",0/);
+  assert.match(proof, /EditorKeyRight:\n\s+\.db\s+"l",0/);
   assert.match(runner, /shell-edit-interaction-proof/);
   assert.match(runner, /verifyShellEditInteractionProof/);
   assert.match(runner, /verifyShellEditVisibleCursor/);
@@ -56,6 +59,7 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(runner, /expected 7/);
   assert.match(runner, /expected 19/);
   assert.match(runner, /cursorMask = 0x80/);
+  assert.match(runner, /previousCursorMask = 0x20/);
   assert.match(packageJson, /"proof:display:shell-edit-interaction"/);
   assert.match(packageJson, /proof:display:shell-edit-interaction/);
 });

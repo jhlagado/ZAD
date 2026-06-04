@@ -21,6 +21,18 @@ ProofFail       .equ     0xE0
         CALL    TECM8_SHELL_RUN_EDITOR_SESSION
         JR      C,ProofFailed
 
+        LD      A,2
+        LD      (CaseMarker),A
+        LD      HL,EditorKeyLeft
+        CALL    TECM8_EDITOR_RUN_KEYS
+        JR      C,ProofFailed
+
+        LD      A,3
+        LD      (CaseMarker),A
+        LD      HL,EditorKeyRight
+        CALL    TECM8_EDITOR_RUN_KEYS
+        JR      C,ProofFailed
+
         LD      A,ProofPass
         LD      (ResultMarker),A
 
@@ -80,6 +92,12 @@ EditorKeys:
         .db     "ljHKLJHK"
         .db     "hhhhhhhhhhhk"
         .db     "d",0
+
+EditorKeyLeft:
+        .db     "h",0
+
+EditorKeyRight:
+        .db     "l",0
 
 ExpectedMain:
         .db     "/projects/demo/app.asm",0

@@ -44,6 +44,10 @@ MON3_TGBUF                          .equ    0x13C0
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @TECM8_DISPLAY_RENDER_SCREEN:
+        LD      (DisplayCursor),HL
+        CALL    TECM8_BIOS_DISPLAY_CLEAR
+        RET     C
+        LD      HL,(DisplayCursor)
         LD      E,(HL)
         INC     HL
         LD      D,(HL)
