@@ -30,6 +30,7 @@ test('shell edit navigation proof drives shell command into storage-backed edito
 
   assert.match(proof, /CALL\s+TECM8_SHELL_RUN_EDITOR_LINE/);
   assert.match(proof, /\.include\s+"..\/..\/src\/shell-commands\.asm"/);
+  assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
   assert.match(proof, /\.include\s+"..\/..\/src\/shell-editor-launch\.asm"/);
   assert.match(runner, /shell-edit-navigation-proof/);
   assert.match(runner, /shell-edit-explicit-navigation-proof/);

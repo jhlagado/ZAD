@@ -33,6 +33,7 @@ const INTERFACES = [
   resolve(TECM8_ROOT, 'src/editor-storage-loader.asmi'),
   resolve(TECM8_ROOT, 'src/editor-navigation.asmi'),
   resolve(TECM8_ROOT, 'src/shell-editor-launch.asmi'),
+  resolve(TECM8_ROOT, 'src/editor-interaction.asmi'),
 ];
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 const APP_START = 0x4000;
@@ -88,6 +89,13 @@ const PROOF_CASES = {
     image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-explicit-navigation-fat32.img'),
     lines: makeMultiBlockLines(),
     verify: verifyShellEditExplicitNavigationProof,
+  },
+  'shell-edit-interaction-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyShellEditInteractionProof,
   },
 } as const;
 
@@ -486,6 +494,10 @@ function verifyShellEditExplicitNavigationProof(
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19, '/root.asm', 'R0');
 }
 
+function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1);
+}
+
 function verifyShellEditLaunchProof(
   runtime: Runtime,
   platformRuntime: PlatformRuntime,
@@ -493,10 +505,11 @@ function verifyShellEditLaunchProof(
   expectedMode: number,
   expectedPath: string,
   expectedPrefix: string,
+  expectedPage = 0,
 ): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
-  if (runtime.hardware.memory[currentPage] !== 0) {
-    throw new Error(`shell edit current page ${runtime.hardware.memory[currentPage]}, expected 0`);
+  if (runtime.hardware.memory[currentPage] !== expectedPage) {
+    throw new Error(`shell edit current page ${runtime.hardware.memory[currentPage]}, expected ${expectedPage}`);
   }
 
   const shellAction = symbolAddress(symbols, 'ShellLastExecAction');

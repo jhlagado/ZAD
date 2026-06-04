@@ -40,6 +40,22 @@ ShellEditorLaunchOpenPath:
         XOR     A
         RET
 
+; TECM8_SHELL_RUN_EDITOR_SESSION -
+; Run one shell edit command line, then consume editor key input.
+; Input:
+;   HL = NUL-terminated shell command line
+;   DE = NUL-terminated editor key stream
+;!      in        DE,HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_SHELL_RUN_EDITOR_SESSION:
+        LD      (ShellEditorSessionKeys),DE
+        CALL    TECM8_SHELL_RUN_EDITOR_LINE
+        RET     C
+        LD      HL,(ShellEditorSessionKeys)
+        CALL    TECM8_EDITOR_RUN_KEYS
+        RET
+
 ShellEditorLaunchUnsupported:
         LD      A,TECM8_SHELL_LAUNCH_ERR_UNSUPPORTED
         SCF
@@ -49,3 +65,6 @@ ShellEditorLaunchTargetErr:
         LD      A,TECM8_SHELL_LAUNCH_ERR_TARGET
         SCF
         RET
+
+ShellEditorSessionKeys:
+        .dw     0

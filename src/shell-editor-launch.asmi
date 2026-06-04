@@ -3,3 +3,9 @@ in HL
 out A,carry
 clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 end
+
+extern TECM8_SHELL_RUN_EDITOR_SESSION
+in DE,HL
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end

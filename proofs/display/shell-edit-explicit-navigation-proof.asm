@@ -45,6 +45,7 @@ ProofFailedDone:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/editor-interaction.asm"
         .include "../../src/shell-commands.asm"
         .include "../../src/shell-editor-launch.asm"
         .include "../../src/tecm8-bios.asm"

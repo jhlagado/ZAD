@@ -1,7 +1,7 @@
-; Shell edit to storage-backed editor proof.
+; Shell-launched editor interaction proof.
 ;
-; Resolves the TECM8 shell `edit` command, launches the storage-backed editor,
-; and leaves rendered row text/state for host checks.
+; Opens a project source file through the shell and consumes editor key input
+; that pages down once.
 
         .org    0x4000
 
@@ -17,17 +17,8 @@ ProofFail       .equ     0xE0
         LD      A,1
         LD      (CaseMarker),A
         LD      HL,CmdEdit
-        CALL    TECM8_SHELL_RUN_EDITOR_LINE
-        JR      C,ProofFailed
-
-        LD      A,2
-        LD      (CaseMarker),A
-        CALL    TECM8_EDITOR_PAGE_DOWN
-        JR      C,ProofFailed
-
-        LD      A,3
-        LD      (CaseMarker),A
-        CALL    TECM8_EDITOR_PAGE_UP
+        LD      DE,EditorKeys
+        CALL    TECM8_SHELL_RUN_EDITOR_SESSION
         JR      C,ProofFailed
 
         LD      A,ProofPass
@@ -45,8 +36,7 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
-; Stub LoadProjectConfig for shell-to-editor proof. This proof uses the real
-; storage path for the source file but keeps project config out of the proof.
+; Stub LoadProjectConfig for shell-to-editor interaction proof.
 ;!      in        B,DE
 ;!      out       DE,HL,A,C,carry,zero
 ;!      clobbers  B
@@ -82,6 +72,9 @@ LoadProjectStubOk:
 
 CmdEdit:
         .db     "edit",0
+
+EditorKeys:
+        .db     "ud",0
 
 ExpectedMain:
         .db     "/projects/demo/app.asm",0
