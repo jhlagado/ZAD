@@ -16,7 +16,7 @@ The preferred calling model is MON3's existing style: a small RST entry with
 the call number in `C`.
 
 ```asm
-        LD      C,TECM8_BIOS_GLCD_PUT_CHAR
+        LD      C,TECM8_BIOS_DISPLAY_PUT_CHAR
         LD      A,"A"
         RST     0x10
 ```
@@ -170,57 +170,71 @@ Current MON3 source places the FAT/PATA/SD workspace roughly at `0100h-07FFh`,
 with `DISK_BUFF` at `0600h-07FFh`. TECM8 code that calls MON3-compatible
 storage should treat this range as BIOS-owned or volatile.
 
-## GLCD Calls
+## Display Calls
 
-The GLCD is the primary TECM8 display. TECM8 should keep MON3 GLCD terminal
-calls usable and wrap them with clearer contracts where needed.
+The GLCD is the primary first display, but TECM8 code should target a small
+display contract rather than hard-code MON3's GLCD routine names. The first
+implementation is MON3-backed and GLCD-oriented; later implementations may
+route the same names to a smaller TECM8 GLCD renderer or to a TMS9918-style VDU
+layer.
 
 | Call | TECM8 wrapper | MON3 continuity |
 | ---: | --- | --- |
-| existing | `TECM8_BIOS_GLCD_INIT` | MON3 GLCD init routine. |
-| existing | `TECM8_BIOS_GLCD_CLEAR_TEXT` | MON3 clear text LCD/GLCD text routine. |
-| existing | `TECM8_BIOS_GLCD_CLEAR_GRAPHICS` | MON3 clear graphics routine. |
-| existing/extension | `TECM8_BIOS_GLCD_SET_CURSOR` | Cursor positioning for terminal output. |
-| existing | `TECM8_BIOS_GLCD_PUT_CHAR` | MON3 send-char terminal call. |
-| existing | `TECM8_BIOS_GLCD_PUT_STRING` | MON3 send-string terminal call. |
-| existing | `TECM8_BIOS_GLCD_PLOT_BUFFER` | MON3 plot graphics buffer routine. |
-| existing | `TECM8_BIOS_GLCD_SET_MODE` | MON3 GLCD terminal state get/set behavior. |
+| existing | `TECM8_BIOS_DISPLAY_INIT` | Initializes MON3's GLCD terminal path. |
+| existing | `TECM8_BIOS_DISPLAY_CLEAR` | Reinitializes/clears the MON3 GLCD terminal buffer. |
+| existing/extension | `TECM8_BIOS_DISPLAY_SET_CURSOR` | Uses MON3 graphics cursor coordinates. |
+| existing | `TECM8_BIOS_DISPLAY_PUT_CHAR` | Sends one character through the MON3 GLCD terminal. |
+| existing | `TECM8_BIOS_DISPLAY_PUT_STRING` | Sends a NUL-terminated string through the MON3 GLCD terminal. |
+| existing | `TECM8_BIOS_DISPLAY_UPDATE` | Plots the current MON3 GLCD viewport to the display. |
+| existing | `TECM8_BIOS_DISPLAY_SET_BITMAP_MODE` | Selects MON3 GLCD graphics mode for bitmap operations. |
 
-Draft contracts:
+Current prototype contracts:
 
 ```text
-TECM8_BIOS_GLCD_INIT
+TECM8_BIOS_DISPLAY_INIT
   in:  none
   out: carry clear on ready
-       carry set, A = error
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_GLCD_SET_CURSOR
-  in:  B = column
-       C = row
+TECM8_BIOS_DISPLAY_CLEAR
+  in:  none
   out: carry clear on success
-       carry set, A = error
-  clobbers: A, flags
+  clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_GLCD_PUT_CHAR
+TECM8_BIOS_DISPLAY_SET_CURSOR
+  in:  B = X pixel
+       C = Y pixel
+  out: carry clear on success
+  clobbers: A, BC, DE, HL, flags
+
+TECM8_BIOS_DISPLAY_PUT_CHAR
   in:  A = ASCII character
   out: carry clear on success
-       carry set, A = error
-  clobbers: A, flags
+  clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_GLCD_PUT_STRING
+TECM8_BIOS_DISPLAY_PUT_STRING
   in:  HL = NUL-terminated ASCII string
   out: carry clear on success
-       carry set, A = error
-       HL = byte after NUL on success
-  clobbers: A, HL, flags
+  clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_GLCD_PLOT_BUFFER
-  in:  HL = graphics buffer address, or 0000h for BIOS default buffer
+TECM8_BIOS_DISPLAY_UPDATE
+  in:  none
   out: carry clear on success
-       carry set, A = error
+  clobbers: A, BC, DE, HL, flags
+
+TECM8_BIOS_DISPLAY_SET_BITMAP_MODE
+  in:  none
+  out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 ```
+
+The current MON3-backed prototype treats these display calls as success-only:
+the wrappers clear carry after returning from MON3. A later TECM8-native display
+driver can add meaningful carry-set errors if it has detectable failure modes.
+
+Legacy `TECM8_BIOS_GLCD_*` names may remain useful as aliases if direct MON3
+compatibility becomes valuable, but new TECM8 code should prefer the
+`TECM8_BIOS_DISPLAY_*` contract.
 
 RAM note: MON3's GLCD library effectively uses `0A00h-17FFh` as a video
 workspace, a 3584-byte 3.5 KiB range containing a full graphics buffer,
