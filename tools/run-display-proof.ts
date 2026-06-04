@@ -27,8 +27,7 @@ if (!/^[a-z0-9-]+$/.test(proofName)) {
 }
 
 const PROOF_SOURCE = resolve(TECM8_ROOT, `proofs/display/${proofName}.asm`);
-const TECM8_BIOS_INTERFACE = resolve(TECM8_ROOT, 'src/tecm8-bios.asmi');
-const DISPLAY_MODEL_INTERFACE = resolve(TECM8_ROOT, 'src/display-model.asmi');
+const MON3_INTERFACE = resolve(TECM8_ROOT, 'src/mon3.asmi');
 const LAST_RUN = resolve(TECM8_ROOT, `proofs/display/${proofName}-last-run.json`);
 const APP_START = 0x4000;
 const PROOF_PASS = 0x42;
@@ -92,7 +91,7 @@ async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] 
       },
       registerCare: 'strict',
       registerCareProfile: 'mon3',
-      registerCareInterfaces: [TECM8_BIOS_INTERFACE, DISPLAY_MODEL_INTERFACE],
+      registerCareInterfaces: [MON3_INTERFACE],
     },
     { formats: defaultFormatWriters },
   ) as CompileResult;

@@ -5,49 +5,49 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
-Mon3Tgbuf       .equ     0x13C0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
+MON3_TGBUF       .equ     0x13C0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_BIOS_DISPLAY_INIT
+        CALL    BiosDisplayInit
         JR      C,ProofFailed
 
-        CALL    TECM8_BIOS_DISPLAY_CLEAR
+        CALL    BiosDisplayClear
         JR      C,ProofFailed
 
         LD      B,0
         LD      C,0
-        CALL    TECM8_BIOS_DISPLAY_SET_CURSOR
+        CALL    BiosDisplaySetCursor
         JR      C,ProofFailed
 
         LD      A,'>'
-        CALL    TECM8_BIOS_DISPLAY_PUT_CHAR
+        CALL    BiosDisplayPutChar
         JR      C,ProofFailed
 
         LD      HL,SmokeText
-        CALL    TECM8_BIOS_DISPLAY_PUT_STRING
+        CALL    BiosDisplayPutString
         JR      C,ProofFailed
 
-        CALL    TECM8_BIOS_DISPLAY_SET_BITMAP_MODE
+        CALL    BiosDisplaySetBitmapMode
         JR      C,ProofFailed
 
         LD      A,0xFF
-        LD      (Mon3Tgbuf),A
+        LD      (MON3_TGBUF),A
 
-        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        CALL    BiosDisplayUpdate
         JR      C,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
         JP      ProofDone
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

@@ -31,8 +31,8 @@ The main dependency direction is:
 host fs tools -> create TM8 volumes and FAT32 proof images
 proof runners -> assemble proof programs and run Debug80
 Z80 proof files -> include src modules
-src modules -> call TECM8_BIOS_* wrappers
-TECM8_BIOS_* wrappers -> call MON3 storage and GLCD services
+src modules -> call PascalCase BIOS wrappers
+BIOS wrappers -> call MON3 storage and GLCD services
 ```
 
 ## Reading Order
@@ -52,12 +52,22 @@ For the fastest orientation, read these files first:
 9. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
    `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
    editor path.
+10. `proofs/display/editor-line-editing-proof.asm`: the newest focused proof
+    for split-line and join-line editor behavior.
 
 ## Z80 Source Tree
 
 The `src/` tree is the TEC-side implementation. Files ending in `.asm` contain
-code and state. Files ending in `.asmi` describe public entry points and
-register contracts for AZM-style checking and proof compilation.
+code, state, labels, and AZMDoc `;!` register contracts for routines TECM8
+owns. Files ending in `.asmi` are only for external code that is not available
+as annotated source; currently `src/mon3.asmi` documents the MON3 ROM entry
+points called by the TECM8 BIOS wrappers.
+
+The current assembly style follows `docs/azm-style-guide.md`: callable routine
+entries and ordinary labels are PascalCase, while `.equ` constants use
+uppercase names with underscores. The TECM8 modules should not create duplicate
+`.asmi` manifests for code in this repository; AZM can read the local `;!`
+contract blocks from the included source.
 
 ### `src/main.asm`
 
@@ -66,31 +76,33 @@ the LCD and scans `HELLO ` on the seven-segment display through MON3 `RST 10h`
 API calls. Treat it as a minimal target configured by `debug80.json`, not as
 the current product entry point.
 
-### `src/tecm8-bios.asm` and `src/tecm8-bios.asmi`
+### `src/tecm8-bios.asm` and `src/mon3.asmi`
 
 These are the stable service boundary under TECM8 code. The implementation is
 currently a thin MON3 compatibility layer:
 
-- `TECM8_BIOS_FILE_OPEN`
-- `TECM8_BIOS_FILE_READ_SECTOR`
-- `TECM8_BIOS_FILE_WRITE_SECTOR`
-- `TECM8_BIOS_DISPLAY_INIT`
-- `TECM8_BIOS_DISPLAY_CLEAR`
-- `TECM8_BIOS_DISPLAY_SET_CURSOR`
-- `TECM8_BIOS_DISPLAY_PUT_CHAR`
-- `TECM8_BIOS_DISPLAY_PUT_STRING`
-- `TECM8_BIOS_DISPLAY_DRAW_CHAR_AT`
-- `TECM8_BIOS_DISPLAY_UPDATE`
-- `TECM8_BIOS_DISPLAY_SET_BITMAP_MODE`
+- `BiosFileOpen`
+- `BiosFileReadSector`
+- `BiosFileWriteSector`
+- `BiosDisplayInit`
+- `BiosDisplayClear`
+- `BiosDisplaySetCursor`
+- `BiosDisplayPutChar`
+- `BiosDisplayPutString`
+- `BiosDisplayDrawCharAt`
+- `BiosDisplayUpdate`
+- `BiosDisplaySetBitmapMode`
 
 The wrappers depend on MON3 entry points such as `F5A1h` for file open,
 `F5D5h` for sector read, `F66Dh` for sector write, and MON3 GLCD routines in
 the `D8xxh` to `DCxxh` range. Higher-level code should call the wrapper names,
 not hard-code MON3 addresses.
 
-The `.asmi` file also documents direct MON3 symbols and future-facing BIOS
-entries such as bank selection. Some of those future entries are interface
-placeholders, not implemented routines in `tecm8-bios.asm` yet.
+`src/mon3.asmi` documents the external MON3 symbols that are not implemented in
+this repository. The TECM8 wrapper routines themselves live in
+`src/tecm8-bios.asm` and carry their contracts in local `;!` blocks.
+The previous local-module interface files have been removed; `mon3.asmi` is the
+only interface file currently expected under `src/`.
 
 ### `src/project-config.asm`
 
@@ -114,7 +126,7 @@ currently accepts the canonical v1 order only.
 ### `src/project-config-loader.asm`
 
 This connects project config parsing to real storage. `LoadProjectConfig` opens
-`VOLUME.TM8` through `TECM8_BIOS_FILE_OPEN`, reads sector 0 to validate the
+`VOLUME.TM8` through `BiosFileOpen`, reads sector 0 to validate the
 fixed v1 superblock fields it depends on, scans the root file catalog for
 `tecm8.prj`, reads the first data sector of that file, NUL-terminates the text
 in a fixed buffer at `0x0A00`, and calls `ParseProjectConfig`.
@@ -155,24 +167,24 @@ The file depends on an external `LoadProjectConfig` routine. Storage-backed
 proofs include `project-config-loader.asm`; some command-only proofs stub
 `LoadProjectConfig` so they can test parsing without MON3.
 
-### `src/shell-editor-launch.asm` and `src/shell-editor-launch.asmi`
+### `src/shell-editor-launch.asm`
 
 This is the bridge from the shell resolver into the storage-backed editor.
-`TECM8_SHELL_RUN_EDITOR_LINE` runs one shell command line and only proceeds if
+`ShellRunEditorLine` runs one shell command line and only proceeds if
 the resolved action is `SHELL_CMD_EDIT`. It then reads the edit request payload
-and calls `TECM8_EDITOR_OPEN_PATH`.
+and calls `EditorOpenPath`.
 
-`TECM8_SHELL_RUN_EDITOR_SESSION` adds a proof-oriented editor key stream: run
+`ShellRunEditorSession` adds a proof-oriented editor key stream: run
 the shell edit command, reset the cursor, then pass the key stream to
-`TECM8_EDITOR_RUN_KEYS`.
+`EditorRunKeys`.
 
 This file is where shell-to-editor composition starts. `asm` and `run` are
 still unsupported here because no assembler or runner exists yet.
 
-### `src/display-model.asm` and `src/display-model.asmi`
+### `src/display-model.asm`
 
 This is the structured GLCD display layer. It renders an editor-like screen
-through `TECM8_BIOS_DISPLAY_*` calls:
+through the `BiosDisplay*` wrapper calls:
 
 - row 0 is top chrome
 - rows 1-8 are editable source rows
@@ -182,19 +194,19 @@ through `TECM8_BIOS_DISPLAY_*` calls:
 
 The main entry points are:
 
-- `TECM8_DISPLAY_INIT`
-- `TECM8_DISPLAY_RENDER_SCREEN`
-- `TECM8_DISPLAY_RENDER_LINE`
-- `TECM8_DISPLAY_RENDER_GUTTER`
-- `TECM8_DISPLAY_RENDER_CURSOR_CELL`
-- `TECM8_DISPLAY_ERASE_CURSOR_CELL`
+- `DisplayInit`
+- `DisplayRenderScreen`
+- `DisplayRenderLine`
+- `DisplayRenderGutter`
+- `DisplayRenderCursorCell`
+- `DisplayEraseCursorCell`
 
 The cursor routines save and restore the original GLCD bytes under the cursor,
 which prevents cursor trails when the cursor moves. This module depends on the
 MON3 terminal graphics buffer at `0x13C0` and pushes updates through
-`TECM8_BIOS_DISPLAY_UPDATE`.
+`BiosDisplayUpdate`.
 
-### `src/editor-viewport.asm` and `src/editor-viewport.asmi`
+### `src/editor-viewport.asm`
 
 This converts source records into a screen descriptor for the display model.
 Source records are fixed 32-byte Pascal strings:
@@ -208,14 +220,14 @@ The upper three bits of the length byte are currently reserved and should remain
 clear. They may later become line metadata bits, but the existing code and host
 conversion tools still treat the byte as a plain `0..31` length.
 
-`TECM8_EDITOR_VIEWPORT_RENDER` takes `HL` pointing at a source-record window,
+`EditorViewportRender` takes `HL` pointing at a source-record window,
 copies the first eight records into NUL-terminated row buffers, checks that no
-record length exceeds 31, then calls `TECM8_DISPLAY_RENDER_SCREEN`.
+record length exceeds 31, then calls `DisplayRenderScreen`.
 
 This module currently has fixed placeholder chrome text and fixed marker flags.
 It is a viewport proof surface, not a full editor model yet.
 
-### `src/editor-storage-loader.asm` and `src/editor-storage-loader.asmi`
+### `src/editor-storage-loader.asm`
 
 This is the first storage-backed source loader. It opens `VOLUME.TM8`, validates
 the v1 superblock fields it depends on, resolves a TM8 path into prefix and
@@ -224,9 +236,9 @@ and copies one 512-byte page to a caller buffer.
 
 Public entries:
 
-- `TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR`: first sector of `/src/main.asm`
-- `TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE`: page `A` of `/src/main.asm`
-- `TECM8_EDITOR_LOAD_SOURCE_PAGE`: page `A` of an arbitrary TM8 path in `DE`
+- `EditorLoadMainSector`: first sector of `/src/main.asm`
+- `EditorLoadMainPage`: page `A` of `/src/main.asm`
+- `EditorLoadSourcePage`: page `A` of an arbitrary TM8 path in `DE`
 
 Page indexes are limited to 0..127. A page is a 512-byte sector, not a 4K TM8
 allocation block. The loader computes the sector-in-block and number of block
@@ -236,25 +248,25 @@ storage wrappers.
 This is still proof-focused. It reads pages and follows block chains, but it
 does not save modified editor pages back to the volume.
 
-### `src/editor-navigation.asm` and `src/editor-navigation.asmi`
+### `src/editor-navigation.asm`
 
 This owns the editor's current path and current page. It layers simple page
 navigation on top of `editor-storage-loader.asm` and `editor-viewport.asm`.
 
 Public entries:
 
-- `TECM8_EDITOR_OPEN_MAIN`
-- `TECM8_EDITOR_OPEN_PATH`
-- `TECM8_EDITOR_RENDER_CURRENT`
-- `TECM8_EDITOR_RENDER_PAGE_BUFFER`
-- `TECM8_EDITOR_PAGE_DOWN`
-- `TECM8_EDITOR_PAGE_UP`
+- `EditorOpenMain`
+- `EditorOpenPath`
+- `EditorRenderCurrent`
+- `EditorRenderPageBuffer`
+- `EditorPageDown`
+- `EditorPageUp`
 
 The module stores a 64-byte path buffer and a 512-byte page buffer. Page moves
 are committed only after loading and rendering succeeds, so failed page-down or
 page-up attempts do not corrupt current-page state.
 
-### `src/editor-interaction.asm` and `src/editor-interaction.asmi`
+### `src/editor-interaction.asm`
 
 This is the early editor interaction loop. It consumes a NUL-terminated proof
 key stream rather than real keyboard input. In command mode:
@@ -269,12 +281,29 @@ key stream rather than real keyboard input. In command mode:
 - backspace at column zero joins with the previous record when the result fits
 - delete removes the character at the cursor
 
+The public interface now exposes the primitive edit operations as separate
+entry points as well as the proof key-stream runner:
+
+- `EditorInsertChar`
+- `EditorBackspaceChar`
+- `EditorDeleteChar`
+- `EditorSplitLine`
+- `EditorJoinPreviousLine`
+
 The editing operations mutate `EditorNavPageBuffer` in memory and then rerender
 the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. There is
 not yet a dirty flag, save path, sector-crossing insert/delete, or sector
 write-back path.
+
+`EditorSplitLine` shifts records down within the current 16-record page
+and splits the current record at the cursor. It is a no-op on the final page row
+or when the final record is already in use. `EditorJoinPreviousLine`
+is called by backspace at column zero; it joins the current record into the
+previous record only when the combined text still fits in 31 bytes, then shifts
+following records up and clears the last record. Both operations are in-page
+only today.
 
 ## Proof Programs
 
@@ -336,6 +365,9 @@ The display proofs build up the editor stack incrementally:
   interaction through cursor movement, paging, and mutation.
 - `proofs/display/editor-mutation-boundary-proof.asm`: tests in-page insert,
   backspace, delete, cursor bounds, and reserved command-letter behavior.
+- `proofs/display/editor-line-editing-proof.asm`: tests split-line/newline and
+  join-line/backspace-at-start behavior inside the current 512-byte page
+  buffer.
 
 These proofs are the best executable tour of the unfinished editor.
 
@@ -385,6 +417,15 @@ the TEC-1G runtime, disable shadow ROM where needed, seed SD card state, and
 inspect proof-visible symbols, GLCD pixels, source-record buffers, and result
 markers.
 
+The proof runners run AZM register-contract checking in strict mode. They pass
+`src/mon3.asmi` for MON3 ROM calls and rely on the `;!` comments in included
+TECM8 source for routines implemented in this repository.
+
+`tools/run-editor-viewport-storage-proof.ts` is the main editor proof runner.
+It now includes an `editor-line-editing-proof` case and verifies not just result
+markers, but also source-record text, zeroed padding, and cursor positions after
+split/join operations.
+
 ### Storage Image And Audit Tools
 
 - `tools/create-storage-proof-image.ts` creates a minimal FAT32 image with a
@@ -416,6 +457,7 @@ coverage:
 - project config host commands
 - generated MON3 report freshness
 - static checks that assembly modules expose expected entry points
+- static checks that local entry points carry `;!` contract comments
 - proof wiring checks that package scripts invoke the right proof runners
 
 ## Documentation Map
@@ -448,6 +490,19 @@ toward.
 - `docs/mon3-glcd-split.md`: generated MON3 GLCD code and RAM analysis.
 - `docs/codebase.md`: this tour.
 
+Recent editor-design additions also matter for implementation work:
+
+- Source-record length byte bits 5-7 are reserved and must remain clear until
+  a future metadata format is deliberately defined.
+- The v1 editor should use status-line prompt mode for confirmations rather
+  than modal dialog boxes.
+- The v1 save policy should create a one-level hidden backup before replacing
+  an existing file. The derived backup of `/src/main.asm` is
+  `/src/.main.asm.b`.
+- Leading-dot local filenames are ordinary TM8 catalog entries, but future
+  ordinary listings and project export/pack flows should hide or omit them by
+  default.
+
 ## Current State And Gaps
 
 What exists now:
@@ -459,7 +514,11 @@ What exists now:
 - MON3-backed storage and GLCD wrappers exist.
 - A storage-backed editor can load and render source pages.
 - A shell `edit` command can launch that editor path in proofs.
-- Cursor movement and in-page record mutation are being proven.
+- Cursor movement, in-page character mutation, split-line, and join-line
+  behavior are being proven.
+- The design now has documented policies for status-line confirmations and
+  one-level hidden backup files, but those policies are not implemented in the
+  editor yet.
 
 What is still missing or intentionally skeletal:
 
@@ -467,8 +526,10 @@ What is still missing or intentionally skeletal:
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
 - The editor has no save/write-back path yet.
-- The editor has no line insert/delete, dirty tracking, search, or real quit
-  command yet.
+- The editor has no dirty tracking, backup creation, backup restore, status
+  prompt state machine, search, or real quit command yet.
+- Split and join are currently limited to the loaded 512-byte page; they do not
+  move records across sectors or allocate/free TM8 storage.
 - The display chrome and marker policy are still mostly fixed proof data.
 - The Z80 storage readers are narrow readers, not a general reusable TM8
   filesystem layer.

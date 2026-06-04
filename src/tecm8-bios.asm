@@ -1,6 +1,6 @@
 ; TECM8 BIOS compatibility wrappers.
 ;
-; These entry points keep TECM8 code calling stable TECM8_BIOS_* names while
+; These entry points keep TECM8 code calling stable PascalCase BIOS names while
 ; MON3 remains the active storage implementation.
 
 MON3_OPEN_FILE      .equ     0xF5A1
@@ -18,78 +18,78 @@ MON3_GLCD_VPORT              .equ     0x0E13
 MON3_GLCD_TGBUF              .equ     0x13C0
 TECM8_BIOS_DISPLAY_ERR_RANGE .equ     0x01
 
-; TECM8_BIOS_FILE_OPEN -
+; BiosFileOpen -
 ; Open a MON3/FAT32 file by NUL-terminated name.
 ;!      in        HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_FILE_OPEN:
+@BiosFileOpen:
         CALL    MON3_OPEN_FILE
         RET
 
-; TECM8_BIOS_FILE_READ_SECTOR -
+; BiosFileReadSector -
 ; Read a 512-byte sector from the current MON3 file into DISK_BUFF.
 ;!      in        DE,HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_FILE_READ_SECTOR:
+@BiosFileReadSector:
         CALL    MON3_READ_SECTOR
         RET
 
-; TECM8_BIOS_FILE_WRITE_SECTOR -
+; BiosFileWriteSector -
 ; Write a 512-byte sector from DISK_BUFF to the current MON3 file.
 ;!      in        DE,HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_FILE_WRITE_SECTOR:
+@BiosFileWriteSector:
         CALL    MON3_WRITE_SECTOR
         RET
 
-; TECM8_BIOS_DISPLAY_INIT -
+; BiosDisplayInit -
 ; Initialize the MON3 GLCD terminal path for TECM8 display output.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_INIT:
+@BiosDisplayInit:
         CALL    MON3_GLCD_INIT_TERMINAL
         XOR     A
         RET
 
-; TECM8_BIOS_DISPLAY_CLEAR -
+; BiosDisplayClear -
 ; Clear the active MON3 GLCD terminal buffer.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_CLEAR:
+@BiosDisplayClear:
         CALL    MON3_GLCD_INIT_TERMINAL
         XOR     A
         RET
 
-; TECM8_BIOS_DISPLAY_SET_CURSOR -
+; BiosDisplaySetCursor -
 ; Move the GLCD graphics cursor. B = X pixel, C = Y pixel.
 ;!      in        B,C
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_SET_CURSOR:
+@BiosDisplaySetCursor:
         CALL    MON3_GLCD_SET_CURSOR
         XOR     A
         RET
 
-; TECM8_BIOS_DISPLAY_PUT_CHAR -
+; BiosDisplayPutChar -
 ; Write one ASCII character through the MON3 GLCD terminal.
 ;!      in        A
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_PUT_CHAR:
+@BiosDisplayPutChar:
         LD      C,A
         CALL    MON3_GLCD_SEND_CHAR_TO_LCD
         XOR     A
         RET
 
-; TECM8_BIOS_DISPLAY_PUT_STRING -
+; BiosDisplayPutString -
 ; Write a NUL-terminated ASCII string through the MON3 GLCD terminal.
 ;!      in        HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_PUT_STRING:
+@BiosDisplayPutString:
         LD      D,H
         LD      E,L
         LD      C,0
@@ -97,12 +97,12 @@ TECM8_BIOS_DISPLAY_ERR_RANGE .equ     0x01
         XOR     A
         RET
 
-; TECM8_BIOS_DISPLAY_DRAW_CHAR_AT -
+; BiosDisplayDrawCharAt -
 ; Draw one 6x6 font character at B,C pixel coordinates without terminal scroll.
 ;!      in        A,B,C
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_DRAW_CHAR_AT:
+@BiosDisplayDrawCharAt:
         LD      (BiosDisplayChar),A
         LD      A,C
         CP      0x40
@@ -124,20 +124,20 @@ BiosDisplayDrawCharRange:
         SCF
         RET
 
-; TECM8_BIOS_DISPLAY_UPDATE -
+; BiosDisplayUpdate -
 ; Push the current MON3 GLCD viewport to the physical/displayed GLCD state.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_UPDATE:
+@BiosDisplayUpdate:
         CALL    MON3_GLCD_PLOT_TO_LCD
         XOR     A
         RET
 
-; TECM8_BIOS_DISPLAY_SET_BITMAP_MODE -
+; BiosDisplaySetBitmapMode -
 ; Select the MON3 GLCD graphics mode for bitmap operations.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_BIOS_DISPLAY_SET_BITMAP_MODE:
+@BiosDisplaySetBitmapMode:
         CALL    MON3_GLCD_SET_GR_MODE
         XOR     A
         RET

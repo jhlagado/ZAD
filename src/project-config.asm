@@ -5,15 +5,15 @@
 ; the bytes it read. This first parser accepts the canonical v1 key order only:
 ; tm8project line first, main line second.
 
-Lf              .equ     0x0A
-Nul             .equ     0x00
+LF              .equ     0x0A
+NUL             .equ     0x00
 
-ProjectCfgOk        .equ 0
-ProjectCfgErrHeader .equ 1
-ProjectCfgErrMain   .equ 2
-ProjectCfgErrEmpty  .equ 3
-ProjectCfgErrLong   .equ 4
-ProjectCfgErrExtra  .equ 5
+PROJECT_CFG_OK        .equ 0
+PROJECT_CFG_ERR_HEADER .equ 1
+PROJECT_CFG_ERR_MAIN   .equ 2
+PROJECT_CFG_ERR_EMPTY  .equ 3
+PROJECT_CFG_ERR_LONG   .equ 4
+PROJECT_CFG_ERR_EXTRA  .equ 5
 
 ; ParseProjectConfig —
 ; Validate a /tecm8.prj buffer and copy the main path.
@@ -25,7 +25,7 @@ ProjectCfgErrExtra  .equ 5
 ;   DE = destination buffer for the main path
 ;   B  = destination byte capacity, including final NUL
 ; Output:
-;   carry clear, A=ProjectCfgOk, destination is NUL-terminated main path
+;   carry clear, A=PROJECT_CFG_OK, destination is NUL-terminated main path
 ;   carry set, A=ProjectCfgErr*
 ;!      in        B,DE,HL
 ;!      out       A,C,carry,zero
@@ -52,7 +52,7 @@ ProjectCfgErrExtra  .equ 5
 
 ParseCfgPathLoop:
         LD      A,(HL)
-        CP      Lf
+        CP      LF
         JR      Z,ParseCfgPathEnd
         OR      A
         JR      Z,ParseCfgPathEnd
@@ -71,7 +71,7 @@ ParseCfgPathEnd:
         JP      Z,ProjectCfgEmptyErr
 
         LD      A,(HL)
-        CP      Lf
+        CP      LF
         JR      NZ,ParseCfgCheckFinalNul
         INC     HL
 
@@ -85,27 +85,27 @@ ParseCfgCheckFinalNul:
         RET
 
 ProjectCfgHeaderErr:
-        LD      A,ProjectCfgErrHeader
+        LD      A,PROJECT_CFG_ERR_HEADER
         SCF
         RET
 
 ProjectCfgMainErr:
-        LD      A,ProjectCfgErrMain
+        LD      A,PROJECT_CFG_ERR_MAIN
         SCF
         RET
 
 ProjectCfgEmptyErr:
-        LD      A,ProjectCfgErrEmpty
+        LD      A,PROJECT_CFG_ERR_EMPTY
         SCF
         RET
 
 ProjectCfgLongErr:
-        LD      A,ProjectCfgErrLong
+        LD      A,PROJECT_CFG_ERR_LONG
         SCF
         RET
 
 ProjectCfgExtraErr:
-        LD      A,ProjectCfgErrExtra
+        LD      A,PROJECT_CFG_ERR_EXTRA
         SCF
         RET
 
@@ -120,7 +120,7 @@ ProjectCfgExtraErr:
         CALL    ProjectCfgMatchText
         RET     C
         LD      A,(HL)
-        CP      Lf
+        CP      LF
         JR      Z,ProjectCfgLineOk
         SCF
         RET

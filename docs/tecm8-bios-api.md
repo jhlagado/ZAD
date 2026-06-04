@@ -16,15 +16,15 @@ The preferred calling model is MON3's existing style: a small RST entry with
 the call number in `C`.
 
 ```asm
-        LD      C,TECM8_BIOS_DISPLAY_PUT_CHAR
+        LD      C,BiosDisplayPutChar
         LD      A,"A"
         RST     0x10
 ```
 
 The existing MON3 `RST 10h` convention should be preserved unless there is a
 strong reason to add a new entry point. Direct-call entry points and TECM8
-wrapper routines should also publish AZM `.asmi` interfaces so TECM8 code can
-use register-care contracts for external services. RST-numbered MON3 services
+external routines should publish AZM `.asmi` interfaces so TECM8 code can
+use register-care contracts for monitor services. RST-numbered MON3 services
 are handled by AZM's `mon3` register-contracts profile when the service number
 is loaded into `C` immediately before `RST 10h`.
 
@@ -106,59 +106,59 @@ TECM8-managed virtual filesystem inside a FAT32 container file.
 
 | Call | TECM8 wrapper | Purpose |
 | ---: | --- | --- |
-| existing/direct | `TECM8_BIOS_SD_INIT` | Initialize SD hardware and verify card readiness. |
-| existing/direct | `TECM8_BIOS_FAT_MOUNT` | Mount the FAT32 volume and cache needed geometry. |
-| existing/direct | `TECM8_BIOS_FILE_OPEN` | Open a FAT32 file by path/name for sector access. |
-| existing/direct | `TECM8_BIOS_FILE_READ_SECTOR` | Read a 512-byte sector from the open file. |
-| existing/direct | `TECM8_BIOS_FILE_WRITE_SECTOR` | Write a 512-byte sector to the open file. |
-| extension | `TECM8_BIOS_FILE_CLOSE` | Close or invalidate the current file handle. |
+| existing/direct | `BiosSdInit` | Initialize SD hardware and verify card readiness. |
+| existing/direct | `BiosFatMount` | Mount the FAT32 volume and cache needed geometry. |
+| existing/direct | `BiosFileOpen` | Open a FAT32 file by path/name for sector access. |
+| existing/direct | `BiosFileReadSector` | Read a 512-byte sector from the open file. |
+| existing/direct | `BiosFileWriteSector` | Write a 512-byte sector to the open file. |
+| extension | `BiosFileClose` | Close or invalidate the current file handle. |
 
 Draft contracts:
 
 ```text
-TECM8_BIOS_SD_INIT
+BiosSdInit
   in:  none
   out: carry clear on ready
        carry set, A = error
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_FAT_MOUNT
+BiosFatMount
   in:  none
   out: carry clear on mounted
        carry set, A = error
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_FILE_OPEN
+BiosFileOpen
   in:  HL = NUL-terminated FAT32 filename/path
   out: carry clear on open
        carry set, A = error
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_FILE_READ_SECTOR
+BiosFileReadSector
   in:  HLDE = byte offset within open file, 512-byte aligned
   out: carry clear on read
        sector bytes loaded into MON3-compatible DISK_BUFF
        carry set, A = error
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_FILE_WRITE_SECTOR
+BiosFileWriteSector
   in:  HLDE = byte offset within open file, 512-byte aligned
        sector bytes already staged in MON3-compatible DISK_BUFF
   out: carry clear on write
        carry set, A = error
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_FILE_CLOSE
+BiosFileClose
   in:  none
   out: carry clear
   clobbers: A, flags
 ```
 
-The current source interface is [src/tecm8-bios.asmi](../src/tecm8-bios.asmi).
-The first implementation module is [src/tecm8-bios.asm](../src/tecm8-bios.asm),
-which currently keeps the storage wrappers as thin MON3-compatible calls. The
-interface intentionally starts with direct MON3-compatible storage contracts and
-wrapper contracts. It does not duplicate every RST-numbered MON3 API call.
+The current external interface is [src/mon3.asmi](../src/mon3.asmi). The first
+implementation module is [src/tecm8-bios.asm](../src/tecm8-bios.asm), which
+currently keeps the storage wrappers as thin MON3-compatible calls. TECM8-owned
+wrapper contracts live in local AZMDoc `;!` blocks, not duplicate interface
+files.
 
 Open issue: current TECM8 proof code relies on MON3's fixed `DISK_BUFF`. A
 future wrapper could add caller-supplied buffers, but the compatibility layer
@@ -180,45 +180,45 @@ layer.
 
 | Call | TECM8 wrapper | MON3 continuity |
 | ---: | --- | --- |
-| existing | `TECM8_BIOS_DISPLAY_INIT` | Initializes MON3's GLCD terminal path. |
-| existing | `TECM8_BIOS_DISPLAY_CLEAR` | Reinitializes/clears the MON3 GLCD terminal buffer. |
-| existing/extension | `TECM8_BIOS_DISPLAY_SET_CURSOR` | Uses MON3 graphics cursor coordinates. |
-| existing | `TECM8_BIOS_DISPLAY_PUT_CHAR` | Sends one character through the MON3 GLCD terminal. |
-| existing | `TECM8_BIOS_DISPLAY_PUT_STRING` | Sends a NUL-terminated string through the MON3 GLCD terminal. |
-| existing/extension | `TECM8_BIOS_DISPLAY_DRAW_CHAR_AT` | Draws one 6x6 GLCD font character at pixel coordinates without terminal scrollback. |
-| existing | `TECM8_BIOS_DISPLAY_UPDATE` | Plots the current MON3 GLCD viewport to the display. |
-| existing | `TECM8_BIOS_DISPLAY_SET_BITMAP_MODE` | Selects MON3 GLCD graphics mode for bitmap operations. |
+| existing | `BiosDisplayInit` | Initializes MON3's GLCD terminal path. |
+| existing | `BiosDisplayClear` | Reinitializes/clears the MON3 GLCD terminal buffer. |
+| existing/extension | `BiosDisplaySetCursor` | Uses MON3 graphics cursor coordinates. |
+| existing | `BiosDisplayPutChar` | Sends one character through the MON3 GLCD terminal. |
+| existing | `BiosDisplayPutString` | Sends a NUL-terminated string through the MON3 GLCD terminal. |
+| existing/extension | `BiosDisplayDrawCharAt` | Draws one 6x6 GLCD font character at pixel coordinates without terminal scrollback. |
+| existing | `BiosDisplayUpdate` | Plots the current MON3 GLCD viewport to the display. |
+| existing | `BiosDisplaySetBitmapMode` | Selects MON3 GLCD graphics mode for bitmap operations. |
 
 Current prototype contracts:
 
 ```text
-TECM8_BIOS_DISPLAY_INIT
+BiosDisplayInit
   in:  none
   out: carry clear on ready
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_CLEAR
+BiosDisplayClear
   in:  none
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_SET_CURSOR
+BiosDisplaySetCursor
   in:  B = X pixel
        C = Y pixel
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_PUT_CHAR
+BiosDisplayPutChar
   in:  A = ASCII character
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_PUT_STRING
+BiosDisplayPutString
   in:  HL = NUL-terminated ASCII string
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_DRAW_CHAR_AT
+BiosDisplayDrawCharAt
   in:  A = ASCII character
        B = X pixel
        C = Y pixel
@@ -226,19 +226,19 @@ TECM8_BIOS_DISPLAY_DRAW_CHAR_AT
        carry set, A = range error if B >= 128 or C >= 64
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_UPDATE
+BiosDisplayUpdate
   in:  none
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 
-TECM8_BIOS_DISPLAY_SET_BITMAP_MODE
+BiosDisplaySetBitmapMode
   in:  none
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 ```
 
 Most current MON3-backed display wrappers are success-only and clear carry after
-returning from MON3. `TECM8_BIOS_DISPLAY_DRAW_CHAR_AT` is the current exception:
+returning from MON3. `BiosDisplayDrawCharAt` is the current exception:
 it performs wrapper-level coordinate validation and returns carry set with a
 compact range error before calling MON3 when the requested pixel position is
 outside the 128x64 GLCD area. A later TECM8-native display driver can add more
@@ -246,7 +246,7 @@ meaningful carry-set errors if it has detectable failure modes.
 
 Legacy `TECM8_BIOS_GLCD_*` names may remain useful as aliases if direct MON3
 compatibility becomes valuable, but new TECM8 code should prefer the
-`TECM8_BIOS_DISPLAY_*` contract.
+`BiosDisplay*` contract.
 
 RAM note: MON3's GLCD library effectively uses `0A00h-17FFh` as a video
 workspace, a 3584-byte 3.5 KiB range containing a full graphics buffer,
@@ -334,8 +334,8 @@ unrelated bits.
 | ---: | --- | --- |
 | `50h` | `TECM8_BIOS_SYS_GET` | Return cached system control state. |
 | `51h` | `TECM8_BIOS_SYS_SET` | Set masked system control bits. |
-| `52h` | `TECM8_BIOS_BANK_SELECT` | Select expansion bank. |
-| `53h` | `TECM8_BIOS_BANK_CALL` | Call a routine through the banked window. |
+| `52h` | `BiosBankSelect` | Select expansion bank. |
+| `53h` | `BiosBankCall` | Call a routine through the banked window. |
 | `54h` | `TECM8_BIOS_PROTECT_SET` | Enable or disable protect mode. |
 | `55h` | `TECM8_BIOS_SHADOW_SET` | Enable or disable shadow mode. |
 
@@ -353,13 +353,13 @@ TECM8_BIOS_SYS_SET
   out: A = resulting SYS_CTRL byte
   clobbers: A, flags
 
-TECM8_BIOS_BANK_SELECT
+BiosBankSelect
   in:  A = bank number
   out: carry clear on selected
        carry set, A = error
   clobbers: A, flags
 
-TECM8_BIOS_BANK_CALL
+BiosBankCall
   in:  A = bank number
        HL = routine address inside 8000h-BFFFh window
   out: returns from banked routine with original bank restored
@@ -479,4 +479,5 @@ Draft common error codes:
   system layer.
 - Whether the compact LCD menu launcher belongs in compatibility services or
   resident TECM8 services.
-- How much of this API should be mirrored in `.asmi` files before code exists.
+- How much of this API should be mirrored in `.asmi` files before external code
+  exists.

@@ -5,9 +5,9 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
-PathOutLen      .equ     64
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
+PATH_OUT_LEN      .equ     64
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
@@ -257,7 +257,7 @@ PathOutLen      .equ     64
         LD      A,34
         LD      (CaseMarker),A
         LD      HL,CmdInputEditCr
-        LD      C,CmdInputEditCrLen
+        LD      C,CMD_INPUT_EDIT_CR_LEN
         LD      DE,CmdEdit
         LD      A,SHELL_CMD_EDIT
         CALL    AssertShellInputOk
@@ -266,7 +266,7 @@ PathOutLen      .equ     64
         LD      A,35
         LD      (CaseMarker),A
         LD      HL,CmdInputAsmLf
-        LD      C,CmdInputAsmLfLen
+        LD      C,CMD_INPUT_ASM_LF_LEN
         LD      DE,CmdAsmTest
         LD      A,SHELL_CMD_ASM
         CALL    AssertShellInputOk
@@ -275,7 +275,7 @@ PathOutLen      .equ     64
         LD      A,36
         LD      (CaseMarker),A
         LD      HL,CmdInputBadCr
-        LD      C,CmdInputBadCrLen
+        LD      C,CMD_INPUT_BAD_CR_LEN
         LD      A,SHELL_ERR_UNKNOWN
         CALL    AssertShellInputErr
         JP      C,ProofFailed
@@ -283,7 +283,7 @@ PathOutLen      .equ     64
         LD      A,37
         LD      (CaseMarker),A
         LD      HL,CmdInputMaxRun
-        LD      C,CmdInputMaxRunLen
+        LD      C,CMD_INPUT_MAX_RUN_LEN
         LD      DE,CmdInputMaxRun
         LD      A,SHELL_CMD_RUN
         CALL    AssertShellInputOk
@@ -298,7 +298,7 @@ PathOutLen      .equ     64
         LD      A,39
         LD      (CaseMarker),A
         LD      HL,CmdInputLong
-        LD      C,CmdInputLongLen
+        LD      C,CMD_INPUT_LONG_LEN
         LD      A,SHELL_ERR_LONG
         CALL    AssertShellInputErr
         JP      C,ProofFailed
@@ -306,7 +306,7 @@ PathOutLen      .equ     64
         LD      A,40
         LD      (CaseMarker),A
         LD      HL,CmdInputEditCr
-        LD      C,CmdInputEditCrLen
+        LD      C,CMD_INPUT_EDIT_CR_LEN
         LD      A,SHELL_CMD_EDIT
         CALL    AssertShellPromptOk
         JP      C,ProofFailed
@@ -316,7 +316,7 @@ PathOutLen      .equ     64
         XOR     A
         LD      (ShellLastExecAction),A
         LD      HL,CmdInputBadCr
-        LD      C,CmdInputBadCrLen
+        LD      C,CMD_INPUT_BAD_CR_LEN
         LD      A,SHELL_ERR_UNKNOWN
         CALL    AssertShellPromptErr
         JP      C,ProofFailed
@@ -326,7 +326,7 @@ PathOutLen      .equ     64
         XOR     A
         LD      (ShellLastExecAction),A
         LD      HL,CmdInputLong
-        LD      C,CmdInputLongLen
+        LD      C,CMD_INPUT_LONG_LEN
         LD      A,SHELL_ERR_LONG
         CALL    AssertShellPromptErr
         JP      C,ProofFailed
@@ -334,7 +334,7 @@ PathOutLen      .equ     64
         LD      A,43
         LD      (CaseMarker),A
         LD      HL,KeyEditText
-        LD      C,CmdEditTextLen
+        LD      C,CMD_EDIT_TEXT_LEN
         LD      DE,CmdEditText
         LD      A,SHELL_CMD_EDIT
         CALL    AssertShellProgramEntryOk
@@ -343,7 +343,7 @@ PathOutLen      .equ     64
         LD      A,44
         LD      (CaseMarker),A
         LD      HL,KeyEditBackspace
-        LD      C,CmdEditTextLen
+        LD      C,CMD_EDIT_TEXT_LEN
         LD      DE,CmdEditText
         LD      A,SHELL_CMD_EDIT
         CALL    AssertShellProgramEntryOk
@@ -352,7 +352,7 @@ PathOutLen      .equ     64
         LD      A,45
         LD      (CaseMarker),A
         LD      HL,KeyInputMaxRun
-        LD      C,CmdInputMaxRunLen
+        LD      C,CMD_INPUT_MAX_RUN_LEN
         LD      DE,CmdInputMaxRun
         LD      A,SHELL_CMD_RUN
         CALL    AssertShellProgramEntryOk
@@ -363,7 +363,7 @@ PathOutLen      .equ     64
         LD      A,SHELL_CMD_EDIT
         LD      (ShellLastExecAction),A
         LD      HL,KeyBadText
-        LD      C,CmdBadTextLen
+        LD      C,CMD_BAD_TEXT_LEN
         LD      DE,CmdBadText
         LD      A,SHELL_ERR_UNKNOWN
         CALL    AssertShellProgramEntryErr
@@ -383,7 +383,7 @@ PathOutLen      .equ     64
         LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellCommand
         JP      NC,ProofFailed
         CP      SHELL_ERR_UNKNOWN
@@ -393,7 +393,7 @@ PathOutLen      .equ     64
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellCommand
         JP      NC,ProofFailed
         CP      SHELL_ERR_UNKNOWN
@@ -403,7 +403,7 @@ PathOutLen      .equ     64
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellCommand
         JP      NC,ProofFailed
         CP      SHELL_ERR_UNKNOWN
@@ -424,12 +424,12 @@ PathOutLen      .equ     64
         CALL    AssertDefaultCommandReloadsAfterFailure
         JP      C,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
         HALT
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
         HALT
 
@@ -443,7 +443,7 @@ ProofFailed:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
         LD      DE,PathOut
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellCommand
         RET     C
 
@@ -473,7 +473,7 @@ AssertCommandBad:
         LD      (ExpectedOutputPtr),BC
         LD      (ExpectedMapPtr),IX
         LD      DE,BuildRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellAsmRequest
         RET     C
 
@@ -483,12 +483,12 @@ AssertCommandBad:
         RET     C
 
         LD      HL,(ExpectedOutputPtr)
-        LD      DE,BuildRequest + PathOutLen
+        LD      DE,BuildRequest + PATH_OUT_LEN
         CALL    AssertString
         RET     C
 
         LD      HL,(ExpectedMapPtr)
-        LD      DE,BuildRequest + PathOutLen + PathOutLen
+        LD      DE,BuildRequest + PATH_OUT_LEN + PATH_OUT_LEN
         CALL    AssertString
         RET
 
@@ -500,7 +500,7 @@ AssertCommandBad:
 ;!      clobbers  BC,DE,L
 @AssertAsmRequestSyntaxErr:
         LD      DE,BuildRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellAsmRequest
         JR      NC,AssertAsmRequestSyntaxBad
         CP      SHELL_ERR_SYNTAX
@@ -520,7 +520,7 @@ AssertAsmRequestSyntaxBad:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
         LD      DE,RunRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellRunRequest
         RET     C
 
@@ -552,7 +552,7 @@ AssertRunRequestBad:
 ;!      clobbers  BC,DE,HL
 @AssertRunRequestSyntaxErr:
         LD      DE,RunRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellRunRequest
         JR      NC,AssertRunRequestSyntaxBad
         CP      SHELL_ERR_SYNTAX
@@ -572,7 +572,7 @@ AssertRunRequestSyntaxBad:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
         LD      DE,EditRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellEditRequest
         RET     C
 
@@ -604,7 +604,7 @@ AssertEditRequestBad:
 ;!      clobbers  BC,DE,HL
 @AssertEditRequestSyntaxErr:
         LD      DE,EditRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellEditRequest
         JR      NC,AssertEditRequestSyntaxBad
         CP      SHELL_ERR_SYNTAX
@@ -627,7 +627,7 @@ AssertEditRequestSyntaxBad:
         LD      (ExpectedMode),A
         LD      (ExpectedPathPtr),DE
         LD      DE,DispatchRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    DispatchShellCommand
         RET     C
 
@@ -669,7 +669,7 @@ AssertDispatchModePathBad:
         LD      (ExpectedOutputPtr),BC
         LD      (ExpectedMapPtr),IX
         LD      DE,DispatchRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    DispatchShellCommand
         RET     C
 
@@ -686,12 +686,12 @@ AssertDispatchModePathBad:
         RET     C
 
         LD      HL,(ExpectedOutputPtr)
-        LD      DE,DispatchRequest + 1 + PathOutLen
+        LD      DE,DispatchRequest + 1 + PATH_OUT_LEN
         CALL    AssertString
         RET     C
 
         LD      HL,(ExpectedMapPtr)
-        LD      DE,DispatchRequest + 1 + PathOutLen + PathOutLen
+        LD      DE,DispatchRequest + 1 + PATH_OUT_LEN + PATH_OUT_LEN
         CALL    AssertString
         RET
 
@@ -707,7 +707,7 @@ AssertDispatchAsmBad:
 ;!      clobbers  BC,DE,HL
 @AssertDispatchUnknownErr:
         LD      DE,DispatchRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    DispatchShellCommand
         JR      NC,AssertDispatchUnknownBad
         CP      SHELL_ERR_UNKNOWN
@@ -726,7 +726,7 @@ AssertDispatchUnknownBad:
 @AssertExecuteDispatch:
         LD      (ExpectedAction),A
         LD      DE,DispatchRequest
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    DispatchShellCommand
         RET     C
 
@@ -1118,7 +1118,7 @@ AssertShellProgramEntryDefaultBad:
         JR      C,AssertShellLineSeedClampedBad
 
         LD      HL,(ShellKeySeedPtr)
-        LD      DE,KeyInputLong + CmdInputLongLen + 1
+        LD      DE,KeyInputLong + CMD_INPUT_LONG_LEN + 1
         OR      A
         SBC     HL,DE
         JR      NZ,AssertShellLineSeedClampedBad
@@ -1222,7 +1222,7 @@ AssertExplicitCommandSkipsProjectLoadBad:
 
         LD      HL,CmdEdit
         LD      DE,PathOut
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ResolveShellCommand
         JR      NC,AssertDefaultCommandReloadsAfterFailureBad
         CP      SHELL_ERR_PROJECT
@@ -1267,7 +1267,7 @@ AssertDefaultCommandReloadsAfterFailureBad:
 @AssertDerivedMap:
         LD      (ExpectedPathPtr),DE
         LD      DE,PathOut
-        LD      B,PathOutLen
+        LD      B,PATH_OUT_LEN
         CALL    ShellDeriveBuildMap
         RET     C
 
@@ -1391,14 +1391,14 @@ KeyEditBackspace:
 
 CmdEditText:
         .db     "edit"
-CmdEditTextLen .equ       4
+CMD_EDIT_TEXT_LEN .equ       4
 
 KeyBadText:
         .db     "list",0x0D
 
 CmdBadText:
         .db     "list"
-CmdBadTextLen .equ        4
+CMD_BAD_TEXT_LEN .equ        4
 
 CmdEditDraw:
         .db     "edit draw",0
@@ -1423,19 +1423,19 @@ CmdArun:
 
 CmdInputEditCr:
         .db     "edit",0x0D,"ignored",0
-CmdInputEditCrLen .equ     12
+CMD_INPUT_EDIT_CR_LEN .equ     12
 
 CmdInputAsmLf:
         .db     "asm test",0x0A,"ignored",0
-CmdInputAsmLfLen .equ      16
+CMD_INPUT_ASM_LF_LEN .equ      16
 
 CmdInputBadCr:
         .db     "list",0x0D,0
-CmdInputBadCrLen .equ      5
+CMD_INPUT_BAD_CR_LEN .equ      5
 
 CmdInputMaxRun:
         .db     "run /build/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKL.bin",0
-CmdInputMaxRunLen .equ     63
+CMD_INPUT_MAX_RUN_LEN .equ     63
 
 KeyInputMaxRun:
         .db     "run /build/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKL.bin",0x0D
@@ -1443,7 +1443,7 @@ KeyInputMaxRun:
 CmdInputLong:
         .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-CmdInputLongLen .equ       64
+CMD_INPUT_LONG_LEN .equ       64
 
 KeyInputLong:
         .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -1501,16 +1501,16 @@ CaseMarker:
         .db     0
 
 PathOut:
-        .ds     PathOutLen
+        .ds     PATH_OUT_LEN
 
 BuildRequest:
-        .ds     PathOutLen * 3
+        .ds     PATH_OUT_LEN * 3
 
 RunRequest:
-        .ds     PathOutLen + 1
+        .ds     PATH_OUT_LEN + 1
 
 EditRequest:
-        .ds     PathOutLen + 1
+        .ds     PATH_OUT_LEN + 1
 
 DispatchRequest:
-        .ds     1 + PathOutLen * 3
+        .ds     1 + PATH_OUT_LEN * 3

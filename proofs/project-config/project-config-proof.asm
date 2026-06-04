@@ -1,21 +1,21 @@
 ; Project config parser proof.
 ;
 ; Assembled by tools/run-project-config-proof.ts, then run in the Debug80 Z80
-; runtime. The proof succeeds when ResultMarker is ProofPass and MainPathOut is
+; runtime. The proof succeeds when ResultMarker is PROOF_PASS and MainPathOut is
 ; "/src/main.asm".
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
-MainPathOutLen  .equ     64
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
+MAIN_PATH_OUT_LEN  .equ     64
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
         LD      HL,GoodProjectConfig
         LD      DE,MainPathOut
-        LD      B,MainPathOutLen
+        LD      B,MAIN_PATH_OUT_LEN
         CALL    ParseProjectConfig
         JR      C,ProofFailed
 
@@ -24,12 +24,12 @@ MainPathOutLen  .equ     64
         CALL    AssertString
         JR      C,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
         HALT
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
         HALT
 
@@ -67,4 +67,4 @@ ResultMarker:
         .db     0
 
 MainPathOut:
-        .ds     MainPathOutLen
+        .ds     MAIN_PATH_OUT_LEN

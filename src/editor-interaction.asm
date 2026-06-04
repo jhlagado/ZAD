@@ -29,29 +29,29 @@ TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
 TECM8_EDITOR_EDIT_RECORD_BYTES          .equ    32
 TECM8_EDITOR_EDIT_RECORD_TEXT_MAX       .equ    31
 
-; TECM8_EDITOR_CURSOR_RESET -
+; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
-@TECM8_EDITOR_CURSOR_RESET:
+@EditorCursorReset:
         XOR     A
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
         RET
 
-; TECM8_EDITOR_RENDER_CURSOR -
+; EditorRenderCursor -
 ; Overlay the logical cursor when it is inside the visible edit pane.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_RENDER_CURSOR:
+@EditorRenderCursor:
         LD      A,(EditorCursorRendered)
         OR      A
         JR      Z,EditorCursorRenderCheckVisible
         LD      A,(EditorCursorRenderedCol)
         LD      C,A
         LD      A,(EditorCursorRenderedRow)
-        CALL    TECM8_DISPLAY_ERASE_CURSOR_CELL
+        CALL    DisplayEraseCursorCell
         RET     C
         XOR     A
         LD      (EditorCursorRendered),A
@@ -64,7 +64,7 @@ EditorCursorRenderCheckVisible:
         LD      A,(EditorCursorRow)
         CP      TECM8_EDITOR_CURSOR_VISIBLE_ROWS
         JR      NC,EditorCursorRenderDone
-        CALL    TECM8_DISPLAY_RENDER_CURSOR_CELL
+        CALL    DisplayRenderCursorCell
         RET     C
         LD      A,(EditorCursorRow)
         LD      (EditorCursorRenderedRow),A
@@ -77,7 +77,7 @@ EditorCursorRenderDone:
         XOR     A
         RET
 
-; TECM8_EDITOR_RUN_KEYS -
+; EditorRunKeys -
 ; Consume a NUL-terminated key stream. In command mode, `d`/`u` page and
 ; `h`/`j`/`k`/`l` move the visible cursor. TAB enters insert mode for this
 ; stream, printable ASCII inserts, backspace deletes before the cursor, delete
@@ -88,7 +88,7 @@ EditorCursorRenderDone:
 ;!      in        HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_RUN_KEYS:
+@EditorRunKeys:
         LD      (EditorKeyStreamPtr),HL
         XOR     A
         LD      (EditorInsertMode),A
@@ -165,14 +165,14 @@ EditorKeyInsertMode:
         JP      EditorKeyLoop
 
 EditorKeyPageDown:
-        CALL    TECM8_EDITOR_PAGE_DOWN
+        CALL    EditorPageDown
         JR      C,EditorKeyNavigationErr
         XOR     A
         LD      (EditorCursorRendered),A
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
-        CALL    TECM8_EDITOR_PAGE_UP
+        CALL    EditorPageUp
         JR      C,EditorKeyNavigationErr
         XOR     A
         LD      (EditorCursorRendered),A
@@ -220,43 +220,43 @@ EditorKeyCursorRight:
 
 EditorKeyInsertPrintable:
         LD      A,(EditorPendingChar)
-        CALL    TECM8_EDITOR_INSERT_CHAR
+        CALL    EditorInsertChar
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
 
 EditorKeySplitLine:
-        CALL    TECM8_EDITOR_SPLIT_LINE
+        CALL    EditorSplitLine
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
 
 EditorKeyBackspace:
-        CALL    TECM8_EDITOR_BACKSPACE_CHAR
+        CALL    EditorBackspaceChar
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
 
 EditorKeyDelete:
-        CALL    TECM8_EDITOR_DELETE_CHAR
+        CALL    EditorDeleteChar
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
 
 EditorKeyDone:
-        CALL    TECM8_EDITOR_RENDER_CURSOR
+        CALL    EditorRenderCursor
         RET
 
-; TECM8_EDITOR_INSERT_CHAR -
+; EditorInsertChar -
 ; Insert printable A into the current fixed-width source record.
 ;!      in        A
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_INSERT_CHAR:
+@EditorInsertChar:
         LD      (EditorPendingChar),A
         CALL    EditorKeyCurrentRecord
         LD      A,(HL)
@@ -313,29 +313,29 @@ EditorInsertDone:
         XOR     A
         RET
 
-; TECM8_EDITOR_BACKSPACE_CHAR -
+; EditorBackspaceChar -
 ; Delete the character before the cursor in the current source record.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_BACKSPACE_CHAR:
+@EditorBackspaceChar:
         LD      A,(EditorCursorCol)
         OR      A
-        JP      Z,TECM8_EDITOR_JOIN_PREVIOUS_LINE
+        JP      Z,EditorJoinPreviousLine
         DEC     A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_DELETE_CHAR
+        CALL    EditorDeleteChar
         RET
 
 EditorBackspaceDone:
         XOR     A
         RET
 
-; TECM8_EDITOR_SPLIT_LINE -
+; EditorSplitLine -
 ; Split the current fixed-width source record at the cursor. The split is a
 ; no-op when the cursor is on the final page row or the final record is in use.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_SPLIT_LINE:
+@EditorSplitLine:
         LD      A,(EditorCursorRow)
         CP      15
         JP      NC,EditorSplitDone
@@ -449,12 +449,12 @@ EditorSplitDone:
         XOR     A
         RET
 
-; TECM8_EDITOR_JOIN_PREVIOUS_LINE -
+; EditorJoinPreviousLine -
 ; Join the current record into the previous one when the cursor is at column 0.
 ; The join is a no-op on row 0 or when the combined text would exceed 31 bytes.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_JOIN_PREVIOUS_LINE:
+@EditorJoinPreviousLine:
         LD      A,(EditorCursorCol)
         OR      A
         JP      NZ,EditorJoinDone
@@ -552,11 +552,11 @@ EditorJoinDone:
         XOR     A
         RET
 
-; TECM8_EDITOR_DELETE_CHAR -
+; EditorDeleteChar -
 ; Delete the character at the cursor in the current source record.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_DELETE_CHAR:
+@EditorDeleteChar:
         CALL    EditorKeyCurrentRecord
         LD      A,(HL)
         LD      B,A
@@ -599,7 +599,7 @@ EditorDeleteDone:
 @EditorKeyRenderDirty:
         XOR     A
         LD      (EditorCursorRendered),A
-        CALL    TECM8_EDITOR_RENDER_PAGE_BUFFER
+        CALL    EditorRenderPageBuffer
         RET     C
         XOR     A
         RET

@@ -21,85 +21,85 @@ DISK_BUFF         .equ 0600H
 
         .org 4000H
 
-start:
+Start:
         ; Open host-created root file VOLUME.TM8.
-        ld hl,volume_name
-        call MON3_OPEN_FILE
+        LD HL,VolumeName
+        CALL MON3_OPEN_FILE
 
         ; File-relative sector 0: proposed TECM8 superblock.
-        ld hl,0000H
-        ld de,0000H
-        call read_sector
-        ld hl,marker_superblock
-        ld bc,marker_superblock_end-marker_superblock
-        call write_marker
+        LD HL,0000H
+        LD DE,0000H
+        CALL ReadSector
+        LD HL,MarkerSuperblock
+        LD BC,MarkerSuperblockEnd-MarkerSuperblock
+        CALL WriteMarker
 
         ; File-relative sector 8: proposed TECM8 allocation table block.
-        ld hl,0000H
-        ld de,1000H
-        call read_sector
-        ld hl,marker_alloc
-        ld bc,marker_alloc_end-marker_alloc
-        call write_marker
+        LD HL,0000H
+        LD DE,1000H
+        CALL ReadSector
+        LD HL,MarkerAlloc
+        LD BC,MarkerAllocEnd-MarkerAlloc
+        CALL WriteMarker
 
         ; File-relative sector 16: first proposed catalog sector.
-        ld hl,0000H
-        ld de,2000H
-        call read_sector
-        ld hl,marker_catalog_first
-        ld bc,marker_catalog_first_end-marker_catalog_first
-        call write_marker
+        LD HL,0000H
+        LD DE,2000H
+        CALL ReadSector
+        LD HL,MarkerCatalogFirst
+        LD BC,MarkerCatalogFirstEnd-MarkerCatalogFirst
+        CALL WriteMarker
 
         ; File-relative sector 79: last proposed catalog sector.
-        ld hl,0000H
-        ld de,9E00H
-        call read_sector
-        ld hl,marker_catalog_last
-        ld bc,marker_catalog_last_end-marker_catalog_last
-        call write_marker
+        LD HL,0000H
+        LD DE,9E00H
+        CALL ReadSector
+        LD HL,MarkerCatalogLast
+        LD BC,MarkerCatalogLastEnd-MarkerCatalogLast
+        CALL WriteMarker
 
         ; File-relative sector 80: first proposed data sector.
-        ld hl,0000H
-        ld de,0A000H
-        call read_sector
-        ld hl,marker_data_first
-        ld bc,marker_data_first_end-marker_data_first
-        call write_marker
+        LD HL,0000H
+        LD DE,0A000H
+        CALL ReadSector
+        LD HL,MarkerDataFirst
+        LD BC,MarkerDataFirstEnd-MarkerDataFirst
+        CALL WriteMarker
 
-done:
-        jp done
+Done:
+        JP Done
 
-read_sector:
+ReadSector:
         ; Input: HLDE = file-relative byte offset.
-        call MON3_READ_SECTOR
-        ret
+        CALL MON3_READ_SECTOR
+        RET
 
-write_marker:
+WriteMarker:
         ; Input: HL = marker, BC = marker length.
-        ld de,DISK_BUFF
-        ldir
-        call MON3_WRITE_SECTOR
-        ret
+        LD DE,DISK_BUFF
+        LDIR
+        CALL MON3_WRITE_SECTOR
+        RET
 
-volume_name:
+VolumeName:
         .db "VOLUME.TM8",0
 
-marker_superblock:
+MarkerSuperblock:
         .db "TM8 MON3 WRITE SUPERBLOCK 0000",0
-marker_superblock_end:
+MarkerSuperblockEnd:
 
-marker_alloc:
+MarkerAlloc:
         .db "TM8 MON3 WRITE ALLOC 0008",0
-marker_alloc_end:
+MarkerAllocEnd:
 
-marker_catalog_first:
+MarkerCatalogFirst:
         .db "TM8 MON3 WRITE CATALOG 0016",0
-marker_catalog_first_end:
+MarkerCatalogFirstEnd:
 
-marker_catalog_last:
+MarkerCatalogLast:
         .db "TM8 MON3 WRITE CATALOG 0079",0
-marker_catalog_last_end:
+MarkerCatalogLastEnd:
 
-marker_data_first:
+MarkerDataFirst:
         .db "TM8 MON3 WRITE DATA 0080",0
-marker_data_first_end:
+MarkerDataFirstEnd:

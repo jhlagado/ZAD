@@ -11,16 +11,17 @@ function readRepoFile(path: string): string {
 
 test('shell editor launcher exposes a contracted edit launch entry', () => {
   const source = readRepoFile('src/shell-editor-launch.asm');
-  const iface = readRepoFile('src/shell-editor-launch.asmi');
 
-  assert.match(source, /^@TECM8_SHELL_RUN_EDITOR_LINE:/m);
-  assert.match(iface, /^extern TECM8_SHELL_RUN_EDITOR_LINE$/m);
+  assert.match(source, /^@ShellRunEditorLine:/m);
+  assert.match(source, /^@ShellRunEditorSession:/m);
+  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@ShellRunEditorLine:/);
+  assert.match(source, /;!\s+in\s+DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@ShellRunEditorSession:/);
   assert.match(source, /CALL\s+RunShellCommandLine/);
   assert.match(source, /LD\s+A,\(ShellLastExecAction\)\n\s+CP\s+SHELL_CMD_EDIT/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_OPEN_PATH/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_CURSOR_RESET/);
+  assert.match(source, /CALL\s+EditorOpenPath/);
+  assert.match(source, /CALL\s+EditorCursorReset/);
   assert.doesNotMatch(source, /LD\s+DE,ShellMainPath/);
-  assert.doesNotMatch(source, /CALL\s+TECM8_EDITOR_OPEN_MAIN/);
+  assert.doesNotMatch(source, /CALL\s+EditorOpenMain/);
 });
 
 test('shell edit navigation proof drives shell command into storage-backed editor', () => {
@@ -29,7 +30,7 @@ test('shell edit navigation proof drives shell command into storage-backed edito
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
 
-  assert.match(proof, /CALL\s+TECM8_SHELL_RUN_EDITOR_LINE/);
+  assert.match(proof, /CALL\s+ShellRunEditorLine/);
   assert.match(proof, /\.include\s+"..\/..\/src\/shell-commands\.asm"/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
   assert.match(proof, /\.include\s+"..\/..\/src\/shell-editor-launch\.asm"/);

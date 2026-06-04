@@ -5,38 +5,38 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_DISPLAY_INIT
+        CALL    DisplayInit
         JR      C,ProofFailed
 
-        CALL    TECM8_EDITOR_OPEN_MAIN
+        CALL    EditorOpenMain
         JR      C,ProofFailed
 
         LD      BC,8 * 256
 
 ProofPageDownLoop:
         PUSH    BC
-        CALL    TECM8_EDITOR_PAGE_DOWN
+        CALL    EditorPageDown
         POP     BC
         JR      C,ProofFailed
         DJNZ    ProofPageDownLoop
 
-        CALL    TECM8_EDITOR_PAGE_UP
+        CALL    EditorPageUp
         JR      C,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
         JP      ProofDone
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

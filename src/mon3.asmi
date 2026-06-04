@@ -1,0 +1,61 @@
+extern MON3_OPEN_FILE
+in HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_READ_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_WRITE_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_CLEAR_GBUF
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_SET_GR_MODE
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_PLOT_TO_LCD
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_INIT_TERMINAL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_SEND_CHAR_TO_LCD
+in C
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_SEND_STRING_TO_LCD
+in C,DE
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_SET_CURSOR
+in B,C
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_GLCD_DRAW_GRAPHIC
+in D
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end

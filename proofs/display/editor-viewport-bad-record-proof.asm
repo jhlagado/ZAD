@@ -4,29 +4,29 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_DISPLAY_INIT
+        CALL    DisplayInit
         JR      C,ProofFailed
 
         LD      HL,BadEditorSourceRecords
-        CALL    TECM8_EDITOR_VIEWPORT_RENDER
+        CALL    EditorViewportRender
         JR      NC,ProofFailed
         CP      TECM8_EDITOR_ERR_RECORD_LENGTH
         JR      NZ,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
         JP      ProofDone
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

@@ -1,7 +1,7 @@
 ; TECM8 structured display model.
 ;
-; This first layer renders editor-style screens through the MON3-backed
-; TECM8_BIOS_DISPLAY_* wrappers. It is a display proof surface, not an editor.
+; This first layer renders editor-style screens through the MON3-backed BIOS
+; display wrappers. It is a display proof surface, not an editor.
 
 TECM8_DISPLAY_GLCD_COLUMNS          .equ    20
 TECM8_DISPLAY_GLCD_ROWS             .equ    10
@@ -24,17 +24,17 @@ TECM8_DISPLAY_CURSOR_PATTERN        .equ    0x80
 
 MON3_TGBUF                          .equ    0x13C0
 
-; TECM8_DISPLAY_INIT -
+; DisplayInit -
 ; Initialize and clear the current display.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_DISPLAY_INIT:
-        CALL    TECM8_BIOS_DISPLAY_INIT
+@DisplayInit:
+        CALL    BiosDisplayInit
         RET     C
-        CALL    TECM8_BIOS_DISPLAY_CLEAR
+        CALL    BiosDisplayClear
         RET
 
-; TECM8_DISPLAY_RENDER_SCREEN -
+; DisplayRenderScreen -
 ; Render a fixed structured screen descriptor.
 ; Input: HL = descriptor:
 ;        dw top text
@@ -43,9 +43,9 @@ MON3_TGBUF                          .equ    0x13C0
 ;!      in        HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_DISPLAY_RENDER_SCREEN:
+@DisplayRenderScreen:
         LD      (DisplayCursor),HL
-        CALL    TECM8_BIOS_DISPLAY_CLEAR
+        CALL    BiosDisplayClear
         RET     C
         LD      HL,(DisplayCursor)
         LD      E,(HL)
@@ -57,7 +57,7 @@ MON3_TGBUF                          .equ    0x13C0
         LD      L,E
         LD      A,TECM8_DISPLAY_TOP_ROW
         LD      C,TECM8_DISPLAY_MARKER_NONE
-        CALL    TECM8_DISPLAY_RENDER_LINE
+        CALL    DisplayRenderLine
         RET     C
 
         LD      A,TECM8_DISPLAY_EDIT_ROWS
@@ -77,7 +77,7 @@ DisplayScreenLoop:
         LD      H,D
         LD      L,E
         LD      A,(DisplayRow)
-        CALL    TECM8_DISPLAY_RENDER_LINE
+        CALL    DisplayRenderLine
         RET     C
         LD      A,(DisplayRow)
         INC     A
@@ -95,19 +95,19 @@ DisplayScreenLoop:
         LD      L,E
         LD      A,TECM8_DISPLAY_BOTTOM_ROW
         LD      C,TECM8_DISPLAY_MARKER_NONE
-        CALL    TECM8_DISPLAY_RENDER_LINE
+        CALL    DisplayRenderLine
         RET
 
-; TECM8_DISPLAY_RENDER_LINE -
+; DisplayRenderLine -
 ; Render one screen row with gutter marker and text.
 ; Input: A = display row, C = marker flags, HL = NUL-terminated text
 ;!      in        A,C,HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_DISPLAY_RENDER_LINE:
+@DisplayRenderLine:
         LD      (DisplayText),HL
         LD      (DisplayRow),A
-        CALL    TECM8_DISPLAY_RENDER_GUTTER
+        CALL    DisplayRenderGutter
         RET     C
         LD      A,(DisplayRow)
         CALL    DisplayRowToPixel
@@ -131,7 +131,7 @@ DisplayTextLoop:
         LD      A,(DisplayTextX)
         LD      B,A
         LD      A,D
-        CALL    TECM8_BIOS_DISPLAY_DRAW_CHAR_AT
+        CALL    BiosDisplayDrawCharAt
         RET     C
         LD      A,(DisplayTextX)
         ADD     A,TECM8_DISPLAY_ROW_HEIGHT
@@ -143,13 +143,13 @@ DisplayTextLoop:
         XOR     A
         RET
 
-; TECM8_DISPLAY_RENDER_GUTTER -
+; DisplayRenderGutter -
 ; Draw a 4-pixel marker in the left gutter for one display row.
 ; Input: A = display row, C = marker flags
 ;!      in        A,C
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_DISPLAY_RENDER_GUTTER:
+@DisplayRenderGutter:
         LD      (DisplayRow),A
         LD      A,C
         OR      A
@@ -201,13 +201,13 @@ DisplayGutterWriteLoop:
         XOR     A
         RET
 
-; TECM8_DISPLAY_RENDER_CURSOR_CELL -
+; DisplayRenderCursorCell -
 ; Overlay a vertical cursor bit for one visible edit-pane cell.
 ; Input: A = edit row (0-7), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_DISPLAY_RENDER_CURSOR_CELL:
+@DisplayRenderCursorCell:
         CP      TECM8_DISPLAY_EDIT_ROWS
         JP      NC,DisplayCursorNoop
         LD      (DisplayCursorCellRow),A
@@ -298,20 +298,20 @@ DisplayCursorWriteLoop:
         LD      (HL),A
         ADD     HL,DE
         DJNZ    DisplayCursorWriteLoop
-        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        CALL    BiosDisplayUpdate
         RET
 
 DisplayCursorNoop:
         XOR     A
         RET
 
-; TECM8_DISPLAY_ERASE_CURSOR_CELL -
+; DisplayEraseCursorCell -
 ; Clear the vertical cursor bit for one visible edit-pane cell.
 ; Input: A = edit row (0-7), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_DISPLAY_ERASE_CURSOR_CELL:
+@DisplayEraseCursorCell:
         CP      TECM8_DISPLAY_EDIT_ROWS
         JP      NC,DisplayCursorEraseNoop
         LD      (DisplayCursorCellRow),A
@@ -397,7 +397,7 @@ DisplayCursorEraseWriteLoop:
         LD      (HL),A
         ADD     HL,DE
         DJNZ    DisplayCursorEraseWriteLoop
-        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        CALL    BiosDisplayUpdate
         RET
 
 DisplayCursorEraseNoop:

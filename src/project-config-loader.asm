@@ -46,7 +46,7 @@ PROJECT_CFG_TEXT_BUF    .equ 0x0A00
         LD      (ProjectLoadMainCap),A
 
         LD      HL,ProjectLoadVolumeName
-        CALL    TECM8_BIOS_FILE_OPEN
+        CALL    BiosFileOpen
         JP      C,ProjectLoadOpenErr
 
         CALL    ProjectLoadReadSuperblock
@@ -80,7 +80,7 @@ ProjectLoadOpenErr:
 @ProjectLoadReadSuperblock:
         LD      HL,0
         LD      DE,0
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         JP      C,ProjectLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -150,7 +150,7 @@ ProjectLoadReadErr:
 ProjectLoadCatalogSector:
         PUSH    DE
         LD      HL,0
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         POP     DE
         JP      C,ProjectLoadReadErr
 
@@ -282,7 +282,7 @@ ProjectLoadBlockErr:
 @ProjectLoadReadConfigText:
         LD      HL,(ProjectLoadFirstBlock)
         CALL    ProjectLoadBlockToOffset
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         JP      C,ProjectLoadReadErr
 
         LD      HL,DISK_BUFF

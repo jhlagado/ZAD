@@ -157,7 +157,8 @@ rewrites:
   still expected.
 - Keep existing service names and call numbering where wrappers or user code
   already rely on them.
-- Keep a documented `.asmi` contract for every BIOS service TECM8 calls.
+- Keep a documented `.asmi` contract for every external BIOS/MON3 service
+  TECM8 calls.
 - Treat MON3 low RAM as BIOS-owned while MON3-compatible storage or GLCD calls
   are active.
 - Preserve enough character LCD, seven-segment, and hex keypad behavior for
@@ -227,7 +228,8 @@ long-term shape:
    measured, consider trimming copy/fill/move UI or other conveniences. Keep
    memory inspect/edit, GO, breakpoint basics, and disassembly unless better
    TECM8 tools exist.
-9. Stable TECM8 BIOS: publish `.asmi` contracts and register-care expectations
+9. Stable TECM8 BIOS: publish `.asmi` contracts for external services and
+   register-contract expectations
    for all resident services, with bank-call conventions for larger tools.
 
 ## Measurement Work Needed

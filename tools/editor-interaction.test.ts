@@ -11,25 +11,22 @@ function readRepoFile(path: string): string {
 
 test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
-  const iface = readRepoFile('src/editor-interaction.asmi');
 
-  assert.match(source, /^@TECM8_EDITOR_RUN_KEYS:/m);
-  assert.match(source, /^@TECM8_EDITOR_CURSOR_RESET:/m);
-  assert.match(source, /^@TECM8_EDITOR_RENDER_CURSOR:/m);
-  assert.match(iface, /^extern TECM8_EDITOR_RUN_KEYS$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_CURSOR_RESET$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_RENDER_CURSOR$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_INSERT_CHAR$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_BACKSPACE_CHAR$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_DELETE_CHAR$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_SPLIT_LINE$/m);
-  assert.match(iface, /^extern TECM8_EDITOR_JOIN_PREVIOUS_LINE$/m);
-  assert.match(iface, /^in HL$/m);
-  assert.match(source, /CALL\s+TECM8_EDITOR_PAGE_DOWN/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_PAGE_UP/);
-  assert.match(source, /CALL\s+TECM8_DISPLAY_RENDER_CURSOR_CELL/);
-  assert.match(source, /CALL\s+TECM8_DISPLAY_ERASE_CURSOR_CELL/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_RENDER_PAGE_BUFFER/);
+  assert.match(source, /^@EditorRunKeys:/m);
+  assert.match(source, /^@EditorCursorReset:/m);
+  assert.match(source, /^@EditorRenderCursor:/m);
+  assert.match(source, /^@EditorInsertChar:/m);
+  assert.match(source, /^@EditorBackspaceChar:/m);
+  assert.match(source, /^@EditorDeleteChar:/m);
+  assert.match(source, /^@EditorSplitLine:/m);
+  assert.match(source, /^@EditorJoinPreviousLine:/m);
+  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
+  assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorInsertChar:/);
+  assert.match(source, /CALL\s+EditorPageDown/);
+  assert.match(source, /CALL\s+EditorPageUp/);
+  assert.match(source, /CALL\s+DisplayRenderCursorCell/);
+  assert.match(source, /CALL\s+DisplayEraseCursorCell/);
+  assert.match(source, /CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorCol:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorRendered:\n\s+\.db\s+0/);
@@ -48,14 +45,14 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyCursorUp:/);
   assert.match(source, /EditorKeyCursorRight:/);
   assert.match(source, /EditorKeyInsertPrintable:/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_INSERT_CHAR/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_BACKSPACE_CHAR/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_DELETE_CHAR/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_SPLIT_LINE/);
-  assert.match(source, /JP\s+Z,TECM8_EDITOR_JOIN_PREVIOUS_LINE/);
+  assert.match(source, /CALL\s+EditorInsertChar/);
+  assert.match(source, /CALL\s+EditorBackspaceChar/);
+  assert.match(source, /CALL\s+EditorDeleteChar/);
+  assert.match(source, /CALL\s+EditorSplitLine/);
+  assert.match(source, /JP\s+Z,EditorJoinPreviousLine/);
   assert.match(source, /@EditorKeyZeroRecordPadding:/);
   assert.match(source, /@EditorKeyClearRecord:/);
-  assert.match(source, /@TECM8_EDITOR_JOIN_PREVIOUS_LINE:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
+  assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
 });
@@ -66,7 +63,7 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
 
-  assert.match(proof, /CALL\s+TECM8_SHELL_RUN_EDITOR_SESSION/);
+  assert.match(proof, /CALL\s+ShellRunEditorSession/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
   assert.match(proof, /\.db\s+"hku"/);
   assert.match(proof, /\.db\s+"ljHKLJHK"/);
@@ -99,10 +96,10 @@ test('editor mutation boundary proof covers fixed-record edge cases', () => {
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
 
-  assert.match(proof, /CALL\s+TECM8_EDITOR_BACKSPACE_CHAR/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_DELETE_CHAR/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_INSERT_CHAR/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_RUN_KEYS/);
+  assert.match(proof, /CALL\s+EditorBackspaceChar/);
+  assert.match(proof, /CALL\s+EditorDeleteChar/);
+  assert.match(proof, /CALL\s+EditorInsertChar/);
+  assert.match(proof, /CALL\s+EditorRunKeys/);
   assert.match(proof, /BoundaryRecord0:\n\s+\.db\s+0/);
   assert.match(proof, /BoundaryRecord1:\n\s+\.db\s+31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
   assert.match(proof, /BoundaryReservedKeys:\n\s+\.db\s+9,"dl",0/);
@@ -133,9 +130,9 @@ test('editor line editing proof covers split and join behavior', () => {
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
 
-  assert.match(proof, /CALL\s+TECM8_EDITOR_SPLIT_LINE/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_BACKSPACE_CHAR/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_RUN_KEYS/);
+  assert.match(proof, /CALL\s+EditorSplitLine/);
+  assert.match(proof, /CALL\s+EditorBackspaceChar/);
+  assert.match(proof, /CALL\s+EditorRunKeys/);
   assert.match(proof, /LineEditNewlineKey:\n\s+\.db\s+13,0/);
   assert.match(proof, /LineEditRecord0:\n\s+\.db\s+5,"HELLO"/);
   assert.match(proof, /LineEditRecord6:\n\s+\.db\s+31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);

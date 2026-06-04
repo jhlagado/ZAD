@@ -11,19 +11,19 @@ function readRepoFile(path: string): string {
 
 test('editor navigation module exposes open, render, and page movement entries', () => {
   const source = readRepoFile('src/editor-navigation.asm');
-  const iface = readRepoFile('src/editor-navigation.asmi');
 
   for (const name of [
-    'TECM8_EDITOR_OPEN_MAIN',
-    'TECM8_EDITOR_OPEN_PATH',
-    'TECM8_EDITOR_RENDER_CURRENT',
-    'TECM8_EDITOR_RENDER_PAGE_BUFFER',
-    'TECM8_EDITOR_PAGE_DOWN',
-    'TECM8_EDITOR_PAGE_UP',
+    'EditorOpenMain',
+    'EditorOpenPath',
+    'EditorRenderCurrent',
+    'EditorRenderPageBuffer',
+    'EditorPageDown',
+    'EditorPageUp',
   ]) {
     assert.match(source, new RegExp(`^@${name}:`, 'm'));
-    assert.match(iface, new RegExp(`^extern ${name}$`, 'm'));
   }
+  assert.match(source, /;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorOpenMain:/);
+  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorOpenPath:/);
 
   assert.match(source, /EditorNavCurrentPage:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavPageBuffer:\n\s+\.ds\s+512/);
@@ -33,13 +33,13 @@ test('editor navigation commits page movement only after successful render', () 
   const source = readRepoFile('src/editor-navigation.asm');
 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_LOAD_SOURCE_PAGE/);
-  assert.match(source, /JP\s+TECM8_EDITOR_RENDER_PAGE_BUFFER/);
+  assert.match(source, /CALL\s+EditorLoadSourcePage/);
+  assert.match(source, /JP\s+EditorRenderPageBuffer/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
   assert.match(source, /CALL\s+EditorNavCopyPath/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_VIEWPORT_RENDER/);
-  assert.match(source, /CALL\s+TECM8_BIOS_DISPLAY_UPDATE/);
+  assert.match(source, /CALL\s+EditorViewportRender/);
+  assert.match(source, /CALL\s+BiosDisplayUpdate/);
   assert.match(source, /TECM8_EDITOR_NAV_ERR_PAGE\s+\.equ\s+0x50/);
 });
 
@@ -49,9 +49,9 @@ test('editor navigation proof drives page state over storage-backed source', () 
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
 
-  assert.match(proof, /CALL\s+TECM8_EDITOR_OPEN_MAIN/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_PAGE_DOWN/);
-  assert.match(proof, /CALL\s+TECM8_EDITOR_PAGE_UP/);
+  assert.match(proof, /CALL\s+EditorOpenMain/);
+  assert.match(proof, /CALL\s+EditorPageDown/);
+  assert.match(proof, /CALL\s+EditorPageUp/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-navigation\.asm"/);
   assert.match(runner, /editor-navigation-proof/);
   assert.match(runner, /verifyNavigationProof/);

@@ -6,34 +6,34 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 MON3_VPORT      .equ     0x0E13
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_DISPLAY_INIT
+        CALL    DisplayInit
         JR      C,ProofFailed
 
         LD      HL,0x1000
         LD      (MON3_VPORT),HL
 
         LD      HL,StructuredScreen
-        CALL    TECM8_DISPLAY_RENDER_SCREEN
+        CALL    DisplayRenderScreen
         JR      C,ProofFailed
 
-        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        CALL    BiosDisplayUpdate
         JR      C,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
         JP      ProofDone
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

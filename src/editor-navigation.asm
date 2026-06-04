@@ -6,20 +6,20 @@ TECM8_EDITOR_NAV_ERR_PAGE       .equ    0x50
 TECM8_EDITOR_NAV_ERR_PATH       .equ    0x51
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 
-; TECM8_EDITOR_OPEN_MAIN -
+; EditorOpenMain -
 ; Reset navigation to page 0 and render /src/main.asm.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_OPEN_MAIN:
+@EditorOpenMain:
         LD      HL,EditorNavMainPath
-        JP      TECM8_EDITOR_OPEN_PATH
+        JP      EditorOpenPath
 
-; TECM8_EDITOR_OPEN_PATH -
+; EditorOpenPath -
 ; Reset navigation to page 0 and render the source file at HL.
 ;!      in        HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_OPEN_PATH:
+@EditorOpenPath:
         LD      DE,EditorNavPathBuffer
         LD      B,TECM8_EDITOR_NAV_PATH_LEN
         CALL    EditorNavCopyPath
@@ -28,32 +28,32 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      (EditorNavPathPtr),HL
         XOR     A
         LD      (EditorNavCurrentPage),A
-        JP      TECM8_EDITOR_RENDER_CURRENT
+        JP      EditorRenderCurrent
 
-; TECM8_EDITOR_RENDER_CURRENT -
+; EditorRenderCurrent -
 ; Load and render the current page.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_RENDER_CURRENT:
+@EditorRenderCurrent:
         LD      A,(EditorNavCurrentPage)
         JP      EditorNavRenderPage
 
-; TECM8_EDITOR_RENDER_PAGE_BUFFER -
+; EditorRenderPageBuffer -
 ; Render the already-loaded page buffer without reloading it from storage.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_RENDER_PAGE_BUFFER:
+@EditorRenderPageBuffer:
         LD      HL,EditorNavPageBuffer
-        CALL    TECM8_EDITOR_VIEWPORT_RENDER
+        CALL    EditorViewportRender
         RET     C
-        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        CALL    BiosDisplayUpdate
         RET
 
-; TECM8_EDITOR_PAGE_DOWN -
+; EditorPageDown -
 ; Advance one page, render it, and commit the page only if rendering succeeds.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_PAGE_DOWN:
+@EditorPageDown:
         LD      A,(EditorNavCurrentPage)
         CP      127
         JR      Z,EditorNavPageErr
@@ -66,11 +66,11 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         XOR     A
         RET
 
-; TECM8_EDITOR_PAGE_UP -
+; EditorPageUp -
 ; Move back one page, render it, and commit the page only if rendering succeeds.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_PAGE_UP:
+@EditorPageUp:
         LD      A,(EditorNavCurrentPage)
         OR      A
         JR      Z,EditorNavPageErr
@@ -89,9 +89,9 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 @EditorNavRenderPage:
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
-        CALL    TECM8_EDITOR_LOAD_SOURCE_PAGE
+        CALL    EditorLoadSourcePage
         RET     C
-        JP      TECM8_EDITOR_RENDER_PAGE_BUFFER
+        JP      EditorRenderPageBuffer
 
 EditorNavPageErr:
         LD      A,TECM8_EDITOR_NAV_ERR_PAGE

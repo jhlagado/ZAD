@@ -27,13 +27,7 @@ const LAST_RUN = resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-pro
 const IMAGE_PATH = resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-fat32.img');
 const IMAGE_TOOL = resolve(TECM8_ROOT, 'tools/create-storage-proof-image.ts');
 const INTERFACES = [
-  resolve(TECM8_ROOT, 'src/tecm8-bios.asmi'),
-  resolve(TECM8_ROOT, 'src/display-model.asmi'),
-  resolve(TECM8_ROOT, 'src/editor-viewport.asmi'),
-  resolve(TECM8_ROOT, 'src/editor-storage-loader.asmi'),
-  resolve(TECM8_ROOT, 'src/editor-navigation.asmi'),
-  resolve(TECM8_ROOT, 'src/shell-editor-launch.asmi'),
-  resolve(TECM8_ROOT, 'src/editor-interaction.asmi'),
+  resolve(TECM8_ROOT, 'src/mon3.asmi'),
 ];
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 const APP_START = 0x4000;

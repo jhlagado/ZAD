@@ -5,13 +5,13 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_DISPLAY_INIT
+        CALL    DisplayInit
         JP      C,ProofFailed
         CALL    LineEditInitRecords
 
@@ -21,7 +21,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         LD      A,2
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_SPLIT_LINE
+        CALL    EditorSplitLine
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase1
         CALL    LineEditSaveCursor
@@ -32,7 +32,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_BACKSPACE_CHAR
+        CALL    EditorBackspaceChar
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase2
         CALL    LineEditSaveCursor
@@ -43,7 +43,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         LD      A,3
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_SPLIT_LINE
+        CALL    EditorSplitLine
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase3
         CALL    LineEditSaveCursor
@@ -54,7 +54,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_BACKSPACE_CHAR
+        CALL    EditorBackspaceChar
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase4
         CALL    LineEditSaveCursor
@@ -65,7 +65,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_BACKSPACE_CHAR
+        CALL    EditorBackspaceChar
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase5
         CALL    LineEditSaveCursor
@@ -77,7 +77,7 @@ ProofFail       .equ     0xE0
         LD      A,2
         LD      (EditorCursorCol),A
         LD      HL,LineEditNewlineKey
-        CALL    TECM8_EDITOR_RUN_KEYS
+        CALL    EditorRunKeys
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase7
         CALL    LineEditSaveCursor
@@ -90,7 +90,7 @@ ProofFail       .equ     0xE0
         LD      A,1
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_SPLIT_LINE
+        CALL    EditorSplitLine
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase8
         CALL    LineEditSaveCursor
@@ -104,12 +104,12 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         LD      A,2
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_SPLIT_LINE
+        CALL    EditorSplitLine
         JP      C,ProofFailed
         LD      HL,LineEditCursorCase6
         CALL    LineEditSaveCursor
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
@@ -118,7 +118,7 @@ ProofDone:
 ProofFailed:
         LD      (ErrorMarker),A
         LD      A,(CaseMarker)
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

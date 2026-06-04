@@ -7,7 +7,7 @@
 TECM8_SHELL_LAUNCH_ERR_UNSUPPORTED     .equ    0x58
 TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
 
-; TECM8_SHELL_RUN_EDITOR_LINE -
+; ShellRunEditorLine -
 ; Run one shell command line and launch the editor when it resolves to edit.
 ; Input:
 ;   HL = NUL-terminated shell command line
@@ -17,7 +17,7 @@ TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
 ;!      in        HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_SHELL_RUN_EDITOR_LINE:
+@ShellRunEditorLine:
         CALL    RunShellCommandLine
         RET     C
 
@@ -35,12 +35,12 @@ TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
 
 ShellEditorLaunchOpenPath:
         INC     HL
-        CALL    TECM8_EDITOR_OPEN_PATH
+        CALL    EditorOpenPath
         RET     C
         XOR     A
         RET
 
-; TECM8_SHELL_RUN_EDITOR_SESSION -
+; ShellRunEditorSession -
 ; Run one shell edit command line, then consume editor key input.
 ; Input:
 ;   HL = NUL-terminated shell command line
@@ -48,13 +48,13 @@ ShellEditorLaunchOpenPath:
 ;!      in        DE,HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_SHELL_RUN_EDITOR_SESSION:
+@ShellRunEditorSession:
         LD      (ShellEditorSessionKeys),DE
-        CALL    TECM8_SHELL_RUN_EDITOR_LINE
+        CALL    ShellRunEditorLine
         RET     C
-        CALL    TECM8_EDITOR_CURSOR_RESET
+        CALL    EditorCursorReset
         LD      HL,(ShellEditorSessionKeys)
-        CALL    TECM8_EDITOR_RUN_KEYS
+        CALL    EditorRunKeys
         RET
 
 ShellEditorLaunchUnsupported:

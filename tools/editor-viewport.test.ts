@@ -11,10 +11,9 @@ function readRepoFile(path: string): string {
 
 test('editor viewport module exposes a source-record render entry point', () => {
   const source = readRepoFile('src/editor-viewport.asm');
-  const iface = readRepoFile('src/editor-viewport.asmi');
 
-  assert.match(source, /^@TECM8_EDITOR_VIEWPORT_RENDER:/m);
-  assert.match(iface, /^extern TECM8_EDITOR_VIEWPORT_RENDER$/m);
+  assert.match(source, /^@EditorViewportRender:/m);
+  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRender:/);
 
   for (const constant of [
     'TECM8_EDITOR_RECORD_BYTES',
@@ -26,14 +25,14 @@ test('editor viewport module exposes a source-record render entry point', () => 
   }
 
   assert.match(source, /CP\s+TECM8_EDITOR_MAX_RECORD_TEXT \+ 1/);
-  assert.match(source, /CALL\s+TECM8_DISPLAY_RENDER_SCREEN/);
+  assert.match(source, /CALL\s+DisplayRenderScreen/);
 });
 
 test('editor viewport proof builds records and renders through the display model', () => {
   assert.ok(existsSync(resolve(root, 'proofs/display/editor-viewport-proof.asm')));
   const source = readRepoFile('proofs/display/editor-viewport-proof.asm');
 
-  assert.match(source, /CALL\s+TECM8_EDITOR_VIEWPORT_RENDER/);
+  assert.match(source, /CALL\s+EditorViewportRender/);
   assert.match(source, /\.include\s+"..\/..\/src\/editor-viewport\.asm"/);
   assert.match(source, /EditorSourceRecords:/);
   assert.match(source, /\.db\s+9,"ORG 4000H"\n\s+\.ds\s+22/);
@@ -60,7 +59,7 @@ test('editor viewport malformed-record proof is wired into package checks', () =
 
   assert.match(packageJson, /"proof:display:editor-viewport:bad-record"/);
   assert.match(packageJson, /proof:display:editor-viewport:bad-record/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_VIEWPORT_RENDER/);
+  assert.match(source, /CALL\s+EditorViewportRender/);
   assert.match(source, /JR\s+NC,ProofFailed/);
   assert.match(source, /CP\s+TECM8_EDITOR_ERR_RECORD_LENGTH/);
   assert.match(source, /\.db\s+32/);

@@ -5,27 +5,27 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
         LD      A,1
         LD      HL,EditorSourcePage
-        CALL    TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE
+        CALL    EditorLoadMainPage
         JR      NC,ProofFailed
         CP      EDITOR_LOAD_ERR_SIZE
         JR      NZ,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
         JP      ProofDone
 
 ProofFailed:
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

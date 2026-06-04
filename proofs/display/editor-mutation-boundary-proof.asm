@@ -5,13 +5,13 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_DISPLAY_INIT
+        CALL    DisplayInit
         JP      C,ProofFailed
         CALL    BoundaryInitRecords
 
@@ -20,7 +20,7 @@ ProofFail       .equ     0xE0
         XOR     A
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_BACKSPACE_CHAR
+        CALL    EditorBackspaceChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase1
         CALL    BoundarySaveCursor
@@ -30,7 +30,7 @@ ProofFail       .equ     0xE0
         XOR     A
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_DELETE_CHAR
+        CALL    EditorDeleteChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase2
         CALL    BoundarySaveCursor
@@ -41,7 +41,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
         LD      A,"Z"
-        CALL    TECM8_EDITOR_INSERT_CHAR
+        CALL    EditorInsertChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase3
         CALL    BoundarySaveCursor
@@ -53,7 +53,7 @@ ProofFail       .equ     0xE0
         XOR     A
         LD      (EditorCursorCol),A
         LD      A,"Q"
-        CALL    TECM8_EDITOR_INSERT_CHAR
+        CALL    EditorInsertChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase4
         CALL    BoundarySaveCursor
@@ -64,7 +64,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_BACKSPACE_CHAR
+        CALL    EditorBackspaceChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase5
         CALL    BoundarySaveCursor
@@ -75,7 +75,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         LD      A,5
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_DELETE_CHAR
+        CALL    EditorDeleteChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase6
         CALL    BoundarySaveCursor
@@ -86,7 +86,7 @@ ProofFail       .equ     0xE0
         LD      (EditorCursorRow),A
         LD      A,2
         LD      (EditorCursorCol),A
-        CALL    TECM8_EDITOR_DELETE_CHAR
+        CALL    EditorDeleteChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase7
         CALL    BoundarySaveCursor
@@ -98,7 +98,7 @@ ProofFail       .equ     0xE0
         LD      A,3
         LD      (EditorCursorCol),A
         LD      A,"!"
-        CALL    TECM8_EDITOR_INSERT_CHAR
+        CALL    EditorInsertChar
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase8
         CALL    BoundarySaveCursor
@@ -110,12 +110,12 @@ ProofFail       .equ     0xE0
         XOR     A
         LD      (EditorCursorCol),A
         LD      HL,BoundaryReservedKeys
-        CALL    TECM8_EDITOR_RUN_KEYS
+        CALL    EditorRunKeys
         JP      C,ProofFailed
         LD      HL,BoundaryCursorCase9
         CALL    BoundarySaveCursor
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
@@ -124,7 +124,7 @@ ProofDone:
 ProofFailed:
         LD      (ErrorMarker),A
         LD      A,(CaseMarker)
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

@@ -5,35 +5,35 @@
 
         .org    0x4000
 
-ProofPass       .equ     0x42
-ProofFail       .equ     0xE0
+PROOF_PASS       .equ     0x42
+PROOF_FAIL       .equ     0xE0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        CALL    TECM8_DISPLAY_INIT
+        CALL    DisplayInit
         JR      C,ProofFailed
 
         LD      A,1
         LD      (CaseMarker),A
         LD      HL,CmdEdit
         LD      DE,EditorKeys
-        CALL    TECM8_SHELL_RUN_EDITOR_SESSION
+        CALL    ShellRunEditorSession
         JR      C,ProofFailed
 
         LD      A,2
         LD      (CaseMarker),A
         LD      HL,EditorKeyLeft
-        CALL    TECM8_EDITOR_RUN_KEYS
+        CALL    EditorRunKeys
         JR      C,ProofFailed
 
         LD      A,3
         LD      (CaseMarker),A
         LD      HL,EditorKeyRight
-        CALL    TECM8_EDITOR_RUN_KEYS
+        CALL    EditorRunKeys
         JR      C,ProofFailed
 
-        LD      A,ProofPass
+        LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
 ProofDone:
@@ -42,7 +42,7 @@ ProofDone:
 ProofFailed:
         LD      (ErrorMarker),A
         LD      A,(CaseMarker)
-        OR      ProofFail
+        OR      PROOF_FAIL
         LD      (ResultMarker),A
 
 ProofFailedDone:

@@ -1,7 +1,7 @@
 ; TECM8 editor viewport proof module.
 ;
 ; Converts fixed 32-byte Pascal-string source records into the structured
-; display descriptor consumed by TECM8_DISPLAY_RENDER_SCREEN.
+; display descriptor consumed by DisplayRenderScreen.
 
 TECM8_EDITOR_RECORD_BYTES          .equ    32
 TECM8_EDITOR_VISIBLE_ROWS          .equ    8
@@ -9,13 +9,13 @@ TECM8_EDITOR_MAX_RECORD_TEXT       .equ    31
 TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
 TECM8_EDITOR_ERR_RECORD_LENGTH     .equ    0x01
 
-; TECM8_EDITOR_VIEWPORT_RENDER -
+; EditorViewportRender -
 ; Render the first eight 32-byte source records in the sector/window at HL.
 ; Input: HL = source record window
 ;!      in        HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_VIEWPORT_RENDER:
+@EditorViewportRender:
         LD      (EditorRecordPtr),HL
         LD      HL,EditorRowText0
         LD      (EditorTextPtr),HL
@@ -32,7 +32,7 @@ EditorViewportBuildLoop:
         JR      NZ,EditorViewportBuildLoop
 
         LD      HL,EditorScreenDescriptor
-        CALL    TECM8_DISPLAY_RENDER_SCREEN
+        CALL    DisplayRenderScreen
         RET
 
 ; EditorViewportCopyRecord -

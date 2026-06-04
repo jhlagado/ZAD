@@ -43,26 +43,26 @@ EDITOR_LOAD_ERR_READ    .equ    0x35
 EDITOR_LOAD_ERR_BLOCK   .equ    0x36
 EDITOR_LOAD_ERR_PAGE    .equ    0x37
 
-; TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR -
+; EditorLoadMainSector -
 ; Load the first sector of /src/main.asm into caller buffer HL.
 ;!      in        HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR:
+@EditorLoadMainSector:
         XOR     A
-        JP      TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE
+        JP      EditorLoadMainPage
 
-; TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE -
+; EditorLoadMainPage -
 ; Load one 512-byte sector page of /src/main.asm into caller buffer HL.
 ; Page A is limited to 0..127.
 ;!      in        A,HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE:
+@EditorLoadMainPage:
         LD      DE,EditorLoadMainPath
-        JP      TECM8_EDITOR_LOAD_SOURCE_PAGE
+        JP      EditorLoadSourcePage
 
-; TECM8_EDITOR_LOAD_SOURCE_PAGE -
+; EditorLoadSourcePage -
 ; Load one 512-byte sector page of a source file into caller buffer HL.
 ; Input:
 ;   A  = page index, limited to 0..127
@@ -71,7 +71,7 @@ EDITOR_LOAD_ERR_PAGE    .equ    0x37
 ;!      in        A,DE,HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@TECM8_EDITOR_LOAD_SOURCE_PAGE:
+@EditorLoadSourcePage:
         LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
         LD      (EditorLoadSourcePathPtr),DE
@@ -94,7 +94,7 @@ EDITOR_LOAD_ERR_PAGE    .equ    0x37
         RET     C
 
         LD      HL,EditorLoadVolumeName
-        CALL    TECM8_BIOS_FILE_OPEN
+        CALL    BiosFileOpen
         JP      C,EditorLoadOpenErr
 
         CALL    EditorLoadReadSuperblock
@@ -132,7 +132,7 @@ EditorLoadPageErr:
 @EditorLoadReadSuperblock:
         LD      HL,0
         LD      DE,0
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -378,7 +378,7 @@ EditorLoadParseStoreNameLen:
 EditorLoadPrefixSector:
         PUSH    DE
         LD      HL,0
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         POP     DE
         JP      C,EditorLoadReadErr
 
@@ -446,7 +446,7 @@ EditorLoadPrefixEntry:
 EditorLoadCatalogSector:
         PUSH    DE
         LD      HL,0
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         POP     DE
         JP      C,EditorLoadReadErr
 
@@ -593,7 +593,7 @@ EditorLoadBlockErr:
         ADD     A,A
         ADD     A,D
         LD      D,A
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -643,7 +643,7 @@ EditorLoadResolveOk:
         LD      D,A
         LD      E,0
         LD      HL,0
-        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        CALL    BiosFileReadSector
         JP      C,EditorLoadReadErr
 
         LD      A,(EditorLoadCurrentBlock)
