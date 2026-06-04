@@ -162,6 +162,19 @@ byte 0      length, 0-31
 byte 1-31   text bytes
 ```
 
+Only the low five bits of byte 0 are needed to store the line length. The upper
+three bits are therefore reserved for possible editor metadata, but they are not
+part of the active format yet. Current source records should keep those bits
+clear, and import/export should continue treating the length byte as `0..31`
+until a future change deliberately defines masked length handling.
+
+Possible future uses include per-line dirty state, selected/block-marked state,
+continuation/wrap state, breakpoint state, or another compact editor/debugger
+marker. If these bits are adopted, every reader must mask the stored length with
+`0x1F`, every writer must either preserve or intentionally update the metadata
+bits, and host validators/proofs must be updated to reject accidental misuse
+while allowing the defined flags.
+
 This provides:
 
 ```text

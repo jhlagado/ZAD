@@ -204,6 +204,10 @@ byte 0      length, 0-31
 byte 1-31   text bytes
 ```
 
+The upper three bits of the length byte are currently reserved and should remain
+clear. They may later become line metadata bits, but the existing code and host
+conversion tools still treat the byte as a plain `0..31` length.
+
 `TECM8_EDITOR_VIEWPORT_RENDER` takes `HL` pointing at a source-record window,
 copies the first eight records into NUL-terminated row buffers, checks that no
 record length exceeds 31, then calls `TECM8_DISPLAY_RENDER_SCREEN`.
@@ -261,12 +265,16 @@ key stream rather than real keyboard input. In command mode:
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
 - backspace deletes before the cursor
+- newline splits the current fixed source record when there is room in the page
+- backspace at column zero joins with the previous record when the result fits
 - delete removes the character at the cursor
 
 The editing operations mutate `EditorNavPageBuffer` in memory and then rerender
 the current page buffer. The implementation respects 32-byte source records and
-the 31-character maximum stored line length. There is not yet a dirty flag,
-save path, line insertion, or sector write-back path.
+the 31-character maximum stored line length. It keeps record padding clear so
+host source export can continue validating the fixed-record format. There is
+not yet a dirty flag, save path, sector-crossing insert/delete, or sector
+write-back path.
 
 ## Proof Programs
 
