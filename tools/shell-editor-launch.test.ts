@@ -18,6 +18,7 @@ test('shell editor launcher exposes a contracted edit launch entry', () => {
   assert.match(source, /CALL\s+RunShellCommandLine/);
   assert.match(source, /LD\s+A,\(ShellLastExecAction\)\n\s+CP\s+SHELL_CMD_EDIT/);
   assert.match(source, /CALL\s+TECM8_EDITOR_OPEN_PATH/);
+  assert.match(source, /CALL\s+TECM8_EDITOR_CURSOR_RESET/);
   assert.doesNotMatch(source, /LD\s+DE,ShellMainPath/);
   assert.doesNotMatch(source, /CALL\s+TECM8_EDITOR_OPEN_MAIN/);
 });

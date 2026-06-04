@@ -52,6 +52,7 @@ ShellEditorLaunchOpenPath:
         LD      (ShellEditorSessionKeys),DE
         CALL    TECM8_SHELL_RUN_EDITOR_LINE
         RET     C
+        CALL    TECM8_EDITOR_CURSOR_RESET
         LD      HL,(ShellEditorSessionKeys)
         CALL    TECM8_EDITOR_RUN_KEYS
         RET

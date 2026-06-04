@@ -496,6 +496,14 @@ function verifyShellEditExplicitNavigationProof(
 
 function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1);
+  const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
+  const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
+  if (runtime.hardware.memory[cursorRow] !== 2) {
+    throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 2`);
+  }
+  if (runtime.hardware.memory[cursorCol] !== 2) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
+  }
 }
 
 function verifyShellEditLaunchProof(

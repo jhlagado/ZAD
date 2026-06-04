@@ -74,7 +74,7 @@ CmdEdit:
         .db     "edit",0
 
 EditorKeys:
-        .db     "ud",0
+        .db     "hkulljjd",0
 
 ExpectedMain:
         .db     "/projects/demo/app.asm",0
