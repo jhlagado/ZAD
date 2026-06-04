@@ -17,6 +17,7 @@ test('editor navigation module exposes open, render, and page movement entries',
     'TECM8_EDITOR_OPEN_MAIN',
     'TECM8_EDITOR_OPEN_PATH',
     'TECM8_EDITOR_RENDER_CURRENT',
+    'TECM8_EDITOR_RENDER_PAGE_BUFFER',
     'TECM8_EDITOR_PAGE_DOWN',
     'TECM8_EDITOR_PAGE_UP',
   ]) {
@@ -33,6 +34,7 @@ test('editor navigation commits page movement only after successful render', () 
 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+TECM8_EDITOR_LOAD_SOURCE_PAGE/);
+  assert.match(source, /JP\s+TECM8_EDITOR_RENDER_PAGE_BUFFER/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
   assert.match(source, /CALL\s+EditorNavCopyPath/);

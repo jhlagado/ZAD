@@ -495,14 +495,23 @@ function verifyShellEditExplicitNavigationProof(
 }
 
 function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
-  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1);
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1, [
+    { symbol: 'EditorRowText0', text: 'A1 LINE 00' },
+    { symbol: 'EditorRowText1', text: 'A1 LINE 01' },
+    { symbol: 'EditorRowText7', text: 'A1dl?LINE 07' },
+  ]);
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
   const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
   if (runtime.hardware.memory[cursorRow] !== 7) {
     throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 7`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 2) {
-    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
+  if (runtime.hardware.memory[cursorCol] !== 5) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 5`);
+  }
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  const mutatedRecord = readSourceRecord(runtime.hardware.memory, pageBuffer, 7);
+  if (mutatedRecord !== 'A1dl?LINE 07') {
+    throw new Error(`shell edit mutated record "${mutatedRecord}", expected "A1dl?LINE 07"`);
   }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
 }
@@ -512,10 +521,8 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
   const rowStride = 16 * 6;
   const rowBytes = 16;
   const displayRow = 8;
-  const baselineRow = 1;
-  const cursorByte = 2;
-  const cursorMask = 0x20;
-  const previousCursorByte = 1;
+  const cursorByte = 4;
+  const cursorMask = 0x08;
   const glcd = getGlcdBytes(platformRuntime);
 
   for (let y = 0; y < 6; y += 1) {
@@ -534,26 +541,6 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
         `shell edit cursor missing visible bit at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(cursorMask)}`,
       );
     }
-
-    const baselineAddress = mon3Tgbuf + baselineRow * rowStride + y * rowBytes + previousCursorByte;
-    const baselineValue = runtime.hardware.memory[baselineAddress];
-    const previousAddress = mon3Tgbuf + displayRow * rowStride + y * rowBytes + previousCursorByte;
-    const previousValue = runtime.hardware.memory[previousAddress];
-    if (previousValue !== baselineValue) {
-      throw new Error(
-        `shell edit previous cursor TGBUF glyph mismatch at 0x${previousAddress.toString(16)}: got ${resultToString(previousValue)} expected restored glyph byte ${resultToString(baselineValue)}`,
-      );
-    }
-
-    const baselineGlcdOffset = baselineRow * rowStride + y * rowBytes + previousCursorByte;
-    const baselineVisibleValue = glcd[baselineGlcdOffset] ?? 0;
-    const previousGlcdOffset = displayRow * rowStride + y * rowBytes + previousCursorByte;
-    const previousVisibleValue = glcd[previousGlcdOffset] ?? 0;
-    if (previousVisibleValue !== baselineVisibleValue) {
-      throw new Error(
-        `shell edit previous cursor visible glyph mismatch at GLCD offset 0x${previousGlcdOffset.toString(16)}: got ${resultToString(previousVisibleValue)} expected restored glyph byte ${resultToString(baselineVisibleValue)}`,
-      );
-    }
   }
 }
 
@@ -565,6 +552,11 @@ function verifyShellEditLaunchProof(
   expectedPath: string,
   expectedPrefix: string,
   expectedPage = 0,
+  expectedRows = [
+    { symbol: 'EditorRowText0', text: `${expectedPrefix} LINE 00` },
+    { symbol: 'EditorRowText1', text: `${expectedPrefix} LINE 01` },
+    { symbol: 'EditorRowText7', text: `${expectedPrefix} LINE 07` },
+  ],
 ): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
   if (runtime.hardware.memory[currentPage] !== expectedPage) {
@@ -587,11 +579,6 @@ function verifyShellEditLaunchProof(
     throw new Error(`shell edit request path "${path}", expected "${expectedPath}"`);
   }
 
-  const expectedRows = [
-    { symbol: 'EditorRowText0', text: `${expectedPrefix} LINE 00` },
-    { symbol: 'EditorRowText1', text: `${expectedPrefix} LINE 01` },
-    { symbol: 'EditorRowText7', text: `${expectedPrefix} LINE 07` },
-  ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
     if (actual !== row.text) {

@@ -1,7 +1,7 @@
 ; Shell-launched editor interaction proof.
 ;
 ; Opens a project source file through the shell and consumes editor key input
-; that exercises cursor bounds and pages down once.
+; that exercises cursor bounds, pages down once, and mutates the loaded page.
 
         .org    0x4000
 
@@ -92,7 +92,11 @@ EditorKeys:
         .db     "ljHKLJHK"
         .db     "hhhhhhhhhhhk"
         .db     "hhhhhhhhhhhhhhhhh"
-        .db     "d",0
+        .db     "d"
+        .db     9
+        .db     "dl!"
+        .db     8
+        .db     "?",127,0
 
 EditorKeyLeft:
         .db     "h",0

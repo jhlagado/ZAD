@@ -38,6 +38,17 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      A,(EditorNavCurrentPage)
         JP      EditorNavRenderPage
 
+; TECM8_EDITOR_RENDER_PAGE_BUFFER -
+; Render the already-loaded page buffer without reloading it from storage.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_EDITOR_RENDER_PAGE_BUFFER:
+        LD      HL,EditorNavPageBuffer
+        CALL    TECM8_EDITOR_VIEWPORT_RENDER
+        RET     C
+        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        RET
+
 ; TECM8_EDITOR_PAGE_DOWN -
 ; Advance one page, render it, and commit the page only if rendering succeeds.
 ;!      out       A,carry
@@ -80,11 +91,7 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      HL,EditorNavPageBuffer
         CALL    TECM8_EDITOR_LOAD_SOURCE_PAGE
         RET     C
-        LD      HL,EditorNavPageBuffer
-        CALL    TECM8_EDITOR_VIEWPORT_RENDER
-        RET     C
-        CALL    TECM8_BIOS_DISPLAY_UPDATE
-        RET
+        JP      TECM8_EDITOR_RENDER_PAGE_BUFFER
 
 EditorNavPageErr:
         LD      A,TECM8_EDITOR_NAV_ERR_PAGE
