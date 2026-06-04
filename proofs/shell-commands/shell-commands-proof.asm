@@ -333,6 +333,24 @@ PathOutLen      .equ     64
 
         LD      A,43
         LD      (CaseMarker),A
+        LD      HL,CmdInputEditCr
+        LD      C,CmdInputEditCrLen
+        LD      A,SHELL_CMD_EDIT
+        CALL    AssertShellProgramEntryOk
+        JP      C,ProofFailed
+
+        LD      A,44
+        LD      (CaseMarker),A
+        LD      A,SHELL_CMD_EDIT
+        LD      (ShellLastExecAction),A
+        LD      HL,CmdInputBadCr
+        LD      C,CmdInputBadCrLen
+        LD      A,SHELL_ERR_UNKNOWN
+        CALL    AssertShellProgramEntryErr
+        JP      C,ProofFailed
+
+        LD      A,45
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -341,7 +359,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,44
+        LD      A,46
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -351,7 +369,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,45
+        LD      A,47
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -852,6 +870,92 @@ AssertShellPromptBad:
         RET     Z
 
         JR      AssertShellPromptBad
+
+; AssertShellProgramEntryOk —
+; Seed the line-input provider, run entry, and require prompt-ready success.
+; Input: HL = entered bytes, C = byte count, A = expected action
+;!      in        A,C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramEntryOk:
+        LD      (ExpectedAction),A
+        LD      (ShellProgramInputPtr),HL
+        LD      A,C
+        LD      (ShellProgramInputLen),A
+        LD      A,0x7F
+        LD      (ShellProgramState),A
+        LD      (ShellPromptStatus),A
+        LD      (ShellPromptError),A
+        LD      HL,CmdBad
+        LD      C,1
+        CALL    RunShellProgramEntry
+        JR      C,AssertShellProgramEntryBad
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellProgramState)
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellPromptStatus)
+        CP      SHELL_PROMPT_OK
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellPromptError)
+        OR      A
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellLastExecAction)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        RET     Z
+
+AssertShellProgramEntryBad:
+        SCF
+        RET
+
+; AssertShellProgramEntryErr —
+; Seed the line-input provider, run entry, and require prompt-ready error state.
+; Input: HL = entered bytes, C = byte count, A = expected error
+;!      in        A,C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramEntryErr:
+        LD      (ExpectedAction),A
+        LD      (ShellProgramInputPtr),HL
+        LD      A,C
+        LD      (ShellProgramInputLen),A
+        LD      A,0x7F
+        LD      (ShellProgramState),A
+        LD      (ShellPromptStatus),A
+        LD      (ShellPromptError),A
+        LD      HL,CmdEdit
+        LD      C,1
+        CALL    RunShellProgramEntry
+        JR      C,AssertShellProgramEntryBad
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellProgramState)
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellPromptStatus)
+        CP      SHELL_PROMPT_ERROR
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellPromptError)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      A,(ShellLastExecAction)
+        OR      A
+        RET     Z
+
+        JR      AssertShellProgramEntryBad
 
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.

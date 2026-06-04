@@ -25,6 +25,59 @@ SHELL_INPUT_LEN     .equ     64
 SHELL_PROMPT_OK     .equ     0
 SHELL_PROMPT_ERROR  .equ     1
 
+SHELL_PROGRAM_READY .equ     0
+SHELL_PROGRAM_INPUT .equ     1
+
+; RunShellProgramEntry —
+; Minimal shell program skeleton. It initializes prompt-visible state, obtains
+; one line from the current input provider, runs one prompt cycle, then returns
+; to the prompt-ready state.
+; Output:
+;   carry clear, A=SHELL_PROGRAM_READY
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@RunShellProgramEntry:
+        CALL    InitShellProgramState
+
+ShellProgramInput:
+        LD      A,SHELL_PROGRAM_INPUT
+        LD      (ShellProgramState),A
+        CALL    ReadShellInputLine
+        CALL    RunShellPromptCycle
+
+ShellProgramPromptReady:
+        LD      A,SHELL_PROGRAM_READY
+        LD      (ShellProgramState),A
+        OR      A
+        RET
+
+; InitShellProgramState —
+; Clear prompt-visible shell state before entering the input cycle.
+;!      out       A,carry,zero
+@InitShellProgramState:
+        XOR     A
+        LD      (ShellProgramState),A
+        LD      (ShellPromptStatus),A
+        LD      (ShellPromptError),A
+        LD      (ShellLastExecAction),A
+        LD      (ShellLastExecRequestPtr),A
+        LD      (ShellLastExecRequestPtr + 1),A
+        RET
+
+; ReadShellInputLine —
+; Stubbed input provider. Real TEC input will replace this with keyboard/editor
+; input; proofs seed ShellProgramInputPtr and ShellProgramInputLen.
+; Output:
+;   HL = entered line bytes
+;   C  = entered byte count
+;!      out       C,HL
+;!      clobbers  A
+@ReadShellInputLine:
+        LD      HL,(ShellProgramInputPtr)
+        LD      A,(ShellProgramInputLen)
+        LD      C,A
+        RET
+
 ; RunShellPromptCycle —
 ; Handle one shell prompt cycle from an already-entered input line.
 ; The shell returns to the prompt after both success and shell errors; callers
@@ -1093,6 +1146,15 @@ ShellPromptStatus:
         .db     0
 
 ShellPromptError:
+        .db     0
+
+ShellProgramState:
+        .db     0
+
+ShellProgramInputPtr:
+        .dw     0
+
+ShellProgramInputLen:
         .db     0
 
 ShellEditMode:
