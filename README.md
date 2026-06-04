@@ -35,6 +35,7 @@ Start with the documentation:
 - [Editor Design](docs/editor-design.md)
 - [Memory and Code Quality Manifest](docs/memory-and-code-quality.md)
 - [TECM8 BIOS Direction](docs/tecm8-bios.md)
+- [TECM8 BIOS API Draft](docs/tecm8-bios-api.md)
 - [Debugging Roadmap](docs/debugging-roadmap.md)
 
 Useful local checks:

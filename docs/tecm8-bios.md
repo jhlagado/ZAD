@@ -1,10 +1,11 @@
 # TECM8 BIOS Direction
 
-TECM8 should eventually boot into the development environment, not into the
-full MON3 monitor. The long-term ROM model is therefore a trimmed MON3-derived
-BIOS: keep the hardware service routines that make the TEC-1G usable as a
-small general-purpose computer, and remove the interactive monitor features
-that TECM8 replaces.
+TECM8 should assume MON3 is present first. The near-term ROM model is not a
+clean replacement, but a MON3-compatible service profile: keep the hardware
+service routines that make the TEC-1G usable as a small general-purpose
+computer, preserve continuity with MON3's calling conventions where practical,
+and identify which monitor features could later be shaved down if ROM space
+becomes tight.
 
 The current MON3 ROM is 16K at C000h-FFFFh. A TECM8 BIOS should initially aim
 for about 8K, with 10K still acceptable if the retained device support is
@@ -27,10 +28,9 @@ provide small timing/sound/utility calls
 avoid monitor workflows and application UI
 ```
 
-TECM8 should call BIOS services for hardware access. Above that, TECM8 can
-grow into the normal user-facing system that replaces the everyday MON3
-experience: a shell, a filesystem view, a useful editor, and a launcher for
-larger tools.
+TECM8 should call MON3 or MON3-compatible services for hardware access. Above
+that, TECM8 can grow into a normal user-facing system alongside MON3: a shell,
+a filesystem view, a useful editor, and a launcher for larger tools.
 
 The distinction is not simply "BIOS versus application." TECM8 has a middle
 layer of resident system services that may be generally useful beyond assembly
@@ -68,13 +68,15 @@ Priority services:
 Useful API surfaces from MON3 include matrix scan, matrix-to-ASCII parsing,
 GLCD terminal calls, LCD character/string calls, serial calls, sound calls, and
 get/set calls for shadow/protect/expand/caps/GLCD terminal state. TECM8 should
-wrap these behind its own names rather than depending directly on every MON3
-entry point forever.
+prefer wrappers and `.asmi` contracts that keep MON3 naming and behavior
+recognizable rather than inventing an unrelated ABI too early. See
+[TECM8 BIOS API Draft](tecm8-bios-api.md) for the first proposed service map
+and register contracts.
 
 ## Remove
 
-The first BIOS cut should remove features whose main purpose is the MON3 human
-monitor experience.
+If a future MON3-derived BIOS cut is made, the first candidates to shave down
+are features whose main purpose is the MON3 human monitor experience.
 
 Candidates to remove or avoid carrying forward:
 
@@ -94,11 +96,11 @@ Candidates to remove or avoid carrying forward:
 
 A tiny fallback monitor may still be useful. It should be deliberately
 fractional: enough to show addresses, raw bytes, or basic state and escape
-from serious boot problems, but not enough to compete with TECM8 as the normal
-interface. The seven-segment display and hexadecimal keypad are built into the
-TEC-1, so it is reasonable to keep a remnant-level path for them. That path
-should be a compatibility and recovery feature, not a full monitor with
-disassembly, block copy, fill, move, or elaborate memory traversal workflows.
+from serious boot problems. The seven-segment display and hexadecimal keypad
+are built into the TEC-1, so it is reasonable to keep a remnant-level path for
+them. That path should be a compatibility and recovery feature, not a full
+monitor with disassembly, block copy, fill, move, or elaborate memory traversal
+workflows.
 
 Do not automatically discard MON3's LCD menu idea. A small menu launcher may
 be useful at bootstrap or recovery time, especially if the existing MON3-style
@@ -107,8 +109,8 @@ acceptable; a full monitor UI should not dominate the ROM.
 
 ## Storage Boundary
 
-TECM8 currently uses MON3 storage through direct file/sector entry points. The
-BIOS version should make the storage boundary explicit and SD-only.
+TECM8 currently uses MON3 storage through direct file/sector entry points. Any
+future BIOS profile should make the storage boundary explicit and SD-only.
 
 Desired storage calls:
 
@@ -185,8 +187,8 @@ runner, debugger, help, and tables are swapped through the expansion window.
 ## Resident TECM8 System Layer
 
 The BIOS direction should allow a second tier above raw hardware services: a
-resident TECM8 system layer. This is where TECM8 starts replacing MON3 as the
-normal way users interact with the machine.
+resident TECM8 system layer. This is where TECM8 becomes a richer companion
+environment while preserving MON3 continuity underneath.
 
 Good resident candidates:
 

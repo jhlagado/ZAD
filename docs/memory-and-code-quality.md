@@ -80,9 +80,9 @@ Further expansion memory may exist later, but the first design should prove
 useful inside the classic machine model before depending on it.
 
 See [TECM8 BIOS Direction](tecm8-bios.md) for the proposed long-term split:
-keep a trimmed MON3-derived BIOS for hardware services, remove the full monitor
-personality and PATA support, and use the reclaimed ROM for resident TECM8
-support around banked tools.
+start with MON3 compatibility, identify hardware services TECM8 should wrap,
+and only later consider shaving monitor/PATA components from a modified ROM to
+free resident space for TECM8 support around banked tools.
 
 ## Resident Versus Overlay Code
 
