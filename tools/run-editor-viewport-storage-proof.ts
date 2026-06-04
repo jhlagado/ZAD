@@ -40,6 +40,33 @@ const SHADOW_OFF = 0x01;
 const MCB = 0x0888;
 const MCB_SD_CARD = 0x80;
 
+const PROOF_CASES = {
+  'editor-viewport-storage-proof': {
+    source: PROOF_SOURCE,
+    lastRun: LAST_RUN,
+    image: IMAGE_PATH,
+    lines: makeTwoPageLines(),
+    verify: verifyPositiveProof,
+  },
+  'editor-viewport-storage-invalid-page-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-invalid-page-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-invalid-page-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-invalid-page-fat32.img'),
+    lines: makeTwoPageLines(),
+    verify: verifyNoopProof,
+  },
+  'editor-viewport-storage-small-file-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-small-file-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-small-file-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-small-file-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyNoopProof,
+  },
+} as const;
+
+type ProofCaseName = keyof typeof PROOF_CASES;
+type ProofCase = (typeof PROOF_CASES)[ProofCaseName];
+
 type Runtime = {
   cpu: { pc: number; sp: number; halted: boolean };
   hardware: {
@@ -73,10 +100,10 @@ function requireFromDebug80(modulePath: string): unknown {
   return require(resolve(DEBUG80_ROOT, modulePath));
 }
 
-async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
+async function compileProof(proofCase: ProofCase): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
   const { compile, defaultFormatWriters } = await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'));
   const result = await compile(
-    PROOF_SOURCE,
+    proofCase.source,
     {
       emitBin: true,
       emitD8m: true,
@@ -110,29 +137,8 @@ function symbolAddress(symbols: D8Symbol[], name: string): number {
   return symbol.address;
 }
 
-function encodeSourceRecords(lines: string[]): Buffer {
-  const records = Buffer.alloc(lines.length * 32);
-  lines.forEach((line, index) => {
-    const bytes = Buffer.from(line, 'ascii');
-    if (bytes.length > 31) {
-      throw new Error(`line too long: ${line}`);
-    }
-    records[index * 32] = bytes.length;
-    bytes.copy(records, index * 32 + 1);
-  });
-  return records;
-}
-
-function ensureImage(): string {
-  execFileSync(process.execPath, [...NODE_TS_ARGS, IMAGE_TOOL, IMAGE_PATH], {
-    cwd: TECM8_ROOT,
-    stdio: 'ignore',
-  });
-
-  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } =
-    require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
-  const manifest = JSON.parse(readFileSync(IMAGE_PATH.replace(/\.[^.]*$/, '.json'), 'utf8'));
-  const sourceRecords = encodeSourceRecords([
+function makeTwoPageLines(): string[] {
+  return [
     'P0 LINE 00',
     'P0 LINE 01',
     'P0 LINE 02',
@@ -165,7 +171,45 @@ function ensureImage(): string {
     'P1 LINE 13',
     'P1 LINE 14',
     'P1 LINE 15',
-  ]);
+  ];
+}
+
+function makeSmallFileLines(): string[] {
+  return [
+    'SMALL 00',
+    'SMALL 01',
+    'SMALL 02',
+    'SMALL 03',
+    'SMALL 04',
+    'SMALL 05',
+    'SMALL 06',
+    'SMALL 07',
+  ];
+}
+
+function encodeSourceRecords(lines: string[]): Buffer {
+  const records = Buffer.alloc(lines.length * 32);
+  lines.forEach((line, index) => {
+    const bytes = Buffer.from(line, 'ascii');
+    if (bytes.length > 31) {
+      throw new Error(`line too long: ${line}`);
+    }
+    records[index * 32] = bytes.length;
+    bytes.copy(records, index * 32 + 1);
+  });
+  return records;
+}
+
+function ensureImage(proofCase: ProofCase): string {
+  execFileSync(process.execPath, [...NODE_TS_ARGS, IMAGE_TOOL, proofCase.image], {
+    cwd: TECM8_ROOT,
+    stdio: 'ignore',
+  });
+
+  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } =
+    require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
+  const sourceRecords = encodeSourceRecords(proofCase.lines);
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
 
@@ -174,10 +218,10 @@ function ensureImage(): string {
     throw new Error('generated source records were not stored exactly');
   }
 
-  const image = Buffer.from(readFileSync(IMAGE_PATH));
+  const image = Buffer.from(readFileSync(proofCase.image));
   volume.copy(image, manifest.volume_start_byte_offset);
-  writeFileSync(IMAGE_PATH, image);
-  return IMAGE_PATH;
+  writeFileSync(proofCase.image, image);
+  return proofCase.image;
 }
 
 function makeConfig(imagePath: string) {
@@ -296,7 +340,9 @@ function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
   return false;
 }
 
-function verifyProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+function verifyNoopProof(): void {}
+
+function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const expectedRows = [
     { symbol: 'EditorRowText0', text: 'P1 LINE 00' },
     { symbol: 'EditorRowText1', text: 'P1 LINE 01' },
@@ -337,8 +383,14 @@ async function main(): Promise<void> {
     throw new Error(`MON3 ROM not found: ${MON3_ROM_PATH}`);
   }
 
-  const imagePath = ensureImage();
-  const { bytes, symbols } = await compileProof();
+  const proofName = (process.argv[2] ?? 'editor-viewport-storage-proof') as ProofCaseName;
+  const proofCase = PROOF_CASES[proofName];
+  if (!proofCase) {
+    throw new Error(`unknown editor viewport storage proof: ${proofName}`);
+  }
+
+  const imagePath = ensureImage(proofCase);
+  const { bytes, symbols } = await compileProof(proofCase);
   const doneAddr = symbolAddress(symbols, 'ProofDone');
   const resultAddr = symbolAddress(symbols, 'ResultMarker');
   const { runtime, platformRuntime } = loadRuntime(bytes, imagePath);
@@ -347,15 +399,16 @@ async function main(): Promise<void> {
   if (result !== PROOF_PASS) {
     throw new Error(`editor viewport storage proof failed: marker=${resultToString(result)}`);
   }
-  verifyProof(runtime, platformRuntime, symbols);
+  proofCase.verify(runtime, platformRuntime, symbols);
 
   const report = {
     result: 'ok',
+    proof: proofName,
     instructions,
     resultMarker: resultToString(result),
     image: imagePath,
   };
-  writeFileSync(LAST_RUN, JSON.stringify(report, null, 2) + '\n', 'ascii');
+  writeFileSync(proofCase.lastRun, JSON.stringify(report, null, 2) + '\n', 'ascii');
   console.log(JSON.stringify(report, null, 2));
 }
 

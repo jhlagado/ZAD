@@ -18,6 +18,8 @@
     "proof:display:editor-viewport": "node --experimental-strip-types tools/run-display-proof.ts editor-viewport-proof",
     "proof:display:editor-viewport:bad-record": "node --experimental-strip-types tools/run-display-proof.ts editor-viewport-bad-record-proof",
     "proof:display:editor-viewport:storage": "node --experimental-strip-types tools/run-editor-viewport-storage-proof.ts",
+    "proof:display:editor-viewport:storage:invalid-page": "node --experimental-strip-types tools/run-editor-viewport-storage-proof.ts editor-viewport-storage-invalid-page-proof",
+    "proof:display:editor-viewport:storage:small-file": "node --experimental-strip-types tools/run-editor-viewport-storage-proof.ts editor-viewport-storage-small-file-proof",
     "proof:shell-commands": "node --experimental-strip-types tools/run-shell-commands-proof.ts",
     "mon3:inventory": "node --experimental-strip-types tools/mon3-service-inventory.ts",
     "mon3:inventory:check": "node --experimental-strip-types tools/mon3-service-inventory.ts --check",
@@ -27,7 +29,7 @@
     "mon3:glcd-split:check": "node --experimental-strip-types tools/mon3-glcd-split.ts --check",
     "audit:storage": "node --experimental-strip-types tools/audit-storage-proof.ts",
     "quality": "fallow --root . --skip dead-code || true",
-    "check": "npm run typecheck && npm run test && npm run mon3:inventory:check && npm run mon3:storage-split:check && npm run mon3:glcd-split:check && npm run proof:project-config && npm run proof:project-config:storage && npm run proof:display && npm run proof:display:structured && npm run proof:display:editor-viewport && npm run proof:display:editor-viewport:bad-record && npm run proof:display:editor-viewport:storage && npm run proof:shell-commands && npm run proof:storage:check && npm run audit:storage"
+    "check": "npm run typecheck && npm run test && npm run mon3:inventory:check && npm run mon3:storage-split:check && npm run mon3:glcd-split:check && npm run proof:project-config && npm run proof:project-config:storage && npm run proof:display && npm run proof:display:structured && npm run proof:display:editor-viewport && npm run proof:display:editor-viewport:bad-record && npm run proof:display:editor-viewport:storage && npm run proof:display:editor-viewport:storage:invalid-page && npm run proof:display:editor-viewport:storage:small-file && npm run proof:shell-commands && npm run proof:storage:check && npm run audit:storage"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

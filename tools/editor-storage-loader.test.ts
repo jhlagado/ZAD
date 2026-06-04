@@ -106,13 +106,33 @@ test('storage-backed editor viewport proof composes loader, viewport, and displa
   assert.match(source, /EditorSourcePage1:\n\s+\.ds\s+512/);
 });
 
+test('storage-backed editor viewport negative proofs assert exact loader errors', () => {
+  const invalidPage = readRepoFile('proofs/display/editor-viewport-storage-invalid-page-proof.asm');
+  const smallFile = readRepoFile('proofs/display/editor-viewport-storage-small-file-proof.asm');
+
+  assert.match(invalidPage, /LD\s+A,8/);
+  assert.match(invalidPage, /CALL\s+TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE/);
+  assert.match(invalidPage, /JR\s+NC,ProofFailed/);
+  assert.match(invalidPage, /CP\s+EDITOR_LOAD_ERR_PAGE/);
+
+  assert.match(smallFile, /LD\s+A,1/);
+  assert.match(smallFile, /CALL\s+TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE/);
+  assert.match(smallFile, /JR\s+NC,ProofFailed/);
+  assert.match(smallFile, /CP\s+EDITOR_LOAD_ERR_SIZE/);
+});
+
 test('storage-backed editor viewport runner verifies storage records and GLCD output', () => {
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
 
   assert.match(packageJson, /"proof:display:editor-viewport:storage"/);
+  assert.match(packageJson, /"proof:display:editor-viewport:storage:invalid-page"/);
+  assert.match(packageJson, /"proof:display:editor-viewport:storage:small-file"/);
   assert.match(packageJson, /proof:display:editor-viewport:storage/);
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
+  assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
+  assert.match(runner, /editor-viewport-storage-small-file-proof/);
+  assert.match(runner, /makeSmallFileLines/);
   assert.match(runner, /P0 LINE 00/);
   assert.match(runner, /P1 LINE 15/);
   assert.match(runner, /readSourceRecord/);
