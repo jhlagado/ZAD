@@ -185,6 +185,20 @@ function makeSmallFileLines(): string[] {
   ];
 }
 
+function makeAppLines(): string[] {
+  return Array.from({ length: 32 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `A${page} LINE ${line.toString().padStart(2, '0')}`;
+  });
+}
+
+function makeRootLines(): string[] {
+  return Array.from({ length: 16 }, (_, index) => {
+    return `R0 LINE ${index.toString().padStart(2, '0')}`;
+  });
+}
+
 function encodeSourceRecords(lines: string[]): Buffer {
   const records = Buffer.alloc(lines.length * 32);
   lines.forEach((line, index) => {
@@ -244,8 +258,12 @@ function ensureImage(proofCase: ProofCase): string {
     require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
   const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
   const sourceRecords = encodeSourceRecords(proofCase.lines);
+  const appRecords = encodeSourceRecords(makeAppLines());
+  const rootRecords = encodeSourceRecords(makeRootLines());
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
+  volume = importFileIntoVolumeImage(volume, '/projects/demo/app.asm', appRecords);
+  volume = importFileIntoVolumeImage(volume, '/root.asm', rootRecords);
   if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {
     volume = makePositiveProofVolume(volume);
   }
@@ -253,6 +271,14 @@ function ensureImage(proofCase: ProofCase): string {
   const stored = readFileFromVolumeImage(volume, '/src/main.asm') as Buffer;
   if (!stored.equals(sourceRecords)) {
     throw new Error('generated source records were not stored exactly');
+  }
+  const storedApp = readFileFromVolumeImage(volume, '/projects/demo/app.asm') as Buffer;
+  if (!storedApp.equals(appRecords)) {
+    throw new Error('generated app source records were not stored exactly');
+  }
+  const storedRoot = readFileFromVolumeImage(volume, '/root.asm') as Buffer;
+  if (!storedRoot.equals(rootRecords)) {
+    throw new Error('generated root source records were not stored exactly');
   }
 
   const image = Buffer.from(readFileSync(proofCase.image));
@@ -449,7 +475,7 @@ function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntim
 }
 
 function verifyShellEditNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
-  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18);
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A0');
 }
 
 function verifyShellEditExplicitNavigationProof(
@@ -457,7 +483,7 @@ function verifyShellEditExplicitNavigationProof(
   platformRuntime: PlatformRuntime,
   symbols: D8Symbol[],
 ): void {
-  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19);
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19, '/root.asm', 'R0');
 }
 
 function verifyShellEditLaunchProof(
@@ -465,6 +491,8 @@ function verifyShellEditLaunchProof(
   platformRuntime: PlatformRuntime,
   symbols: D8Symbol[],
   expectedMode: number,
+  expectedPath: string,
+  expectedPrefix: string,
 ): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
   if (runtime.hardware.memory[currentPage] !== 0) {
@@ -483,14 +511,14 @@ function verifyShellEditLaunchProof(
   if (mode !== expectedMode) {
     throw new Error(`shell edit mode ${mode}, expected ${expectedMode}`);
   }
-  if (path !== '/src/main.asm') {
-    throw new Error(`shell edit request path "${path}", expected "/src/main.asm"`);
+  if (path !== expectedPath) {
+    throw new Error(`shell edit request path "${path}", expected "${expectedPath}"`);
   }
 
   const expectedRows = [
-    { symbol: 'EditorRowText0', text: 'P0 LINE 00' },
-    { symbol: 'EditorRowText1', text: 'P0 LINE 01' },
-    { symbol: 'EditorRowText7', text: 'P0 LINE 07' },
+    { symbol: 'EditorRowText0', text: `${expectedPrefix} LINE 00` },
+    { symbol: 'EditorRowText1', text: `${expectedPrefix} LINE 01` },
+    { symbol: 'EditorRowText7', text: `${expectedPrefix} LINE 07` },
   ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
@@ -526,7 +554,12 @@ async function main(): Promise<void> {
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const result = runtime.hardware.memory[resultAddr];
   if (result !== PROOF_PASS) {
-    throw new Error(`editor viewport storage proof failed: marker=${resultToString(result)}`);
+    throw new Error(
+      `editor viewport storage proof failed: marker=${resultToString(result)}${describeProofFailure(
+        runtime,
+        symbols,
+      )}`,
+    );
   }
   proofCase.verify(runtime, platformRuntime, symbols);
 
@@ -539,6 +572,36 @@ async function main(): Promise<void> {
   };
   writeFileSync(proofCase.lastRun, JSON.stringify(report, null, 2) + '\n', 'ascii');
   console.log(JSON.stringify(report, null, 2));
+}
+
+function optionalSymbolAddress(symbols: D8Symbol[], name: string): number | undefined {
+  const symbol = symbols.find((entry) => entry.name === name);
+  return typeof symbol?.address === 'number' ? symbol.address : undefined;
+}
+
+function describeProofFailure(runtime: Runtime, symbols: D8Symbol[]): string {
+  const parts: string[] = [];
+  for (const name of [
+    'CaseMarker',
+    'ErrorMarker',
+    'EditorLoadPrefixLen',
+    'EditorLoadNameLen',
+    'EditorLoadSrcPrefixId',
+  ]) {
+    const address = optionalSymbolAddress(symbols, name);
+    if (address !== undefined) {
+      parts.push(`${name}=${resultToString(runtime.hardware.memory[address])}`);
+    }
+  }
+  for (const name of ['EditorLoadSourcePathPtr', 'EditorLoadPrefixPtr', 'EditorLoadNamePtr']) {
+    const address = optionalSymbolAddress(symbols, name);
+    if (address !== undefined) {
+      const pointer = readWord(runtime.hardware.memory, address);
+      parts.push(`${name}=0x${pointer.toString(16).padStart(4, '0')}`);
+      parts.push(`${name}Text=${JSON.stringify(readCString(runtime.hardware.memory, pointer))}`);
+    }
+  }
+  return parts.length > 0 ? ` (${parts.join(', ')})` : '';
 }
 
 main().catch((error: unknown) => {

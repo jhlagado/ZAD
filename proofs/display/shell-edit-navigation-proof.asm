@@ -14,8 +14,20 @@ ProofFail       .equ     0xE0
         CALL    TECM8_DISPLAY_INIT
         JR      C,ProofFailed
 
+        LD      A,1
+        LD      (CaseMarker),A
         LD      HL,CmdEdit
         CALL    TECM8_SHELL_RUN_EDITOR_LINE
+        JR      C,ProofFailed
+
+        LD      A,2
+        LD      (CaseMarker),A
+        CALL    TECM8_EDITOR_PAGE_DOWN
+        JR      C,ProofFailed
+
+        LD      A,3
+        LD      (CaseMarker),A
+        CALL    TECM8_EDITOR_PAGE_UP
         JR      C,ProofFailed
 
         LD      A,ProofPass
@@ -25,6 +37,8 @@ ProofDone:
         JP      ProofDone
 
 ProofFailed:
+        LD      (ErrorMarker),A
+        LD      A,(CaseMarker)
         OR      ProofFail
         LD      (ResultMarker),A
 
@@ -69,7 +83,13 @@ CmdEdit:
         .db     "edit",0
 
 ExpectedMain:
-        .db     "/src/main.asm",0
+        .db     "/projects/demo/app.asm",0
 
 ResultMarker:
+        .db     0
+
+CaseMarker:
+        .db     0
+
+ErrorMarker:
         .db     0

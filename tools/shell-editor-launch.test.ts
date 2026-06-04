@@ -17,10 +17,9 @@ test('shell editor launcher exposes a contracted edit launch entry', () => {
   assert.match(iface, /^extern TECM8_SHELL_RUN_EDITOR_LINE$/m);
   assert.match(source, /CALL\s+RunShellCommandLine/);
   assert.match(source, /LD\s+A,\(ShellLastExecAction\)\n\s+CP\s+SHELL_CMD_EDIT/);
-  assert.match(source, /LD\s+DE,ShellEditorLaunchMainPath/);
+  assert.match(source, /CALL\s+TECM8_EDITOR_OPEN_PATH/);
   assert.doesNotMatch(source, /LD\s+DE,ShellMainPath/);
-  assert.match(source, /ShellEditorLaunchMainPath:\n\s+\.db\s+"\/src\/main\.asm",0/);
-  assert.match(source, /CALL\s+TECM8_EDITOR_OPEN_MAIN/);
+  assert.doesNotMatch(source, /CALL\s+TECM8_EDITOR_OPEN_MAIN/);
 });
 
 test('shell edit navigation proof drives shell command into storage-backed editor', () => {
@@ -36,6 +35,8 @@ test('shell edit navigation proof drives shell command into storage-backed edito
   assert.match(runner, /shell-edit-explicit-navigation-proof/);
   assert.match(runner, /verifyShellEditNavigationProof/);
   assert.match(runner, /verifyShellEditExplicitNavigationProof/);
+  assert.match(runner, /\/projects\/demo\/app\.asm/);
+  assert.match(runner, /\/root\.asm/);
   assert.match(packageJson, /"proof:display:shell-edit-navigation"/);
   assert.match(packageJson, /"proof:display:shell-edit-explicit-navigation"/);
   assert.match(packageJson, /proof:display:shell-edit-navigation/);

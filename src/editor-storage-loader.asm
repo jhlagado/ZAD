@@ -1,7 +1,7 @@
 ; TECM8 editor source-sector loader.
 ;
-; Proof-focused loader for /src/main.asm in VOLUME.TM8. It opens the MON3
-; FAT32 file, finds prefix "src", finds file "main.asm", follows the TM8
+; Proof-focused loader for source files in VOLUME.TM8. It opens the MON3
+; FAT32 file, finds the requested prefix and filename, follows the TM8
 ; allocation chain, and copies one 512-byte source page to a caller buffer.
 
 DISK_BUFF               .equ    0x0600
@@ -29,9 +29,9 @@ TM8_ENTRIES_SECTOR      .equ    8
 TM8_DATA_START_BLOCK    .equ    10
 
 TM8_ENTRY_ACTIVE        .equ    0x01
-TM8_SRC_PREFIX_LEN      .equ    3
-TM8_MAIN_NAME_LEN       .equ    8
 TM8_SOURCE_MIN_BYTES    .equ    256
+TM8_CATALOG_NAME_BYTES  .equ    40
+TM8_PREFIX_TEXT_BYTES   .equ    121
 
 EDITOR_LOAD_OK          .equ    0
 EDITOR_LOAD_ERR_OPEN    .equ    0x30
@@ -59,8 +59,22 @@ EDITOR_LOAD_ERR_PAGE    .equ    0x37
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE:
+        LD      DE,EditorLoadMainPath
+        JP      TECM8_EDITOR_LOAD_SOURCE_PAGE
+
+; TECM8_EDITOR_LOAD_SOURCE_PAGE -
+; Load one 512-byte sector page of a source file into caller buffer HL.
+; Input:
+;   A  = page index, limited to 0..127
+;   DE = NUL-terminated TM8 path, e.g. /src/main.asm
+;   HL = caller destination buffer
+;!      in        A,DE,HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_EDITOR_LOAD_SOURCE_PAGE:
         LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
+        LD      (EditorLoadSourcePathPtr),DE
         CP      128
         JR      NC,EditorLoadPageErr
         AND     7
@@ -76,15 +90,27 @@ EDITOR_LOAD_ERR_PAGE    .equ    0x37
         INC     A
         LD      (EditorLoadRequiredSizeHigh),A
 
+        CALL    EditorLoadParseSourcePath
+        RET     C
+
         LD      HL,EditorLoadVolumeName
         CALL    TECM8_BIOS_FILE_OPEN
         JP      C,EditorLoadOpenErr
 
         CALL    EditorLoadReadSuperblock
         RET     C
-        CALL    EditorLoadFindSrcPrefix
+        LD      A,(EditorLoadPrefixLen)
+        OR      A
+        JR      Z,EditorLoadRootPrefix
+        CALL    EditorLoadFindSourcePrefix
         RET     C
-        CALL    EditorLoadFindMainSource
+        JR      EditorLoadPrefixReady
+
+EditorLoadRootPrefix:
+        LD      (EditorLoadSrcPrefixId),A
+
+EditorLoadPrefixReady:
+        CALL    EditorLoadFindSource
         RET     C
         CALL    EditorLoadReadSourceSector
         RET     C
@@ -282,7 +308,69 @@ EditorLoadReadErr:
 
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
-@EditorLoadFindSrcPrefix:
+@EditorLoadParseSourcePath:
+        LD      HL,(EditorLoadSourcePathPtr)
+        LD      A,(HL)
+        CP      "/"
+        JP      NZ,EditorLoadFindErr
+        INC     HL
+        LD      (EditorLoadPrefixPtr),HL
+        LD      (EditorLoadNamePtr),HL
+        XOR     A
+        LD      (EditorLoadPrefixLen),A
+        LD      B,0
+
+EditorLoadParsePath:
+        LD      A,(HL)
+        OR      A
+        JR      Z,EditorLoadParsePathDone
+        CP      "/"
+        JR      Z,EditorLoadParseSlash
+        INC     B
+        INC     HL
+        JR      EditorLoadParsePath
+
+EditorLoadParseSlash:
+        LD      A,B
+        LD      (EditorLoadPrefixLen),A
+        INC     HL
+        LD      (EditorLoadNamePtr),HL
+        INC     B
+        JP      Z,EditorLoadFindErr
+        JR      EditorLoadParsePath
+
+EditorLoadParsePathDone:
+        LD      A,B
+        OR      A
+        JP      Z,EditorLoadFindErr
+        LD      C,A
+        LD      A,(EditorLoadPrefixLen)
+        CP      TM8_PREFIX_TEXT_BYTES + 1
+        JP      NC,EditorLoadFindErr
+        OR      A
+        JR      Z,EditorLoadParseRootName
+        LD      D,A
+        LD      A,C
+        SUB     D
+        JP      C,EditorLoadFindErr
+        DEC     A
+        JR      EditorLoadParseStoreNameLen
+
+EditorLoadParseRootName:
+        LD      A,C
+
+EditorLoadParseStoreNameLen:
+        OR      A
+        JP      Z,EditorLoadFindErr
+        CP      TM8_CATALOG_NAME_BYTES + 1
+        JP      NC,EditorLoadFindErr
+        LD      (EditorLoadNameLen),A
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@EditorLoadFindSourcePrefix:
         LD      DE,TM8_PREFIX_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_PREFIX_SECTORS
         LD      (EditorLoadSectorsLeft),A
@@ -336,18 +424,21 @@ EditorLoadPrefixEntry:
         LD      (EditorLoadSrcPrefixId),A
         INC     HL
         LD      A,(HL)
-        CP      TM8_SRC_PREFIX_LEN
+        LD      B,A
+        LD      A,(EditorLoadPrefixLen)
+        CP      B
         JP      NZ,EditorLoadEntryNo
         INC     HL
-        LD      DE,EditorLoadSrcPrefix
-        LD      B,TM8_SRC_PREFIX_LEN
+        LD      DE,(EditorLoadPrefixPtr)
+        LD      A,(EditorLoadPrefixLen)
+        LD      B,A
         CALL    EditorLoadMatchBytes
         RET     NC
         JP      EditorLoadEntryNo
 
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
-@EditorLoadFindMainSource:
+@EditorLoadFindSource:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
         LD      (EditorLoadSectorsLeft),A
@@ -410,11 +501,14 @@ EditorLoadCatalogEntry:
         JR      NZ,EditorLoadEntryNo
         INC     HL
         LD      A,(HL)
-        CP      TM8_MAIN_NAME_LEN
+        LD      B,A
+        LD      A,(EditorLoadNameLen)
+        CP      B
         JR      NZ,EditorLoadEntryNo
         INC     HL
-        LD      DE,EditorLoadMainName
-        LD      B,TM8_MAIN_NAME_LEN
+        LD      DE,(EditorLoadNamePtr)
+        LD      A,(EditorLoadNameLen)
+        LD      B,A
         CALL    EditorLoadMatchBytes
         JR      C,EditorLoadEntryNo
 
@@ -474,6 +568,11 @@ EditorLoadReturnErr:
 
 EditorLoadSizeErr:
         LD      A,EDITOR_LOAD_ERR_SIZE
+        SCF
+        RET
+
+EditorLoadFindErr:
+        LD      A,EDITOR_LOAD_ERR_FIND
         SCF
         RET
 
@@ -637,11 +736,8 @@ EditorLoadMagic:
 EditorLoadVolumeName:
         .db     "VOLUME.TM8",0
 
-EditorLoadSrcPrefix:
-        .db     "src"
-
-EditorLoadMainName:
-        .db     "main.asm"
+EditorLoadMainPath:
+        .db     "/src/main.asm",0
 
 EditorLoadDest:
         .dw     0
@@ -678,3 +774,18 @@ EditorLoadResolvedBlock:
 
 EditorLoadCurrentBlock:
         .dw     0
+
+EditorLoadSourcePathPtr:
+        .dw     0
+
+EditorLoadPrefixPtr:
+        .dw     0
+
+EditorLoadNamePtr:
+        .dw     0
+
+EditorLoadPrefixLen:
+        .db     0
+
+EditorLoadNameLen:
+        .db     0

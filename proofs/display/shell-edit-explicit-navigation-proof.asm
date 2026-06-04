@@ -1,6 +1,6 @@
 ; Explicit shell edit to storage-backed editor proof.
 ;
-; Launches the editor through `edit /src/main.asm` without relying on a cached
+; Launches the editor through `edit /root.asm` without relying on a cached
 ; project main path.
 
         .org    0x4000
@@ -50,7 +50,7 @@ ProofFailedDone:
         .include "../../src/tecm8-bios.asm"
 
 CmdEditExplicit:
-        .db     "edit /src/main.asm",0
+        .db     "edit /root.asm",0
 
 ResultMarker:
         .db     0

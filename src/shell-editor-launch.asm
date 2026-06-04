@@ -28,19 +28,14 @@ TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
         LD      HL,(ShellLastExecRequestPtr)
         LD      A,(HL)
         CP      SHELL_EDIT_DEFAULT
-        JR      Z,ShellEditorLaunchCheckTarget
+        JR      Z,ShellEditorLaunchOpenPath
         CP      SHELL_EDIT_EXPLICIT
-        JR      Z,ShellEditorLaunchCheckTarget
+        JR      Z,ShellEditorLaunchOpenPath
         JR      ShellEditorLaunchTargetErr
 
-ShellEditorLaunchCheckTarget:
+ShellEditorLaunchOpenPath:
         INC     HL
-        LD      DE,ShellEditorLaunchMainPath
-        CALL    ShellEditorLaunchStringEquals
-        JR      C,ShellEditorLaunchTargetErr
-
-ShellEditorLaunchOpenMain:
-        CALL    TECM8_EDITOR_OPEN_MAIN
+        CALL    TECM8_EDITOR_OPEN_PATH
         RET     C
         XOR     A
         RET
@@ -54,25 +49,3 @@ ShellEditorLaunchTargetErr:
         LD      A,TECM8_SHELL_LAUNCH_ERR_TARGET
         SCF
         RET
-
-; ShellEditorLaunchStringEquals -
-; Compare NUL-terminated strings at HL and DE.
-;!      in        DE,HL
-;!      out       A,carry,zero
-;!      clobbers  DE,HL
-@ShellEditorLaunchStringEquals:
-        LD      A,(DE)
-        CP      (HL)
-        JR      NZ,ShellEditorLaunchStringBad
-        OR      A
-        RET     Z
-        INC     DE
-        INC     HL
-        JR      ShellEditorLaunchStringEquals
-
-ShellEditorLaunchStringBad:
-        SCF
-        RET
-
-ShellEditorLaunchMainPath:
-        .db     "/src/main.asm",0

@@ -15,10 +15,13 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
 
   assert.match(source, /^@TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR:/m);
   assert.match(source, /^@TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE:/m);
+  assert.match(source, /^@TECM8_EDITOR_LOAD_SOURCE_PAGE:/m);
   assert.match(iface, /^extern TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR$/m);
   assert.match(iface, /^extern TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_LOAD_SOURCE_PAGE$/m);
   assert.match(iface, /^in HL$/m);
   assert.match(iface, /^in A,HL$/m);
+  assert.match(iface, /^in A,DE,HL$/m);
   assert.match(iface, /^out A,carry$/m);
 
   assert.match(source, /CALL\s+TECM8_BIOS_FILE_OPEN/);
@@ -47,10 +50,13 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
     assert.match(source, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
 
-  assert.match(source, /EditorLoadSrcPrefix:\n\s+\.db\s+"src"/);
-  assert.match(source, /EditorLoadMainName:\n\s+\.db\s+"main\.asm"/);
-  assert.match(source, /CALL\s+EditorLoadFindSrcPrefix/);
-  assert.match(source, /CALL\s+EditorLoadFindMainSource/);
+  assert.match(source, /EditorLoadParseSourcePath:/);
+  assert.match(source, /EditorLoadRootPrefix:/);
+  assert.match(source, /EditorLoadPrefixPtr:\n\s+\.dw\s+0/);
+  assert.match(source, /EditorLoadNamePtr:\n\s+\.dw\s+0/);
+  assert.match(source, /EditorLoadMainPath:\n\s+\.db\s+"\/src\/main\.asm",0/);
+  assert.match(source, /CALL\s+EditorLoadFindSourcePrefix/);
+  assert.match(source, /CALL\s+EditorLoadFindSource/);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
   assert.match(source, /CALL\s+EditorLoadBlockToOffset/);
 });
