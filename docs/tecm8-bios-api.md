@@ -165,6 +165,11 @@ future wrapper could add caller-supplied buffers, but the compatibility layer
 should keep the MON3 buffer convention until measurement or implementation
 pressure justifies changing it.
 
+RAM note: MON3's storage package uses more than the 512-byte `DISK_BUFF`.
+Current MON3 source places the FAT/PATA/SD workspace roughly at `0100h-07FFh`,
+with `DISK_BUFF` at `0600h-07FFh`. TECM8 code that calls MON3-compatible
+storage should treat this range as BIOS-owned or volatile.
+
 ## GLCD Calls
 
 The GLCD is the primary TECM8 display. TECM8 should keep MON3 GLCD terminal
@@ -216,6 +221,12 @@ TECM8_BIOS_GLCD_PLOT_BUFFER
        carry set, A = error
   clobbers: A, BC, DE, HL, flags
 ```
+
+RAM note: MON3's GLCD library effectively uses `0A00h-17FFh` as a video
+workspace, a 3584-byte 3.5 KiB range containing a full graphics buffer,
+terminal scroll buffer, terminal graphics buffer, and cursor/drawing state. A
+future TECM8-focused display BIOS may keep these MON3 calls for compatibility
+while adding a smaller text-first path that does not require the full workspace.
 
 ## Input Calls
 

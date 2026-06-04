@@ -54,6 +54,60 @@ startup and vectors. This is a 2K shadow window, and it is the likely source of
 confusion with older low-monitor layouts. With shadow disabled, 0000h-07FFh is
 RAM.
 
+## MON3 Low-RAM Use
+
+The raw memory map above is only the hardware view. MON3 itself makes heavy use
+of low RAM below the conventional `4000h` user-program start. TECM8 should treat
+these areas as MON3-owned or MON3-volatile while it is using MON3 services:
+
+```text
+0000h-00FFh  RAM copy of MON3 low vectors and restart stubs
+0100h-07FFh  MON3 FAT/PATA/SD storage workspace
+0600h-07FFh  DISK_BUFF, 512-byte sector buffer inside that workspace
+0800h-087Fh  MON3 stack
+0880h-089Fh  core monitor variables and device state
+08A0h-08FFh  monitor scratch, menu, parameter, and copy state
+0900h-0967h  data view, breakpoint, and disassembler scratch overlap
+0A00h-17FFh  practical MON3 GLCD/video workspace
+1800h-3FFFh  first plausible low-RAM TECM8 workspace, subject to audit
+4000h-7FFFh  conventional protected user-program RAM
+```
+
+The storage allocation is larger than the visible `DISK_BUFF`. MON3's FAT/PATA
+package allocates downward from `0800h`: FAT geometry, volume label, file
+control block, SD command frame, root-file cluster list, directory menu data,
+and the 512-byte sector buffer together cover roughly `0100h-07FFh`. Removing
+PATA from a future BIOS should save ROM and simplify code paths, but SD/FAT32
+will still need at least a sector buffer and a compact file-control workspace.
+
+MON3 starts by setting `SP` to `0880h`, forcing shadow ROM off, and copying the
+first 256 bytes of ROM from `C000h-C0FFh` down to `0000h-00FFh`. That leaves
+RST vectors and low restart stubs callable from RAM after the low ROM shadow is
+disabled.
+
+The GLCD range is best treated as `0A00h-17FFh`: `0E00h` bytes, or 3584 bytes
+3.5 KiB. The current MON3 GLCD library uses:
+
+```text
+0A00h-0DFFh  GBUF, 1024-byte full 128x64 1bpp graphics buffer
+0E00h-0E19h  line drawing, cursor, viewport, and terminal state
+1000h-13BFh  SBUF, 960-byte terminal scroll buffer
+13C0h-17BFh  TGBUF, 1024-byte terminal graphics buffer
+```
+
+This is defensible for a general graphics library: a 128x64 bitmap alone costs
+1024 bytes, and MON3 keeps extra terminal buffers so it can scroll text, redraw
+cursor state, and plot a prepared buffer to the ST7920 GLCD. It is also a large
+cost for TECM8, because it removes about 3.5 KiB from the low-RAM working set
+before editor, shell, assembler, or project state are considered.
+
+TECM8 should therefore plan for an explicit video workspace rather than hard
+coding GLCD assumptions into unrelated code. A future TMS9918-style VDU layer
+may not need the same CPU RAM framebuffer, because the TMS has its own video
+RAM, but it will still need BIOS state, staging buffers, and text/dirty-region
+helpers. The GLCD and TMS paths should share a high-level display contract
+where practical while allowing different backing storage underneath.
+
 The TEC-1G system control latch at port FFh controls the relevant memory
 features:
 
@@ -129,6 +183,8 @@ expensive layer rather than being permanently resident from the start.
 Useful RAM principles:
 
 - Keep shared state layout explicit and centralized.
+- Reserve a named video workspace instead of letting each display library
+  silently consume low RAM.
 - Prefer bounded buffers with byte-sized capacities where practical.
 - Keep command input, path buffers, and project metadata small.
 - Treat source files as disk-backed records, not one giant in-memory document.

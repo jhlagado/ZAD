@@ -151,6 +151,41 @@ The 20x4 LCD and seven-segment display can remain as secondary device services
 if they fit cleanly. They are useful for compatibility, boot diagnostics, and
 small status displays, but they should not drive TECM8's main UI design.
 
+### GLCD RAM Cost
+
+MON3's current GLCD library effectively reserves `0A00h-17FFh` as a GLCD/video
+workspace. That is `0E00h` bytes, or 3584 bytes 3.5 KiB. The main pieces are a
+1024-byte full 128x64 graphics buffer, drawing and cursor state around
+`0E00h`, a 960-byte terminal scroll buffer, and a second 1024-byte terminal
+graphics buffer.
+
+That allocation makes sense for MON3 as a general-purpose graphics and terminal
+library. A 128x64 one-bit framebuffer is inherently 1024 bytes, and keeping
+separate terminal/scroll buffers makes cursor drawing, line scrolling, and
+screen refresh easier and faster. It is also a large fixed cost for TECM8.
+
+TECM8 should initially preserve MON3 compatibility, but a later TECM8-focused
+GLCD BIOS can probably be smaller in RAM if the main target is text editing and
+shell interaction rather than arbitrary buffered graphics:
+
+- Keep a small text model, such as a 16x4 character grid plus cursor state, and
+  render rows directly to the GLCD.
+- Use dirty-row or dirty-cell updates instead of always maintaining a second
+  full terminal bitmap.
+- Make full 128x64 graphics buffering optional and caller-supplied when a tool
+  actually needs graphics.
+- Treat scrolling as a text-buffer operation first, not necessarily as a
+  preserved bitmap history.
+- Keep drawing primitives available, but do not require every text UI to pay
+  for the full graphics workspace.
+
+The same display contract should be able to sit above a later TMS9918-style VDU
+BIOS. A TMS path will likely use external video RAM for the display image, so
+its CPU RAM pressure will be different: state, staging, name-table helpers, and
+dirty tracking rather than a 1024-byte CPU framebuffer. TECM8 should therefore
+define display services in terms of text, cursor, clear, plot/update, and
+optional graphics operations, not in terms of MON3's exact GLCD buffers.
+
 ## Input Boundary
 
 The matrix keyboard is the main input device. BIOS input should expose both raw
@@ -247,6 +282,13 @@ These numbers are estimates, not measurements. The important constraint is the
 shape: hardware services stay resident and compact, the shell/filesystem/editor
 layer can occupy carefully chosen fixed space, and the heavier development
 tools move into RAM and banked expansion ROM.
+
+RAM should be budgeted with the same discipline as ROM. While MON3 is present,
+storage services can make `0100h-07FFh` volatile, and GLCD terminal/graphics
+services can make `0A00h-17FFh` effectively unavailable for TECM8 state. A
+trimmed TECM8 BIOS should try to reduce those fixed reservations, especially by
+removing PATA paths and by offering a text-first display layer that does not
+always require MON3's full GLCD terminal workspace.
 
 ## Resident TECM8 Opportunity
 
