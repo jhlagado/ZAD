@@ -104,6 +104,13 @@ const PROOF_CASES = {
     lines: makeSmallFileLines(),
     verify: verifyEditorMutationBoundaryProof,
   },
+  'editor-line-editing-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyEditorLineEditingProof,
+  },
 } as const;
 
 type ProofCaseName = keyof typeof PROOF_CASES;
@@ -406,6 +413,21 @@ function readSourceRecord(memory: Uint8Array, address: number, record: number): 
   return Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
 }
 
+function assertSourceRecordClean(memory: Uint8Array, address: number, record: number, text: string): void {
+  const start = address + record * 32;
+  const length = memory[start];
+  const actual = Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
+  if (actual !== text) {
+    throw new Error(`source record ${record} "${actual}", expected "${text}"`);
+  }
+  for (let offset = 1 + length; offset < 32; offset += 1) {
+    const value = memory[start + offset];
+    if (value !== 0) {
+      throw new Error(`source record ${record} padding offset ${offset} is ${resultToString(value)}, expected 0x00`);
+    }
+  }
+}
+
 function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
 }
@@ -571,6 +593,50 @@ function verifyEditorMutationBoundaryProof(runtime: Runtime, _platformRuntime: P
   }
   if (runtime.hardware.memory[cursorCol] !== 2) {
     throw new Error(`editor mutation boundary cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
+  }
+}
+
+function verifyEditorLineEditingProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  const expectedRecords = [
+    { record: 0, text: 'HELLO' },
+    { record: 1, text: 'NE' },
+    { record: 2, text: 'XT' },
+    { record: 3, text: 'END' },
+    { record: 4, text: 'TAIL' },
+    { record: 5, text: '' },
+    { record: 6, text: '' },
+    { record: 7, text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ12345' },
+    { record: 8, text: 'X' },
+    { record: 9, text: 'AFTER' },
+    { record: 10, text: '' },
+    { record: 11, text: '' },
+    { record: 12, text: '' },
+    { record: 13, text: '' },
+    { record: 14, text: '' },
+    { record: 15, text: 'LAST' },
+  ];
+  for (const expected of expectedRecords) {
+    assertSourceRecordClean(runtime.hardware.memory, pageBuffer, expected.record, expected.text);
+  }
+
+  const expectedCursors = [
+    { symbol: 'LineEditCursorCase1', row: 1, col: 0 },
+    { symbol: 'LineEditCursorCase2', row: 0, col: 2 },
+    { symbol: 'LineEditCursorCase3', row: 3, col: 0 },
+    { symbol: 'LineEditCursorCase4', row: 3, col: 0 },
+    { symbol: 'LineEditCursorCase5', row: 7, col: 0 },
+    { symbol: 'LineEditCursorCase6', row: 15, col: 2 },
+    { symbol: 'LineEditCursorCase7', row: 2, col: 0 },
+    { symbol: 'LineEditCursorCase8', row: 1, col: 1 },
+  ];
+  for (const expected of expectedCursors) {
+    const address = symbolAddress(symbols, expected.symbol);
+    const row = runtime.hardware.memory[address];
+    const col = runtime.hardware.memory[address + 1];
+    if (row !== expected.row || col !== expected.col) {
+      throw new Error(`editor line ${expected.symbol} cursor ${row},${col}; expected ${expected.row},${expected.col}`);
+    }
   }
 }
 

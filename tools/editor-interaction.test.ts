@@ -19,6 +19,11 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(iface, /^extern TECM8_EDITOR_RUN_KEYS$/m);
   assert.match(iface, /^extern TECM8_EDITOR_CURSOR_RESET$/m);
   assert.match(iface, /^extern TECM8_EDITOR_RENDER_CURSOR$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_INSERT_CHAR$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_BACKSPACE_CHAR$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_DELETE_CHAR$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_SPLIT_LINE$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_JOIN_PREVIOUS_LINE$/m);
   assert.match(iface, /^in HL$/m);
   assert.match(source, /CALL\s+TECM8_EDITOR_PAGE_DOWN/);
   assert.match(source, /CALL\s+TECM8_EDITOR_PAGE_UP/);
@@ -33,6 +38,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+31/);
   assert.match(source, /TECM8_EDITOR_KEY_BACKSPACE\s+\.equ\s+8/);
   assert.match(source, /TECM8_EDITOR_KEY_INSERT_MODE\s+\.equ\s+9/);
+  assert.match(source, /TECM8_EDITOR_KEY_NEWLINE\s+\.equ\s+13/);
   assert.match(source, /TECM8_EDITOR_KEY_DELETE\s+\.equ\s+127/);
   assert.match(source, /EditorInsertMode:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeyInsertMode:/);
@@ -45,6 +51,11 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+TECM8_EDITOR_INSERT_CHAR/);
   assert.match(source, /CALL\s+TECM8_EDITOR_BACKSPACE_CHAR/);
   assert.match(source, /CALL\s+TECM8_EDITOR_DELETE_CHAR/);
+  assert.match(source, /CALL\s+TECM8_EDITOR_SPLIT_LINE/);
+  assert.match(source, /JP\s+Z,TECM8_EDITOR_JOIN_PREVIOUS_LINE/);
+  assert.match(source, /@EditorKeyZeroRecordPadding:/);
+  assert.match(source, /@EditorKeyClearRecord:/);
+  assert.match(source, /@TECM8_EDITOR_JOIN_PREVIOUS_LINE:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
 });
@@ -114,4 +125,34 @@ test('editor mutation boundary proof covers fixed-record edge cases', () => {
   assert.match(runner, /expected 2/);
   assert.match(packageJson, /"proof:display:editor-mutation-boundary"/);
   assert.match(packageJson, /proof:display:editor-mutation-boundary/);
+});
+
+test('editor line editing proof covers split and join behavior', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-line-editing-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-line-editing-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+TECM8_EDITOR_SPLIT_LINE/);
+  assert.match(proof, /CALL\s+TECM8_EDITOR_BACKSPACE_CHAR/);
+  assert.match(proof, /CALL\s+TECM8_EDITOR_RUN_KEYS/);
+  assert.match(proof, /LineEditNewlineKey:\n\s+\.db\s+13,0/);
+  assert.match(proof, /LineEditRecord0:\n\s+\.db\s+5,"HELLO"/);
+  assert.match(proof, /LineEditRecord6:\n\s+\.db\s+31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
+  assert.match(proof, /LineEditRecordLast:\n\s+\.db\s+4,"LAST"/);
+  assert.match(proof, /LineEditCursorCase8:/);
+  assert.match(runner, /editor-line-editing-proof/);
+  assert.match(runner, /verifyEditorLineEditingProof/);
+  assert.match(runner, /assertSourceRecordClean/);
+  assert.match(runner, /text: 'HELLO'/);
+  assert.match(runner, /text: 'NE'/);
+  assert.match(runner, /text: 'XT'/);
+  assert.match(runner, /text: 'TAIL'/);
+  assert.match(runner, /LineEditCursorCase1', row: 1, col: 0/);
+  assert.match(runner, /LineEditCursorCase2', row: 0, col: 2/);
+  assert.match(runner, /LineEditCursorCase6', row: 15, col: 2/);
+  assert.match(runner, /LineEditCursorCase7', row: 2, col: 0/);
+  assert.match(runner, /LineEditCursorCase8', row: 1, col: 1/);
+  assert.match(packageJson, /"proof:display:editor-line-editing"/);
+  assert.match(packageJson, /proof:display:editor-line-editing/);
 });

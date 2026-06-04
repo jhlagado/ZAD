@@ -17,6 +17,7 @@ TECM8_EDITOR_KEY_CURSOR_RIGHT_LOWER     .equ    "l"
 TECM8_EDITOR_KEY_CURSOR_RIGHT_UPPER     .equ    "L"
 TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
+TECM8_EDITOR_KEY_NEWLINE                .equ    13
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
@@ -80,7 +81,8 @@ EditorCursorRenderDone:
 ; Consume a NUL-terminated key stream. In command mode, `d`/`u` page and
 ; `h`/`j`/`k`/`l` move the visible cursor. TAB enters insert mode for this
 ; stream, printable ASCII inserts, backspace deletes before the cursor, delete
-; removes the character at the cursor, and unknown keys are ignored.
+; removes the character at the cursor, newline splits the current record, and
+; unknown keys are ignored.
 ; Input:
 ;   HL = NUL-terminated key stream
 ;!      in        HL
@@ -102,6 +104,8 @@ EditorKeyLoop:
 
         CP      TECM8_EDITOR_KEY_INSERT_MODE
         JR      Z,EditorKeyInsertMode
+        CP      TECM8_EDITOR_KEY_NEWLINE
+        JP      Z,EditorKeySplitLine
         LD      A,(EditorInsertMode)
         OR      A
         JR      NZ,EditorKeyMaybeInsertMode
@@ -115,13 +119,13 @@ EditorKeyLoop:
         CP      TECM8_EDITOR_KEY_PAGE_UP_UPPER
         JR      Z,EditorKeyPageUp
         CP      TECM8_EDITOR_KEY_CURSOR_LEFT_LOWER
-        JR      Z,EditorKeyCursorLeft
+        JP      Z,EditorKeyCursorLeft
         CP      TECM8_EDITOR_KEY_CURSOR_LEFT_UPPER
-        JR      Z,EditorKeyCursorLeft
+        JP      Z,EditorKeyCursorLeft
         CP      TECM8_EDITOR_KEY_CURSOR_DOWN_LOWER
         JP      Z,EditorKeyCursorDown
         CP      TECM8_EDITOR_KEY_CURSOR_DOWN_UPPER
-        JR      Z,EditorKeyCursorDown
+        JP      Z,EditorKeyCursorDown
         CP      TECM8_EDITOR_KEY_CURSOR_UP_LOWER
         JP      Z,EditorKeyCursorUp
         CP      TECM8_EDITOR_KEY_CURSOR_UP_UPPER
@@ -135,22 +139,24 @@ EditorKeyLoop:
         CP      TECM8_EDITOR_KEY_DELETE
         JP      Z,EditorKeyDelete
         CP      TECM8_EDITOR_KEY_PRINTABLE_MIN
-        JR      C,EditorKeyLoop
+        JP      C,EditorKeyLoop
         CP      TECM8_EDITOR_KEY_PRINTABLE_MAX + 1
-        JR      NC,EditorKeyLoop
+        JP      NC,EditorKeyLoop
         JP      EditorKeyInsertPrintable
         JP      EditorKeyLoop
 
 EditorKeyMaybeInsertMode:
         LD      A,(EditorPendingChar)
+        CP      TECM8_EDITOR_KEY_NEWLINE
+        JP      Z,EditorKeySplitLine
         CP      TECM8_EDITOR_KEY_BACKSPACE
         JP      Z,EditorKeyBackspace
         CP      TECM8_EDITOR_KEY_DELETE
         JP      Z,EditorKeyDelete
         CP      TECM8_EDITOR_KEY_PRINTABLE_MIN
-        JR      C,EditorKeyLoop
+        JP      C,EditorKeyLoop
         CP      TECM8_EDITOR_KEY_PRINTABLE_MAX + 1
-        JR      NC,EditorKeyLoop
+        JP      NC,EditorKeyLoop
         JP      EditorKeyInsertPrintable
 
 EditorKeyInsertMode:
@@ -215,6 +221,13 @@ EditorKeyCursorRight:
 EditorKeyInsertPrintable:
         LD      A,(EditorPendingChar)
         CALL    TECM8_EDITOR_INSERT_CHAR
+        RET     C
+        CALL    EditorKeyRenderDirty
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeySplitLine:
+        CALL    TECM8_EDITOR_SPLIT_LINE
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C
@@ -307,13 +320,235 @@ EditorInsertDone:
 @TECM8_EDITOR_BACKSPACE_CHAR:
         LD      A,(EditorCursorCol)
         OR      A
-        JR      Z,EditorBackspaceDone
+        JP      Z,TECM8_EDITOR_JOIN_PREVIOUS_LINE
         DEC     A
         LD      (EditorCursorCol),A
         CALL    TECM8_EDITOR_DELETE_CHAR
         RET
 
 EditorBackspaceDone:
+        XOR     A
+        RET
+
+; TECM8_EDITOR_SPLIT_LINE -
+; Split the current fixed-width source record at the cursor. The split is a
+; no-op when the cursor is on the final page row or the final record is in use.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_EDITOR_SPLIT_LINE:
+        LD      A,(EditorCursorRow)
+        CP      15
+        JP      NC,EditorSplitDone
+
+        LD      A,15
+        CALL    EditorKeyRecordAtRow
+        LD      A,(HL)
+        OR      A
+        JP      NZ,EditorSplitDone
+
+        CALL    EditorKeyCurrentRecord
+        LD      (EditorRecordBase),HL
+        LD      A,(HL)
+        LD      (EditorLineLength),A
+        LD      B,A
+        LD      A,(EditorCursorCol)
+        CP      B
+        JR      C,EditorSplitCursorReady
+        JR      Z,EditorSplitCursorReady
+        LD      A,B
+        LD      (EditorCursorCol),A
+
+EditorSplitCursorReady:
+        LD      (EditorLineColumn),A
+        LD      A,(EditorCursorRow)
+        LD      C,A
+        LD      A,15
+        SUB     C
+        LD      (EditorLineRowsLeft),A
+        LD      A,14
+        CALL    EditorKeyRecordAtRow
+        LD      (EditorLineSrc),HL
+        LD      A,15
+        CALL    EditorKeyRecordAtRow
+        LD      (EditorLineDest),HL
+
+EditorSplitShiftLoop:
+        LD      A,(EditorLineRowsLeft)
+        OR      A
+        JR      Z,EditorSplitShiftDone
+        LD      HL,(EditorLineSrc)
+        LD      DE,(EditorLineDest)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      HL,(EditorLineSrc)
+        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineSrc),HL
+        LD      HL,(EditorLineDest)
+        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineRowsLeft)
+        DEC     A
+        LD      (EditorLineRowsLeft),A
+        JR      EditorSplitShiftLoop
+
+EditorSplitShiftDone:
+        LD      HL,(EditorRecordBase)
+        LD      A,(EditorLineColumn)
+        LD      (HL),A
+        LD      A,(EditorLineLength)
+        LD      B,A
+        LD      A,(EditorLineColumn)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        LD      (EditorLineTailLength),A
+        LD      HL,(EditorRecordBase)
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineTailLength)
+        LD      (HL),A
+        OR      A
+        JR      Z,EditorSplitZeroPadding
+        LD      HL,(EditorRecordBase)
+        INC     HL
+        LD      D,0
+        LD      A,(EditorLineColumn)
+        LD      E,A
+        ADD     HL,DE
+        LD      DE,(EditorLineDest)
+        INC     DE
+        LD      A,(EditorLineTailLength)
+        LD      B,A
+
+EditorSplitTailLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DJNZ    EditorSplitTailLoop
+
+EditorSplitZeroPadding:
+        LD      HL,(EditorRecordBase)
+        LD      A,(EditorLineColumn)
+        CALL    EditorKeyZeroRecordPadding
+        LD      HL,(EditorLineDest)
+        LD      A,(EditorLineTailLength)
+        CALL    EditorKeyZeroRecordPadding
+
+EditorSplitCursorDown:
+        LD      A,(EditorCursorRow)
+        INC     A
+        LD      (EditorCursorRow),A
+        XOR     A
+        LD      (EditorCursorCol),A
+
+EditorSplitDone:
+        XOR     A
+        RET
+
+; TECM8_EDITOR_JOIN_PREVIOUS_LINE -
+; Join the current record into the previous one when the cursor is at column 0.
+; The join is a no-op on row 0 or when the combined text would exceed 31 bytes.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_EDITOR_JOIN_PREVIOUS_LINE:
+        LD      A,(EditorCursorCol)
+        OR      A
+        JP      NZ,EditorJoinDone
+        LD      A,(EditorCursorRow)
+        OR      A
+        JP      Z,EditorJoinDone
+        LD      (EditorLineCurrentRow),A
+        CALL    EditorKeyCurrentRecord
+        LD      (EditorLineCurrentBase),HL
+        LD      A,(HL)
+        LD      (EditorLineCurrentLength),A
+        LD      A,(EditorCursorRow)
+        DEC     A
+        CALL    EditorKeyRecordAtRow
+        LD      (EditorLinePrevBase),HL
+        LD      A,(HL)
+        LD      (EditorLinePrevLength),A
+        LD      B,A
+        LD      A,(EditorLineCurrentLength)
+        ADD     A,B
+        CP      TECM8_EDITOR_EDIT_RECORD_TEXT_MAX + 1
+        JP      NC,EditorJoinDone
+        LD      (EditorLineJoinedLength),A
+        LD      HL,(EditorLinePrevBase)
+        LD      A,(EditorLineJoinedLength)
+        LD      (HL),A
+        INC     HL
+        LD      D,0
+        LD      A,(EditorLinePrevLength)
+        LD      E,A
+        ADD     HL,DE
+        LD      DE,(EditorLineCurrentBase)
+        INC     DE
+        LD      A,(EditorLineCurrentLength)
+        LD      B,A
+        OR      A
+        JR      Z,EditorJoinZeroPrevPadding
+
+EditorJoinCopyLoop:
+        LD      A,(DE)
+        LD      (HL),A
+        INC     DE
+        INC     HL
+        DJNZ    EditorJoinCopyLoop
+
+EditorJoinZeroPrevPadding:
+        LD      HL,(EditorLinePrevBase)
+        LD      A,(EditorLineJoinedLength)
+        CALL    EditorKeyZeroRecordPadding
+
+EditorJoinShiftRows:
+        LD      A,(EditorLineCurrentRow)
+        LD      C,A
+        LD      A,15
+        SUB     C
+        LD      (EditorLineRowsLeft),A
+        LD      HL,(EditorLineCurrentBase)
+        LD      (EditorLineDest),HL
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineSrc),HL
+
+EditorJoinShiftLoop:
+        LD      A,(EditorLineRowsLeft)
+        OR      A
+        JR      Z,EditorJoinClearLast
+        LD      HL,(EditorLineSrc)
+        LD      DE,(EditorLineDest)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      HL,(EditorLineSrc)
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineSrc),HL
+        LD      HL,(EditorLineDest)
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineRowsLeft)
+        DEC     A
+        LD      (EditorLineRowsLeft),A
+        JR      EditorJoinShiftLoop
+
+EditorJoinClearLast:
+        LD      A,15
+        CALL    EditorKeyRecordAtRow
+        CALL    EditorKeyClearRecord
+        LD      A,(EditorCursorRow)
+        DEC     A
+        LD      (EditorCursorRow),A
+        LD      A,(EditorLinePrevLength)
+        LD      (EditorCursorCol),A
+
+EditorJoinDone:
         XOR     A
         RET
 
@@ -385,6 +620,60 @@ EditorRecordOffsetLoop:
         XOR     A
         RET
 
+;!      in        A
+;!      out       A,HL,carry,zero
+;!      clobbers  A,B,DE,sign,parity,halfCarry
+@EditorKeyRecordAtRow:
+        LD      HL,EditorNavPageBuffer
+        OR      A
+        RET     Z
+        LD      B,A
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+
+EditorRecordAtRowOffsetLoop:
+        ADD     HL,DE
+        DJNZ    EditorRecordAtRowOffsetLoop
+        XOR     A
+        RET
+
+;!      in        A,HL
+;!      out       A,carry,zero
+;!      clobbers  A,B,C,DE,HL,sign,parity,halfCarry
+@EditorKeyZeroRecordPadding:
+        LD      C,A
+        LD      A,TECM8_EDITOR_EDIT_RECORD_TEXT_MAX
+        SUB     C
+        JR      Z,EditorKeyZeroRecordPaddingDone
+        LD      B,A
+        INC     HL
+        LD      D,0
+        LD      E,C
+        ADD     HL,DE
+        XOR     A
+
+EditorKeyZeroRecordPaddingLoop:
+        LD      (HL),A
+        INC     HL
+        DJNZ    EditorKeyZeroRecordPaddingLoop
+
+EditorKeyZeroRecordPaddingDone:
+        XOR     A
+        RET
+
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  A,B,HL
+@EditorKeyClearRecord:
+        LD      B,TECM8_EDITOR_EDIT_RECORD_BYTES
+        XOR     A
+
+EditorKeyClearRecordLoop:
+        LD      (HL),A
+        INC     HL
+        DJNZ    EditorKeyClearRecordLoop
+        XOR     A
+        RET
+
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorKeyAdvanceCursor:
@@ -409,6 +698,42 @@ EditorInsertMode:
 
 EditorRecordBase:
         .dw     0
+
+EditorLineSrc:
+        .dw     0
+
+EditorLineDest:
+        .dw     0
+
+EditorLineCurrentBase:
+        .dw     0
+
+EditorLinePrevBase:
+        .dw     0
+
+EditorLineLength:
+        .db     0
+
+EditorLineColumn:
+        .db     0
+
+EditorLineTailLength:
+        .db     0
+
+EditorLineRowsLeft:
+        .db     0
+
+EditorLineCurrentRow:
+        .db     0
+
+EditorLineCurrentLength:
+        .db     0
+
+EditorLinePrevLength:
+        .db     0
+
+EditorLineJoinedLength:
+        .db     0
 
 EditorCursorRow:
         .db     0

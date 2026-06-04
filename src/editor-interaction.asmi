@@ -13,3 +13,29 @@ extern TECM8_EDITOR_RENDER_CURSOR
 out A,carry
 clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 end
+
+extern TECM8_EDITOR_INSERT_CHAR
+in A
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_BACKSPACE_CHAR
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_DELETE_CHAR
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_SPLIT_LINE
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_JOIN_PREVIOUS_LINE
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
