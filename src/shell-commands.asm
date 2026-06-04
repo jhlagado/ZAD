@@ -21,6 +21,71 @@ SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
 
+; ExecuteShellDispatch —
+; Route a populated dispatch block to the current executor entry stub.
+; Input:
+;   HL = dispatch block from DispatchShellCommand
+; Output:
+;   carry clear, A=SHELL_CMD_* invoked
+;   carry set, A=SHELL_ERR_UNKNOWN for an unsupported dispatch action
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  DE,HL
+@ExecuteShellDispatch:
+        LD      A,(HL)
+        INC     HL
+        CP      SHELL_CMD_EDIT
+        JR      Z,ShellExecuteEdit
+        CP      SHELL_CMD_ASM
+        JR      Z,ShellExecuteAsm
+        CP      SHELL_CMD_RUN
+        JR      Z,ShellExecuteRun
+        LD      A,SHELL_ERR_UNKNOWN
+        SCF
+        RET
+
+ShellExecuteEdit:
+        JP      ShellExecEditor
+
+ShellExecuteAsm:
+        JP      ShellExecAssembler
+
+ShellExecuteRun:
+        JP      ShellExecRunner
+
+; ShellExecEditor —
+; Stub editor entry point. HL points at edit payload: mode byte, then path.
+;!      in        HL
+;!      out       A,carry,zero
+@ShellExecEditor:
+        LD      (ShellLastExecRequestPtr),HL
+        LD      A,SHELL_CMD_EDIT
+        LD      (ShellLastExecAction),A
+        OR      A
+        RET
+
+; ShellExecAssembler —
+; Stub assembler entry point. HL points at asm payload: source, output, map.
+;!      in        HL
+;!      out       A,carry,zero
+@ShellExecAssembler:
+        LD      (ShellLastExecRequestPtr),HL
+        LD      A,SHELL_CMD_ASM
+        LD      (ShellLastExecAction),A
+        OR      A
+        RET
+
+; ShellExecRunner —
+; Stub runner entry point. HL points at run payload: mode byte, then path.
+;!      in        HL
+;!      out       A,carry,zero
+@ShellExecRunner:
+        LD      (ShellLastExecRequestPtr),HL
+        LD      A,SHELL_CMD_RUN
+        LD      (ShellLastExecAction),A
+        OR      A
+        RET
+
 ; DispatchShellCommand —
 ; Resolve a shell command into the executor-facing dispatch block:
 ;   +0       action, SHELL_CMD_EDIT/SHELL_CMD_ASM/SHELL_CMD_RUN
@@ -894,6 +959,12 @@ ShellDispatchPtr:
 
 ShellDispatchCommandPtr:
         .dw     0
+
+ShellLastExecRequestPtr:
+        .dw     0
+
+ShellLastExecAction:
+        .db     0
 
 ShellEditMode:
         .db     0

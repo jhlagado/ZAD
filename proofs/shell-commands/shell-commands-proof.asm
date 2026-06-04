@@ -203,6 +203,32 @@ PathOutLen      .equ     64
 
         LD      A,26
         LD      (CaseMarker),A
+        LD      HL,CmdEdit
+        LD      A,SHELL_CMD_EDIT
+        CALL    AssertExecuteDispatch
+        JP      C,ProofFailed
+
+        LD      A,27
+        LD      (CaseMarker),A
+        LD      HL,CmdAsmTest
+        LD      A,SHELL_CMD_ASM
+        CALL    AssertExecuteDispatch
+        JP      C,ProofFailed
+
+        LD      A,28
+        LD      (CaseMarker),A
+        LD      HL,CmdRunTest
+        LD      A,SHELL_CMD_RUN
+        CALL    AssertExecuteDispatch
+        JP      C,ProofFailed
+
+        LD      A,29
+        LD      (CaseMarker),A
+        CALL    AssertExecuteDispatchUnknownErr
+        JP      C,ProofFailed
+
+        LD      A,30
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -211,7 +237,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,27
+        LD      A,31
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -221,7 +247,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,28
+        LD      A,32
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -521,6 +547,61 @@ AssertDispatchAsmBad:
         RET     Z
 
 AssertDispatchUnknownBad:
+        SCF
+        RET
+
+; AssertExecuteDispatch —
+; Dispatch a command, execute the dispatch block, and verify the invoked stub.
+; Input: HL = command text, A = expected action
+;!      in        A,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertExecuteDispatch:
+        LD      (ExpectedAction),A
+        LD      DE,DispatchRequest
+        LD      B,PathOutLen
+        CALL    DispatchShellCommand
+        RET     C
+
+        LD      HL,DispatchRequest
+        CALL    ExecuteShellDispatch
+        RET     C
+
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertExecuteDispatchBad
+
+        LD      A,(ShellLastExecAction)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertExecuteDispatchBad
+
+        LD      HL,(ShellLastExecRequestPtr)
+        LD      DE,DispatchRequest + 1
+        OR      A
+        SBC     HL,DE
+        RET     Z
+
+AssertExecuteDispatchBad:
+        SCF
+        RET
+
+; AssertExecuteDispatchUnknownErr —
+; Execute a dispatch block with an invalid action and require unknown-command.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertExecuteDispatchUnknownErr:
+        LD      A,SHELL_ERR_UNKNOWN
+        LD      (DispatchRequest),A
+        LD      HL,DispatchRequest
+        CALL    ExecuteShellDispatch
+        JR      NC,AssertExecuteDispatchUnknownBad
+        CP      SHELL_ERR_UNKNOWN
+        RET     Z
+
+AssertExecuteDispatchUnknownBad:
         SCF
         RET
 
