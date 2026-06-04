@@ -1,8 +1,8 @@
 ; TECM8 editor source-sector loader.
 ;
 ; Proof-focused loader for /src/main.asm in VOLUME.TM8. It opens the MON3
-; FAT32 file, finds prefix "src", finds file "main.asm", and copies the first
-; 512-byte TM8 file sector to a caller buffer.
+; FAT32 file, finds prefix "src", finds file "main.asm", follows the TM8
+; allocation chain, and copies one 512-byte source page to a caller buffer.
 
 DISK_BUFF               .equ    0x0600
 
@@ -54,15 +54,24 @@ EDITOR_LOAD_ERR_PAGE    .equ    0x37
 
 ; TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE -
 ; Load one 512-byte sector page of /src/main.asm into caller buffer HL.
-; Page A is limited to 0..7 within the file's first 4K TM8 block.
+; Page A is limited to 0..127.
 ;!      in        A,HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE:
         LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
-        CP      8
+        CP      128
         JR      NC,EditorLoadPageErr
+        AND     7
+        LD      (EditorLoadSectorInBlock),A
+        LD      A,(EditorLoadSectorIndex)
+        RRCA
+        RRCA
+        RRCA
+        AND     0x1F
+        LD      (EditorLoadBlockSteps),A
+        LD      A,(EditorLoadSectorIndex)
         ADD     A,A
         INC     A
         LD      (EditorLoadRequiredSizeHigh),A
@@ -418,7 +427,7 @@ EditorLoadCatalogEntry:
         INC     HL
         LD      A,D
         CP      4
-        JR      NC,EditorLoadBlockErr
+        JP      NC,EditorLoadBlockErr
         LD      A,D
         OR      A
         JR      NZ,EditorLoadFirstBlockOk
@@ -477,8 +486,11 @@ EditorLoadBlockErr:
 ;!      clobbers  BC,DE,HL
 @EditorLoadReadSourceSector:
         LD      HL,(EditorLoadFirstBlock)
+        CALL    EditorLoadResolveSourceBlock
+        RET     C
+        LD      HL,(EditorLoadResolvedBlock)
         CALL    EditorLoadBlockToOffset
-        LD      A,(EditorLoadSectorIndex)
+        LD      A,(EditorLoadSectorInBlock)
         ADD     A,A
         ADD     A,D
         LD      D,A
@@ -489,6 +501,85 @@ EditorLoadBlockErr:
         LD      DE,(EditorLoadDest)
         LD      BC,TM8_SECTOR_BYTES
         LDIR
+        XOR     A
+        RET
+
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@EditorLoadResolveSourceBlock:
+        LD      (EditorLoadResolvedBlock),HL
+        LD      A,(EditorLoadBlockSteps)
+        LD      (EditorLoadBlocksLeft),A
+
+EditorLoadResolveLoop:
+        LD      A,(EditorLoadBlocksLeft)
+        OR      A
+        JR      Z,EditorLoadResolveOk
+
+        LD      HL,(EditorLoadResolvedBlock)
+        CALL    EditorLoadReadAllocationEntry
+        RET     C
+        LD      (EditorLoadResolvedBlock),HL
+
+        LD      A,(EditorLoadBlocksLeft)
+        DEC     A
+        LD      (EditorLoadBlocksLeft),A
+        JR      EditorLoadResolveLoop
+
+EditorLoadResolveOk:
+        XOR     A
+        RET
+
+;!      in        HL
+;!      out       HL,A,carry,zero
+;!      clobbers  BC,DE
+@EditorLoadReadAllocationEntry:
+        LD      (EditorLoadCurrentBlock),HL
+        LD      A,H
+        CP      4
+        JP      NC,EditorLoadBlockErr
+        ADD     A,A
+        ADD     A,0x10
+        LD      D,A
+        LD      E,0
+        LD      HL,0
+        CALL    TECM8_BIOS_FILE_READ_SECTOR
+        JP      C,EditorLoadReadErr
+
+        LD      A,(EditorLoadCurrentBlock)
+        ADD     A,A
+        LD      E,A
+        LD      D,0
+        JR      NC,EditorLoadAllocationOffsetOk
+        INC     D
+
+EditorLoadAllocationOffsetOk:
+        LD      HL,DISK_BUFF
+        ADD     HL,DE
+        LD      E,(HL)
+        INC     HL
+        LD      D,(HL)
+
+        LD      A,D
+        CP      0xFF
+        JR      NZ,EditorLoadAllocationNotEndHigh
+        LD      A,E
+        CP      0xFF
+        JP      Z,EditorLoadBlockErr
+
+EditorLoadAllocationNotEndHigh:
+        LD      A,D
+        CP      4
+        JP      NC,EditorLoadBlockErr
+        OR      A
+        JR      NZ,EditorLoadAllocationOk
+        LD      A,E
+        CP      TM8_DATA_START_BLOCK
+        JP      C,EditorLoadBlockErr
+
+EditorLoadAllocationOk:
+        EX      DE,HL
         XOR     A
         RET
 
@@ -570,5 +661,20 @@ EditorLoadSrcPrefixId:
 EditorLoadSectorIndex:
         .db     0
 
+EditorLoadSectorInBlock:
+        .db     0
+
+EditorLoadBlockSteps:
+        .db     0
+
+EditorLoadBlocksLeft:
+        .db     0
+
 EditorLoadRequiredSizeHigh:
         .db     0
+
+EditorLoadResolvedBlock:
+        .dw     0
+
+EditorLoadCurrentBlock:
+        .dw     0

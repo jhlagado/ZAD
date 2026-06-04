@@ -24,7 +24,11 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /CALL\s+TECM8_BIOS_FILE_OPEN/);
   assert.match(source, /CALL\s+TECM8_BIOS_FILE_READ_SECTOR/);
   assert.match(source, /EditorLoadVolumeName:\n\s+\.db\s+"VOLUME\.TM8",0/);
-  assert.match(source, /CP\s+8\n\s+JR\s+NC,EditorLoadPageErr/);
+  assert.match(source, /CP\s+128\n\s+JR\s+NC,EditorLoadPageErr/);
+  assert.match(source, /LD\s+\(EditorLoadBlockSteps\),A/);
+  assert.match(source, /CALL\s+EditorLoadResolveSourceBlock/);
+  assert.match(source, /CALL\s+EditorLoadReadAllocationEntry/);
+  assert.match(source, /JR\s+NC,EditorLoadAllocationOffsetOk\n\s+INC\s+D/);
   assert.match(source, /EditorLoadPageErr:\n\s+LD\s+A,EDITOR_LOAD_ERR_PAGE\n\s+SCF\n\s+RET/);
 });
 
@@ -90,7 +94,7 @@ test('editor storage loader checks a 32-bit file size for the requested page', (
   assert.match(source, /LD\s+DE,46\n\s+ADD\s+HL,DE/);
   assert.match(source, /ADD\s+A,A\n\s+INC\s+A\n\s+LD\s+\(EditorLoadRequiredSizeHigh\),A/);
   assert.match(source, /INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+LD\s+A,D\n\s+LD\s+B,A\n\s+LD\s+A,\(EditorLoadRequiredSizeHigh\)/);
-  assert.match(source, /LD\s+A,\(EditorLoadSectorIndex\)\n\s+ADD\s+A,A\n\s+ADD\s+A,D\n\s+LD\s+D,A/);
+  assert.match(source, /LD\s+A,\(EditorLoadSectorInBlock\)\n\s+ADD\s+A,A\n\s+ADD\s+A,D\n\s+LD\s+D,A/);
 });
 
 test('storage-backed editor viewport proof composes loader, viewport, and display update', () => {
@@ -104,13 +108,15 @@ test('storage-backed editor viewport proof composes loader, viewport, and displa
   assert.match(source, /\.include\s+"..\/..\/src\/editor-storage-loader\.asm"/);
   assert.match(source, /EditorSourcePage0:\n\s+\.ds\s+512/);
   assert.match(source, /EditorSourcePage1:\n\s+\.ds\s+512/);
+  assert.match(source, /LD\s+A,8\n\s+LD\s+HL,EditorSourcePage8/);
+  assert.match(source, /EditorSourcePage8:\n\s+\.ds\s+512/);
 });
 
 test('storage-backed editor viewport negative proofs assert exact loader errors', () => {
   const invalidPage = readRepoFile('proofs/display/editor-viewport-storage-invalid-page-proof.asm');
   const smallFile = readRepoFile('proofs/display/editor-viewport-storage-small-file-proof.asm');
 
-  assert.match(invalidPage, /LD\s+A,8/);
+  assert.match(invalidPage, /LD\s+A,128/);
   assert.match(invalidPage, /CALL\s+TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE/);
   assert.match(invalidPage, /JR\s+NC,ProofFailed/);
   assert.match(invalidPage, /CP\s+EDITOR_LOAD_ERR_PAGE/);
@@ -133,8 +139,13 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
   assert.match(runner, /editor-viewport-storage-small-file-proof/);
   assert.match(runner, /makeSmallFileLines/);
+  assert.match(runner, /TM8_NONCONTIGUOUS_SECOND_BLOCK\s+=\s+130/);
+  assert.match(runner, /makePositiveProofVolume/);
+  assert.match(runner, /writeUInt16LE\(TM8_NONCONTIGUOUS_SECOND_BLOCK/);
+  assert.match(runner, /length:\s+144/);
   assert.match(runner, /P0 LINE 00/);
   assert.match(runner, /P1 LINE 15/);
+  assert.match(runner, /P8 LINE 15/);
   assert.match(runner, /readSourceRecord/);
   assert.match(runner, /storage viewport copied/);
   assert.match(runner, /storage viewport loaded record/);

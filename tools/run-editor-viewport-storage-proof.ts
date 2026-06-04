@@ -39,20 +39,24 @@ const SYS_CTRL = 0xff;
 const SHADOW_OFF = 0x01;
 const MCB = 0x0888;
 const MCB_SD_CARD = 0x80;
+const TM8_BLOCK_BYTES = 4096;
+const TM8_ALLOCATION_OFFSET = 4096;
+const TM8_ALLOCATION_END = 0xffff;
+const TM8_NONCONTIGUOUS_SECOND_BLOCK = 130;
 
 const PROOF_CASES = {
   'editor-viewport-storage-proof': {
     source: PROOF_SOURCE,
     lastRun: LAST_RUN,
     image: IMAGE_PATH,
-    lines: makeTwoPageLines(),
+    lines: makeMultiBlockLines(),
     verify: verifyPositiveProof,
   },
   'editor-viewport-storage-invalid-page-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-invalid-page-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-invalid-page-proof-last-run.json'),
     image: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-invalid-page-fat32.img'),
-    lines: makeTwoPageLines(),
+    lines: makeMultiBlockLines(),
     verify: verifyNoopProof,
   },
   'editor-viewport-storage-small-file-proof': {
@@ -137,41 +141,12 @@ function symbolAddress(symbols: D8Symbol[], name: string): number {
   return symbol.address;
 }
 
-function makeTwoPageLines(): string[] {
-  return [
-    'P0 LINE 00',
-    'P0 LINE 01',
-    'P0 LINE 02',
-    'P0 LINE 03',
-    'P0 LINE 04',
-    'P0 LINE 05',
-    'P0 LINE 06',
-    'P0 LINE 07',
-    'P0 LINE 08',
-    'P0 LINE 09',
-    'P0 LINE 10',
-    'P0 LINE 11',
-    'P0 LINE 12',
-    'P0 LINE 13',
-    'P0 LINE 14',
-    'P0 LINE 15',
-    'P1 LINE 00',
-    'P1 LINE 01',
-    'P1 LINE 02',
-    'P1 LINE 03',
-    'P1 LINE 04',
-    'P1 LINE 05',
-    'P1 LINE 06',
-    'P1 LINE 07',
-    'P1 LINE 08',
-    'P1 LINE 09',
-    'P1 LINE 10',
-    'P1 LINE 11',
-    'P1 LINE 12',
-    'P1 LINE 13',
-    'P1 LINE 14',
-    'P1 LINE 15',
-  ];
+function makeMultiBlockLines(): string[] {
+  return Array.from({ length: 144 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `P${page} LINE ${line.toString().padStart(2, '0')}`;
+  });
 }
 
 function makeSmallFileLines(): string[] {
@@ -200,6 +175,42 @@ function encodeSourceRecords(lines: string[]): Buffer {
   return records;
 }
 
+function makePositiveProofVolume(volume: Buffer): Buffer {
+  const { parseVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  const parsed = parseVolumeImage(volume);
+  const source = parsed.files.find((file: { prefixId: number; name: string }) => file.name === 'main.asm');
+  if (!source) {
+    throw new Error('generated source file is missing from TM8 volume');
+  }
+
+  const firstBlock = source.firstBlock;
+  const secondBlock = parsed.allocation[firstBlock];
+  if (secondBlock === TM8_ALLOCATION_END) {
+    throw new Error('positive storage proof fixture did not allocate a second block');
+  }
+  if (firstBlock === TM8_NONCONTIGUOUS_SECOND_BLOCK || secondBlock === TM8_NONCONTIGUOUS_SECOND_BLOCK) {
+    throw new Error('positive storage proof fixture already uses the non-contiguous target block');
+  }
+  if (parsed.allocation[TM8_NONCONTIGUOUS_SECOND_BLOCK] !== 0) {
+    throw new Error('positive storage proof non-contiguous target block is not free');
+  }
+
+  const nextVolume = Buffer.from(volume);
+  nextVolume.copy(
+    nextVolume,
+    TM8_NONCONTIGUOUS_SECOND_BLOCK * TM8_BLOCK_BYTES,
+    secondBlock * TM8_BLOCK_BYTES,
+    (secondBlock + 1) * TM8_BLOCK_BYTES,
+  );
+  nextVolume.fill(0, secondBlock * TM8_BLOCK_BYTES, (secondBlock + 1) * TM8_BLOCK_BYTES);
+  nextVolume.writeUInt16LE(TM8_NONCONTIGUOUS_SECOND_BLOCK, TM8_ALLOCATION_OFFSET + firstBlock * 2);
+  nextVolume.writeUInt16LE(0, TM8_ALLOCATION_OFFSET + secondBlock * 2);
+  nextVolume.writeUInt16LE(TM8_ALLOCATION_END, TM8_ALLOCATION_OFFSET + TM8_NONCONTIGUOUS_SECOND_BLOCK * 2);
+
+  parseVolumeImage(nextVolume);
+  return nextVolume;
+}
+
 function ensureImage(proofCase: ProofCase): string {
   execFileSync(process.execPath, [...NODE_TS_ARGS, IMAGE_TOOL, proofCase.image], {
     cwd: TECM8_ROOT,
@@ -212,6 +223,9 @@ function ensureImage(proofCase: ProofCase): string {
   const sourceRecords = encodeSourceRecords(proofCase.lines);
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
+  if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {
+    volume = makePositiveProofVolume(volume);
+  }
 
   const stored = readFileFromVolumeImage(volume, '/src/main.asm') as Buffer;
   if (!stored.equals(sourceRecords)) {
@@ -344,9 +358,9 @@ function verifyNoopProof(): void {}
 
 function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const expectedRows = [
-    { symbol: 'EditorRowText0', text: 'P1 LINE 00' },
-    { symbol: 'EditorRowText1', text: 'P1 LINE 01' },
-    { symbol: 'EditorRowText7', text: 'P1 LINE 07' },
+    { symbol: 'EditorRowText0', text: 'P8 LINE 00' },
+    { symbol: 'EditorRowText1', text: 'P8 LINE 01' },
+    { symbol: 'EditorRowText7', text: 'P8 LINE 07' },
   ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
@@ -357,11 +371,14 @@ function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime,
 
   const page0 = symbolAddress(symbols, 'EditorSourcePage0');
   const page1 = symbolAddress(symbols, 'EditorSourcePage1');
+  const page8 = symbolAddress(symbols, 'EditorSourcePage8');
   const expectedLoadedRecords = [
     { address: page0, record: 0, text: 'P0 LINE 00' },
     { address: page0, record: 15, text: 'P0 LINE 15' },
     { address: page1, record: 0, text: 'P1 LINE 00' },
     { address: page1, record: 15, text: 'P1 LINE 15' },
+    { address: page8, record: 0, text: 'P8 LINE 00' },
+    { address: page8, record: 15, text: 'P8 LINE 15' },
   ];
   for (const expected of expectedLoadedRecords) {
     const actual = readSourceRecord(runtime.hardware.memory, expected.address, expected.record);

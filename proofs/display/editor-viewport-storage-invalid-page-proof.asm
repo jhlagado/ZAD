@@ -1,6 +1,6 @@
 ; Storage-backed editor invalid-page proof.
 ;
-; Proves page index 8 is rejected before storage reads are attempted.
+; Proves page index 128 is rejected before storage reads are attempted.
 
         .org    0x4000
 
@@ -10,7 +10,7 @@ ProofFail       .equ     0xE0
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
-        LD      A,8
+        LD      A,128
         LD      HL,EditorSourcePage
         CALL    TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE
         JR      NC,ProofFailed
