@@ -41,10 +41,14 @@ test('shell-launched editor interaction proof is wired into storage proof runner
 
   assert.match(proof, /CALL\s+TECM8_SHELL_RUN_EDITOR_SESSION/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
+  assert.match(proof, /\.db\s+"hku"/);
+  assert.match(proof, /\.db\s+"ljHKLJHKd",0/);
   assert.match(runner, /shell-edit-interaction-proof/);
   assert.match(runner, /verifyShellEditInteractionProof/);
   assert.match(runner, /EditorCursorRow/);
   assert.match(runner, /EditorCursorCol/);
+  assert.match(runner, /expected 8/);
+  assert.match(runner, /expected 30/);
   assert.match(packageJson, /"proof:display:shell-edit-interaction"/);
   assert.match(packageJson, /proof:display:shell-edit-interaction/);
 });

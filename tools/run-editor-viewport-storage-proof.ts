@@ -498,11 +498,11 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1);
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
   const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
-  if (runtime.hardware.memory[cursorRow] !== 2) {
-    throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 2`);
+  if (runtime.hardware.memory[cursorRow] !== 8) {
+    throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 8`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 2) {
-    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
+  if (runtime.hardware.memory[cursorCol] !== 30) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 30`);
   }
 }
 

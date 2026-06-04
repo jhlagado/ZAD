@@ -1,7 +1,7 @@
 ; Shell-launched editor interaction proof.
 ;
 ; Opens a project source file through the shell and consumes editor key input
-; that pages down once.
+; that exercises cursor bounds and pages down once.
 
         .org    0x4000
 
@@ -74,7 +74,10 @@ CmdEdit:
         .db     "edit",0
 
 EditorKeys:
-        .db     "hkulljjd",0
+        .db     "hku"
+        .db     "lllllllllllllllllllllllllllllll"
+        .db     "jjjjjjjjj"
+        .db     "ljHKLJHKd",0
 
 ExpectedMain:
         .db     "/projects/demo/app.asm",0
