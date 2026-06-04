@@ -12,6 +12,10 @@ for about 8K, with 10K still acceptable if the retained device support is
 useful. Even a 10K BIOS leaves roughly 6K in the high ROM for resident TECM8
 support code that should not depend on the banked expansion window.
 
+See [MON3 Decomposition Plan](mon3-decomposition.md) for the working
+classification of classic MON3 core, MON3-light BIOS services, removable
+extensions, and TECM8 replacement candidates.
+
 ## Role
 
 The BIOS is not the user interface. It is the stable machine service layer

@@ -43,6 +43,7 @@ Start here:
 - [Project Sizing Case Studies](project-sizing.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
 - [TECM8 BIOS Direction](tecm8-bios.md)
+- [MON3 Decomposition Plan](mon3-decomposition.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
 - [Debugging Roadmap](debugging-roadmap.md)
 - [Implementation Plan](implementation-plan.md)
