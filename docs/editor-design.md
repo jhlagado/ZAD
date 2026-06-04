@@ -104,6 +104,50 @@ The TMS backend should not be forced to mimic the GLCD's exact row count. It
 should consume the same line text and marker metadata, then choose a larger
 viewport or richer sprite/status presentation where the hardware permits it.
 
+## Selection Model
+
+Selection should be semantic editor metadata, not just an inverted bitmap. A
+line can be selected because it belongs to a marked block, because it is the
+current execution/cursor line, or because it has another editor/debugger state.
+The renderer then chooses the visual treatment.
+
+For the GLCD v1 renderer, the primary selection affordance should be the
+4-pixel gutter. A selected block line can render as a vertical bar in the left
+gutter, ideally in pixel column 0. This is cheap to draw, readable beside
+source text, and does not reduce the 20 text columns. Inverted text remains a
+useful terminal-era convention, but it should be optional: it may be added
+later for range emphasis or modal feedback, not required for basic block
+selection.
+
+Possible gutter meaning:
+
+```text
+pixel 0 vertical bar  selected block line
+pixel 1 marker        current cursor/execution line
+pixel 2 marker        breakpoint
+pixel 3 marker        diagnostic, dirty, or other transient state
+```
+
+The exact keyboard commands can be settled later. The display model only needs
+to support the state:
+
+```text
+block start set
+cursor moved through source lines
+selected line flags applied to the affected rows
+block cleared or committed by command
+```
+
+A WordStar-like command family remains plausible, such as `Ctrl-B` or
+`Ctrl-Space` to start a block, cursor movement to extend it, and a second
+command to end or clear the block. The important point for now is that selected
+lines can be represented by `TECM8_DISPLAY_MARKER_SELECTED` without requiring
+text inversion.
+
+TMS9918 renderers can map the same metadata differently: a left tile-column
+glyph, color attributes, or hardware sprite markers. The source/editor model
+should not care which backend visual is used.
+
 ## Source Record Format
 
 Source files use fixed-size Pascal-string line records.

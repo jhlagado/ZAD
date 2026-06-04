@@ -238,6 +238,14 @@ sizes. The GLCD backend can render compact 6x6 cells and software-composited
 sprite/marker overlays; a TMS9918 backend can map similar concepts onto 8x8
 tiles, a name table, and hardware sprites.
 
+Selection should initially be represented as display metadata rather than
+mandatory inverted text. On the GLCD, a selected line or selected block can be
+shown as a vertical bar in the 4-pixel gutter, leaving the source text itself
+unmodified and readable. Inverted text can still be supported later as an
+optional backend attribute, but gutter-first selection is cheaper and maps
+cleanly to future TMS9918 renderers as a left-column glyph, color treatment, or
+sprite marker.
+
 ## Input Boundary
 
 The matrix keyboard is the main input device. BIOS input should expose both raw
