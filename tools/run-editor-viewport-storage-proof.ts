@@ -133,14 +133,38 @@ function ensureImage(): string {
     require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
   const manifest = JSON.parse(readFileSync(IMAGE_PATH.replace(/\.[^.]*$/, '.json'), 'utf8'));
   const sourceRecords = encodeSourceRecords([
-    'ORG 4000H',
-    'CALL INIT',
-    'LD HL,MSG',
-    'CALL PRINT',
-    'JP DONE',
-    "MSG DB 'OK'",
-    'DONE:',
-    'RET',
+    'P0 LINE 00',
+    'P0 LINE 01',
+    'P0 LINE 02',
+    'P0 LINE 03',
+    'P0 LINE 04',
+    'P0 LINE 05',
+    'P0 LINE 06',
+    'P0 LINE 07',
+    'P0 LINE 08',
+    'P0 LINE 09',
+    'P0 LINE 10',
+    'P0 LINE 11',
+    'P0 LINE 12',
+    'P0 LINE 13',
+    'P0 LINE 14',
+    'P0 LINE 15',
+    'P1 LINE 00',
+    'P1 LINE 01',
+    'P1 LINE 02',
+    'P1 LINE 03',
+    'P1 LINE 04',
+    'P1 LINE 05',
+    'P1 LINE 06',
+    'P1 LINE 07',
+    'P1 LINE 08',
+    'P1 LINE 09',
+    'P1 LINE 10',
+    'P1 LINE 11',
+    'P1 LINE 12',
+    'P1 LINE 13',
+    'P1 LINE 14',
+    'P1 LINE 15',
   ]);
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
@@ -250,6 +274,12 @@ function readCString(memory: Uint8Array, address: number): string {
   throw new Error(`unterminated string at 0x${address.toString(16)}`);
 }
 
+function readSourceRecord(memory: Uint8Array, address: number, record: number): string {
+  const start = address + record * 32;
+  const length = memory[start];
+  return Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
+}
+
 function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
 }
@@ -268,9 +298,9 @@ function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
 
 function verifyProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const expectedRows = [
-    { symbol: 'EditorRowText0', text: 'ORG 4000H' },
-    { symbol: 'EditorRowText1', text: 'CALL INIT' },
-    { symbol: 'EditorRowText7', text: 'RET' },
+    { symbol: 'EditorRowText0', text: 'P1 LINE 00' },
+    { symbol: 'EditorRowText1', text: 'P1 LINE 01' },
+    { symbol: 'EditorRowText7', text: 'P1 LINE 07' },
   ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
@@ -279,9 +309,19 @@ function verifyProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols
     }
   }
 
-  const sourceSector = symbolAddress(symbols, 'EditorSourceSector');
-  if (runtime.hardware.memory[sourceSector] !== 9) {
-    throw new Error(`source sector was not loaded as source records: first byte ${runtime.hardware.memory[sourceSector]}`);
+  const page0 = symbolAddress(symbols, 'EditorSourcePage0');
+  const page1 = symbolAddress(symbols, 'EditorSourcePage1');
+  const expectedLoadedRecords = [
+    { address: page0, record: 0, text: 'P0 LINE 00' },
+    { address: page0, record: 15, text: 'P0 LINE 15' },
+    { address: page1, record: 0, text: 'P1 LINE 00' },
+    { address: page1, record: 15, text: 'P1 LINE 15' },
+  ];
+  for (const expected of expectedLoadedRecords) {
+    const actual = readSourceRecord(runtime.hardware.memory, expected.address, expected.record);
+    if (actual !== expected.text) {
+      throw new Error(`storage viewport loaded record as "${actual}", expected "${expected.text}"`);
+    }
   }
 
   const glcd = getGlcdBytes(platformRuntime);

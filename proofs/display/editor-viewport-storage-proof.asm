@@ -1,7 +1,7 @@
 ; Storage-backed editor viewport proof.
 ;
-; Opens FAT32 VOLUME.TM8 through MON3, loads /src/main.asm source records,
-; and renders them through the editor viewport/display model.
+; Opens FAT32 VOLUME.TM8 through MON3, loads two /src/main.asm source-record
+; pages, and renders them through the editor viewport/display model.
 
         .org    0x4000
 
@@ -14,11 +14,21 @@ ProofFail       .equ     0xE0
         CALL    TECM8_DISPLAY_INIT
         JR      C,ProofFailed
 
-        LD      HL,EditorSourceSector
-        CALL    TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR
+        XOR     A
+        LD      HL,EditorSourcePage0
+        CALL    TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE
         JR      C,ProofFailed
 
-        LD      HL,EditorSourceSector
+        LD      HL,EditorSourcePage0
+        CALL    TECM8_EDITOR_VIEWPORT_RENDER
+        JR      C,ProofFailed
+
+        LD      A,1
+        LD      HL,EditorSourcePage1
+        CALL    TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE
+        JR      C,ProofFailed
+
+        LD      HL,EditorSourcePage1
         CALL    TECM8_EDITOR_VIEWPORT_RENDER
         JR      C,ProofFailed
 
@@ -46,5 +56,8 @@ ProofFailedDone:
 ResultMarker:
         .db     0
 
-EditorSourceSector:
+EditorSourcePage0:
+        .ds     512
+
+EditorSourcePage1:
         .ds     512

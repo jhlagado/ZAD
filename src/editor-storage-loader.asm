@@ -41,6 +41,7 @@ EDITOR_LOAD_ERR_FIND    .equ    0x33
 EDITOR_LOAD_ERR_SIZE    .equ    0x34
 EDITOR_LOAD_ERR_READ    .equ    0x35
 EDITOR_LOAD_ERR_BLOCK   .equ    0x36
+EDITOR_LOAD_ERR_PAGE    .equ    0x37
 
 ; TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR -
 ; Load the first sector of /src/main.asm into caller buffer HL.
@@ -48,7 +49,23 @@ EDITOR_LOAD_ERR_BLOCK   .equ    0x36
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR:
+        XOR     A
+        JP      TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE
+
+; TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE -
+; Load one 512-byte sector page of /src/main.asm into caller buffer HL.
+; Page A is limited to 0..7 within the file's first 4K TM8 block.
+;!      in        A,HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE:
+        LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
+        CP      8
+        JR      NC,EditorLoadPageErr
+        ADD     A,A
+        INC     A
+        LD      (EditorLoadRequiredSizeHigh),A
 
         LD      HL,EditorLoadVolumeName
         CALL    TECM8_BIOS_FILE_OPEN
@@ -67,6 +84,11 @@ EDITOR_LOAD_ERR_BLOCK   .equ    0x36
 
 EditorLoadOpenErr:
         LD      A,EDITOR_LOAD_ERR_OPEN
+        SCF
+        RET
+
+EditorLoadPageErr:
+        LD      A,EDITOR_LOAD_ERR_PAGE
         SCF
         RET
 
@@ -344,6 +366,8 @@ EditorLoadCatalogEntry:
         JP      Z,EditorLoadReturnErr
         CP      EDITOR_LOAD_ERR_BLOCK
         JP      Z,EditorLoadReturnErr
+        CP      EDITOR_LOAD_ERR_PAGE
+        JP      Z,EditorLoadReturnErr
 
         LD      DE,TM8_CATALOG_ENTRY
         ADD     HL,DE
@@ -419,8 +443,12 @@ EditorLoadFirstBlockOk:
         OR      A
         JR      NZ,EditorLoadSizeOk
         LD      A,D
-        OR      A
-        JR      Z,EditorLoadSizeErr
+        LD      B,A
+        LD      A,(EditorLoadRequiredSizeHigh)
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      C,EditorLoadSizeErr
 
 EditorLoadSizeOk:
         XOR     A
@@ -450,6 +478,10 @@ EditorLoadBlockErr:
 @EditorLoadReadSourceSector:
         LD      HL,(EditorLoadFirstBlock)
         CALL    EditorLoadBlockToOffset
+        LD      A,(EditorLoadSectorIndex)
+        ADD     A,A
+        ADD     A,D
+        LD      D,A
         CALL    TECM8_BIOS_FILE_READ_SECTOR
         JP      C,EditorLoadReadErr
 
@@ -533,4 +565,10 @@ EditorLoadSectorsLeft:
         .db     0
 
 EditorLoadSrcPrefixId:
+        .db     0
+
+EditorLoadSectorIndex:
+        .db     0
+
+EditorLoadRequiredSizeHigh:
         .db     0

@@ -14,13 +14,18 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   const iface = readRepoFile('src/editor-storage-loader.asmi');
 
   assert.match(source, /^@TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR:/m);
+  assert.match(source, /^@TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE:/m);
   assert.match(iface, /^extern TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR$/m);
+  assert.match(iface, /^extern TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE$/m);
   assert.match(iface, /^in HL$/m);
+  assert.match(iface, /^in A,HL$/m);
   assert.match(iface, /^out A,carry$/m);
 
   assert.match(source, /CALL\s+TECM8_BIOS_FILE_OPEN/);
   assert.match(source, /CALL\s+TECM8_BIOS_FILE_READ_SECTOR/);
   assert.match(source, /EditorLoadVolumeName:\n\s+\.db\s+"VOLUME\.TM8",0/);
+  assert.match(source, /CP\s+8\n\s+JR\s+NC,EditorLoadPageErr/);
+  assert.match(source, /EditorLoadPageErr:\n\s+LD\s+A,EDITOR_LOAD_ERR_PAGE\n\s+SCF\n\s+RET/);
 });
 
 test('editor storage loader finds /src/main.asm through TM8 prefix and catalog tables', () => {
@@ -79,11 +84,13 @@ test('editor storage loader preserves catalog hard-error carry and non-match sta
   assert.match(source, /EditorLoadReturnErr:\n\s+SCF\n\s+RET/);
 });
 
-test('editor storage loader checks a 32-bit file size for the first source sector', () => {
+test('editor storage loader checks a 32-bit file size for the requested page', () => {
   const source = readRepoFile('src/editor-storage-loader.asm');
 
   assert.match(source, /LD\s+DE,46\n\s+ADD\s+HL,DE/);
-  assert.match(source, /INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+LD\s+A,D\n\s+OR\s+A\n\s+JR\s+Z,EditorLoadSizeErr/);
+  assert.match(source, /ADD\s+A,A\n\s+INC\s+A\n\s+LD\s+\(EditorLoadRequiredSizeHigh\),A/);
+  assert.match(source, /INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+LD\s+A,D\n\s+LD\s+B,A\n\s+LD\s+A,\(EditorLoadRequiredSizeHigh\)/);
+  assert.match(source, /LD\s+A,\(EditorLoadSectorIndex\)\n\s+ADD\s+A,A\n\s+ADD\s+A,D\n\s+LD\s+D,A/);
 });
 
 test('storage-backed editor viewport proof composes loader, viewport, and display update', () => {
@@ -91,11 +98,12 @@ test('storage-backed editor viewport proof composes loader, viewport, and displa
   assert.ok(existsSync(proofPath));
   const source = readRepoFile('proofs/display/editor-viewport-storage-proof.asm');
 
-  assert.match(source, /CALL\s+TECM8_EDITOR_LOAD_MAIN_SOURCE_SECTOR/);
+  assert.match(source, /CALL\s+TECM8_EDITOR_LOAD_MAIN_SOURCE_PAGE/);
   assert.match(source, /CALL\s+TECM8_EDITOR_VIEWPORT_RENDER/);
   assert.match(source, /CALL\s+TECM8_BIOS_DISPLAY_UPDATE/);
   assert.match(source, /\.include\s+"..\/..\/src\/editor-storage-loader\.asm"/);
-  assert.match(source, /EditorSourceSector:\n\s+\.ds\s+512/);
+  assert.match(source, /EditorSourcePage0:\n\s+\.ds\s+512/);
+  assert.match(source, /EditorSourcePage1:\n\s+\.ds\s+512/);
 });
 
 test('storage-backed editor viewport runner verifies storage records and GLCD output', () => {
@@ -105,8 +113,11 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(packageJson, /"proof:display:editor-viewport:storage"/);
   assert.match(packageJson, /proof:display:editor-viewport:storage/);
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
+  assert.match(runner, /P0 LINE 00/);
+  assert.match(runner, /P1 LINE 15/);
+  assert.match(runner, /readSourceRecord/);
   assert.match(runner, /storage viewport copied/);
-  assert.match(runner, /source sector was not loaded as source records/);
+  assert.match(runner, /storage viewport loaded record/);
   assert.match(runner, /storage viewport proof did not render display row/);
   assert.match(runner, /registerCare:\s+'strict'/);
   assert.match(runner, /src\/editor-storage-loader\.asmi/);
