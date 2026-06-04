@@ -41,5 +41,6 @@ Start here:
 - [AZM Register-Care Feedback Loop](azm-register-care-feedback.md)
 - [Editor Design](editor-design.md)
 - [Project Sizing Case Studies](project-sizing.md)
+- [Memory and Code Quality Manifest](memory-and-code-quality.md)
 - [Debugging Roadmap](debugging-roadmap.md)
 - [Implementation Plan](implementation-plan.md)

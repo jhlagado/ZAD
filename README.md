@@ -33,6 +33,7 @@ Start with the documentation:
 - [TEC-Side Shell Command Contract](docs/shell-command-contract.md)
 - [TECM8 AZM Style Guide](docs/azm-style-guide.md)
 - [Editor Design](docs/editor-design.md)
+- [Memory and Code Quality Manifest](docs/memory-and-code-quality.md)
 - [Debugging Roadmap](docs/debugging-roadmap.md)
 
 Useful local checks:

@@ -225,3 +225,12 @@ The current default volume size is 4MB with 4K allocation blocks, 256 file
 entries, and 128 prefix entries. This is expected to fit a decomposed MON3-scale
 project with build artifacts and copied libraries. See
 [Project Sizing Case Studies](project-sizing.md).
+
+Runtime memory is a separate pressure from TM8 volume size. TECM8 should be
+designed for the TEC-1G/MON3 map: MON3 as 16K ROM at C000h-FFFFh, RAM and
+monitor workspace below it, and a banked 16K expansion window at 8000h-BFFFh
+for larger tools. The practical RAM working set may be closer to 24K once
+display buffers and other hardware needs are considered. Code should remain
+clear and proof-driven now, but routine boundaries should support future
+banking, overlays, and code shrinking. See
+[Memory and Code Quality Manifest](memory-and-code-quality.md).
