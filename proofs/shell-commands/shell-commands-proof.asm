@@ -229,6 +229,33 @@ PathOutLen      .equ     64
 
         LD      A,30
         LD      (CaseMarker),A
+        LD      HL,CmdEdit
+        LD      A,SHELL_CMD_EDIT
+        CALL    AssertShellStepOk
+        JP      C,ProofFailed
+
+        LD      A,31
+        LD      (CaseMarker),A
+        LD      HL,CmdAsmTest
+        LD      A,SHELL_CMD_ASM
+        CALL    AssertShellStepOk
+        JP      C,ProofFailed
+
+        LD      A,32
+        LD      (CaseMarker),A
+        LD      HL,CmdRunTest
+        LD      A,SHELL_CMD_RUN
+        CALL    AssertShellStepOk
+        JP      C,ProofFailed
+
+        LD      A,33
+        LD      (CaseMarker),A
+        LD      HL,CmdBad
+        CALL    AssertShellStepUnknownErr
+        JP      C,ProofFailed
+
+        LD      A,34
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -237,7 +264,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,31
+        LD      A,35
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -247,7 +274,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,32
+        LD      A,36
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -602,6 +629,45 @@ AssertExecuteDispatchBad:
         RET     Z
 
 AssertExecuteDispatchUnknownBad:
+        SCF
+        RET
+
+; AssertShellStepOk —
+; Run one shell command line and verify status plus invoked stub.
+; Input: HL = command text, A = expected action
+;!      in        A,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellStepOk:
+        LD      (ExpectedAction),A
+        CALL    RunShellCommandLine
+        RET     C
+        CP      SHELL_OK
+        JR      NZ,AssertShellStepBad
+
+        LD      A,(ShellLastExecAction)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        RET     Z
+
+AssertShellStepBad:
+        SCF
+        RET
+
+; AssertShellStepUnknownErr —
+; Run one unknown shell command line and require SHELL_ERR_UNKNOWN.
+; Input: HL = command text
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellStepUnknownErr:
+        CALL    RunShellCommandLine
+        JR      NC,AssertShellStepUnknownBad
+        CP      SHELL_ERR_UNKNOWN
+        RET     Z
+
+AssertShellStepUnknownBad:
         SCF
         RET
 

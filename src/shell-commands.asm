@@ -21,6 +21,28 @@ SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
 
+; RunShellCommandLine —
+; Execute one already-entered shell command line through the current stubs.
+; Input:
+;   HL = NUL-terminated command line
+; Output:
+;   carry clear, A=SHELL_OK after a stub handles the command
+;   carry set, A=SHELL_ERR_* if dispatch or execution fails
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@RunShellCommandLine:
+        LD      DE,ShellStepDispatch
+        LD      B,SHELL_MAIN_PATH_LEN
+        CALL    DispatchShellCommand
+        RET     C
+
+        LD      HL,ShellStepDispatch
+        CALL    ExecuteShellDispatch
+        RET     C
+        XOR     A
+        RET
+
 ; ExecuteShellDispatch —
 ; Route a populated dispatch block to the current executor entry stub.
 ; Input:
@@ -965,6 +987,9 @@ ShellLastExecRequestPtr:
 
 ShellLastExecAction:
         .db     0
+
+ShellStepDispatch:
+        .ds     1 + SHELL_MAIN_PATH_LEN * 3
 
 ShellEditMode:
         .db     0
