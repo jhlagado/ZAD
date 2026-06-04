@@ -30,6 +30,10 @@ SHELL_PROMPT_ERROR  .equ     1
 SHELL_PROGRAM_READY .equ     0
 SHELL_PROGRAM_INPUT .equ     1
 
+SHELL_PROJECT_EMPTY .equ     0
+SHELL_PROJECT_READY .equ     1
+SHELL_PROJECT_ERROR .equ     2
+
 ; RunShellProgramEntry —
 ; Minimal shell program skeleton. It initializes prompt-visible state, obtains
 ; one line from the current input provider, runs one prompt cycle, then returns
@@ -64,6 +68,11 @@ ShellProgramPromptReady:
         LD      (ShellLastExecAction),A
         LD      (ShellLastExecRequestPtr),A
         LD      (ShellLastExecRequestPtr + 1),A
+        LD      (ShellProjectStatus),A
+        LD      (ShellProjectError),A
+        CALL    ShellReloadProjectConfig
+        RET     NC
+        XOR     A
         RET
 
 ; ReadShellInputLine —
@@ -627,8 +636,6 @@ ShellResolveRun:
         LD      (ShellAction),A
         CALL    ShellSkipSpaces
         LD      (ShellArgPtr),HL
-        CALL    ShellLoadProjectMain
-        RET     C
         LD      HL,(ShellArgPtr)
         LD      A,(HL)
         OR      A
@@ -646,8 +653,6 @@ ShellResolveRun:
         LD      (ShellAction),A
         CALL    ShellSkipSpaces
         LD      (ShellArgPtr),HL
-        CALL    ShellLoadProjectMain
-        RET     C
         LD      HL,(ShellArgPtr)
         LD      A,(HL)
         OR      A
@@ -655,6 +660,8 @@ ShellResolveRun:
         JP      ShellCopySourceArgument
 
 ShellCopyProjectMain:
+        CALL    ShellLoadProjectMain
+        RET     C
         LD      HL,ShellMainPath
         LD      DE,(ShellOutPath)
         LD      A,(ShellOutCap)
@@ -665,6 +672,8 @@ ShellCopyProjectMain:
         RET
 
 ShellResolveProjectRun:
+        CALL    ShellLoadProjectMain
+        RET     C
         LD      HL,ShellMainPath
         LD      DE,(ShellOutPath)
         LD      A,(ShellOutCap)
@@ -714,20 +723,40 @@ ShellCopyExplicitPath:
         RET
 
 ; ShellLoadProjectMain —
-; Load and validate /tecm8.prj, then cache the project main path.
+; Ensure /tecm8.prj has been loaded, then expose the cached project main path.
 ;!      out       DE,HL,A,C,carry,zero
 ;!      clobbers  B
 @ShellLoadProjectMain:
+        LD      A,(ShellProjectStatus)
+        CP      SHELL_PROJECT_READY
+        JR      Z,ShellProjectReady
+        CALL    ShellReloadProjectConfig
+        RET     C
+
+ShellProjectReady:
+        XOR     A
+        RET
+
+; ShellReloadProjectConfig —
+; Load and validate /tecm8.prj into the resident project main cache.
+;!      out       DE,HL,A,C,carry,zero
+;!      clobbers  B
+@ShellReloadProjectConfig:
         LD      DE,ShellMainPath
         LD      B,SHELL_MAIN_PATH_LEN
         CALL    LoadProjectConfig
         JR      C,ShellProjectErr
+        LD      A,SHELL_PROJECT_READY
+        LD      (ShellProjectStatus),A
         XOR     A
         RET
 
 ShellProjectErr:
-        CP      SHELL_ERR_LONG
-        RET     Z
+        LD      (ShellProjectError),A
+        LD      A,SHELL_PROJECT_ERROR
+        LD      (ShellProjectStatus),A
+        LD      A,(ShellProjectError)
+        SCF
         RET
 
 ; ShellMatchCommand —
@@ -1237,6 +1266,12 @@ ShellRunMode:
         .db     0
 
 ShellArgHadDot:
+        .db     0
+
+ShellProjectStatus:
+        .db     0
+
+ShellProjectError:
         .db     0
 
 ShellMainPath:

@@ -409,6 +409,21 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
+        LD      A,52
+        LD      (CaseMarker),A
+        CALL    AssertProjectLoadAtStartup
+        JP      C,ProofFailed
+
+        LD      A,53
+        LD      (CaseMarker),A
+        CALL    AssertExplicitCommandSkipsProjectLoad
+        JP      C,ProofFailed
+
+        LD      A,54
+        LD      (CaseMarker),A
+        CALL    AssertDefaultCommandReloadsAfterFailure
+        JP      C,ProofFailed
+
         LD      A,ProofPass
         LD      (ResultMarker),A
         HALT
@@ -1114,6 +1129,135 @@ AssertShellLineSeedClampedBad:
         SCF
         RET
 
+; AssertProjectLoadAtStartup —
+; Program initialization loads /tecm8.prj once, and default resolution reuses
+; the cached main path.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertProjectLoadAtStartup:
+        XOR     A
+        LD      (ProjectLoadMode),A
+        LD      (ProjectLoadCount),A
+        LD      (ShellProjectStatus),A
+        CALL    InitShellProgramState
+        JR      C,AssertProjectLoadAtStartupBad
+
+        LD      A,(ProjectLoadCount)
+        CP      1
+        JR      NZ,AssertProjectLoadAtStartupBad
+
+        LD      A,(ShellProjectStatus)
+        CP      SHELL_PROJECT_READY
+        JR      NZ,AssertProjectLoadAtStartupBad
+
+        LD      HL,ExpectedMain
+        LD      DE,ShellMainPath
+        CALL    AssertString
+        JR      C,AssertProjectLoadAtStartupBad
+
+        LD      HL,CmdEdit
+        LD      A,SHELL_CMD_EDIT
+        LD      DE,ExpectedMain
+        CALL    AssertCommand
+        JR      C,AssertProjectLoadAtStartupBad
+
+        LD      A,(ProjectLoadCount)
+        CP      1
+        RET     Z
+
+AssertProjectLoadAtStartupBad:
+        SCF
+        RET
+
+; AssertExplicitCommandSkipsProjectLoad —
+; Explicit edit/asm/run targets do not need project config state.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertExplicitCommandSkipsProjectLoad:
+        LD      A,1
+        LD      (ProjectLoadMode),A
+        XOR     A
+        LD      (ProjectLoadCount),A
+        LD      (ShellProjectStatus),A
+
+        LD      HL,CmdEditDraw
+        LD      A,SHELL_CMD_EDIT
+        LD      DE,ExpectedDraw
+        CALL    AssertCommand
+        JR      C,AssertExplicitCommandSkipsProjectLoadBad
+
+        LD      HL,CmdAsmTest
+        LD      A,SHELL_CMD_ASM
+        LD      DE,ExpectedTest
+        CALL    AssertCommand
+        JR      C,AssertExplicitCommandSkipsProjectLoadBad
+
+        LD      HL,CmdRunTest
+        LD      A,SHELL_CMD_RUN
+        LD      DE,ExpectedRunTest
+        CALL    AssertCommand
+        JR      C,AssertExplicitCommandSkipsProjectLoadBad
+
+        LD      A,(ProjectLoadCount)
+        OR      A
+        JR      NZ,AssertExplicitCommandSkipsProjectLoadBad
+        XOR     A
+        RET
+
+AssertExplicitCommandSkipsProjectLoadBad:
+        SCF
+        RET
+
+; AssertDefaultCommandReloadsAfterFailure —
+; A default command fails when /tecm8.prj cannot be loaded, then retries and
+; recovers after the project config becomes readable.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertDefaultCommandReloadsAfterFailure:
+        LD      A,1
+        LD      (ProjectLoadMode),A
+        XOR     A
+        LD      (ProjectLoadCount),A
+        LD      (ShellProjectStatus),A
+
+        LD      HL,CmdEdit
+        LD      DE,PathOut
+        LD      B,PathOutLen
+        CALL    ResolveShellCommand
+        JR      NC,AssertDefaultCommandReloadsAfterFailureBad
+        CP      SHELL_ERR_PROJECT
+        JR      NZ,AssertDefaultCommandReloadsAfterFailureBad
+
+        LD      A,(ProjectLoadCount)
+        CP      1
+        JR      NZ,AssertDefaultCommandReloadsAfterFailureBad
+
+        LD      A,(ShellProjectStatus)
+        CP      SHELL_PROJECT_ERROR
+        JR      NZ,AssertDefaultCommandReloadsAfterFailureBad
+
+        XOR     A
+        LD      (ProjectLoadMode),A
+        LD      HL,CmdEdit
+        LD      A,SHELL_CMD_EDIT
+        LD      DE,ExpectedMain
+        CALL    AssertCommand
+        JR      C,AssertDefaultCommandReloadsAfterFailureBad
+
+        LD      A,(ProjectLoadCount)
+        CP      2
+        JR      NZ,AssertDefaultCommandReloadsAfterFailureBad
+
+        LD      A,(ShellProjectStatus)
+        CP      SHELL_PROJECT_READY
+        JR      NZ,AssertDefaultCommandReloadsAfterFailureBad
+
+        RET
+
+AssertDefaultCommandReloadsAfterFailureBad:
+        SCF
+        RET
+
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
 ; Input: HL = source path, DE = expected map path
@@ -1197,6 +1341,17 @@ AddBToDEBad:
 ;!      out       DE,HL,A,C,carry,zero
 ;!      clobbers  B
 @LoadProjectConfig:
+        LD      A,(ProjectLoadCount)
+        INC     A
+        LD      (ProjectLoadCount),A
+        LD      A,(ProjectLoadMode)
+        OR      A
+        JR      Z,LoadProjectStubCopy
+        LD      A,SHELL_ERR_PROJECT
+        SCF
+        RET
+
+LoadProjectStubCopy:
         LD      HL,ExpectedMain
         LD      C,B
 
@@ -1332,6 +1487,12 @@ ExpectedOutputPtr:
 
 ExpectedMapPtr:
         .dw     0
+
+ProjectLoadMode:
+        .db     0
+
+ProjectLoadCount:
+        .db     0
 
 ResultMarker:
         .db     0
