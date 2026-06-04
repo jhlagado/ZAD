@@ -209,11 +209,11 @@ DisplayGutterWriteLoop:
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @TECM8_DISPLAY_RENDER_CURSOR_CELL:
         CP      TECM8_DISPLAY_EDIT_ROWS
-        JR      NC,DisplayCursorNoop
+        JP      NC,DisplayCursorNoop
         LD      (DisplayCursorCellRow),A
         LD      A,C
         CP      TECM8_DISPLAY_MAX_TEXT_CHARS
-        JR      NC,DisplayCursorNoop
+        JP      NC,DisplayCursorNoop
         LD      (DisplayCursorCellCol),A
 
         LD      A,(DisplayCursorCellRow)
@@ -278,9 +278,22 @@ DisplayCursorMaskLoop:
 DisplayCursorMaskReady:
         LD      B,TECM8_DISPLAY_ROW_HEIGHT
         LD      DE,TECM8_DISPLAY_ROW_BYTES
+        LD      (DisplayCursorCellPtr),HL
+        LD      HL,DisplayCursorSavedBytes
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
 
 DisplayCursorWriteLoop:
         LD      A,(HL)
+        LD      (DisplayCursorOriginalByte),A
+        LD      (DisplayCursorCellPtr),HL
+        LD      HL,(DisplayCursorSavePtr)
+        LD      A,(DisplayCursorOriginalByte)
+        LD      (HL),A
+        INC     HL
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+        LD      A,(DisplayCursorOriginalByte)
         OR      C
         LD      (HL),A
         ADD     HL,DE
@@ -289,6 +302,105 @@ DisplayCursorWriteLoop:
         RET
 
 DisplayCursorNoop:
+        XOR     A
+        RET
+
+; TECM8_DISPLAY_ERASE_CURSOR_CELL -
+; Clear the vertical cursor bit for one visible edit-pane cell.
+; Input: A = edit row (0-7), C = text column (0-19)
+;!      in        A,C
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_DISPLAY_ERASE_CURSOR_CELL:
+        CP      TECM8_DISPLAY_EDIT_ROWS
+        JP      NC,DisplayCursorEraseNoop
+        LD      (DisplayCursorCellRow),A
+        LD      A,C
+        CP      TECM8_DISPLAY_MAX_TEXT_CHARS
+        JR      NC,DisplayCursorEraseNoop
+        LD      (DisplayCursorCellCol),A
+
+        LD      A,(DisplayCursorCellRow)
+        ADD     A,TECM8_DISPLAY_FIRST_EDIT_ROW
+        LD      HL,MON3_TGBUF
+        LD      DE,TECM8_DISPLAY_ROW_STRIDE
+
+DisplayCursorEraseRowOffsetLoop:
+        ADD     HL,DE
+        DEC     A
+        JR      NZ,DisplayCursorEraseRowOffsetLoop
+
+        LD      A,TECM8_DISPLAY_TEXT_X
+        LD      (DisplayCursorPixelX),A
+        LD      A,(DisplayCursorCellCol)
+        LD      B,A
+        OR      A
+        JR      Z,DisplayCursorErasePixelReady
+
+DisplayCursorErasePixelLoop:
+        LD      A,(DisplayCursorPixelX)
+        ADD     A,TECM8_DISPLAY_ROW_HEIGHT
+        LD      (DisplayCursorPixelX),A
+        DJNZ    DisplayCursorErasePixelLoop
+
+DisplayCursorErasePixelReady:
+        LD      A,(DisplayCursorPixelX)
+        LD      B,0
+
+DisplayCursorEraseByteLoop:
+        CP      8
+        JR      C,DisplayCursorEraseByteReady
+        SUB     8
+        INC     B
+        JR      DisplayCursorEraseByteLoop
+
+DisplayCursorEraseByteReady:
+        LD      (DisplayCursorBitIndex),A
+        LD      A,B
+        OR      A
+        JR      Z,DisplayCursorEraseByteOffsetReady
+
+DisplayCursorEraseByteOffsetLoop:
+        INC     HL
+        DJNZ    DisplayCursorEraseByteOffsetLoop
+
+DisplayCursorEraseByteOffsetReady:
+        LD      A,(DisplayCursorBitIndex)
+        LD      B,A
+        LD      A,TECM8_DISPLAY_CURSOR_PATTERN
+        LD      C,A
+        LD      A,B
+        OR      A
+        JR      Z,DisplayCursorEraseMaskReady
+        LD      A,C
+
+DisplayCursorEraseMaskLoop:
+        SRL     A
+        DJNZ    DisplayCursorEraseMaskLoop
+        LD      C,A
+
+DisplayCursorEraseMaskReady:
+        LD      B,TECM8_DISPLAY_ROW_HEIGHT
+        LD      DE,TECM8_DISPLAY_ROW_BYTES
+        LD      (DisplayCursorCellPtr),HL
+        LD      HL,DisplayCursorSavedBytes
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+
+DisplayCursorEraseWriteLoop:
+        LD      (DisplayCursorCellPtr),HL
+        LD      HL,(DisplayCursorSavePtr)
+        LD      A,(HL)
+        INC     HL
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+        LD      (HL),A
+        ADD     HL,DE
+        DJNZ    DisplayCursorEraseWriteLoop
+        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        RET
+
+DisplayCursorEraseNoop:
         XOR     A
         RET
 
@@ -331,3 +443,11 @@ DisplayCursorPixelX:
         .db     0
 DisplayCursorBitIndex:
         .db     0
+DisplayCursorCellPtr:
+        .dw     0
+DisplayCursorSavePtr:
+        .dw     0
+DisplayCursorOriginalByte:
+        .db     0
+DisplayCursorSavedBytes:
+        .ds     TECM8_DISPLAY_ROW_HEIGHT

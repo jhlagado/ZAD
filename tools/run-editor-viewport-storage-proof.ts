@@ -501,8 +501,8 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   if (runtime.hardware.memory[cursorRow] !== 7) {
     throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 7`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 19) {
-    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 19`);
+  if (runtime.hardware.memory[cursorCol] !== 2) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
   }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
 }
@@ -512,10 +512,10 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
   const rowStride = 16 * 6;
   const rowBytes = 16;
   const displayRow = 8;
-  const cursorByte = 15;
-  const cursorMask = 0x80;
-  const previousCursorByte = 14;
-  const previousCursorMask = 0x20;
+  const baselineRow = 1;
+  const cursorByte = 2;
+  const cursorMask = 0x20;
+  const previousCursorByte = 1;
   const glcd = getGlcdBytes(platformRuntime);
 
   for (let y = 0; y < 6; y += 1) {
@@ -535,19 +535,23 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
       );
     }
 
+    const baselineAddress = mon3Tgbuf + baselineRow * rowStride + y * rowBytes + previousCursorByte;
+    const baselineValue = runtime.hardware.memory[baselineAddress];
     const previousAddress = mon3Tgbuf + displayRow * rowStride + y * rowBytes + previousCursorByte;
     const previousValue = runtime.hardware.memory[previousAddress];
-    if ((previousValue & previousCursorMask) !== 0) {
+    if (previousValue !== baselineValue) {
       throw new Error(
-        `shell edit previous cursor TGBUF bit still set at 0x${previousAddress.toString(16)}: got ${resultToString(previousValue)} unexpected mask ${resultToString(previousCursorMask)}`,
+        `shell edit previous cursor TGBUF glyph mismatch at 0x${previousAddress.toString(16)}: got ${resultToString(previousValue)} expected restored glyph byte ${resultToString(baselineValue)}`,
       );
     }
 
+    const baselineGlcdOffset = baselineRow * rowStride + y * rowBytes + previousCursorByte;
+    const baselineVisibleValue = glcd[baselineGlcdOffset] ?? 0;
     const previousGlcdOffset = displayRow * rowStride + y * rowBytes + previousCursorByte;
     const previousVisibleValue = glcd[previousGlcdOffset] ?? 0;
-    if ((previousVisibleValue & previousCursorMask) !== 0) {
+    if (previousVisibleValue !== baselineVisibleValue) {
       throw new Error(
-        `shell edit previous cursor visible bit still set at GLCD offset 0x${previousGlcdOffset.toString(16)}: got ${resultToString(previousVisibleValue)} unexpected mask ${resultToString(previousCursorMask)}`,
+        `shell edit previous cursor visible glyph mismatch at GLCD offset 0x${previousGlcdOffset.toString(16)}: got ${resultToString(previousVisibleValue)} expected restored glyph byte ${resultToString(baselineVisibleValue)}`,
       );
     }
   }

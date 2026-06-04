@@ -16,6 +16,8 @@ TECM8_EDITOR_KEY_CURSOR_RIGHT_LOWER     .equ    "l"
 TECM8_EDITOR_KEY_CURSOR_RIGHT_UPPER     .equ    "L"
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    31
+TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    8
+TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
 TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
 
 ; TECM8_EDITOR_CURSOR_RESET -
@@ -26,6 +28,7 @@ TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
         XOR     A
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
+        LD      (EditorCursorRendered),A
         RET
 
 ; TECM8_EDITOR_RENDER_CURSOR -
@@ -33,10 +36,36 @@ TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @TECM8_EDITOR_RENDER_CURSOR:
+        LD      A,(EditorCursorRendered)
+        OR      A
+        JR      Z,EditorCursorRenderCheckVisible
+        LD      A,(EditorCursorRenderedCol)
+        LD      C,A
+        LD      A,(EditorCursorRenderedRow)
+        CALL    TECM8_DISPLAY_ERASE_CURSOR_CELL
+        RET     C
+        XOR     A
+        LD      (EditorCursorRendered),A
+
+EditorCursorRenderCheckVisible:
         LD      A,(EditorCursorCol)
+        CP      TECM8_EDITOR_CURSOR_VISIBLE_COLS
+        JR      NC,EditorCursorRenderDone
         LD      C,A
         LD      A,(EditorCursorRow)
+        CP      TECM8_EDITOR_CURSOR_VISIBLE_ROWS
+        JR      NC,EditorCursorRenderDone
         CALL    TECM8_DISPLAY_RENDER_CURSOR_CELL
+        RET     C
+        LD      A,(EditorCursorRow)
+        LD      (EditorCursorRenderedRow),A
+        LD      A,(EditorCursorCol)
+        LD      (EditorCursorRenderedCol),A
+        LD      A,1
+        LD      (EditorCursorRendered),A
+
+EditorCursorRenderDone:
+        XOR     A
         RET
 
 ; TECM8_EDITOR_RUN_KEYS -
@@ -87,11 +116,15 @@ EditorKeyLoop:
 EditorKeyPageDown:
         CALL    TECM8_EDITOR_PAGE_DOWN
         JR      C,EditorKeyNavigationErr
+        XOR     A
+        LD      (EditorCursorRendered),A
         JR      EditorKeyLoop
 
 EditorKeyPageUp:
         CALL    TECM8_EDITOR_PAGE_UP
         JR      C,EditorKeyNavigationErr
+        XOR     A
+        LD      (EditorCursorRendered),A
         JR      EditorKeyLoop
 
 EditorKeyNavigationErr:
@@ -135,8 +168,6 @@ EditorKeyCursorRight:
         JP      EditorKeyLoop
 
 EditorKeyDone:
-        CALL    TECM8_EDITOR_RENDER_CURRENT
-        RET     C
         CALL    TECM8_EDITOR_RENDER_CURSOR
         RET
 
@@ -147,4 +178,13 @@ EditorCursorRow:
         .db     0
 
 EditorCursorCol:
+        .db     0
+
+EditorCursorRendered:
+        .db     0
+
+EditorCursorRenderedRow:
+        .db     0
+
+EditorCursorRenderedCol:
         .db     0

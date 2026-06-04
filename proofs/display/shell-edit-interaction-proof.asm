@@ -91,6 +91,7 @@ EditorKeys:
         .db     "jjjjjjjjj"
         .db     "ljHKLJHK"
         .db     "hhhhhhhhhhhk"
+        .db     "hhhhhhhhhhhhhhhhh"
         .db     "d",0
 
 EditorKeyLeft:

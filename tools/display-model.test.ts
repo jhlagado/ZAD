@@ -34,6 +34,7 @@ test('structured display model has assembly entry points and contracts', () => {
     'TECM8_DISPLAY_RENDER_LINE',
     'TECM8_DISPLAY_RENDER_GUTTER',
     'TECM8_DISPLAY_RENDER_CURSOR_CELL',
+    'TECM8_DISPLAY_ERASE_CURSOR_CELL',
   ]) {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
     assert.match(iface, new RegExp(`^extern ${label}$`, 'm'));
@@ -52,9 +53,12 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /@TECM8_DISPLAY_RENDER_SCREEN:\n\s+LD\s+\(DisplayCursor\),HL\n\s+CALL\s+TECM8_BIOS_DISPLAY_CLEAR/);
   assert.match(source, /AND\s+0x0F/);
   assert.match(source, /@TECM8_DISPLAY_RENDER_CURSOR_CELL:/);
+  assert.match(source, /@TECM8_DISPLAY_ERASE_CURSOR_CELL:/);
   assert.match(source, /CP\s+TECM8_DISPLAY_EDIT_ROWS/);
   assert.match(source, /CP\s+TECM8_DISPLAY_MAX_TEXT_CHARS/);
   assert.match(source, /CALL\s+TECM8_BIOS_DISPLAY_UPDATE/);
+  assert.match(source, /DisplayCursorSavedBytes:/);
+  assert.match(source, /LD\s+\(DisplayCursorOriginalByte\),A/);
   assert.match(source, /CALL\s+TECM8_BIOS_DISPLAY_DRAW_CHAR_AT/);
   assert.doesNotMatch(source, /CALL\s+TECM8_BIOS_DISPLAY_PUT_STRING/);
 });

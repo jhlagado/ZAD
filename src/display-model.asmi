@@ -26,3 +26,9 @@ in A,C
 out carry
 clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 end
+
+extern TECM8_DISPLAY_ERASE_CURSOR_CELL
+in A,C
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
