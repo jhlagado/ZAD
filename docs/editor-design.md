@@ -363,6 +363,45 @@ Ctrl-L  redraw
 Exact bindings should be adjusted to the TEC-1G matrix keyboard and MON3
 control-key behavior.
 
+## Status-Line Prompt Mode
+
+The editor should use the status line for confirmation prompts instead of modal
+dialog boxes. A 128x64 GLCD does not have enough space for heavy window UI, and
+the Pico/Nano-style status prompt fits the small editor model better.
+
+When an operation needs confirmation, the editor temporarily routes key input to
+a prompt state:
+
+```text
+normal edit mode
+  bottom status row shows ordinary command/status text
+
+confirmation mode
+  bottom status row asks a question
+  Y/Enter accepts
+  N/Esc cancels
+  accepted action returns to edit mode
+```
+
+Examples:
+
+```text
+Save changes? Y/N
+Restore from .main.asm.b? Y/N
+Discard unsaved changes? Y/N
+Replace existing backup? Y/N
+```
+
+This is a small state machine, not a dialog system. The editor needs enough
+state to remember the pending action, render the prompt text, interpret the next
+confirmation key, and then either execute or cancel the action. Likely pending
+actions include save, restore-from-backup, quit-with-dirty-buffer, overwrite, and
+discard changes.
+
+Prompt mode should block ordinary editing keys until it is answered. After the
+answer, the editor should redraw the status line and return to the previous edit
+or insert mode as appropriate.
+
 ## First Editor Feature Set
 
 Minimum useful version:

@@ -126,6 +126,7 @@ Goals:
 - Save changes explicitly.
 - Create a hidden one-level backup before replacing an existing file.
 - Restore the current file from its hidden backup.
+- Use a status-line prompt mode for confirmations instead of dialog boxes.
 - Keep UI small and reliable.
 
 Initial controls:
@@ -138,6 +139,7 @@ insert line
 delete line
 save
 restore backup
+answer status prompt
 quit
 redraw
 ```
