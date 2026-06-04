@@ -18,9 +18,11 @@
     "proof:shell-commands": "node --experimental-strip-types tools/run-shell-commands-proof.ts",
     "mon3:inventory": "node --experimental-strip-types tools/mon3-service-inventory.ts",
     "mon3:inventory:check": "node --experimental-strip-types tools/mon3-service-inventory.ts --check",
+    "mon3:storage-split": "node --experimental-strip-types tools/mon3-storage-split.ts",
+    "mon3:storage-split:check": "node --experimental-strip-types tools/mon3-storage-split.ts --check",
     "audit:storage": "node --experimental-strip-types tools/audit-storage-proof.ts",
     "quality": "fallow --root . --skip dead-code || true",
-    "check": "npm run typecheck && npm run test && npm run mon3:inventory:check && npm run proof:project-config && npm run proof:project-config:storage && npm run proof:display && npm run proof:display:structured && npm run proof:shell-commands && npm run proof:storage:check && npm run audit:storage"
+    "check": "npm run typecheck && npm run test && npm run mon3:inventory:check && npm run mon3:storage-split:check && npm run proof:project-config && npm run proof:project-config:storage && npm run proof:display && npm run proof:display:structured && npm run proof:shell-commands && npm run proof:storage:check && npm run audit:storage"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

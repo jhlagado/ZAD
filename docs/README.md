@@ -45,6 +45,7 @@ Start here:
 - [TECM8 BIOS Direction](tecm8-bios.md)
 - [MON3 Decomposition Plan](mon3-decomposition.md)
 - [MON3 Service Inventory](mon3-service-inventory.md)
+- [MON3 Storage Split Report](mon3-storage-split.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
 - [Debugging Roadmap](debugging-roadmap.md)
 - [Implementation Plan](implementation-plan.md)
