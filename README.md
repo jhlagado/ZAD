@@ -34,6 +34,7 @@ Start with the documentation:
 - [TECM8 AZM Style Guide](docs/azm-style-guide.md)
 - [Editor Design](docs/editor-design.md)
 - [Memory and Code Quality Manifest](docs/memory-and-code-quality.md)
+- [TECM8 BIOS Direction](docs/tecm8-bios.md)
 - [Debugging Roadmap](docs/debugging-roadmap.md)
 
 Useful local checks:

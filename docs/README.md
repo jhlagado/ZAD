@@ -42,5 +42,6 @@ Start here:
 - [Editor Design](editor-design.md)
 - [Project Sizing Case Studies](project-sizing.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
+- [TECM8 BIOS Direction](tecm8-bios.md)
 - [Debugging Roadmap](debugging-roadmap.md)
 - [Implementation Plan](implementation-plan.md)

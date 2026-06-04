@@ -79,6 +79,11 @@ hardware drivers.
 Further expansion memory may exist later, but the first design should prove
 useful inside the classic machine model before depending on it.
 
+See [TECM8 BIOS Direction](tecm8-bios.md) for the proposed long-term split:
+keep a trimmed MON3-derived BIOS for hardware services, remove the full monitor
+personality and PATA support, and use the reclaimed ROM for resident TECM8
+support around banked tools.
+
 ## Resident Versus Overlay Code
 
 The system should separate always-resident code from tool code that can be
