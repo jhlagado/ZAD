@@ -31,6 +31,7 @@ const INTERFACES = [
   resolve(TECM8_ROOT, 'src/display-model.asmi'),
   resolve(TECM8_ROOT, 'src/editor-viewport.asmi'),
   resolve(TECM8_ROOT, 'src/editor-storage-loader.asmi'),
+  resolve(TECM8_ROOT, 'src/editor-navigation.asmi'),
 ];
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 const APP_START = 0x4000;
@@ -65,6 +66,13 @@ const PROOF_CASES = {
     image: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-small-file-fat32.img'),
     lines: makeSmallFileLines(),
     verify: verifyNoopProof,
+  },
+  'editor-navigation-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-navigation-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-navigation-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-navigation-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyNavigationProof,
   },
 } as const;
 
@@ -305,7 +313,7 @@ function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; 
 }
 
 function runUntil(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: number): number {
-  const maxInstructions = 20_000_000;
+  const maxInstructions = 80_000_000;
   for (let i = 0; i < maxInstructions; i += 1) {
     if ((runtime.cpu.pc & 0xffff) === doneAddr) {
       return i;
@@ -391,6 +399,32 @@ function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime,
   for (let row = 0; row < 10; row += 1) {
     if (!glcdRowHasPixels(glcd, row)) {
       throw new Error(`storage viewport proof did not render display row: ${row}`);
+    }
+  }
+}
+
+function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
+  if (runtime.hardware.memory[currentPage] !== 7) {
+    throw new Error(`editor navigation current page ${runtime.hardware.memory[currentPage]}, expected 7`);
+  }
+
+  const expectedRows = [
+    { symbol: 'EditorRowText0', text: 'P7 LINE 00' },
+    { symbol: 'EditorRowText1', text: 'P7 LINE 01' },
+    { symbol: 'EditorRowText7', text: 'P7 LINE 07' },
+  ];
+  for (const row of expectedRows) {
+    const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
+    if (actual !== row.text) {
+      throw new Error(`editor navigation copied ${row.symbol} as "${actual}", expected "${row.text}"`);
+    }
+  }
+
+  const glcd = getGlcdBytes(platformRuntime);
+  for (let row = 0; row < 10; row += 1) {
+    if (!glcdRowHasPixels(glcd, row)) {
+      throw new Error(`editor navigation proof did not render display row: ${row}`);
     }
   }
 }

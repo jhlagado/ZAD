@@ -1,0 +1,19 @@
+extern TECM8_EDITOR_OPEN_MAIN
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_RENDER_CURRENT
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_PAGE_DOWN
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_EDITOR_PAGE_UP
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
