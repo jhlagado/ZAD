@@ -46,6 +46,7 @@ Start here:
 - [MON3 Decomposition Plan](mon3-decomposition.md)
 - [MON3 Service Inventory](mon3-service-inventory.md)
 - [MON3 Storage Split Report](mon3-storage-split.md)
+- [MON3 GLCD Split Report](mon3-glcd-split.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
 - [Debugging Roadmap](debugging-roadmap.md)
 - [Implementation Plan](implementation-plan.md)
