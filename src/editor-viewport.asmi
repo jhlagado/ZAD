@@ -1,0 +1,5 @@
+extern TECM8_EDITOR_VIEWPORT_RENDER
+in HL
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end

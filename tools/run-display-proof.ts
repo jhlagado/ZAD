@@ -284,6 +284,69 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   }
 }
 
+function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const glcd = getGlcdBytes(platformRuntime);
+  for (let row = 0; row < 10; row += 1) {
+    if (!glcdRowHasPixels(glcd, row)) {
+      throw new Error(`editor viewport proof did not render display row: ${row}`);
+    }
+  }
+
+  const expectedRows = [
+    { symbol: 'EditorRowText0', text: 'ORG 4000H' },
+    { symbol: 'EditorRowText1', text: 'CALL INIT' },
+    { symbol: 'EditorRowText7', text: 'RET' },
+  ];
+  for (const row of expectedRows) {
+    const address = symbolAddress(symbols, row.symbol);
+    const actual = readCString(runtime.hardware.memory, address);
+    if (actual !== row.text) {
+      throw new Error(`editor viewport proof copied ${row.symbol} as "${actual}", expected "${row.text}"`);
+    }
+  }
+
+  const mon3Tgbuf = 0x13c0;
+  const rowStride = 16 * 6;
+  const rowBytes = 16;
+  const expectedMarkers = [
+    { row: 1, pattern: 0xf0, name: 'breakpoint' },
+    { row: 2, pattern: 0x80, name: 'current' },
+    { row: 4, pattern: 0xc0, name: 'selected' },
+  ];
+
+  for (const marker of expectedMarkers) {
+    for (let y = 0; y < 6; y += 1) {
+      const address = mon3Tgbuf + marker.row * rowStride + y * rowBytes;
+      const value = runtime.hardware.memory[address];
+      if ((value & marker.pattern) !== marker.pattern) {
+        throw new Error(
+          `editor viewport proof missing ${marker.name} gutter bits at 0x${address.toString(16)}: got ${resultToString(value)} expected mask ${resultToString(marker.pattern)}`,
+        );
+      }
+
+      const glcdOffset = marker.row * rowStride + y * rowBytes;
+      const visibleValue = glcd[glcdOffset] ?? 0;
+      if ((visibleValue & marker.pattern) !== marker.pattern) {
+        throw new Error(
+          `editor viewport proof missing visible ${marker.name} gutter bits at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(marker.pattern)}`,
+        );
+      }
+    }
+  }
+}
+
+function readCString(memory: Uint8Array, address: number): string {
+  const bytes = [];
+  for (let current = address; current < memory.length; current += 1) {
+    const value = memory[current];
+    if (value === 0) {
+      return Buffer.from(bytes).toString('ascii');
+    }
+    bytes.push(value);
+  }
+  throw new Error(`unterminated string at 0x${address.toString(16)}`);
+}
+
 async function main(): Promise<void> {
   if (!existsSync(MON3_ROM_PATH)) {
     throw new Error(`MON3 ROM not found: ${MON3_ROM_PATH}`);
@@ -296,15 +359,19 @@ async function main(): Promise<void> {
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const result = runtime.hardware.memory[resultAddr];
   const visiblePixels = hasVisibleGlcdPixels(platformRuntime);
+  const requiresVisiblePixels = proofName !== 'editor-viewport-bad-record-proof';
 
   if (result !== PROOF_PASS) {
     throw new Error(`display proof failed: marker=${resultToString(result)}`);
   }
-  if (!visiblePixels) {
+  if (requiresVisiblePixels && !visiblePixels) {
     throw new Error('display proof did not update Debug80 GLCD pixels');
   }
   if (proofName === 'structured-screen-proof') {
     verifyStructuredScreen(runtime, platformRuntime);
+  }
+  if (proofName === 'editor-viewport-proof') {
+    verifyEditorViewport(runtime, platformRuntime, symbols);
   }
 
   const report = {
