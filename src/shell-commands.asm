@@ -22,6 +22,37 @@ SHELL_ERR_PROJECT   .equ     0x43
 SHELL_MAIN_PATH_LEN .equ     64
 SHELL_INPUT_LEN     .equ     64
 
+SHELL_PROMPT_OK     .equ     0
+SHELL_PROMPT_ERROR  .equ     1
+
+; RunShellPromptCycle —
+; Handle one shell prompt cycle from an already-entered input line.
+; The shell returns to the prompt after both success and shell errors; callers
+; inspect ShellPromptStatus and ShellPromptError to decide what to display.
+; Input:
+;   HL = entered line bytes
+;   C  = entered byte count
+; Output:
+;   carry clear, A=SHELL_PROMPT_OK or SHELL_PROMPT_ERROR
+;!      in        C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@RunShellPromptCycle:
+        CALL    RunShellInputLine
+        JR      C,ShellPromptCycleError
+
+        XOR     A
+        LD      (ShellPromptError),A
+        LD      (ShellPromptStatus),A
+        RET
+
+ShellPromptCycleError:
+        LD      (ShellPromptError),A
+        LD      A,SHELL_PROMPT_ERROR
+        LD      (ShellPromptStatus),A
+        OR      A
+        RET
+
 ; RunShellInputLine —
 ; Normalize entered shell input into a NUL-terminated command line, then run it.
 ; CR, LF, and NUL terminate the entered line before the supplied byte count.
@@ -1057,6 +1088,12 @@ ShellStepDispatch:
 
 ShellInputCommand:
         .ds     SHELL_INPUT_LEN
+
+ShellPromptStatus:
+        .db     0
+
+ShellPromptError:
+        .db     0
 
 ShellEditMode:
         .db     0

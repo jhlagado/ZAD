@@ -305,6 +305,34 @@ PathOutLen      .equ     64
 
         LD      A,40
         LD      (CaseMarker),A
+        LD      HL,CmdInputEditCr
+        LD      C,CmdInputEditCrLen
+        LD      A,SHELL_CMD_EDIT
+        CALL    AssertShellPromptOk
+        JP      C,ProofFailed
+
+        LD      A,41
+        LD      (CaseMarker),A
+        XOR     A
+        LD      (ShellLastExecAction),A
+        LD      HL,CmdInputBadCr
+        LD      C,CmdInputBadCrLen
+        LD      A,SHELL_ERR_UNKNOWN
+        CALL    AssertShellPromptErr
+        JP      C,ProofFailed
+
+        LD      A,42
+        LD      (CaseMarker),A
+        XOR     A
+        LD      (ShellLastExecAction),A
+        LD      HL,CmdInputLong
+        LD      C,CmdInputLongLen
+        LD      A,SHELL_ERR_LONG
+        CALL    AssertShellPromptErr
+        JP      C,ProofFailed
+
+        LD      A,43
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -313,7 +341,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,41
+        LD      A,44
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -323,7 +351,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,42
+        LD      A,45
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -764,6 +792,66 @@ AssertShellStepUnknownBad:
 AssertShellInputBad:
         SCF
         RET
+
+; AssertShellPromptOk —
+; Run one prompt cycle and require OK status plus invoked stub action.
+; Input: HL = entered bytes, C = byte count, A = expected action
+;!      in        A,C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellPromptOk:
+        LD      (ExpectedAction),A
+        CALL    RunShellPromptCycle
+        JR      C,AssertShellPromptBad
+        CP      SHELL_PROMPT_OK
+        JR      NZ,AssertShellPromptBad
+
+        LD      A,(ShellPromptStatus)
+        CP      SHELL_PROMPT_OK
+        JR      NZ,AssertShellPromptBad
+
+        LD      A,(ShellPromptError)
+        OR      A
+        JR      NZ,AssertShellPromptBad
+
+        LD      A,(ShellLastExecAction)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        RET     Z
+
+AssertShellPromptBad:
+        SCF
+        RET
+
+; AssertShellPromptErr —
+; Run one prompt cycle and require ERROR status plus stored shell error.
+; Input: HL = entered bytes, C = byte count, A = expected error
+;!      in        A,C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellPromptErr:
+        LD      (ExpectedAction),A
+        CALL    RunShellPromptCycle
+        JR      C,AssertShellPromptBad
+        CP      SHELL_PROMPT_ERROR
+        JR      NZ,AssertShellPromptBad
+
+        LD      A,(ShellPromptStatus)
+        CP      SHELL_PROMPT_ERROR
+        JR      NZ,AssertShellPromptBad
+
+        LD      A,(ShellPromptError)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertShellPromptBad
+
+        LD      A,(ShellLastExecAction)
+        OR      A
+        RET     Z
+
+        JR      AssertShellPromptBad
 
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
