@@ -28,6 +28,17 @@ TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
         LD      (EditorCursorCol),A
         RET
 
+; TECM8_EDITOR_RENDER_CURSOR -
+; Overlay the logical cursor when it is inside the visible edit pane.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_EDITOR_RENDER_CURSOR:
+        LD      A,(EditorCursorCol)
+        LD      C,A
+        LD      A,(EditorCursorRow)
+        CALL    TECM8_DISPLAY_RENDER_CURSOR_CELL
+        RET
+
 ; TECM8_EDITOR_RUN_KEYS -
 ; Consume a NUL-terminated key stream. `d`/`u` page, `h`/`j`/`k`/`l` move
 ; the visible cursor, and unknown keys are ignored.
@@ -110,10 +121,10 @@ EditorKeyCursorDown:
 EditorKeyCursorUp:
         LD      A,(EditorCursorRow)
         OR      A
-        JR      Z,EditorKeyLoop
+        JP      Z,EditorKeyLoop
         DEC     A
         LD      (EditorCursorRow),A
-        JR      EditorKeyLoop
+        JP      EditorKeyLoop
 
 EditorKeyCursorRight:
         LD      A,(EditorCursorCol)
@@ -124,7 +135,7 @@ EditorKeyCursorRight:
         JP      EditorKeyLoop
 
 EditorKeyDone:
-        XOR     A
+        CALL    TECM8_EDITOR_RENDER_CURSOR
         RET
 
 EditorKeyStreamPtr:

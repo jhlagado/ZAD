@@ -498,11 +498,40 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1);
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
   const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
-  if (runtime.hardware.memory[cursorRow] !== 8) {
-    throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 8`);
+  if (runtime.hardware.memory[cursorRow] !== 7) {
+    throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 7`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 30) {
-    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 30`);
+  if (runtime.hardware.memory[cursorCol] !== 19) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 19`);
+  }
+  verifyShellEditVisibleCursor(runtime, platformRuntime);
+}
+
+function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {
+  const mon3Tgbuf = 0x13c0;
+  const rowStride = 16 * 6;
+  const rowBytes = 16;
+  const displayRow = 8;
+  const cursorByte = 15;
+  const cursorMask = 0x80;
+  const glcd = getGlcdBytes(platformRuntime);
+
+  for (let y = 0; y < 6; y += 1) {
+    const address = mon3Tgbuf + displayRow * rowStride + y * rowBytes + cursorByte;
+    const value = runtime.hardware.memory[address];
+    if ((value & cursorMask) !== cursorMask) {
+      throw new Error(
+        `shell edit cursor missing TGBUF bit at 0x${address.toString(16)}: got ${resultToString(value)} expected mask ${resultToString(cursorMask)}`,
+      );
+    }
+
+    const glcdOffset = displayRow * rowStride + y * rowBytes + cursorByte;
+    const visibleValue = glcd[glcdOffset] ?? 0;
+    if ((visibleValue & cursorMask) !== cursorMask) {
+      throw new Error(
+        `shell edit cursor missing visible bit at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(cursorMask)}`,
+      );
+    }
   }
 }
 

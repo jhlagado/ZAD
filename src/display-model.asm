@@ -20,6 +20,7 @@ TECM8_DISPLAY_MARKER_NONE           .equ    0
 TECM8_DISPLAY_MARKER_BREAKPOINT     .equ    1
 TECM8_DISPLAY_MARKER_CURRENT        .equ    2
 TECM8_DISPLAY_MARKER_SELECTED       .equ    4
+TECM8_DISPLAY_CURSOR_PATTERN        .equ    0x80
 
 MON3_TGBUF                          .equ    0x13C0
 
@@ -196,6 +197,97 @@ DisplayGutterWriteLoop:
         XOR     A
         RET
 
+; TECM8_DISPLAY_RENDER_CURSOR_CELL -
+; Overlay a vertical cursor bit for one visible edit-pane cell.
+; Input: A = edit row (0-7), C = text column (0-19)
+;!      in        A,C
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_DISPLAY_RENDER_CURSOR_CELL:
+        CP      TECM8_DISPLAY_EDIT_ROWS
+        JR      NC,DisplayCursorNoop
+        LD      (DisplayCursorCellRow),A
+        LD      A,C
+        CP      TECM8_DISPLAY_MAX_TEXT_CHARS
+        JR      NC,DisplayCursorNoop
+        LD      (DisplayCursorCellCol),A
+
+        LD      A,(DisplayCursorCellRow)
+        ADD     A,TECM8_DISPLAY_FIRST_EDIT_ROW
+        LD      HL,MON3_TGBUF
+        LD      DE,TECM8_DISPLAY_ROW_STRIDE
+
+DisplayCursorRowOffsetLoop:
+        ADD     HL,DE
+        DEC     A
+        JR      NZ,DisplayCursorRowOffsetLoop
+
+        LD      A,TECM8_DISPLAY_TEXT_X
+        LD      (DisplayCursorPixelX),A
+        LD      A,(DisplayCursorCellCol)
+        LD      B,A
+        OR      A
+        JR      Z,DisplayCursorPixelReady
+
+DisplayCursorPixelLoop:
+        LD      A,(DisplayCursorPixelX)
+        ADD     A,TECM8_DISPLAY_ROW_HEIGHT
+        LD      (DisplayCursorPixelX),A
+        DJNZ    DisplayCursorPixelLoop
+
+DisplayCursorPixelReady:
+        LD      A,(DisplayCursorPixelX)
+        LD      B,0
+
+DisplayCursorByteLoop:
+        CP      8
+        JR      C,DisplayCursorByteReady
+        SUB     8
+        INC     B
+        JR      DisplayCursorByteLoop
+
+DisplayCursorByteReady:
+        LD      (DisplayCursorBitIndex),A
+        LD      A,B
+        OR      A
+        JR      Z,DisplayCursorByteOffsetReady
+
+DisplayCursorByteOffsetLoop:
+        INC     HL
+        DJNZ    DisplayCursorByteOffsetLoop
+
+DisplayCursorByteOffsetReady:
+        LD      A,(DisplayCursorBitIndex)
+        LD      B,A
+        LD      A,TECM8_DISPLAY_CURSOR_PATTERN
+        LD      C,A
+        LD      A,B
+        OR      A
+        JR      Z,DisplayCursorMaskReady
+        LD      A,C
+
+DisplayCursorMaskLoop:
+        SRL     A
+        DJNZ    DisplayCursorMaskLoop
+        LD      C,A
+
+DisplayCursorMaskReady:
+        LD      B,TECM8_DISPLAY_ROW_HEIGHT
+        LD      DE,TECM8_DISPLAY_ROW_BYTES
+
+DisplayCursorWriteLoop:
+        LD      A,(HL)
+        OR      C
+        LD      (HL),A
+        ADD     HL,DE
+        DJNZ    DisplayCursorWriteLoop
+        CALL    TECM8_BIOS_DISPLAY_UPDATE
+        RET
+
+DisplayCursorNoop:
+        XOR     A
+        RET
+
 ; DisplayRowToPixel -
 ; Convert a 0-9 display row to a Y pixel coordinate.
 ; Input: A = row
@@ -226,4 +318,12 @@ DisplayTextX:
 DisplayTextY:
         .db     0
 DisplayTextRemaining:
+        .db     0
+DisplayCursorCellRow:
+        .db     0
+DisplayCursorCellCol:
+        .db     0
+DisplayCursorPixelX:
+        .db     0
+DisplayCursorBitIndex:
         .db     0

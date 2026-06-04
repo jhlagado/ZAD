@@ -8,3 +8,8 @@ extern TECM8_EDITOR_CURSOR_RESET
 out A,carry
 clobbers A,zero,sign,parity,halfCarry
 end
+
+extern TECM8_EDITOR_RENDER_CURSOR
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end

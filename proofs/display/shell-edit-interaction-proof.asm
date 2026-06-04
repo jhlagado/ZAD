@@ -77,7 +77,9 @@ EditorKeys:
         .db     "hku"
         .db     "lllllllllllllllllllllllllllllll"
         .db     "jjjjjjjjj"
-        .db     "ljHKLJHKd",0
+        .db     "ljHKLJHK"
+        .db     "hhhhhhhhhhhk"
+        .db     "d",0
 
 ExpectedMain:
         .db     "/projects/demo/app.asm",0
