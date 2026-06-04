@@ -238,6 +238,28 @@ Allowed v1 path characters:
 a-z 0-9 _ - . /
 ```
 
+Leading-dot local filenames follow the Unix hidden-file convention. They are
+ordinary catalog entries on disk, but ordinary `ls`, project export, and
+project pack/unpack workflows should hide or omit them by default once that
+behavior is implemented. Explicit "show hidden" or "include hidden" options can
+be added later.
+
+Hidden files are not only backups. They are reserved for internal or auxiliary
+project state as well, so backup files should carry a role suffix instead of
+using the hidden source name directly. The editor backup convention is:
+
+```text
+/src/main.asm    -> /src/.main.asm.b
+/src/driver.inc  -> /src/.driver.inc.b
+/tecm8.prj       -> /.tecm8.prj.b
+```
+
+The derived backup name is `.` + original local filename + `.b`. The leading dot
+makes the backup hidden; the trailing `.b` identifies it as a backup while
+preserving the original filename and extension. If the derived local filename
+does not fit the catalog name limit, v1 should fail the save with a clear error
+rather than truncating or inventing an ambiguous short name.
+
 ## Virtual Directories
 
 There are no directory objects. The system has a current prefix, not a current

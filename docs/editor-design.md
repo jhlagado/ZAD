@@ -375,18 +375,48 @@ Minimum useful version:
 - Insert line.
 - Delete line.
 - Save.
+- Restore from backup.
 - Quit.
 - Show path and dirty flag.
 
 Excluded from v1:
 
-- Undo.
+- General undo.
 - Multiple buffers.
 - Syntax highlighting.
 - Search/replace.
 - Mouse/menu UI.
 - Horizontal scrolling.
 - True variable-length text storage.
+
+## Save, Backup, And Restore Policy
+
+The v1 editor should not assume a general undo system. Undo is valuable, but a
+real undo stack consumes RAM and complicates sector-crossing edits. TECM8 should
+instead use explicit saves plus a one-level backup file as the first safety
+mechanism.
+
+Policy:
+
+- Edits live in the editor's RAM page/window until the user saves.
+- `Ctrl-S` or the final save command explicitly commits changes.
+- Before replacing an existing file, save creates or replaces a hidden backup of
+  the previous saved file.
+- The backup path is derived from the original local filename as
+  `.` + filename + `.b`.
+- Example: `/src/main.asm` backs up to `/src/.main.asm.b`.
+- The backup is a normal fixed-record text file and can be restored manually
+  with file commands if needed.
+- The editor should also provide a restore-from-backup command so the user does
+  not have to leave the editor, delete the damaged file, and rename the backup.
+- Autosave should not be part of v1; autosave is much safer once undo, journaling,
+  or version history exists.
+
+The restore command should be conservative: confirm or clearly indicate that the
+current buffer will be replaced, load the hidden backup if present, and mark the
+buffer dirty so the user can inspect it before saving it back over the original
+file. Exact key bindings can be chosen with the rest of the TEC-1G keyboard
+mapping.
 
 ## Source Text Import And Export
 

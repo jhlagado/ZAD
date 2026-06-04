@@ -123,7 +123,9 @@ Goals:
 Goals:
 
 - Edit one source file.
-- Save changes.
+- Save changes explicitly.
+- Create a hidden one-level backup before replacing an existing file.
+- Restore the current file from its hidden backup.
 - Keep UI small and reliable.
 
 Initial controls:
@@ -135,9 +137,16 @@ backspace/delete
 insert line
 delete line
 save
+restore backup
 quit
 redraw
 ```
+
+The v1 backup convention is documented in
+[Editor Design](editor-design.md#save-backup-and-restore-policy): the backup of
+`/src/main.asm` is `/src/.main.asm.b`. Leading-dot files are intended to be
+hidden from ordinary listings and project export/pack output, but implementing
+that hidden-file behavior is a separate low-priority filesystem task.
 
 ## Phase 6: Build Tools
 
