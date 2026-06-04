@@ -20,6 +20,70 @@ SHELL_ERR_LONG      .equ     0x42
 SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
+SHELL_INPUT_LEN     .equ     64
+
+; RunShellInputLine —
+; Normalize entered shell input into a NUL-terminated command line, then run it.
+; CR, LF, and NUL terminate the entered line before the supplied byte count.
+; Input:
+;   HL = entered line bytes
+;   C  = entered byte count
+; Output:
+;   carry clear, A=SHELL_OK after a stub handles the command
+;   carry set, A=SHELL_ERR_* if normalization, dispatch, or execution fails
+;!      in        C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@RunShellInputLine:
+        LD      DE,ShellInputCommand
+        LD      B,SHELL_INPUT_LEN
+        CALL    NormalizeShellInputLine
+        RET     C
+        LD      HL,ShellInputCommand
+        JP      RunShellCommandLine
+
+; NormalizeShellInputLine —
+; Copy an entered input line into a bounded NUL-terminated command buffer.
+; Input:
+;   HL = entered line bytes
+;   C  = entered byte count
+;   DE = output command buffer
+;   B  = output capacity, including final NUL
+; Output:
+;   carry clear, A=SHELL_OK, output buffer is NUL-terminated
+;   carry set, A=SHELL_ERR_LONG when no byte remains for the final NUL
+;!      in        B,C,DE,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@NormalizeShellInputLine:
+        LD      A,B
+        OR      A
+        JP      Z,ShellLongErr
+
+ShellNormalizeLoop:
+        LD      A,C
+        OR      A
+        JR      Z,ShellNormalizeEnd
+        LD      A,(HL)
+        OR      A
+        JR      Z,ShellNormalizeEnd
+        CP      0x0D
+        JR      Z,ShellNormalizeEnd
+        CP      0x0A
+        JR      Z,ShellNormalizeEnd
+
+        DEC     B
+        JP      Z,ShellLongErr
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DEC     C
+        JR      ShellNormalizeLoop
+
+ShellNormalizeEnd:
+        XOR     A
+        LD      (DE),A
+        RET
 
 ; RunShellCommandLine —
 ; Execute one already-entered shell command line through the current stubs.
@@ -990,6 +1054,9 @@ ShellLastExecAction:
 
 ShellStepDispatch:
         .ds     1 + SHELL_MAIN_PATH_LEN * 3
+
+ShellInputCommand:
+        .ds     SHELL_INPUT_LEN
 
 ShellEditMode:
         .db     0

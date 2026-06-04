@@ -256,6 +256,55 @@ PathOutLen      .equ     64
 
         LD      A,34
         LD      (CaseMarker),A
+        LD      HL,CmdInputEditCr
+        LD      C,CmdInputEditCrLen
+        LD      DE,CmdEdit
+        LD      A,SHELL_CMD_EDIT
+        CALL    AssertShellInputOk
+        JP      C,ProofFailed
+
+        LD      A,35
+        LD      (CaseMarker),A
+        LD      HL,CmdInputAsmLf
+        LD      C,CmdInputAsmLfLen
+        LD      DE,CmdAsmTest
+        LD      A,SHELL_CMD_ASM
+        CALL    AssertShellInputOk
+        JP      C,ProofFailed
+
+        LD      A,36
+        LD      (CaseMarker),A
+        LD      HL,CmdInputBadCr
+        LD      C,CmdInputBadCrLen
+        LD      A,SHELL_ERR_UNKNOWN
+        CALL    AssertShellInputErr
+        JP      C,ProofFailed
+
+        LD      A,37
+        LD      (CaseMarker),A
+        LD      HL,CmdInputMaxRun
+        LD      C,CmdInputMaxRunLen
+        LD      DE,CmdInputMaxRun
+        LD      A,SHELL_CMD_RUN
+        CALL    AssertShellInputOk
+        JP      C,ProofFailed
+
+        LD      A,38
+        LD      (CaseMarker),A
+        LD      A,(ShellInputCommand + SHELL_INPUT_LEN - 1)
+        OR      A
+        JP      NZ,ProofFailed
+
+        LD      A,39
+        LD      (CaseMarker),A
+        LD      HL,CmdInputLong
+        LD      C,CmdInputLongLen
+        LD      A,SHELL_ERR_LONG
+        CALL    AssertShellInputErr
+        JP      C,ProofFailed
+
+        LD      A,40
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -264,7 +313,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,35
+        LD      A,41
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -274,7 +323,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,36
+        LD      A,42
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -671,6 +720,51 @@ AssertShellStepUnknownBad:
         SCF
         RET
 
+; AssertShellInputOk —
+; Normalize one entered line, run it, and verify the command buffer plus stub.
+; Input: HL = entered bytes, C = byte count, DE = expected normalized text,
+;        A = expected action
+;!      in        A,C,DE,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellInputOk:
+        LD      (ExpectedAction),A
+        LD      (ExpectedPathPtr),DE
+        CALL    RunShellInputLine
+        RET     C
+        CP      SHELL_OK
+        JR      NZ,AssertShellInputBad
+
+        LD      A,(ShellLastExecAction)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertShellInputBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,ShellInputCommand
+        CALL    AssertString
+        RET
+
+; AssertShellInputErr —
+; Normalize one entered line, run it, and require a specific shell error.
+; Input: HL = entered bytes, C = byte count, A = expected error
+;!      in        A,C,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellInputErr:
+        LD      (ExpectedAction),A
+        CALL    RunShellInputLine
+        JR      NC,AssertShellInputBad
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        RET     Z
+
+AssertShellInputBad:
+        SCF
+        RET
+
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
 ; Input: HL = source path, DE = expected map path
@@ -765,6 +859,27 @@ CmdEasm:
 
 CmdArun:
         .db     "arun",0
+
+CmdInputEditCr:
+        .db     "edit",0x0D,"ignored",0
+CmdInputEditCrLen .equ     12
+
+CmdInputAsmLf:
+        .db     "asm test",0x0A,"ignored",0
+CmdInputAsmLfLen .equ      16
+
+CmdInputBadCr:
+        .db     "list",0x0D,0
+CmdInputBadCrLen .equ      5
+
+CmdInputMaxRun:
+        .db     "run /build/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKL.bin",0
+CmdInputMaxRunLen .equ     63
+
+CmdInputLong:
+        .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+CmdInputLongLen .equ       64
 
 ExpectedMain:
         .db     "/src/test.v1.asm",0
