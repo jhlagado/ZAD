@@ -13,7 +13,7 @@ other tools can run.
 Initial target:
 
 ```text
-GLCD: approximately 20 columns x 8 rows
+GLCD: 20 columns x 10 rows using MON3's current 6x6 terminal cell
 ```
 
 Future target:
@@ -24,6 +24,38 @@ TMS9918 VDU: 32 columns x 24 rows
 
 The editor core should not depend on either display. It should expose a
 viewport model that renderers can draw differently.
+
+The MON3 GLCD terminal is not an 8x8 tile display. Its current character path
+uses 6x6 pixel cells on a 128x64 bitmap display. The practical terminal
+capacity is therefore 20 columns by 10 rows. Older notes that refer to an
+8-row GLCD editor should be read as an editor viewport policy, not a physical
+display limit.
+
+The default GLCD editor should reserve two of those ten rows for chrome:
+
+```text
+row 0      mode/menu/status row
+rows 1-8   editable source viewport
+row 9      command/status/error row
+```
+
+This preserves the earlier 8 editable line assumption while acknowledging the
+full 10-row display. A later full-screen mode can hide one or both chrome rows
+and expose 9 or 10 editable rows when the user wants more source context.
+
+The gutter should not automatically consume a full 6-pixel character cell. A
+4-pixel left gutter is enough for breakpoint, current-line, selection, dirty,
+or diagnostic markers while still leaving room for 20 full 6-pixel text cells:
+
+```text
+128 px width - 4 px gutter = 124 px
+124 px / 6 px cell = 20 full text columns, with 4 px spare
+```
+
+The shared display model should therefore be cell-based and metadata-based,
+not fixed to identical tile dimensions across devices. GLCD can use compact
+6x6 cells and a narrow bitmap gutter; a future TMS9918 backend can use 8x8
+tiles, a hardware name table, and hardware sprites where appropriate.
 
 ## Source Record Format
 
@@ -63,7 +95,7 @@ GLCD editing should encourage short assembly lines.
 
 Initial policy:
 
-- 20 visible columns on GLCD.
+- 20 visible text columns on GLCD, with an optional narrow bitmap gutter.
 - 31 stored characters per line.
 - No horizontal scrolling in v1.
 - Cursor should normally be constrained to the visible region.
@@ -123,12 +155,14 @@ The renderer draws visible lines from the current viewport.
 GLCD v1 likely uses:
 
 ```text
-1 status row
-6 editable rows
-1 help/command row
+1 top mode/status row
+8 editable source rows
+1 bottom command/error/status row
 ```
 
-The help row may be hidden to show more source lines.
+Either chrome row may be hidden to show more source lines. The renderer should
+therefore know both the physical GLCD geometry and the active editor viewport
+geometry.
 
 Unlike a serial terminal, an editor has both past and future document content.
 Scrolling is not primarily "scrollback"; it is moving a viewport through known
@@ -200,9 +234,11 @@ that an explicit display-mode choice rather than an accidental global cost.
 
 The later TMS9918 backend will be a different video class: tile/name/pattern
 tables and hardware sprites in video RAM rather than a simple CPU-side bitmap.
-The editor should therefore target a display contract: draw text rows, set
-cursor, clear/status regions, and optionally draw graphics. GLCD and TMS
-backends can implement that contract with different memory strategies.
+The editor should therefore target a display contract: draw text rows, draw
+gutter markers, set cursor, clear/status regions, and optionally draw graphics
+or sprite-like overlays. GLCD and TMS backends can implement that contract with
+different memory strategies. A GLCD sprite is software-composited into a
+bitmap; a TMS9918 sprite can use hardware sprite support.
 
 ## Commands
 

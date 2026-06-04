@@ -205,6 +205,39 @@ dirty tracking rather than a 1024-byte CPU framebuffer. TECM8 should therefore
 define display services in terms of text, cursor, clear, plot/update, and
 optional graphics operations, not in terms of MON3's exact GLCD buffers.
 
+### GLCD Text Geometry
+
+MON3's current GLCD terminal uses 6x6 pixel character cells, not 8x8 tiles.
+On the 128x64 GLCD this gives a practical text terminal of 20 columns by 10
+rows. The editor may still choose to expose only eight editable rows by
+reserving the top and bottom rows for mode, menu, status, command, or error
+display:
+
+```text
+row 0      mode/menu/status
+rows 1-8   editable source lines
+row 9      command/status/errors
+```
+
+Those chrome rows should be policy, not a hardware assumption. A full-screen
+editor mode can hide one or both rows and use more of the physical 10-row
+display.
+
+The editor/debugger gutter does not need to consume a full character cell. A
+4-pixel bitmap gutter can carry breakpoint, current-line, selection, dirty, or
+diagnostic markers while still allowing 20 full 6-pixel text columns:
+
+```text
+128 px width - 4 px gutter = 124 px
+124 px / 6 px cell = 20 full columns, with 4 px spare
+```
+
+This also clarifies the future TMS9918 relationship. The shared TECM8 display
+model should be cell-based and metadata-based, not tied to identical cell
+sizes. The GLCD backend can render compact 6x6 cells and software-composited
+sprite/marker overlays; a TMS9918 backend can map similar concepts onto 8x8
+tiles, a name table, and hardware sprites.
+
 ## Input Boundary
 
 The matrix keyboard is the main input device. BIOS input should expose both raw
