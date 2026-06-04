@@ -86,34 +86,69 @@ ShellProgramPromptReady:
         RET
 
 ; FillShellLineBuffer —
-; Proof stub for the future TEC editor/input routine. It copies the seeded
-; edited text into ShellLineBuffer and appends the CR terminator.
+; Minimal editable line routine. It reads key events from the current key
+; source, appends printable characters, handles backspace, stops on CR, and
+; appends the CR terminator.
 ;!      out       A,B,DE,HL
+;!      clobbers  C
 @FillShellLineBuffer:
-        LD      HL,(ShellLineSeedPtr)
         LD      DE,ShellLineBuffer + 1
-        LD      A,(ShellLineSeedLen)
-        CP      SHELL_LINE_TEXT_LEN + 1
-        JR      C,ShellLineSeedLenOk
-        LD      A,SHELL_LINE_TEXT_LEN
+        LD      B,0
 
-ShellLineSeedLenOk:
-        LD      (ShellLineBuffer),A
-        LD      B,A
-        OR      A
+ShellLineEditLoop:
+        CALL    ReadShellKey
+        CP      0x0D
         JR      Z,ShellLineFillTerminator
-
-ShellLineFillLoop:
-        LD      A,(HL)
+        CP      0x08
+        JR      Z,ShellLineBackspace
+        CP      0x7F
+        JR      Z,ShellLineBackspace
+        CP      0x20
+        JR      C,ShellLineEditLoop
+        CP      0x7F
+        JR      NC,ShellLineEditLoop
+        LD      C,A
+        LD      A,B
+        CP      SHELL_LINE_TEXT_LEN
+        JR      NC,ShellLineEditLoop
+        LD      A,C
         LD      (DE),A
-        INC     HL
         INC     DE
+        INC     B
+        JR      ShellLineEditLoop
+
+ShellLineBackspace:
+        LD      A,B
+        OR      A
+        JR      Z,ShellLineEditLoop
         DEC     B
-        JR      NZ,ShellLineFillLoop
+        DEC     DE
+        JR      ShellLineEditLoop
 
 ShellLineFillTerminator:
+        LD      A,B
+        LD      (ShellLineBuffer),A
         LD      A,0x0D
         LD      (DE),A
+        RET
+
+; ReadShellKey —
+; Stubbed key source. Real monitor input will replace this provider; proofs seed
+; ShellKeySeedPtr with a byte stream ending in CR.
+;!      out       A
+;!      clobbers  HL
+@ReadShellKey:
+        LD      HL,(ShellKeySeedPtr)
+        LD      A,H
+        OR      L
+        JR      NZ,ShellKeySeedReady
+        LD      A,0x0D
+        RET
+
+ShellKeySeedReady:
+        LD      A,(HL)
+        INC     HL
+        LD      (ShellKeySeedPtr),HL
         RET
 
 ; RunShellPromptCycle —
@@ -1192,11 +1227,8 @@ ShellProgramState:
 ShellLineBuffer:
         .ds     SHELL_LINE_BUF_LEN
 
-ShellLineSeedPtr:
+ShellKeySeedPtr:
         .dw     0
-
-ShellLineSeedLen:
-        .db     0
 
 ShellEditMode:
         .db     0

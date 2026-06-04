@@ -333,36 +333,53 @@ PathOutLen      .equ     64
 
         LD      A,43
         LD      (CaseMarker),A
-        LD      HL,CmdEditText
+        LD      HL,KeyEditText
         LD      C,CmdEditTextLen
+        LD      DE,CmdEditText
         LD      A,SHELL_CMD_EDIT
         CALL    AssertShellProgramEntryOk
         JP      C,ProofFailed
 
         LD      A,44
         LD      (CaseMarker),A
-        LD      HL,CmdInputMaxRun
-        LD      C,CmdInputMaxRunLen
-        LD      A,SHELL_CMD_RUN
+        LD      HL,KeyEditBackspace
+        LD      C,CmdEditTextLen
+        LD      DE,CmdEditText
+        LD      A,SHELL_CMD_EDIT
         CALL    AssertShellProgramEntryOk
         JP      C,ProofFailed
 
         LD      A,45
         LD      (CaseMarker),A
-        LD      A,SHELL_CMD_EDIT
-        LD      (ShellLastExecAction),A
-        LD      HL,CmdBadText
-        LD      C,CmdBadTextLen
-        LD      A,SHELL_ERR_UNKNOWN
-        CALL    AssertShellProgramEntryErr
+        LD      HL,KeyInputMaxRun
+        LD      C,CmdInputMaxRunLen
+        LD      DE,CmdInputMaxRun
+        LD      A,SHELL_CMD_RUN
+        CALL    AssertShellProgramEntryOk
         JP      C,ProofFailed
 
         LD      A,46
         LD      (CaseMarker),A
-        CALL    AssertShellLineSeedClamped
+        LD      A,SHELL_CMD_EDIT
+        LD      (ShellLastExecAction),A
+        LD      HL,KeyBadText
+        LD      C,CmdBadTextLen
+        LD      DE,CmdBadText
+        LD      A,SHELL_ERR_UNKNOWN
+        CALL    AssertShellProgramEntryErr
         JP      C,ProofFailed
 
         LD      A,47
+        LD      (CaseMarker),A
+        CALL    AssertShellLineSeedClamped
+        JP      C,ProofFailed
+
+        LD      A,48
+        LD      (CaseMarker),A
+        CALL    AssertShellProgramEntryDefaultCr
+        JP      C,ProofFailed
+
+        LD      A,49
         LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
@@ -372,7 +389,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,48
+        LD      A,50
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -382,7 +399,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,49
+        LD      A,51
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -886,17 +903,17 @@ AssertShellPromptBad:
 
 ; AssertShellProgramEntryOk —
 ; Seed the line-input provider, run entry, and require prompt-ready success.
-; Input: HL = entered bytes, C = byte count, A = expected action
-;!      in        A,C,HL
+; Input: HL = key stream, C = expected text length, DE = expected text,
+;        A = expected action
+;!      in        A,C,DE,HL
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
 @AssertShellProgramEntryOk:
         LD      (ExpectedAction),A
-        LD      (ExpectedPathPtr),HL
+        LD      (ExpectedPathPtr),DE
         LD      A,C
         LD      (ExpectedMode),A
-        LD      (ShellLineSeedPtr),HL
-        LD      (ShellLineSeedLen),A
+        LD      (ShellKeySeedPtr),HL
         LD      A,0x7F
         LD      (ShellProgramState),A
         LD      (ShellPromptStatus),A
@@ -953,17 +970,17 @@ AssertShellProgramEntryBad:
 
 ; AssertShellProgramEntryErr —
 ; Seed the line-input provider, run entry, and require prompt-ready error state.
-; Input: HL = entered bytes, C = byte count, A = expected error
-;!      in        A,C,HL
+; Input: HL = key stream, C = expected text length, DE = expected text,
+;        A = expected error
+;!      in        A,C,DE,HL
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
 @AssertShellProgramEntryErr:
         LD      (ExpectedAction),A
-        LD      (ExpectedPathPtr),HL
+        LD      (ExpectedPathPtr),DE
         LD      A,C
         LD      (ExpectedMode),A
-        LD      (ShellLineSeedPtr),HL
-        LD      (ShellLineSeedLen),A
+        LD      (ShellKeySeedPtr),HL
         LD      A,0x7F
         LD      (ShellProgramState),A
         LD      (ShellPromptStatus),A
@@ -1016,15 +1033,59 @@ AssertShellProgramEntryBad:
 
         JR      AssertShellProgramEntryBad
 
+; AssertShellProgramEntryDefaultCr —
+; Unseeded input falls back to a default CR key event and returns ready.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramEntryDefaultCr:
+        LD      HL,0
+        LD      (ShellKeySeedPtr),HL
+        CALL    RunShellProgramEntry
+        JR      C,AssertShellProgramEntryDefaultBad
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        LD      A,(ShellProgramState)
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        LD      A,(ShellLineBuffer)
+        OR      A
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        LD      A,(ShellLineBuffer + 1)
+        CP      0x0D
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        LD      HL,(ShellKeySeedPtr)
+        LD      A,H
+        OR      L
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        CALL    RunShellProgramEntry
+        JR      C,AssertShellProgramEntryDefaultBad
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        LD      A,(ShellLineBuffer)
+        OR      A
+        JR      NZ,AssertShellProgramEntryDefaultBad
+
+        LD      A,(ShellLineBuffer + 1)
+        CP      0x0D
+        RET     Z
+
+AssertShellProgramEntryDefaultBad:
+        SCF
+        RET
+
 ; AssertShellLineSeedClamped —
 ; A too-long edited seed is clamped to the max text length before CR append.
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
 @AssertShellLineSeedClamped:
-        LD      HL,CmdInputLong
-        LD      (ShellLineSeedPtr),HL
-        LD      A,CmdInputLongLen
-        LD      (ShellLineSeedLen),A
+        LD      HL,KeyInputLong
+        LD      (ShellKeySeedPtr),HL
         CALL    FillShellLineBuffer
 
         LD      A,(ShellLineBuffer)
@@ -1035,11 +1096,19 @@ AssertShellProgramEntryBad:
         CP      0x0D
         JR      NZ,AssertShellLineSeedClampedBad
 
-        LD      HL,(ShellLineSeedPtr)
-        LD      DE,CmdInputLong
+        LD      HL,CmdInputLong
+        LD      DE,ShellLineBuffer + 1
+        LD      C,SHELL_LINE_TEXT_LEN
+        CALL    AssertBytes
+        JR      C,AssertShellLineSeedClampedBad
+
+        LD      HL,(ShellKeySeedPtr)
+        LD      DE,KeyInputLong + CmdInputLongLen + 1
         OR      A
         SBC     HL,DE
-        RET     Z
+        JR      NZ,AssertShellLineSeedClampedBad
+        XOR     A
+        RET
 
 AssertShellLineSeedClampedBad:
         SCF
@@ -1159,9 +1228,18 @@ CmdAsm:
 CmdRun:
         .db     "run",0
 
+KeyEditText:
+        .db     "edit",0x0D
+
+KeyEditBackspace:
+        .db     "edix",0x08,"t",0x0D
+
 CmdEditText:
         .db     "edit"
 CmdEditTextLen .equ       4
+
+KeyBadText:
+        .db     "list",0x0D
 
 CmdBadText:
         .db     "list"
@@ -1204,10 +1282,17 @@ CmdInputMaxRun:
         .db     "run /build/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKL.bin",0
 CmdInputMaxRunLen .equ     63
 
+KeyInputMaxRun:
+        .db     "run /build/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKL.bin",0x0D
+
 CmdInputLong:
         .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 CmdInputLongLen .equ       64
+
+KeyInputLong:
+        .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        .db     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",0x0D
 
 ExpectedMain:
         .db     "/src/test.v1.asm",0
