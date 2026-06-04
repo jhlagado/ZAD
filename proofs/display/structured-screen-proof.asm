@@ -8,12 +8,16 @@
 
 ProofPass       .equ     0x42
 ProofFail       .equ     0xE0
+MON3_VPORT      .equ     0x0E13
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:
         CALL    TECM8_DISPLAY_INIT
         JR      C,ProofFailed
+
+        LD      HL,0x1000
+        LD      (MON3_VPORT),HL
 
         LD      HL,StructuredScreen
         CALL    TECM8_DISPLAY_RENDER_SCREEN

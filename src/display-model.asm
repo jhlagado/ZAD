@@ -15,6 +15,7 @@ TECM8_DISPLAY_ROW_HEIGHT            .equ    6
 TECM8_DISPLAY_ROW_BYTES             .equ    16
 TECM8_DISPLAY_ROW_STRIDE            .equ    TECM8_DISPLAY_ROW_HEIGHT * TECM8_DISPLAY_ROW_BYTES
 TECM8_DISPLAY_GUTTER_ROWS           .equ    TECM8_DISPLAY_ROW_HEIGHT
+TECM8_DISPLAY_MAX_TEXT_CHARS        .equ    20
 TECM8_DISPLAY_MARKER_NONE           .equ    0
 TECM8_DISPLAY_MARKER_BREAKPOINT     .equ    1
 TECM8_DISPLAY_MARKER_CURRENT        .equ    2
@@ -105,11 +106,36 @@ DisplayScreenLoop:
         RET     C
         LD      A,(DisplayRow)
         CALL    DisplayRowToPixel
-        LD      B,TECM8_DISPLAY_TEXT_X
-        CALL    TECM8_BIOS_DISPLAY_SET_CURSOR
-        RET     C
+        LD      A,C
+        LD      (DisplayTextY),A
+        LD      A,TECM8_DISPLAY_TEXT_X
+        LD      (DisplayTextX),A
+        LD      A,TECM8_DISPLAY_MAX_TEXT_CHARS
+        LD      (DisplayTextRemaining),A
+
+DisplayTextLoop:
         LD      HL,(DisplayText)
-        CALL    TECM8_BIOS_DISPLAY_PUT_STRING
+        LD      A,(HL)
+        OR      A
+        RET     Z
+        INC     HL
+        LD      (DisplayText),HL
+        LD      D,A
+        LD      A,(DisplayTextY)
+        LD      C,A
+        LD      A,(DisplayTextX)
+        LD      B,A
+        LD      A,D
+        CALL    TECM8_BIOS_DISPLAY_DRAW_CHAR_AT
+        RET     C
+        LD      A,(DisplayTextX)
+        ADD     A,TECM8_DISPLAY_ROW_HEIGHT
+        LD      (DisplayTextX),A
+        LD      A,(DisplayTextRemaining)
+        DEC     A
+        LD      (DisplayTextRemaining),A
+        JR      NZ,DisplayTextLoop
+        XOR     A
         RET
 
 ; TECM8_DISPLAY_RENDER_GUTTER -
@@ -194,4 +220,10 @@ DisplayRow:
 DisplayRemaining:
         .db     0
 DisplayPattern:
+        .db     0
+DisplayTextX:
+        .db     0
+DisplayTextY:
+        .db     0
+DisplayTextRemaining:
         .db     0

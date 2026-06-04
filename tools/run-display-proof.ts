@@ -232,6 +232,7 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   const mon3Tgbuf = 0x13c0;
   const rowStride = 16 * 6;
   const rowBytes = 16;
+  const textColumnByte = 1;
   const expectedMarkers = [
     { row: 1, pattern: 0xf0, name: 'breakpoint' },
     { row: 2, pattern: 0x80, name: 'current' },
@@ -257,6 +258,28 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
           `structured display proof missing visible ${marker.name} gutter bits at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(marker.pattern)}`,
         );
       }
+    }
+  }
+
+  const expectedTextRows = [
+    { row: 0, name: 'top chrome' },
+    { row: 1, name: 'first source row' },
+    { row: 9, name: 'bottom chrome' },
+  ];
+
+  for (const row of expectedTextRows) {
+    let hasTextPixels = false;
+    for (let y = 0; y < 6; y += 1) {
+      const address = mon3Tgbuf + row.row * rowStride + y * rowBytes + textColumnByte;
+      const memoryValue = runtime.hardware.memory[address];
+      const glcdOffset = row.row * rowStride + y * rowBytes + textColumnByte;
+      const visibleValue = glcd[glcdOffset] ?? 0;
+      if (memoryValue !== 0 && visibleValue !== 0) {
+        hasTextPixels = true;
+      }
+    }
+    if (!hasTextPixels) {
+      throw new Error(`structured display proof did not render ${row.name} text pixels in TGBUF`);
     }
   }
 }

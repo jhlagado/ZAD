@@ -54,6 +54,12 @@ out carry
 clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 end
 
+extern MON3_GLCD_DRAW_GRAPHIC
+in D
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
 extern TECM8_BIOS_FILE_OPEN
 in HL
 out carry
@@ -97,6 +103,12 @@ end
 extern TECM8_BIOS_DISPLAY_PUT_STRING
 in HL
 out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_BIOS_DISPLAY_DRAW_CHAR_AT
+in A,B,C
+out A,carry
 clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 end
 

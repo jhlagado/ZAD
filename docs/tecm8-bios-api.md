@@ -185,6 +185,7 @@ layer.
 | existing/extension | `TECM8_BIOS_DISPLAY_SET_CURSOR` | Uses MON3 graphics cursor coordinates. |
 | existing | `TECM8_BIOS_DISPLAY_PUT_CHAR` | Sends one character through the MON3 GLCD terminal. |
 | existing | `TECM8_BIOS_DISPLAY_PUT_STRING` | Sends a NUL-terminated string through the MON3 GLCD terminal. |
+| existing/extension | `TECM8_BIOS_DISPLAY_DRAW_CHAR_AT` | Draws one 6x6 GLCD font character at pixel coordinates without terminal scrollback. |
 | existing | `TECM8_BIOS_DISPLAY_UPDATE` | Plots the current MON3 GLCD viewport to the display. |
 | existing | `TECM8_BIOS_DISPLAY_SET_BITMAP_MODE` | Selects MON3 GLCD graphics mode for bitmap operations. |
 
@@ -217,6 +218,14 @@ TECM8_BIOS_DISPLAY_PUT_STRING
   out: carry clear on success
   clobbers: A, BC, DE, HL, flags
 
+TECM8_BIOS_DISPLAY_DRAW_CHAR_AT
+  in:  A = ASCII character
+       B = X pixel
+       C = Y pixel
+  out: carry clear on success
+       carry set, A = range error if B >= 128 or C >= 64
+  clobbers: A, BC, DE, HL, flags
+
 TECM8_BIOS_DISPLAY_UPDATE
   in:  none
   out: carry clear on success
@@ -228,9 +237,12 @@ TECM8_BIOS_DISPLAY_SET_BITMAP_MODE
   clobbers: A, BC, DE, HL, flags
 ```
 
-The current MON3-backed prototype treats these display calls as success-only:
-the wrappers clear carry after returning from MON3. A later TECM8-native display
-driver can add meaningful carry-set errors if it has detectable failure modes.
+Most current MON3-backed display wrappers are success-only and clear carry after
+returning from MON3. `TECM8_BIOS_DISPLAY_DRAW_CHAR_AT` is the current exception:
+it performs wrapper-level coordinate validation and returns carry set with a
+compact range error before calling MON3 when the requested pixel position is
+outside the 128x64 GLCD area. A later TECM8-native display driver can add more
+meaningful carry-set errors if it has detectable failure modes.
 
 Legacy `TECM8_BIOS_GLCD_*` names may remain useful as aliases if direct MON3
 compatibility becomes valuable, but new TECM8 code should prefer the

@@ -13,6 +13,10 @@ MON3_GLCD_INIT_TERMINAL      .equ     0xDB18
 MON3_GLCD_SEND_CHAR_TO_LCD   .equ     0xDB45
 MON3_GLCD_SEND_STRING_TO_LCD .equ     0xDBB7
 MON3_GLCD_SET_CURSOR         .equ     0xDC0A
+MON3_GLCD_DRAW_GRAPHIC       .equ     0xDCEA
+MON3_GLCD_VPORT              .equ     0x0E13
+MON3_GLCD_TGBUF              .equ     0x13C0
+TECM8_BIOS_DISPLAY_ERR_RANGE .equ     0x01
 
 ; TECM8_BIOS_FILE_OPEN -
 ; Open a MON3/FAT32 file by NUL-terminated name.
@@ -93,6 +97,33 @@ MON3_GLCD_SET_CURSOR         .equ     0xDC0A
         XOR     A
         RET
 
+; TECM8_BIOS_DISPLAY_DRAW_CHAR_AT -
+; Draw one 6x6 font character at B,C pixel coordinates without terminal scroll.
+;!      in        A,B,C
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@TECM8_BIOS_DISPLAY_DRAW_CHAR_AT:
+        LD      (BiosDisplayChar),A
+        LD      A,C
+        CP      0x40
+        JR      NC,BiosDisplayDrawCharRange
+        LD      A,B
+        CP      0x80
+        JR      NC,BiosDisplayDrawCharRange
+        LD      HL,MON3_GLCD_TGBUF
+        LD      (MON3_GLCD_VPORT),HL
+        CALL    MON3_GLCD_SET_CURSOR
+        LD      A,(BiosDisplayChar)
+        LD      D,A
+        CALL    MON3_GLCD_DRAW_GRAPHIC
+        XOR     A
+        RET
+
+BiosDisplayDrawCharRange:
+        LD      A,TECM8_BIOS_DISPLAY_ERR_RANGE
+        SCF
+        RET
+
 ; TECM8_BIOS_DISPLAY_UPDATE -
 ; Push the current MON3 GLCD viewport to the physical/displayed GLCD state.
 ;!      out       carry
@@ -110,3 +141,6 @@ MON3_GLCD_SET_CURSOR         .equ     0xDC0A
         CALL    MON3_GLCD_SET_GR_MODE
         XOR     A
         RET
+
+BiosDisplayChar:
+        .db     0

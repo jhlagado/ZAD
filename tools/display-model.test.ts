@@ -49,6 +49,8 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /^MON3_TGBUF\s+\.equ\s+0x13C0$/m);
   assert.match(source, /@TECM8_DISPLAY_RENDER_GUTTER:\n\s+LD\s+\(DisplayRow\),A/);
   assert.match(source, /AND\s+0x0F/);
+  assert.match(source, /CALL\s+TECM8_BIOS_DISPLAY_DRAW_CHAR_AT/);
+  assert.doesNotMatch(source, /CALL\s+TECM8_BIOS_DISPLAY_PUT_STRING/);
 });
 
 test('structured GLCD proof calls the display model and renders markers', () => {
@@ -57,6 +59,7 @@ test('structured GLCD proof calls the display model and renders markers', () => 
 
   assert.match(source, /CALL\s+TECM8_DISPLAY_INIT/);
   assert.match(source, /CALL\s+TECM8_DISPLAY_RENDER_SCREEN/);
+  assert.match(source, /LD\s+HL,0x1000\n\s+LD\s+\(MON3_VPORT\),HL/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_BREAKPOINT\b/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_CURRENT\b/);
   assert.match(source, /\.include\s+"..\/..\/src\/display-model\.asm"/);
@@ -71,6 +74,7 @@ test('structured display proof is wired into package checks', () => {
   assert.match(runner, /verifyStructuredScreen/);
   assert.match(runner, /mon3Tgbuf = 0x13c0/);
   assert.match(runner, /visible .*gutter bits/);
+  assert.match(runner, /did not render .* text pixels in TGBUF/);
 });
 
 test('display proofs do not write stale MON3 scroll-buffer addresses', () => {
