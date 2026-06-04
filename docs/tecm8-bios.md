@@ -27,8 +27,17 @@ provide small timing/sound/utility calls
 avoid monitor workflows and application UI
 ```
 
-TECM8 should call BIOS services for hardware access, while editor, assembler,
-runner, debugger, help, and larger tools live in RAM or banked expansion ROM.
+TECM8 should call BIOS services for hardware access. Above that, TECM8 can
+grow into the normal user-facing system that replaces the everyday MON3
+experience: a shell, a filesystem view, a useful editor, and a launcher for
+larger tools.
+
+The distinction is not simply "BIOS versus application." TECM8 has a middle
+layer of resident system services that may be generally useful beyond assembly
+projects. The shell, file loading/saving, and editor can be treated as closer
+to the system than the assembler and debugger, because they are useful for
+text files, scripts, configuration, and future languages as well as Z80
+Assembly.
 
 ## Keep
 
@@ -67,7 +76,7 @@ entry point forever.
 The first BIOS cut should remove features whose main purpose is the MON3 human
 monitor experience.
 
-Candidates to remove:
+Candidates to remove or avoid carrying forward:
 
 - PATA support and PATA user interface. TECM8 should use SD as the storage
   target.
@@ -76,16 +85,25 @@ Candidates to remove:
 - Copy/fill/move monitor conveniences.
 - Disassembler and disassembly UI.
 - Intel HEX loader UI if SD and serial transfer provide better project paths.
-- Menu and parameter UI except where tiny internal helpers are cheaper to keep
-  than rewrite.
+- Large menu and parameter UI frameworks except where compact internal helpers
+  are cheaper to keep than rewrite.
 - Tiny BASIC, packages, demos, hidden extras, and novelty monitor applications.
 - Large text screens, help strings, credits, and monitor-facing prompts.
 - Hardware diagnostic flows that belong in a diagnostic ROM, not the everyday
   TECM8 BIOS.
 
 A tiny fallback monitor may still be useful. It should be deliberately
-fractional: enough to show addresses or basic state and escape from serious
-boot problems, but not enough to compete with TECM8 as the normal interface.
+fractional: enough to show addresses, raw bytes, or basic state and escape
+from serious boot problems, but not enough to compete with TECM8 as the normal
+interface. The seven-segment display and hexadecimal keypad are built into the
+TEC-1, so it is reasonable to keep a remnant-level path for them. That path
+should be a compatibility and recovery feature, not a full monitor with
+disassembly, block copy, fill, move, or elaborate memory traversal workflows.
+
+Do not automatically discard MON3's LCD menu idea. A small menu launcher may
+be useful at bootstrap or recovery time, especially if the existing MON3-style
+menu control code is compact. The rule is size and role: a small launcher is
+acceptable; a full monitor UI should not dominate the ROM.
 
 ## Storage Boundary
 
@@ -164,6 +182,42 @@ The bank-call trampoline may become one of the most valuable resident pieces:
 TECM8 can keep a small shell/kernel in fixed memory while editor, assembler,
 runner, debugger, help, and tables are swapped through the expansion window.
 
+## Resident TECM8 System Layer
+
+The BIOS direction should allow a second tier above raw hardware services: a
+resident TECM8 system layer. This is where TECM8 starts replacing MON3 as the
+normal way users interact with the machine.
+
+Good resident candidates:
+
+- command shell and launcher
+- TM8 filesystem navigation and file open/save helpers
+- general-purpose text editor core
+- script or command-file runner if one emerges
+- simple configuration screens
+- compact GLCD terminal and status UI
+- optional compact LCD menu launcher
+- fallback raw byte/address display on seven-segment hardware
+
+These are more general-purpose than the assembler. They can serve assembly
+projects, text editing, scripts, BASIC-like experiments, configuration files,
+or other future file types. The editor should not be assembly-only by design;
+assembly source is the first user, not the only possible user.
+
+Heavier tools remain better banked or overlay candidates:
+
+- assembler
+- source-aware debugger
+- map/debug readers
+- large help system
+- opcode tables
+- language-specific tooling
+- future BASIC or scripting implementation if it grows beyond a compact shell
+  extension
+
+This split keeps the everyday environment close to the machine while preserving
+the expansion window for large, replaceable tools.
+
 ## ROM Budget
 
 The first planning budget should be:
@@ -188,8 +242,9 @@ API table, boot glue, tiny monitor   0.5K-1.0K
 ```
 
 These numbers are estimates, not measurements. The important constraint is the
-shape: hardware services stay resident and compact, while the development
-environment itself moves into RAM and banked expansion ROM.
+shape: hardware services stay resident and compact, the shell/filesystem/editor
+layer can occupy carefully chosen fixed space, and the heavier development
+tools move into RAM and banked expansion ROM.
 
 ## Resident TECM8 Opportunity
 
@@ -205,7 +260,10 @@ that benefits from being always visible:
 - compact path and filename helpers
 - command dispatch glue
 - overlay loader
+- compact editor/file service entry points if they prove broadly useful
 
-The larger editor, assembler, runner, debugger, maps, help, and tables should
-not compete for this fixed high-ROM space unless measurement proves there is
-room.
+The assembler, runner, debugger, maps, help, and large tables should not
+compete for this fixed high-ROM space unless measurement proves there is room.
+The editor is a special case: a small general-purpose editor core may deserve
+resident status, while larger editing modes, help, syntax features, or
+language-specific behavior can still live in banked tools.
