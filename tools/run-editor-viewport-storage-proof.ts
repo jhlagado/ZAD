@@ -32,6 +32,7 @@ const INTERFACES = [
   resolve(TECM8_ROOT, 'src/editor-viewport.asmi'),
   resolve(TECM8_ROOT, 'src/editor-storage-loader.asmi'),
   resolve(TECM8_ROOT, 'src/editor-navigation.asmi'),
+  resolve(TECM8_ROOT, 'src/shell-editor-launch.asmi'),
 ];
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 const APP_START = 0x4000;
@@ -73,6 +74,20 @@ const PROOF_CASES = {
     image: resolve(TECM8_ROOT, 'proofs/display/editor-navigation-fat32.img'),
     lines: makeMultiBlockLines(),
     verify: verifyNavigationProof,
+  },
+  'shell-edit-navigation-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-navigation-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-navigation-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-navigation-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyShellEditNavigationProof,
+  },
+  'shell-edit-explicit-navigation-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-explicit-navigation-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-explicit-navigation-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-explicit-navigation-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyShellEditExplicitNavigationProof,
   },
 } as const;
 
@@ -340,6 +355,10 @@ function readCString(memory: Uint8Array, address: number): string {
   throw new Error(`unterminated string at 0x${address.toString(16)}`);
 }
 
+function readWord(memory: Uint8Array, address: number): number {
+  return memory[address] | (memory[(address + 1) & 0xffff] << 8);
+}
+
 function readSourceRecord(memory: Uint8Array, address: number, record: number): string {
   const start = address + record * 32;
   const length = memory[start];
@@ -425,6 +444,65 @@ function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntim
   for (let row = 0; row < 10; row += 1) {
     if (!glcdRowHasPixels(glcd, row)) {
       throw new Error(`editor navigation proof did not render display row: ${row}`);
+    }
+  }
+}
+
+function verifyShellEditNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18);
+}
+
+function verifyShellEditExplicitNavigationProof(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  symbols: D8Symbol[],
+): void {
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19);
+}
+
+function verifyShellEditLaunchProof(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  symbols: D8Symbol[],
+  expectedMode: number,
+): void {
+  const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
+  if (runtime.hardware.memory[currentPage] !== 0) {
+    throw new Error(`shell edit current page ${runtime.hardware.memory[currentPage]}, expected 0`);
+  }
+
+  const shellAction = symbolAddress(symbols, 'ShellLastExecAction');
+  const shellRequestPtr = symbolAddress(symbols, 'ShellLastExecRequestPtr');
+  if (runtime.hardware.memory[shellAction] !== 0x10) {
+    throw new Error(`shell edit action ${runtime.hardware.memory[shellAction]}, expected SHELL_CMD_EDIT`);
+  }
+
+  const request = readWord(runtime.hardware.memory, shellRequestPtr);
+  const mode = runtime.hardware.memory[request];
+  const path = readCString(runtime.hardware.memory, request + 1);
+  if (mode !== expectedMode) {
+    throw new Error(`shell edit mode ${mode}, expected ${expectedMode}`);
+  }
+  if (path !== '/src/main.asm') {
+    throw new Error(`shell edit request path "${path}", expected "/src/main.asm"`);
+  }
+
+  const expectedRows = [
+    { symbol: 'EditorRowText0', text: 'P0 LINE 00' },
+    { symbol: 'EditorRowText1', text: 'P0 LINE 01' },
+    { symbol: 'EditorRowText7', text: 'P0 LINE 07' },
+  ];
+  for (const row of expectedRows) {
+    const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
+    if (actual !== row.text) {
+      throw new Error(`shell edit copied ${row.symbol} as "${actual}", expected "${row.text}"`);
+    }
+  }
+
+  const glcd = getGlcdBytes(platformRuntime);
+  for (let row = 0; row < 10; row += 1) {
+    if (!glcdRowHasPixels(glcd, row)) {
+      throw new Error(`shell edit proof did not render display row: ${row}`);
     }
   }
 }

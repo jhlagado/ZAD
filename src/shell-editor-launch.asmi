@@ -1,0 +1,5 @@
+extern TECM8_SHELL_RUN_EDITOR_LINE
+in HL
+out A,carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
