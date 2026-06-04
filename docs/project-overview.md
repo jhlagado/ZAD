@@ -234,3 +234,9 @@ display buffers and other hardware needs are considered. Code should remain
 clear and proof-driven now, but routine boundaries should support future
 banking, overlays, and code shrinking. See
 [Memory and Code Quality Manifest](memory-and-code-quality.md).
+
+The editor should be designed as a sector-window tool, not a terminal
+scrollback tool. With 32-byte source records, a 512-byte sector holds 16 lines
+and a 4K TM8 block holds 128 lines. The GLCD may show only a small viewport, so
+the editor should page source sectors in and redraw from records rather than
+depending on a whole-file buffer. See [Editor Design](editor-design.md).

@@ -164,9 +164,21 @@ library. A 128x64 one-bit framebuffer is inherently 1024 bytes, and keeping
 separate terminal/scroll buffers makes cursor drawing, line scrolling, and
 screen refresh easier and faster. It is also a large fixed cost for TECM8.
 
-TECM8 should initially preserve MON3 compatibility, but a later TECM8-focused
-GLCD BIOS can probably be smaller in RAM if the main target is text editing and
-shell interaction rather than arbitrary buffered graphics:
+TECM8 should initially preserve MON3 compatibility. A later TECM8-focused GLCD
+BIOS should also preserve full bitmap capability; a 128x64 one-bit framebuffer
+is a useful and legitimate display model for graphs, sprites, and custom UI.
+The optimization question is whether every text/editor view must also pay for
+MON3's second terminal framebuffer and bitmap scrollback. The display layer
+should make these modes explicit:
+
+```text
+graphics view   full bitmap framebuffer
+terminal view   text output rendered through shared renderer
+editor view     sector/window text viewport rendered to display
+composite view  optional graphics background plus text/status overlay
+```
+
+If RAM pressure requires a smaller text path, the options are:
 
 - Keep a small text model, such as a 16x4 character grid plus cursor state, and
   render rows directly to the GLCD.
@@ -178,6 +190,13 @@ shell interaction rather than arbitrary buffered graphics:
   preserved bitmap history.
 - Keep drawing primitives available, but do not require every text UI to pay
   for the full graphics workspace.
+
+Composite display is possible but should be deliberate. The ST7920 GLCD does
+not provide hardware compositing, so a composite mode would be a software pass:
+for example OR-ing a text/status overlay into a graphics bitmap, or using a
+masked text-cell overlay that clears a cell before drawing glyphs. OR overlay
+is cheap and useful for simple labels; masked text is cleaner but costs more
+code and CPU.
 
 The same display contract should be able to sit above a later TMS9918-style VDU
 BIOS. A TMS path will likely use external video RAM for the display image, so
