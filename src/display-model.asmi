@@ -1,0 +1,22 @@
+extern TECM8_DISPLAY_INIT
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_DISPLAY_RENDER_SCREEN
+in HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_DISPLAY_RENDER_LINE
+in A,C,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_DISPLAY_RENDER_GUTTER
+in A,C
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end

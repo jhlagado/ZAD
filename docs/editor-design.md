@@ -57,6 +57,53 @@ not fixed to identical tile dimensions across devices. GLCD can use compact
 6x6 cells and a narrow bitmap gutter; a future TMS9918 backend can use 8x8
 tiles, a hardware name table, and hardware sprites where appropriate.
 
+Initial structured display constants:
+
+```text
+TECM8_DISPLAY_GLCD_COLUMNS      20
+TECM8_DISPLAY_GLCD_ROWS         10
+TECM8_DISPLAY_EDIT_ROWS         8
+TECM8_DISPLAY_GUTTER_PIXELS     4
+TECM8_DISPLAY_TEXT_X            6
+TECM8_DISPLAY_TOP_ROW           0
+TECM8_DISPLAY_FIRST_EDIT_ROW    1
+TECM8_DISPLAY_BOTTOM_ROW        9
+TECM8_DISPLAY_MARKER_NONE       0
+TECM8_DISPLAY_MARKER_BREAKPOINT bit 0
+TECM8_DISPLAY_MARKER_CURRENT    bit 1
+TECM8_DISPLAY_MARKER_SELECTED   bit 2
+```
+
+The first display-model proof uses a fixed screen descriptor rather than an
+editor buffer:
+
+```text
+word top_chrome_text
+8 x {
+  byte marker_flags
+  word source_line_text
+}
+word bottom_chrome_text
+```
+
+That descriptor is intentionally small. It proves the rendering contract for
+chrome rows, editable rows, gutter metadata, and status text without starting
+the editor implementation.
+
+Future TMS9918 mapping:
+
+```text
+GLCD 20x10 physical cells       -> TMS 32x24 physical tile field
+GLCD rows 0 and 9 chrome        -> TMS top/bottom status bands
+GLCD rows 1-8 editor viewport   -> TMS editor viewport, likely taller
+GLCD 4-pixel bitmap gutter      -> TMS left tile column or sprite markers
+GLCD software sprite overlays   -> TMS hardware sprites where suitable
+```
+
+The TMS backend should not be forced to mimic the GLCD's exact row count. It
+should consume the same line text and marker metadata, then choose a larger
+viewport or richer sprite/status presentation where the hardware permits it.
+
 ## Source Record Format
 
 Source files use fixed-size Pascal-string line records.

@@ -21,9 +21,15 @@ const MON3_ROM_PATH = resolve(
     MON3_ROM_CANDIDATES[0],
 );
 
-const PROOF_SOURCE = resolve(TECM8_ROOT, 'proofs/display/glcd-smoke-proof.asm');
+const proofName = process.argv[2] ?? 'glcd-smoke-proof';
+if (!/^[a-z0-9-]+$/.test(proofName)) {
+  throw new Error(`invalid display proof name: ${proofName}`);
+}
+
+const PROOF_SOURCE = resolve(TECM8_ROOT, `proofs/display/${proofName}.asm`);
 const TECM8_BIOS_INTERFACE = resolve(TECM8_ROOT, 'src/tecm8-bios.asmi');
-const LAST_RUN = resolve(TECM8_ROOT, 'proofs/display/glcd-last-run.json');
+const DISPLAY_MODEL_INTERFACE = resolve(TECM8_ROOT, 'src/display-model.asmi');
+const LAST_RUN = resolve(TECM8_ROOT, `proofs/display/${proofName}-last-run.json`);
 const APP_START = 0x4000;
 const PROOF_PASS = 0x42;
 const SYS_CTRL = 0xff;
@@ -82,11 +88,11 @@ async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] 
       outputType: 'bin',
       sourceRoot: TECM8_ROOT,
       d8mInputs: {
-        bin: 'build/glcd-smoke-proof.bin',
+        bin: `build/${proofName}.bin`,
       },
       registerCare: 'strict',
       registerCareProfile: 'mon3',
-      registerCareInterfaces: [TECM8_BIOS_INTERFACE],
+      registerCareInterfaces: [TECM8_BIOS_INTERFACE, DISPLAY_MODEL_INTERFACE],
     },
     { formats: defaultFormatWriters },
   ) as CompileResult;
@@ -192,8 +198,67 @@ function resultToString(value: number): string {
 }
 
 function hasVisibleGlcdPixels(platformRuntime: PlatformRuntime): boolean {
-  const glcd = platformRuntime.state.display?.glcdCtrl?.glcd;
-  return Array.from(glcd ?? []).some((value) => value !== 0);
+  return getGlcdBytes(platformRuntime).some((value) => value !== 0);
+}
+
+function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
+  return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
+}
+
+function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
+  const firstPixelRow = displayRow * 6;
+  for (let y = firstPixelRow; y < firstPixelRow + 6; y += 1) {
+    const start = y * 16;
+    const end = start + 16;
+    if (glcd.slice(start, end).some((value) => value !== 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRuntime): void {
+  const glcd = getGlcdBytes(platformRuntime);
+  const missingRows = [];
+  for (let row = 0; row < 10; row += 1) {
+    if (!glcdRowHasPixels(glcd, row)) {
+      missingRows.push(row);
+    }
+  }
+  if (missingRows.length > 0) {
+    throw new Error(`structured display proof did not render rows: ${missingRows.join(', ')}`);
+  }
+
+  const mon3Tgbuf = 0x13c0;
+  const rowStride = 16 * 6;
+  const rowBytes = 16;
+  const expectedMarkers = [
+    { row: 1, pattern: 0xf0, name: 'breakpoint' },
+    { row: 2, pattern: 0x80, name: 'current' },
+    { row: 3, pattern: 0xc0, name: 'selected' },
+    { row: 6, pattern: 0xf0, name: 'breakpoint-current' },
+    { row: 8, pattern: 0xc0, name: 'selected' },
+  ];
+
+  for (const marker of expectedMarkers) {
+    for (let y = 0; y < 6; y += 1) {
+      const address = mon3Tgbuf + marker.row * rowStride + y * rowBytes;
+      const value = runtime.hardware.memory[address];
+      if ((value & marker.pattern) !== marker.pattern) {
+        throw new Error(
+          `structured display proof missing ${marker.name} gutter bits at 0x${address.toString(16)}: got ${resultToString(value)} expected mask ${resultToString(marker.pattern)}`,
+        );
+      }
+
+      const glcdOffset = marker.row * rowStride + y * rowBytes;
+      const visibleValue = glcd[glcdOffset] ?? 0;
+      if ((visibleValue & marker.pattern) !== marker.pattern) {
+        throw new Error(
+          `structured display proof missing visible ${marker.name} gutter bits at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(marker.pattern)}`,
+        );
+      }
+    }
+  }
 }
 
 async function main(): Promise<void> {
@@ -215,9 +280,13 @@ async function main(): Promise<void> {
   if (!visiblePixels) {
     throw new Error('display proof did not update Debug80 GLCD pixels');
   }
+  if (proofName === 'structured-screen-proof') {
+    verifyStructuredScreen(runtime, platformRuntime);
+  }
 
   const report = {
     result: 'ok',
+    proof: proofName,
     instructions,
     resultMarker: resultToString(result),
     visiblePixels,

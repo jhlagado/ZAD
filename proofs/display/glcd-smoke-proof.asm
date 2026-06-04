@@ -7,7 +7,7 @@
 
 ProofPass       .equ     0x42
 ProofFail       .equ     0xE0
-Mon3Tgbuf       .equ     0x1000
+Mon3Tgbuf       .equ     0x13C0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
