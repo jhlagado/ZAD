@@ -80,16 +80,21 @@ and register contracts.
 ## Remove
 
 If a future MON3-derived BIOS cut is made, the first candidates to shave down
-are features whose main purpose is the MON3 human monitor experience.
+are extensions and bundled applications, not the features that make MON3 feel
+like MON3. The preferred strategy is to keep classic monitor identity intact
+while replacing or slimming GLCD, storage, RTC UI, and optional text-heavy
+components behind compatible service boundaries.
 
 Candidates to remove or avoid carrying forward:
 
 - PATA support and PATA user interface. TECM8 should use SD as the storage
   target.
-- Full monitor command loop.
-- Memory examine/edit UI.
-- Copy/fill/move monitor conveniences.
-- Disassembler and disassembly UI.
+- MON3's current GLCD terminal/editor-facing layer, once TECM8 has a smaller
+  renderer that preserves low-level GLCD usefulness.
+- RTC interactive clock setup and PRAM viewer, if compact RTC service calls are
+  enough for the resident BIOS.
+- Copy/fill/move monitor conveniences only after extension savings have been
+  measured.
 - Intel HEX loader UI if SD and serial transfer provide better project paths.
 - Large menu and parameter UI frameworks except where compact internal helpers
   are cheaper to keep than rewrite.
@@ -98,13 +103,15 @@ Candidates to remove or avoid carrying forward:
 - Hardware diagnostic flows that belong in a diagnostic ROM, not the everyday
   TECM8 BIOS.
 
-A tiny fallback monitor may still be useful. It should be deliberately
-fractional: enough to show addresses, raw bytes, or basic state and escape
-from serious boot problems. The seven-segment display and hexadecimal keypad
-are built into the TEC-1, so it is reasonable to keep a remnant-level path for
-them. That path should be a compatibility and recovery feature, not a full
-monitor with disassembly, block copy, fill, move, or elaborate memory traversal
-workflows.
+The disassembler, memory examine/edit UI, GO path, breakpoint basics, LCD,
+seven-segment display, and hexadecimal keypad are classic MON3 identity. They
+may be replaced later if TECM8 grows better source-aware tools, but they should
+not be the first removal target. Keeping them also avoids forcing a brand-new
+monitor identity before TECM8 is mature enough to carry that responsibility.
+
+A tiny fallback monitor may still be useful in a later, more aggressive cut.
+That should be treated as a separate profile, not the first MON3-compatible
+BIOS direction.
 
 Do not automatically discard MON3's LCD menu idea. A small menu launcher may
 be useful at bootstrap or recovery time, especially if the existing MON3-style
@@ -250,6 +257,29 @@ optional backend attribute, but gutter-first selection is cheaper and maps
 cleanly to future TMS9918 renderers as a left-column glyph, color treatment, or
 sprite marker.
 
+## RTC Boundary
+
+MON3's RTC block is about 1.4K in the current Debug80 ROM map. It is not just a
+small DS1302 read routine. It includes:
+
+```text
+DS1302 presence/reset/get/set time/date/day/mode
+12/24-hour conversion
+BCD/binary conversion
+formatted time/date strings
+raw RTC PRAM byte and burst access
+interactive LCD/keypad clock setup
+interactive RTC PRAM viewer
+day-name/help strings and an API dispatch table
+```
+
+The BIOS-worthy part is the compact service layer: detect RTC, get/set time,
+get/set date, get/set day, switch 12/24-hour mode, read/write PRAM bytes, and
+possibly preserve checksum helpers if MON3 settings continue to live in RTC
+PRAM. The interactive clock setup and PRAM viewer are useful MON3 applications,
+but they are candidates to relocate or build as optional tools if fixed ROM
+space becomes tight.
+
 ## Input Boundary
 
 The matrix keyboard is the main input device. BIOS input should expose both raw
@@ -330,7 +360,7 @@ The first planning budget should be:
 8K reclaimed high-ROM space if BIOS reaches 8K
 ```
 
-Likely rough split:
+Likely rough split for a future TECM8 BIOS profile:
 
 ```text
 SD/FAT32 sector/file services        2.0K-3.5K
@@ -342,10 +372,17 @@ sound/timing/RTC/small utilities     0.8K-1.8K
 API table, boot glue, tiny monitor   0.5K-1.0K
 ```
 
-These numbers are estimates, not measurements. The important constraint is the
-shape: hardware services stay resident and compact, the shell/filesystem/editor
-layer can occupy carefully chosen fixed space, and the heavier development
-tools move into RAM and banked expansion ROM.
+These numbers are estimates, not measurements. They are not a proposal to strip
+classic MON3 first. A MON3-compatible transition should try to reclaim roughly
+5K by rewriting GLCD, cutting PATA while keeping SD, splitting RTC services
+from RTC UI, and shaving optional strings/extensions. The disassembler is a
+reserve saving of about 2K, but should remain classic core until TECM8 has a
+better replacement.
+
+The important constraint is the shape: hardware services stay resident and
+compact, the shell/filesystem/editor layer can occupy carefully chosen fixed
+space, and the heavier development tools move into RAM and banked expansion
+ROM.
 
 RAM should be budgeted with the same discipline as ROM. While MON3 is present,
 storage services can make `0100h-07FFh` volatile, and GLCD terminal/graphics
