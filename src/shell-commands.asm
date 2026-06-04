@@ -21,6 +21,79 @@ SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
 
+; DispatchShellCommand —
+; Resolve a shell command into the executor-facing dispatch block:
+;   +0       action, SHELL_CMD_EDIT/SHELL_CMD_ASM/SHELL_CMD_RUN
+;   +1       action-specific request payload
+;            edit/run: mode byte followed by one path slot
+;            asm:      source, output, and map path slots
+; Input:
+;   HL = NUL-terminated command line
+;   DE = dispatch block
+;   B  = per-path capacity, including final NUL
+; Output:
+;   carry clear, A=SHELL_CMD_*, dispatch block is populated
+;   carry set, A=SHELL_ERR_* or project loader error
+;!      in        B,DE,HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@DispatchShellCommand:
+        LD      (ShellDispatchPtr),DE
+        LD      (ShellDispatchCommandPtr),HL
+        LD      A,B
+        LD      (ShellOutCap),A
+
+        INC     DE
+        CALL    ResolveShellCommand
+        RET     C
+
+        CP      SHELL_CMD_EDIT
+        JR      Z,ShellDispatchEdit
+        CP      SHELL_CMD_ASM
+        JR      Z,ShellDispatchAsm
+        CP      SHELL_CMD_RUN
+        JR      Z,ShellDispatchRun
+        LD      A,SHELL_ERR_UNKNOWN
+        SCF
+        RET
+
+ShellDispatchEdit:
+        LD      DE,(ShellDispatchPtr)
+        INC     DE
+        LD      HL,(ShellDispatchCommandPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ResolveShellEditRequest
+        RET     C
+        LD      A,SHELL_CMD_EDIT
+        JR      ShellDispatchOk
+
+ShellDispatchAsm:
+        LD      DE,(ShellDispatchPtr)
+        INC     DE
+        LD      HL,(ShellDispatchCommandPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ResolveShellAsmRequest
+        RET     C
+        LD      A,SHELL_CMD_ASM
+        JR      ShellDispatchOk
+
+ShellDispatchRun:
+        LD      DE,(ShellDispatchPtr)
+        INC     DE
+        LD      HL,(ShellDispatchCommandPtr)
+        LD      A,(ShellOutCap)
+        LD      B,A
+        CALL    ResolveShellRunRequest
+        RET     C
+        LD      A,SHELL_CMD_RUN
+
+ShellDispatchOk:
+        LD      HL,(ShellDispatchPtr)
+        LD      (HL),A
+        RET
+
 ; ResolveShellEditRequest —
 ; Resolve an edit command into an editor request block:
 ;   +0       edit mode, SHELL_EDIT_DEFAULT or SHELL_EDIT_EXPLICIT
@@ -815,6 +888,12 @@ ShellRemainingCap:
 
 ShellAction:
         .db     0
+
+ShellDispatchPtr:
+        .dw     0
+
+ShellDispatchCommandPtr:
+        .dw     0
 
 ShellEditMode:
         .db     0

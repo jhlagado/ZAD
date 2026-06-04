@@ -170,6 +170,39 @@ PathOutLen      .equ     64
 
         LD      A,22
         LD      (CaseMarker),A
+        LD      HL,CmdEdit
+        LD      A,SHELL_CMD_EDIT
+        LD      B,SHELL_EDIT_DEFAULT
+        LD      DE,ExpectedMain
+        CALL    AssertDispatchModePath
+        JP      C,ProofFailed
+
+        LD      A,23
+        LD      (CaseMarker),A
+        LD      HL,CmdRunTest
+        LD      A,SHELL_CMD_RUN
+        LD      B,SHELL_RUN_EXPLICIT
+        LD      DE,ExpectedRunTest
+        CALL    AssertDispatchModePath
+        JP      C,ProofFailed
+
+        LD      A,24
+        LD      (CaseMarker),A
+        LD      HL,CmdAsmTest
+        LD      DE,ExpectedTest
+        LD      BC,ExpectedRunTest
+        LD      IX,ExpectedMapTest
+        CALL    AssertDispatchAsm
+        JP      C,ProofFailed
+
+        LD      A,25
+        LD      (CaseMarker),A
+        LD      HL,CmdBad
+        CALL    AssertDispatchUnknownErr
+        JP      C,ProofFailed
+
+        LD      A,26
+        LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
         LD      B,PathOutLen
@@ -178,7 +211,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,23
+        LD      A,27
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -188,7 +221,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,24
+        LD      A,28
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -388,6 +421,109 @@ AssertEditRequestSyntaxBad:
         SCF
         RET
 
+; AssertDispatchModePath —
+; Dispatch edit/run and compare action, mode, and single path payload.
+; Input: HL = command text, A = expected action, B = expected mode,
+;        DE = expected path
+;!      in        A,B,DE,HL
+;!      out       DE,HL,A,carry,zero
+;!      clobbers  BC
+@AssertDispatchModePath:
+        LD      (ExpectedAction),A
+        LD      A,B
+        LD      (ExpectedMode),A
+        LD      (ExpectedPathPtr),DE
+        LD      DE,DispatchRequest
+        LD      B,PathOutLen
+        CALL    DispatchShellCommand
+        RET     C
+
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertDispatchModePathBad
+
+        LD      A,(DispatchRequest)
+        LD      B,A
+        LD      A,(ExpectedAction)
+        CP      B
+        JR      NZ,AssertDispatchModePathBad
+
+        LD      A,(DispatchRequest + 1)
+        LD      B,A
+        LD      A,(ExpectedMode)
+        CP      B
+        JR      NZ,AssertDispatchModePathBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,DispatchRequest + 2
+        CALL    AssertString
+        RET
+
+AssertDispatchModePathBad:
+        SCF
+        RET
+
+; AssertDispatchAsm —
+; Dispatch asm and compare action, source, output, and map payload paths.
+; Input: HL = command text, DE = expected source, BC = expected output,
+;        IX = expected map
+;!      in        BC,DE,HL,IX
+;!      out       DE,HL,A,carry,zero
+;!      clobbers  BC,IX
+@AssertDispatchAsm:
+        LD      (ExpectedPathPtr),DE
+        LD      (ExpectedOutputPtr),BC
+        LD      (ExpectedMapPtr),IX
+        LD      DE,DispatchRequest
+        LD      B,PathOutLen
+        CALL    DispatchShellCommand
+        RET     C
+
+        CP      SHELL_CMD_ASM
+        JR      NZ,AssertDispatchAsmBad
+
+        LD      A,(DispatchRequest)
+        CP      SHELL_CMD_ASM
+        JR      NZ,AssertDispatchAsmBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,DispatchRequest + 1
+        CALL    AssertString
+        RET     C
+
+        LD      HL,(ExpectedOutputPtr)
+        LD      DE,DispatchRequest + 1 + PathOutLen
+        CALL    AssertString
+        RET     C
+
+        LD      HL,(ExpectedMapPtr)
+        LD      DE,DispatchRequest + 1 + PathOutLen + PathOutLen
+        CALL    AssertString
+        RET
+
+AssertDispatchAsmBad:
+        SCF
+        RET
+
+; AssertDispatchUnknownErr —
+; Dispatch one unknown command and require SHELL_ERR_UNKNOWN.
+; Input: HL = command text
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertDispatchUnknownErr:
+        LD      DE,DispatchRequest
+        LD      B,PathOutLen
+        CALL    DispatchShellCommand
+        JR      NC,AssertDispatchUnknownBad
+        CP      SHELL_ERR_UNKNOWN
+        RET     Z
+
+AssertDispatchUnknownBad:
+        SCF
+        RET
+
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
 ; Input: HL = source path, DE = expected map path
@@ -510,6 +646,9 @@ ExpectedMapTest:
 ExpectedAction:
         .db     0
 
+ExpectedMode:
+        .db     0
+
 ExpectedPathPtr:
         .dw     0
 
@@ -536,3 +675,6 @@ RunRequest:
 
 EditRequest:
         .ds     PathOutLen + 1
+
+DispatchRequest:
+        .ds     1 + PathOutLen * 3
