@@ -97,6 +97,13 @@ const PROOF_CASES = {
     lines: makeMultiBlockLines(),
     verify: verifyShellEditInteractionProof,
   },
+  'editor-mutation-boundary-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyEditorMutationBoundaryProof,
+  },
 } as const;
 
 type ProofCaseName = keyof typeof PROOF_CASES;
@@ -514,6 +521,57 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
     throw new Error(`shell edit mutated record "${mutatedRecord}", expected "A1dl?LINE 07"`);
   }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
+}
+
+function verifyEditorMutationBoundaryProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  const expectedRecords = [
+    { record: 0, text: 'Z' },
+    { record: 1, text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ12345' },
+    { record: 2, text: 'ABCDE' },
+    { record: 3, text: 'ABDE' },
+    { record: 4, text: 'XYZ!' },
+    { record: 5, text: 'dl' },
+  ];
+  for (const expected of expectedRecords) {
+    const actual = readSourceRecord(runtime.hardware.memory, pageBuffer, expected.record);
+    if (actual !== expected.text) {
+      throw new Error(
+        `editor mutation boundary record ${expected.record} "${actual}", expected "${expected.text}"`,
+      );
+    }
+  }
+
+  const expectedCursors = [
+    { symbol: 'BoundaryCursorCase1', row: 0, col: 0 },
+    { symbol: 'BoundaryCursorCase2', row: 0, col: 0 },
+    { symbol: 'BoundaryCursorCase3', row: 0, col: 1 },
+    { symbol: 'BoundaryCursorCase4', row: 1, col: 0 },
+    { symbol: 'BoundaryCursorCase5', row: 2, col: 0 },
+    { symbol: 'BoundaryCursorCase6', row: 2, col: 5 },
+    { symbol: 'BoundaryCursorCase7', row: 3, col: 2 },
+    { symbol: 'BoundaryCursorCase8', row: 4, col: 4 },
+    { symbol: 'BoundaryCursorCase9', row: 5, col: 2 },
+  ];
+  for (const expected of expectedCursors) {
+    const address = symbolAddress(symbols, expected.symbol);
+    const row = runtime.hardware.memory[address];
+    const col = runtime.hardware.memory[address + 1];
+    if (row !== expected.row || col !== expected.col) {
+      throw new Error(
+        `editor mutation boundary ${expected.symbol} cursor ${row},${col}; expected ${expected.row},${expected.col}`,
+      );
+    }
+  }
+
+  const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
+  const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
+  if (runtime.hardware.memory[cursorRow] !== 5) {
+    throw new Error(`editor mutation boundary cursor row ${runtime.hardware.memory[cursorRow]}, expected 5`);
+  }
+  if (runtime.hardware.memory[cursorCol] !== 2) {
+    throw new Error(`editor mutation boundary cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
+  }
 }
 
 function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {

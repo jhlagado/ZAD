@@ -81,3 +81,37 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(packageJson, /"proof:display:shell-edit-interaction"/);
   assert.match(packageJson, /proof:display:shell-edit-interaction/);
 });
+
+test('editor mutation boundary proof covers fixed-record edge cases', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-mutation-boundary-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-mutation-boundary-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+TECM8_EDITOR_BACKSPACE_CHAR/);
+  assert.match(proof, /CALL\s+TECM8_EDITOR_DELETE_CHAR/);
+  assert.match(proof, /CALL\s+TECM8_EDITOR_INSERT_CHAR/);
+  assert.match(proof, /CALL\s+TECM8_EDITOR_RUN_KEYS/);
+  assert.match(proof, /BoundaryRecord0:\n\s+\.db\s+0/);
+  assert.match(proof, /BoundaryRecord1:\n\s+\.db\s+31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
+  assert.match(proof, /BoundaryReservedKeys:\n\s+\.db\s+9,"dl",0/);
+  assert.match(proof, /BoundaryCursorCase1:/);
+  assert.match(proof, /BoundaryCursorCase9:/);
+  assert.match(proof, /CALL\s+BoundarySaveCursor/);
+  assert.match(runner, /editor-mutation-boundary-proof/);
+  assert.match(runner, /verifyEditorMutationBoundaryProof/);
+  assert.match(runner, /text: 'Z'/);
+  assert.match(runner, /text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ12345'/);
+  assert.match(runner, /text: 'ABCDE'/);
+  assert.match(runner, /text: 'ABDE'/);
+  assert.match(runner, /text: 'XYZ!'/);
+  assert.match(runner, /text: 'dl'/);
+  assert.match(runner, /BoundaryCursorCase1', row: 0, col: 0/);
+  assert.match(runner, /BoundaryCursorCase4', row: 1, col: 0/);
+  assert.match(runner, /BoundaryCursorCase6', row: 2, col: 5/);
+  assert.match(runner, /BoundaryCursorCase8', row: 4, col: 4/);
+  assert.match(runner, /BoundaryCursorCase9', row: 5, col: 2/);
+  assert.match(runner, /expected 2/);
+  assert.match(packageJson, /"proof:display:editor-mutation-boundary"/);
+  assert.match(packageJson, /proof:display:editor-mutation-boundary/);
+});
