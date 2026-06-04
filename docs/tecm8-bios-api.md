@@ -22,9 +22,11 @@ the call number in `C`.
 ```
 
 The existing MON3 `RST 10h` convention should be preserved unless there is a
-strong reason to add a new entry point. The final table should also publish an
-AZM `.asmi` interface so TECM8 code can use register-care contracts for every
-external service.
+strong reason to add a new entry point. Direct-call entry points and TECM8
+wrapper routines should also publish AZM `.asmi` interfaces so TECM8 code can
+use register-care contracts for external services. RST-numbered MON3 services
+are handled by AZM's `mon3` register-contracts profile when the service number
+is loaded into `C` immediately before `RST 10h`.
 
 General rules:
 
@@ -134,17 +136,17 @@ TECM8_BIOS_FILE_OPEN
 
 TECM8_BIOS_FILE_READ_SECTOR
   in:  HLDE = byte offset within open file, 512-byte aligned
-       IX = destination buffer
   out: carry clear on read
+       sector bytes loaded into MON3-compatible DISK_BUFF
        carry set, A = error
-  clobbers: A, BC, DE, HL, IX, flags
+  clobbers: A, BC, DE, HL, flags
 
 TECM8_BIOS_FILE_WRITE_SECTOR
   in:  HLDE = byte offset within open file, 512-byte aligned
-       IX = source buffer
+       sector bytes already staged in MON3-compatible DISK_BUFF
   out: carry clear on write
        carry set, A = error
-  clobbers: A, BC, DE, HL, IX, flags
+  clobbers: A, BC, DE, HL, flags
 
 TECM8_BIOS_FILE_CLOSE
   in:  none
@@ -152,9 +154,14 @@ TECM8_BIOS_FILE_CLOSE
   clobbers: A, flags
 ```
 
-Open issue: current TECM8 proof code relies on MON3's fixed `DISK_BUFF`. A BIOS
-API with caller-supplied `IX` buffers is cleaner, but an early compatibility
-shim may still use the MON3 buffer internally.
+The current source interface is [src/tecm8-bios.asmi](../src/tecm8-bios.asmi).
+It intentionally starts with direct MON3-compatible storage contracts and
+wrapper placeholders. It does not duplicate every RST-numbered MON3 API call.
+
+Open issue: current TECM8 proof code relies on MON3's fixed `DISK_BUFF`. A
+future wrapper could add caller-supplied buffers, but the compatibility layer
+should keep the MON3 buffer convention until measurement or implementation
+pressure justifies changing it.
 
 ## GLCD Calls
 
@@ -426,8 +433,8 @@ Draft common error codes:
 
 - Whether all final calls stay on MON3 `RST 10h`, or whether TECM8 extension
   calls get a secondary entry point.
-- Whether storage should use caller buffers from the start or maintain MON3's
-  fixed `DISK_BUFF` as the primary compatibility layer.
+- Whether a later storage wrapper should add caller buffers above MON3's fixed
+  `DISK_BUFF` compatibility layer.
 - Whether `BANK_CALL` should preserve all primary registers by convention.
 - Which GLCD routines are primitives and which belong in the resident TECM8
   system layer.

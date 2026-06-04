@@ -23,7 +23,7 @@ const MON3_ROM_PATH = resolve(
 );
 
 const PROOF_SOURCE = resolve(TECM8_ROOT, 'proofs/project-config/project-config-storage-proof.asm');
-const MON3_REGISTER_INTERFACE = resolve(TECM8_ROOT, 'src/mon3-storage.asmi');
+const TECM8_BIOS_INTERFACE = resolve(TECM8_ROOT, 'src/tecm8-bios.asmi');
 const LAST_RUN = resolve(TECM8_ROOT, 'proofs/project-config/storage-last-run.json');
 const IMAGE_TOOL = resolve(TECM8_ROOT, 'tools/create-storage-proof-image.ts');
 const NODE_TS_ARGS = ['--experimental-strip-types'];
@@ -95,7 +95,7 @@ async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] 
       },
       registerCare: 'strict',
       registerCareProfile: 'mon3',
-      registerCareInterfaces: [MON3_REGISTER_INTERFACE],
+      registerCareInterfaces: [TECM8_BIOS_INTERFACE],
     },
     { formats: defaultFormatWriters },
   ) as CompileResult;

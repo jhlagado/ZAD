@@ -1,0 +1,47 @@
+extern MON3_OPEN_FILE
+in HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_READ_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern MON3_WRITE_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_BIOS_FILE_OPEN
+in HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_BIOS_FILE_READ_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_BIOS_FILE_WRITE_SECTOR
+in DE,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
+
+extern TECM8_BIOS_BANK_SELECT
+in A
+out carry
+clobbers A,zero,sign,parity,halfCarry
+end
+
+extern TECM8_BIOS_BANK_CALL
+in A,HL
+out carry
+clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+end
