@@ -21,6 +21,8 @@ SHELL_ERR_PROJECT   .equ     0x43
 
 SHELL_MAIN_PATH_LEN .equ     64
 SHELL_INPUT_LEN     .equ     64
+SHELL_LINE_TEXT_LEN .equ     SHELL_INPUT_LEN - 1
+SHELL_LINE_BUF_LEN  .equ     SHELL_LINE_TEXT_LEN + 2
 
 SHELL_PROMPT_OK     .equ     0
 SHELL_PROMPT_ERROR  .equ     1
@@ -66,16 +68,52 @@ ShellProgramPromptReady:
 
 ; ReadShellInputLine —
 ; Stubbed input provider. Real TEC input will replace this with keyboard/editor
-; input; proofs seed ShellProgramInputPtr and ShellProgramInputLen.
+; input. Buffer layout:
+;   +0       edited text length, excluding terminator
+;   +1       edited text bytes
+;   +1+len   CR terminator
 ; Output:
 ;   HL = entered line bytes
-;   C  = entered byte count
+;   C  = entered byte count, including the CR terminator
 ;!      out       C,HL
-;!      clobbers  A
+;!      clobbers  A,B,DE
 @ReadShellInputLine:
-        LD      HL,(ShellProgramInputPtr)
-        LD      A,(ShellProgramInputLen)
+        CALL    FillShellLineBuffer
+        LD      HL,ShellLineBuffer + 1
+        LD      A,(ShellLineBuffer)
+        INC     A
         LD      C,A
+        RET
+
+; FillShellLineBuffer —
+; Proof stub for the future TEC editor/input routine. It copies the seeded
+; edited text into ShellLineBuffer and appends the CR terminator.
+;!      out       A,B,DE,HL
+@FillShellLineBuffer:
+        LD      HL,(ShellLineSeedPtr)
+        LD      DE,ShellLineBuffer + 1
+        LD      A,(ShellLineSeedLen)
+        CP      SHELL_LINE_TEXT_LEN + 1
+        JR      C,ShellLineSeedLenOk
+        LD      A,SHELL_LINE_TEXT_LEN
+
+ShellLineSeedLenOk:
+        LD      (ShellLineBuffer),A
+        LD      B,A
+        OR      A
+        JR      Z,ShellLineFillTerminator
+
+ShellLineFillLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DEC     B
+        JR      NZ,ShellLineFillLoop
+
+ShellLineFillTerminator:
+        LD      A,0x0D
+        LD      (DE),A
         RET
 
 ; RunShellPromptCycle —
@@ -1151,10 +1189,13 @@ ShellPromptError:
 ShellProgramState:
         .db     0
 
-ShellProgramInputPtr:
+ShellLineBuffer:
+        .ds     SHELL_LINE_BUF_LEN
+
+ShellLineSeedPtr:
         .dw     0
 
-ShellProgramInputLen:
+ShellLineSeedLen:
         .db     0
 
 ShellEditMode:

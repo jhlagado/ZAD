@@ -333,23 +333,36 @@ PathOutLen      .equ     64
 
         LD      A,43
         LD      (CaseMarker),A
-        LD      HL,CmdInputEditCr
-        LD      C,CmdInputEditCrLen
+        LD      HL,CmdEditText
+        LD      C,CmdEditTextLen
         LD      A,SHELL_CMD_EDIT
         CALL    AssertShellProgramEntryOk
         JP      C,ProofFailed
 
         LD      A,44
         LD      (CaseMarker),A
+        LD      HL,CmdInputMaxRun
+        LD      C,CmdInputMaxRunLen
+        LD      A,SHELL_CMD_RUN
+        CALL    AssertShellProgramEntryOk
+        JP      C,ProofFailed
+
+        LD      A,45
+        LD      (CaseMarker),A
         LD      A,SHELL_CMD_EDIT
         LD      (ShellLastExecAction),A
-        LD      HL,CmdInputBadCr
-        LD      C,CmdInputBadCrLen
+        LD      HL,CmdBadText
+        LD      C,CmdBadTextLen
         LD      A,SHELL_ERR_UNKNOWN
         CALL    AssertShellProgramEntryErr
         JP      C,ProofFailed
 
-        LD      A,45
+        LD      A,46
+        LD      (CaseMarker),A
+        CALL    AssertShellLineSeedClamped
+        JP      C,ProofFailed
+
+        LD      A,47
         LD      (CaseMarker),A
         LD      HL,CmdBad
         LD      DE,PathOut
@@ -359,7 +372,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,46
+        LD      A,48
         LD      (CaseMarker),A
         LD      HL,CmdEasm
         LD      DE,PathOut
@@ -369,7 +382,7 @@ PathOutLen      .equ     64
         CP      SHELL_ERR_UNKNOWN
         JP      NZ,ProofFailed
 
-        LD      A,47
+        LD      A,49
         LD      (CaseMarker),A
         LD      HL,CmdArun
         LD      DE,PathOut
@@ -879,9 +892,11 @@ AssertShellPromptBad:
 ;!      clobbers  BC,DE,HL
 @AssertShellProgramEntryOk:
         LD      (ExpectedAction),A
-        LD      (ShellProgramInputPtr),HL
+        LD      (ExpectedPathPtr),HL
         LD      A,C
-        LD      (ShellProgramInputLen),A
+        LD      (ExpectedMode),A
+        LD      (ShellLineSeedPtr),HL
+        LD      (ShellLineSeedLen),A
         LD      A,0x7F
         LD      (ShellProgramState),A
         LD      (ShellPromptStatus),A
@@ -905,6 +920,27 @@ AssertShellPromptBad:
         OR      A
         JR      NZ,AssertShellProgramEntryBad
 
+        LD      A,(ShellLineBuffer)
+        LD      B,A
+        LD      A,(ExpectedMode)
+        CP      B
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,ShellLineBuffer + 1
+        LD      A,(ExpectedMode)
+        LD      C,A
+        CALL    AssertBytes
+        JR      C,AssertShellProgramEntryBad
+
+        LD      DE,ShellLineBuffer + 1
+        LD      A,(ExpectedMode)
+        LD      B,A
+        CALL    AddBToDE
+        LD      A,(DE)
+        CP      0x0D
+        JR      NZ,AssertShellProgramEntryBad
+
         LD      A,(ShellLastExecAction)
         LD      B,A
         LD      A,(ExpectedAction)
@@ -923,9 +959,11 @@ AssertShellProgramEntryBad:
 ;!      clobbers  BC,DE,HL
 @AssertShellProgramEntryErr:
         LD      (ExpectedAction),A
-        LD      (ShellProgramInputPtr),HL
+        LD      (ExpectedPathPtr),HL
         LD      A,C
-        LD      (ShellProgramInputLen),A
+        LD      (ExpectedMode),A
+        LD      (ShellLineSeedPtr),HL
+        LD      (ShellLineSeedLen),A
         LD      A,0x7F
         LD      (ShellProgramState),A
         LD      (ShellPromptStatus),A
@@ -951,11 +989,61 @@ AssertShellProgramEntryBad:
         CP      B
         JR      NZ,AssertShellProgramEntryBad
 
+        LD      A,(ShellLineBuffer)
+        LD      B,A
+        LD      A,(ExpectedMode)
+        CP      B
+        JR      NZ,AssertShellProgramEntryBad
+
+        LD      HL,(ExpectedPathPtr)
+        LD      DE,ShellLineBuffer + 1
+        LD      A,(ExpectedMode)
+        LD      C,A
+        CALL    AssertBytes
+        JR      C,AssertShellProgramEntryBad
+
+        LD      DE,ShellLineBuffer + 1
+        LD      A,(ExpectedMode)
+        LD      B,A
+        CALL    AddBToDE
+        LD      A,(DE)
+        CP      0x0D
+        JR      NZ,AssertShellProgramEntryBad
+
         LD      A,(ShellLastExecAction)
         OR      A
         RET     Z
 
         JR      AssertShellProgramEntryBad
+
+; AssertShellLineSeedClamped —
+; A too-long edited seed is clamped to the max text length before CR append.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellLineSeedClamped:
+        LD      HL,CmdInputLong
+        LD      (ShellLineSeedPtr),HL
+        LD      A,CmdInputLongLen
+        LD      (ShellLineSeedLen),A
+        CALL    FillShellLineBuffer
+
+        LD      A,(ShellLineBuffer)
+        CP      SHELL_LINE_TEXT_LEN
+        JR      NZ,AssertShellLineSeedClampedBad
+
+        LD      A,(ShellLineBuffer + 1 + SHELL_LINE_TEXT_LEN)
+        CP      0x0D
+        JR      NZ,AssertShellLineSeedClampedBad
+
+        LD      HL,(ShellLineSeedPtr)
+        LD      DE,CmdInputLong
+        OR      A
+        SBC     HL,DE
+        RET     Z
+
+AssertShellLineSeedClampedBad:
+        SCF
+        RET
 
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
@@ -995,6 +1083,46 @@ AssertStringBad:
         SCF
         RET
 
+; AssertBytes —
+; Compare C bytes from HL to DE.
+; Input: HL = expected, DE = actual, C = byte count
+;!      in        C,DE,HL
+;!      out       A,C,DE,HL,carry,zero
+@AssertBytes:
+        LD      A,C
+        OR      A
+        RET     Z
+        LD      A,(DE)
+        CP      (HL)
+        JR      NZ,AssertBytesBad
+        INC     DE
+        INC     HL
+        DEC     C
+        JR      AssertBytes
+
+AssertBytesBad:
+        SCF
+        RET
+
+; AddBToDE —
+; Add unsigned B to DE for proof assertions.
+;!      in        B,DE
+;!      out       DE,A,carry,zero
+;!      clobbers  HL
+@AddBToDE:
+        LD      H,0
+        LD      L,B
+        ADD     HL,DE
+        JR      C,AddBToDEBad
+        LD      D,H
+        LD      E,L
+        XOR     A
+        RET
+
+AddBToDEBad:
+        SCF
+        RET
+
 ; Stub LoadProjectConfig for command resolver proof.
 ;!      in        B,DE
 ;!      out       DE,HL,A,C,carry,zero
@@ -1030,6 +1158,14 @@ CmdAsm:
 
 CmdRun:
         .db     "run",0
+
+CmdEditText:
+        .db     "edit"
+CmdEditTextLen .equ       4
+
+CmdBadText:
+        .db     "list"
+CmdBadTextLen .equ        4
 
 CmdEditDraw:
         .db     "edit draw",0
