@@ -34,6 +34,7 @@ npm run quality
 Start here:
 
 - [Project Overview](project-overview.md)
+- [Codebase Tour](codebase.md)
 - [Storage Proof](storage-proof.md)
 - [Virtual Filesystem](virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](shell-command-contract.md)
