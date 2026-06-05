@@ -143,6 +143,7 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(packageJson, /proof:display:editor-viewport:storage/);
   assert.match(packageJson, /proof:display:editor-page-write/);
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
+  assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/\.main\.asm\.b', sourceRecords\)/);
   assert.match(runner, /editor-page-write-proof/);
   assert.match(runner, /verifyEditorPageWriteProof/);
   assert.match(runner, /DirtyAfterNoopDelete/);
@@ -152,6 +153,7 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /DirtyAfterSave/);
   assert.match(runner, /PromptActiveAfterIgnore/);
   assert.match(runner, /PromptResultAfterYes/);
+  assert.match(runner, /editor backup persisted record 0/);
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
   assert.match(runner, /editor-viewport-storage-small-file-proof/);
   assert.match(runner, /makeSmallFileLines/);

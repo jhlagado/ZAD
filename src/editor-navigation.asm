@@ -4,6 +4,7 @@
 
 TECM8_EDITOR_NAV_ERR_PAGE       .equ    0x50
 TECM8_EDITOR_NAV_ERR_PATH       .equ    0x51
+TECM8_EDITOR_NAV_ERR_BACKUP     .equ    0x52
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 
 ; EditorOpenMain -
@@ -56,12 +57,35 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorSaveCurrentPage:
+        CALL    EditorBackupCurrentPage
+        RET     C
         LD      A,(EditorNavCurrentPage)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
         CALL    EditorSaveSourcePage
         RET     C
         JP      EditorClearDirty
+
+; EditorBackupCurrentPage -
+; Save the current on-disk page to the derived hidden backup path.
+; The backup file must already exist in this first implementation.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBackupCurrentPage:
+        LD      HL,(EditorNavPathPtr)
+        LD      DE,EditorNavBackupPathBuffer
+        LD      B,TECM8_EDITOR_NAV_PATH_LEN
+        CALL    EditorNavDeriveBackupPath
+        RET     C
+        LD      A,(EditorNavCurrentPage)
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavBackupPageBuffer
+        CALL    EditorLoadSourcePage
+        RET     C
+        LD      A,(EditorNavCurrentPage)
+        LD      DE,EditorNavBackupPathBuffer
+        LD      HL,EditorNavBackupPageBuffer
+        JP      EditorSaveSourcePage
 
 ; EditorClearDirty -
 ; Mark the current editor page clean after a successful load or save.
@@ -142,6 +166,100 @@ EditorNavPathErr:
         SCF
         RET
 
+;!      in        B,DE,HL
+;!      out       A,carry,zero
+;!      clobbers  A,B,C,DE,HL
+@EditorNavDeriveBackupPath:
+        LD      (EditorNavBackupSourcePtr),HL
+        LD      C,B
+        LD      A,C
+        OR      A
+        JP      Z,EditorNavBackupErr
+
+EditorNavBackupScanLoop:
+        LD      A,(HL)
+        OR      A
+        JR      Z,EditorNavBackupBuild
+        CP      "/"
+        JR      NZ,EditorNavBackupScanNext
+        LD      (EditorNavBackupNamePtr),HL
+        INC     HL
+        LD      (EditorNavBackupLocalPtr),HL
+        JR      EditorNavBackupScanUsed
+
+EditorNavBackupScanNext:
+        INC     HL
+
+EditorNavBackupScanUsed:
+        DEC     C
+        JR      NZ,EditorNavBackupScanLoop
+        JP      EditorNavBackupErr
+
+EditorNavBackupBuild:
+        LD      HL,(EditorNavBackupLocalPtr)
+        LD      A,(HL)
+        OR      A
+        JP      Z,EditorNavBackupErr
+        LD      HL,(EditorNavBackupNamePtr)
+        LD      A,H
+        OR      L
+        JP      Z,EditorNavBackupErr
+        LD      HL,(EditorNavBackupSourcePtr)
+        LD      C,B
+
+EditorNavBackupCopyPrefix:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DEC     C
+        JP      Z,EditorNavBackupErr
+        LD      A,(EditorNavBackupLocalPtr)
+        CP      L
+        JR      NZ,EditorNavBackupCopyPrefix
+        LD      A,(EditorNavBackupLocalPtr + 1)
+        CP      H
+        JR      NZ,EditorNavBackupCopyPrefix
+        LD      A,"."
+        LD      (DE),A
+        INC     DE
+        DEC     C
+        JP      Z,EditorNavBackupErr
+
+EditorNavBackupCopyName:
+        LD      A,(HL)
+        OR      A
+        JR      Z,EditorNavBackupStartSuffix
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DEC     C
+        JP      Z,EditorNavBackupErr
+        JR      EditorNavBackupCopyName
+
+EditorNavBackupStartSuffix:
+        LD      HL,EditorNavBackupSuffix
+
+EditorNavBackupSuffixLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        OR      A
+        JR      Z,EditorNavBackupOk
+        DEC     C
+        JP      Z,EditorNavBackupErr
+        JR      EditorNavBackupSuffixLoop
+
+EditorNavBackupOk:
+        XOR     A
+        RET
+
+EditorNavBackupErr:
+        LD      A,TECM8_EDITOR_NAV_ERR_BACKUP
+        SCF
+        RET
+
 EditorNavCurrentPage:
         .db     0
 
@@ -159,6 +277,24 @@ EditorNavMainPath:
 
 EditorNavPathBuffer:
         .ds     TECM8_EDITOR_NAV_PATH_LEN
+
+EditorNavBackupPathBuffer:
+        .ds     TECM8_EDITOR_NAV_PATH_LEN
+
+EditorNavBackupPageBuffer:
+        .ds     512
+
+EditorNavBackupNamePtr:
+        .dw     0
+
+EditorNavBackupLocalPtr:
+        .dw     0
+
+EditorNavBackupSourcePtr:
+        .dw     0
+
+EditorNavBackupSuffix:
+        .db     ".b",0
 
 EditorNavPageBuffer:
         .ds     512

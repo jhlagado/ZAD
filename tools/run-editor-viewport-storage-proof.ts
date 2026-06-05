@@ -285,6 +285,9 @@ function ensureImage(proofCase: ProofCase): string {
   const rootRecords = encodeSourceRecords(makeRootLines());
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
+  if (proofCase === PROOF_CASES['editor-page-write-proof']) {
+    volume = importFileIntoVolumeImage(volume, '/src/.main.asm.b', sourceRecords);
+  }
   volume = importFileIntoVolumeImage(volume, '/projects/demo/app.asm', appRecords);
   volume = importFileIntoVolumeImage(volume, '/root.asm', rootRecords);
   if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {
@@ -693,6 +696,13 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
     if (value !== 0) {
       throw new Error(`editor page write persisted padding offset ${offset} is ${resultToString(value)}, expected 0x00`);
     }
+  }
+
+  const backup = readFileFromProofImage(PROOF_CASES['editor-page-write-proof'], '/src/.main.asm.b');
+  const backupLength = backup[0];
+  const backupText = backup.subarray(1, 1 + backupLength).toString('ascii');
+  if (backupText !== 'SMALL 00') {
+    throw new Error(`editor backup persisted record 0 "${backupText}", expected "SMALL 00"`);
   }
 }
 

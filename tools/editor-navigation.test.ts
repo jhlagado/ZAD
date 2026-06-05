@@ -18,9 +18,11 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorRenderCurrent',
     'EditorRenderPageBuffer',
     'EditorSaveCurrentPage',
+    'EditorBackupCurrentPage',
     'EditorClearDirty',
     'EditorPageDown',
     'EditorPageUp',
+    'EditorNavDeriveBackupPath',
   ]) {
     assert.match(source, new RegExp(`^@${name}:`, 'm'));
   }
@@ -29,6 +31,10 @@ test('editor navigation module exposes open, render, and page movement entries',
 
   assert.match(source, /EditorNavCurrentPage:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavDirty:\n\s+\.db\s+0/);
+  assert.match(source, /TECM8_EDITOR_NAV_ERR_BACKUP\s+\.equ\s+0x52/);
+  assert.match(source, /EditorNavBackupPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
+  assert.match(source, /EditorNavBackupPageBuffer:\n\s+\.ds\s+512/);
+  assert.match(source, /EditorNavBackupSourcePtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPageBuffer:\n\s+\.ds\s+512/);
 });
 
@@ -38,6 +44,10 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
   assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /@EditorSaveCurrentPage:\n\s+CALL\s+EditorBackupCurrentPage\n\s+RET\s+C/);
+  assert.match(source, /CALL\s+EditorNavDeriveBackupPath/);
+  assert.match(source, /LD\s+DE,EditorNavBackupPathBuffer/);
+  assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);
   assert.match(source, /JP\s+EditorClearDirty/);
   assert.match(source, /JP\s+EditorRenderPageBuffer/);

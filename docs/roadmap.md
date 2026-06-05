@@ -53,6 +53,9 @@ and wait for further instructions before starting assembler integration.
 - The editor has a status-line yes/no prompt state: unrelated keys are ignored,
   yes/no answers complete the prompt, and the bottom chrome switches back after
   completion.
+- The editor derives the hidden backup path and, when that backup file already
+  exists, saves the previous on-disk page there before writing the edited page
+  to the source file.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
 - Design policies exist for reserved source-record length bits, hidden dotfiles,
@@ -60,11 +63,11 @@ and wait for further instructions before starting assembler integration.
 
 ## Near-Term Goal Order
 
-1. **One-level hidden backup on save**
-   - Derive backup path as `.` + local filename + `.b`.
-   - Example: `/src/main.asm` backs up to `/src/.main.asm.b`.
-   - Before replacing an existing file, create or replace the hidden backup.
-   - Fail clearly if the derived backup filename exceeds the catalog limit.
+1. **Backup catalog create/replace**
+   - Extend the Z80 TM8 writer beyond existing-file page writes.
+   - Create `/src/.main.asm.b` when it is missing.
+   - Replace the existing hidden backup when it is already present.
+   - Keep the current backup path convention and filename-length failure.
 
 2. **Restore from backup**
    - Add an editor command to load the hidden backup into the current buffer.
