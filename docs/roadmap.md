@@ -30,6 +30,12 @@ that demonstrates the editor path: open a project/source file, edit it, save,
 quit, reopen, and verify the saved content. When this milestone is reached, stop
 and wait for further instructions before starting assembler integration.
 
+Status: reached by `npm run debug80:editor-session`. The command assembles
+`src/main.asm`, generates a FAT32/TM8 project image, launches the storage-backed
+editor path in Debug80's TEC-1G runtime, saves and reopens `/src/main.asm`, and
+verifies the saved source and hidden backup. See
+`docs/debug80-editor-session.md`.
+
 ## Completed Foundation
 
 - TM8 host volume tooling exists for format, info, list, create, remove, rename,
@@ -66,16 +72,15 @@ and wait for further instructions before starting assembler integration.
   and join before the first row are no-ops rather than cross-sector shifts.
 - Design policies exist for reserved source-record length bits, hidden dotfiles,
   one-level editor backups, and status-line confirmation prompts.
+- `src/main.asm` is now a Debug80-runnable TECM8 editor session entry rather
+  than the old seven-segment/LCD starter.
+- `npm run debug80:editor-session` generates a prepared FAT32/TM8 image and
+  proves the user-facing edit/save/quit/reopen workflow against Debug80.
 
 ## Near-Term Goal Order
 
-1. **Debug80-runnable editor session**
-   - Build a TECM8 entry path that can be launched in Debug80, not only proof
-     harnesses.
-   - Provide a prepared FAT32/TM8 image containing `/tecm8.prj` and source text.
-   - Document the exact Debug80 run steps.
-   - Demonstrate `edit`, mutation, save, quit, reopen, and saved-content
-     verification inside the emulator workflow.
+This phase has reached its stop condition. Do not start assembler integration
+until a new milestone is chosen deliberately.
 
 ## Debug80-Testable GLCD Editor V1 Done Criteria
 

@@ -10,6 +10,10 @@ dist/
 roms/
 # Optional local launch; the extension also contributes "Debug80: Current Project"
 .vscode/launch.json
+# Generated Debug80 session artifacts
+demos/debug80/*.img
+demos/debug80/*.json
+demos/debug80/*.pgm
 # OS / editor
 .DS_Store
 Thumbs.db

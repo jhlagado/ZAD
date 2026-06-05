@@ -6,18 +6,18 @@
 ; layout, finds the root file catalog entry for tecm8.prj, and reads one
 ; 512-byte sector from the entry's first data block.
 
-DISK_BUFF           .equ     0x0600
+PROJECT_LOAD_DISK_BUFF .equ  0x0600
 
-TM8_SECTOR_BYTES    .equ     512
-TM8_BLOCK_BYTES     .equ     4096
-TM8_CATALOG_SECTOR  .equ     48
-TM8_CATALOG_SECTORS .equ     32
-TM8_CATALOG_ENTRY   .equ     64
-TM8_ENTRIES_SECTOR  .equ     8
+PROJECT_LOAD_SECTOR_BYTES .equ 512
+PROJECT_LOAD_BLOCK_BYTES .equ 4096
+PROJECT_LOAD_CATALOG_SECTOR .equ 48
+PROJECT_LOAD_CATALOG_SECTORS .equ 32
+PROJECT_LOAD_CATALOG_ENTRY .equ 64
+PROJECT_LOAD_ENTRIES_SECTOR .equ 8
 
-TM8_ENTRY_ACTIVE    .equ     0x01
-TM8_ROOT_PREFIX     .equ     0x00
-TM8_PROJECT_NAME_LEN .equ    9
+PROJECT_LOAD_ENTRY_ACTIVE .equ 0x01
+PROJECT_LOAD_ROOT_PREFIX .equ 0x00
+PROJECT_LOAD_PROJECT_NAME_LEN .equ 9
 
 PROJECT_LOAD_OK         .equ 0
 PROJECT_LOAD_ERR_OPEN   .equ 0x20
@@ -83,13 +83,13 @@ ProjectLoadOpenErr:
         CALL    BiosFileReadSector
         JP      C,ProjectLoadReadErr
 
-        LD      HL,DISK_BUFF
+        LD      HL,PROJECT_LOAD_DISK_BUFF
         LD      DE,ProjectLoadMagic
         LD      B,8
         CALL    ProjectLoadMatchBytes
         JR      C,ProjectLoadSuperErr
 
-        LD      HL,DISK_BUFF + 8
+        LD      HL,PROJECT_LOAD_DISK_BUFF + 8
         LD      A,(HL)
         CP      1
         JR      NZ,ProjectLoadSuperErr
@@ -98,7 +98,7 @@ ProjectLoadOpenErr:
         OR      A
         JR      NZ,ProjectLoadSuperErr
 
-        LD      HL,DISK_BUFF + 10
+        LD      HL,PROJECT_LOAD_DISK_BUFF + 10
         LD      A,(HL)
         OR      A
         JR      NZ,ProjectLoadSuperErr
@@ -107,7 +107,7 @@ ProjectLoadOpenErr:
         CP      2
         JR      NZ,ProjectLoadSuperErr
 
-        LD      HL,DISK_BUFF + 32
+        LD      HL,PROJECT_LOAD_DISK_BUFF + 32
         LD      A,(HL)
         CP      6
         JR      NZ,ProjectLoadSuperErr
@@ -116,9 +116,9 @@ ProjectLoadOpenErr:
         OR      A
         JR      NZ,ProjectLoadSuperErr
 
-        LD      HL,DISK_BUFF + 36
+        LD      HL,PROJECT_LOAD_DISK_BUFF + 36
         LD      A,(HL)
-        CP      TM8_CATALOG_ENTRY
+        CP      PROJECT_LOAD_CATALOG_ENTRY
         JR      NZ,ProjectLoadSuperErr
         INC     HL
         LD      A,(HL)
@@ -143,8 +143,8 @@ ProjectLoadReadErr:
 ;!      out       HL,A,carry,zero
 ;!      clobbers  BC,DE
 @ProjectLoadFindConfig:
-        LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
-        LD      A,TM8_CATALOG_SECTORS
+        LD      DE,PROJECT_LOAD_CATALOG_SECTOR * PROJECT_LOAD_SECTOR_BYTES
+        LD      A,PROJECT_LOAD_CATALOG_SECTORS
         LD      (ProjectLoadCatalogLeft),A
 
 ProjectLoadCatalogSector:
@@ -154,8 +154,8 @@ ProjectLoadCatalogSector:
         POP     DE
         JP      C,ProjectLoadReadErr
 
-        LD      HL,DISK_BUFF
-        LD      BC,TM8_ENTRIES_SECTOR * 256
+        LD      HL,PROJECT_LOAD_DISK_BUFF
+        LD      BC,PROJECT_LOAD_ENTRIES_SECTOR * 256
 
 ProjectLoadCatalogEntry:
         PUSH    BC
@@ -171,12 +171,12 @@ ProjectLoadCatalogEntry:
         CP      PROJECT_LOAD_ERR_BLOCK
         RET     Z
 
-        LD      DE,TM8_CATALOG_ENTRY
+        LD      DE,PROJECT_LOAD_CATALOG_ENTRY
         ADD     HL,DE
         DJNZ    ProjectLoadCatalogEntry
 
         EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
+        LD      BC,PROJECT_LOAD_SECTOR_BYTES
         ADD     HL,BC
         EX      DE,HL
         LD      A,(ProjectLoadCatalogLeft)
@@ -197,23 +197,23 @@ ProjectLoadCatalogEntry:
 @ProjectLoadMatchCatalogEntry:
         LD      (ProjectLoadEntryBase),HL
         LD      A,(HL)
-        CP      TM8_ENTRY_ACTIVE
+        CP      PROJECT_LOAD_ENTRY_ACTIVE
         JR      NZ,ProjectLoadEntryNo
 
         INC     HL
         INC     HL
         LD      A,(HL)
-        CP      TM8_ROOT_PREFIX
+        CP      PROJECT_LOAD_ROOT_PREFIX
         JR      NZ,ProjectLoadEntryNo
 
         INC     HL
         LD      A,(HL)
-        CP      TM8_PROJECT_NAME_LEN
+        CP      PROJECT_LOAD_PROJECT_NAME_LEN
         JR      NZ,ProjectLoadEntryNo
 
         INC     HL
         LD      DE,ProjectLoadFileName
-        LD      B,TM8_PROJECT_NAME_LEN
+        LD      B,PROJECT_LOAD_PROJECT_NAME_LEN
         CALL    ProjectLoadMatchBytes
         JR      C,ProjectLoadEntryNo
 
@@ -285,7 +285,7 @@ ProjectLoadBlockErr:
         CALL    BiosFileReadSector
         JP      C,ProjectLoadReadErr
 
-        LD      HL,DISK_BUFF
+        LD      HL,PROJECT_LOAD_DISK_BUFF
         LD      DE,PROJECT_CFG_TEXT_BUF
         LD      BC,(ProjectLoadFileSize)
         LD      A,B

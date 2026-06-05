@@ -71,10 +71,11 @@ contract blocks from the included source.
 
 ### `src/main.asm`
 
-This is a Debug80 starter program, not the TECM8 shell. It prints a message to
-the LCD and scans `HELLO ` on the seven-segment display through MON3 `RST 10h`
-API calls. Treat it as a minimal target configured by `debug80.json`, not as
-the current product entry point.
+This is now the Debug80-testable TECM8 editor session entry. It runs at `4000h`
+under the TEC-1G/MON3 profile, initializes the GLCD, opens the project main
+source through `edit`, inserts a small visible edit, saves, quits, reopens the
+same file, and leaves the final editor screen visible. It includes the real
+project config loader and storage-backed editor path rather than a stub.
 
 ### `src/tecm8-bios.asm` and `src/mon3.asmi`
 
@@ -490,6 +491,7 @@ Debug80:
 - `tools/run-display-proof.ts`
 - `tools/run-editor-viewport-storage-proof.ts`
 - `tools/run-storage-proof.ts`
+- `tools/run-debug80-editor-session.ts`
 
 The storage-backed runners also create FAT32 images, load MON3 ROM, configure
 the TEC-1G runtime, disable shadow ROM where needed, seed SD card state, and
@@ -508,6 +510,13 @@ persisted TM8 image bytes after save. For the current backup proof slice it
 starts without `/src/.main.asm.b`, then verifies that the Z80 save path creates
 that hidden backup and stores the old on-disk text before the edited source page
 is written.
+
+`tools/run-debug80-editor-session.ts` is the milestone runner for the first
+user-testable editor session. It assembles `src/main.asm`, generates
+`demos/debug80/editor-session-fat32.img`, mounts it in Debug80's TEC-1G runtime,
+verifies `/src/main.asm` was saved as fixed source records, verifies the hidden
+backup, and writes `demos/debug80/editor-session-glcd.pgm` as a local GLCD
+capture.
 
 ### Storage Image And Audit Tools
 
@@ -615,12 +624,11 @@ What exists now:
 
 What is still missing or intentionally skeletal:
 
-- No real top-level TECM8 shell entry has replaced `src/main.asm`.
-- Shell keyboard input is proof-seeded, not real matrix keyboard input.
+- The Debug80-testable GLCD Editor V1 milestone has a runnable session, but it
+  still uses a scripted key stream rather than real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
 - The editor has no search or sector-crossing edit behavior yet.
-- The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
-  is reached, stop before starting assembler integration.
+- Stop before starting assembler integration until a new milestone is chosen.
 - Split and join are intentionally limited to the loaded 512-byte page for V1;
   they do not move records across sectors or allocate/free TM8 storage.
 - The display chrome and marker policy are still mostly fixed proof data.
