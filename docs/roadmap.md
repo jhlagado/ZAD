@@ -80,6 +80,9 @@ direction for a future TECM8 GLCD BIOS/display library.
 - `BiosInputPollKey` exposes translated key codes, modifier flags, and raw
   matrix scan diagnostics so the Debug80 editor can be driven from real matrix
   arrow keys and modifier chords.
+- A TECM8-owned GLCD tile-cell layer exists for 6x6 text cells. Structured
+  screen text rendering now writes through tile primitives rather than MON3's
+  terminal character drawing routine.
 
 ## Near-Term Goal Order
 
@@ -97,7 +100,10 @@ direction for a future TECM8 GLCD BIOS/display library.
 3. **Move structured screen rendering onto tile primitives.**
    Replace per-character MON3 terminal drawing in the structured display model
    with TECM8 tile writes. Full-page rendering may still clear and repaint, but
-   it should no longer depend on MON3 terminal text policy.
+   it should no longer depend on MON3 terminal text policy. Status: implemented
+   for text rows via `GlcdTileClearTextRow` and `GlcdTileDrawTextRun`; gutter
+   and cursor paths still use direct `TGBUF` writes pending later cursor/dirty
+   rendering work.
 
 4. **Add dirty line/cell rendering for editor mutations.**
    Change printable insert/delete paths so they redraw the affected line or cell

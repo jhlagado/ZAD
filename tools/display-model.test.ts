@@ -63,11 +63,12 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /@DisplayEraseCursorCell:/);
   assert.match(source, /CP\s+TECM8_DISPLAY_EDIT_ROWS/);
   assert.match(source, /CP\s+TECM8_DISPLAY_MAX_TEXT_CHARS/);
-  assert.match(source, /CALL\s+BiosDisplayUpdate/);
+  assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /DisplayCursorSavedBytes:/);
   assert.match(source, /LD\s+\(DisplayCursorOriginalByte\),A/);
-  assert.match(source, /CALL\s+BiosDisplayDrawCharAt/);
-  assert.match(source, /ADD\s+A,TECM8_DISPLAY_Y_ORIGIN\n\s+LD\s+C,A/);
+  assert.match(source, /CALL\s+GlcdTileClearTextRow/);
+  assert.match(source, /CALL\s+GlcdTileDrawTextRun/);
+  assert.doesNotMatch(source, /CALL\s+BiosDisplayDrawCharAt/);
   assert.match(source, /LD\s+HL,MON3_TGBUF\n\s+LD\s+DE,TECM8_DISPLAY_Y_ORIGIN_BYTES\n\s+ADD\s+HL,DE\n\s+LD\s+DE,TECM8_DISPLAY_ROW_STRIDE/);
   assert.doesNotMatch(source, /CALL\s+BiosDisplayPutString/);
 });
@@ -78,7 +79,10 @@ test('structured GLCD proof calls the display model and renders markers', () => 
 
   assert.match(source, /CALL\s+DisplayInit/);
   assert.match(source, /CALL\s+DisplayRenderScreen/);
+  assert.match(source, /CALL\s+DisplayRenderLine/);
   assert.match(source, /LD\s+HL,0x1000\n\s+LD\s+\(MON3_VPORT\),HL/);
+  assert.match(source, /CALL\s+GlcdTileFlushFull/);
+  assert.match(source, /\.include\s+"..\/..\/src\/glcd-tile\.asm"/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_BREAKPOINT\b/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_CURRENT\b/);
   assert.match(source, /\.include\s+"..\/..\/src\/display-model\.asm"/);
@@ -94,6 +98,7 @@ test('structured display proof is wired into package checks', () => {
   assert.match(runner, /mon3Tgbuf = 0x13c0/);
   assert.match(runner, /visible .*gutter bits/);
   assert.match(runner, /did not render .* text pixels in TGBUF/);
+  assert.match(runner, /left stale pixels after shorter row redraw/);
 });
 
 test('display proofs do not write stale MON3 scroll-buffer addresses', () => {

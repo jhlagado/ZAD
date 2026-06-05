@@ -19,11 +19,17 @@ MON3_VPORT      .equ     0x0E13
         LD      HL,0x1000
         LD      (MON3_VPORT),HL
 
-        LD      HL,StructuredScreen
+        LD      HL,StructuredScreenLong
         CALL    DisplayRenderScreen
         JR      C,ProofFailed
 
-        CALL    BiosDisplayUpdate
+        LD      A,TECM8_DISPLAY_FIRST_EDIT_ROW
+        LD      C,TECM8_DISPLAY_MARKER_BREAKPOINT
+        LD      HL,SourceLine0
+        CALL    DisplayRenderLine
+        JR      C,ProofFailed
+
+        CALL    GlcdTileFlushFull
         JR      C,ProofFailed
 
         LD      A,PROOF_PASS
@@ -39,6 +45,7 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
+        .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
         .include "../../src/tecm8-bios.asm"
 
@@ -62,10 +69,32 @@ StructuredScreen:
         .dw     SourceLine7
         .dw     BottomChrome
 
+StructuredScreenLong:
+        .dw     TopChrome
+        .db     TECM8_DISPLAY_MARKER_BREAKPOINT
+        .dw     SourceLine0Long
+        .db     TECM8_DISPLAY_MARKER_CURRENT
+        .dw     SourceLine1
+        .db     TECM8_DISPLAY_MARKER_SELECTED
+        .dw     SourceLine2
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine3
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine4
+        .db     TECM8_DISPLAY_MARKER_BREAKPOINT | TECM8_DISPLAY_MARKER_CURRENT
+        .dw     SourceLine5
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine6
+        .db     TECM8_DISPLAY_MARKER_SELECTED
+        .dw     SourceLine7
+        .dw     BottomChrome
+
 TopChrome:
         .db     "TECM8 MAIN.ASM",0
 SourceLine0:
         .db     "ORG 4000H",0
+SourceLine0Long:
+        .db     "ABCDEFGHIJKLMNOPQRST",0
 SourceLine1:
         .db     "CALL INIT",0
 SourceLine2:

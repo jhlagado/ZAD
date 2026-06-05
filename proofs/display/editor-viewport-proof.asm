@@ -17,7 +17,7 @@ PROOF_FAIL       .equ     0xE0
         CALL    EditorViewportRender
         JR      C,ProofFailed
 
-        CALL    BiosDisplayUpdate
+        CALL    GlcdTileFlushFull
         JR      C,ProofFailed
 
         LD      A,PROOF_PASS
@@ -33,6 +33,7 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
+        .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
         .include "../../src/editor-viewport.asm"
         .include "../../src/tecm8-bios.asm"

@@ -1,7 +1,7 @@
 ; TECM8 structured display model.
 ;
-; This first layer renders editor-style screens through the MON3-backed BIOS
-; display wrappers. It is a display proof surface, not an editor.
+; This layer renders editor-style screens through TECM8-owned GLCD tile writes.
+; It is a display proof surface, not an editor.
 
 TECM8_DISPLAY_GLCD_COLUMNS          .equ    20
 TECM8_DISPLAY_GLCD_ROWS             .equ    10
@@ -112,37 +112,14 @@ DisplayScreenLoop:
         CALL    DisplayRenderGutter
         RET     C
         LD      A,(DisplayRow)
-        CALL    DisplayRowToPixel
-        LD      A,C
-        LD      (DisplayTextY),A
-        LD      A,TECM8_DISPLAY_TEXT_X
-        LD      (DisplayTextX),A
-        LD      A,TECM8_DISPLAY_MAX_TEXT_CHARS
-        LD      (DisplayTextRemaining),A
-
-DisplayTextLoop:
-        LD      HL,(DisplayText)
-        LD      A,(HL)
-        OR      A
-        RET     Z
-        INC     HL
-        LD      (DisplayText),HL
-        LD      D,A
-        LD      A,(DisplayTextY)
-        LD      C,A
-        LD      A,(DisplayTextX)
         LD      B,A
-        LD      A,D
-        CALL    BiosDisplayDrawCharAt
+        CALL    GlcdTileClearTextRow
         RET     C
-        LD      A,(DisplayTextX)
-        ADD     A,TECM8_DISPLAY_ROW_HEIGHT
-        LD      (DisplayTextX),A
-        LD      A,(DisplayTextRemaining)
-        DEC     A
-        LD      (DisplayTextRemaining),A
-        JR      NZ,DisplayTextLoop
-        XOR     A
+        LD      HL,(DisplayText)
+        LD      A,(DisplayRow)
+        LD      B,A
+        LD      C,0
+        CALL    GlcdTileDrawTextRun
         RET
 
 ; DisplayRenderGutter -
@@ -304,7 +281,7 @@ DisplayCursorWriteLoop:
         LD      (HL),A
         ADD     HL,DE
         DJNZ    DisplayCursorWriteLoop
-        CALL    BiosDisplayUpdate
+        CALL    GlcdTileFlushFull
         RET
 
 DisplayCursorNoop:
@@ -405,7 +382,7 @@ DisplayCursorEraseWriteLoop:
         LD      (HL),A
         ADD     HL,DE
         DJNZ    DisplayCursorEraseWriteLoop
-        CALL    BiosDisplayUpdate
+        CALL    GlcdTileFlushFull
         RET
 
 DisplayCursorEraseNoop:

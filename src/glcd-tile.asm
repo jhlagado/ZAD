@@ -188,6 +188,38 @@ GlcdTileTextRunDone:
         XOR     A
         RET
 
+; GlcdTileClearTextRow -
+; Clear all 20 text cells on one display row.
+; Input: B = row (0-9)
+;!      in        B
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileClearTextRow:
+        LD      A,B
+        CP      TECM8_GLCD_TILE_ROWS
+        JR      NC,GlcdTileRangeError
+        LD      (GlcdTileTextRow),A
+        XOR     A
+        LD      (GlcdTileTextColumn),A
+
+GlcdTileClearTextRowLoop:
+        LD      A,(GlcdTileTextColumn)
+        CP      TECM8_GLCD_TILE_COLUMNS
+        JR      NC,GlcdTileClearTextRowDone
+        LD      C,A
+        LD      A,(GlcdTileTextRow)
+        LD      B,A
+        CALL    GlcdTileClearCell
+        RET     C
+        LD      A,(GlcdTileTextColumn)
+        INC     A
+        LD      (GlcdTileTextColumn),A
+        JR      GlcdTileClearTextRowLoop
+
+GlcdTileClearTextRowDone:
+        XOR     A
+        RET
+
 ; GlcdTileFlushFull -
 ; Push the current GLCD backing bitmap through the active BIOS display backend.
 ;!      out       carry

@@ -84,6 +84,7 @@ lines:
 GlcdTileClearCell(row, col)
 GlcdTileDrawCell(row, col, glyph, flags)
 GlcdTileDrawTextRun(row, col, text, max_cells, flags)
+GlcdTileClearTextRow(row)
 GlcdTileDrawGutter(row, marker_flags)
 GlcdTileFlushFull()
 GlcdTileFlushDirtyRow(row) or equivalent later dirty flush
@@ -93,6 +94,11 @@ The first implementation can still flush through MON3's low-level GLCD plotting
 routine if that is the fastest way to reach hardware. The boundary is that MON3
 should no longer decide editor terminal policy, cell clearing, cursor drawing, or
 dirty update scope.
+
+Structured screen text rendering follows that boundary: `DisplayRenderLine`
+clears the row's text cells and redraws the string through TECM8 tile
+primitives. Full-screen repaint remains available, but normal structured text
+rows no longer call MON3's terminal glyph drawing path.
 
 Cursor rendering should also move from a fragile single vertical stroke toward a
 cell-level visual treatment. A vertical bar can disappear inside glyphs such as

@@ -73,6 +73,7 @@ LoadProjectStubOk:
         XOR     A
         RET
 
+        .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"

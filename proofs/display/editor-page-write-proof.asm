@@ -156,6 +156,7 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
+        .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"

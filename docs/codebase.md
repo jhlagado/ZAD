@@ -217,7 +217,9 @@ writes TECM8-owned 6x6 character cells straight into MON3's `TGBUF` bitmap,
 uses the ROM font data at `0xDD9B`, and only relies on the BIOS layer to
 initialize, clear, and flush the display. It does not call MON3's terminal
 glyph drawing path, so TECM8 owns cell overwrite, clear, and text-run behavior
-directly.
+directly. Current entry points include `GlcdTileClearCell`,
+`GlcdTileDrawCell`, `GlcdTileDrawTextRun`, `GlcdTileClearTextRow`, and
+`GlcdTileFlushFull`.
 
 Public entries:
 

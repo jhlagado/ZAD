@@ -16,6 +16,7 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
     'GlcdTileClearCell',
     'GlcdTileDrawCell',
     'GlcdTileDrawTextRun',
+    'GlcdTileClearTextRow',
     'GlcdTileFlushFull',
     'GlcdTilePrepareCell',
   ]) {

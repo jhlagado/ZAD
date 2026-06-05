@@ -282,6 +282,12 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
       throw new Error(`structured display proof did not render ${row.name} text pixels in TGBUF`);
     }
   }
+
+  for (let column = 'ORG 4000H'.length; column < 20; column += 1) {
+    if (cellHasPixels(runtime.hardware.memory, 1, column)) {
+      throw new Error(`structured display proof left stale pixels after shorter row redraw at column ${column}`);
+    }
+  }
 }
 
 function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {

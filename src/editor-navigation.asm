@@ -49,7 +49,7 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      HL,EditorNavPageBuffer
         CALL    EditorViewportRender
         RET     C
-        CALL    BiosDisplayUpdate
+        CALL    GlcdTileFlushFull
         RET
 
 ; EditorSaveCurrentPage -

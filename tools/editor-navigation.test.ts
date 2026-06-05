@@ -57,7 +57,7 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
   assert.match(source, /CALL\s+EditorNavCopyPath/);
   assert.match(source, /CALL\s+EditorViewportRender/);
-  assert.match(source, /CALL\s+BiosDisplayUpdate/);
+  assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /TECM8_EDITOR_NAV_ERR_PAGE\s+\.equ\s+0x50/);
 });
 

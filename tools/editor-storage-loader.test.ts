@@ -109,7 +109,7 @@ test('storage-backed editor viewport proof composes loader, viewport, and displa
 
   assert.match(source, /CALL\s+EditorLoadMainPage/);
   assert.match(source, /CALL\s+EditorViewportRender/);
-  assert.match(source, /CALL\s+BiosDisplayUpdate/);
+  assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /\.include\s+"..\/..\/src\/editor-storage-loader\.asm"/);
   assert.match(source, /EditorSourcePage0:\n\s+\.ds\s+512/);
   assert.match(source, /EditorSourcePage1:\n\s+\.ds\s+512/);

@@ -334,7 +334,7 @@ EditorKeyDone:
         LD      (EditorInsertMode),A
         CALL    EditorRenderCursor
         RET     C
-        CALL    BiosDisplayUpdate
+        CALL    GlcdTileFlushFull
         RET     C
 
 EditorLiveLoop:
@@ -347,7 +347,7 @@ EditorLiveLoop:
         LD      HL,EditorLiveKeyBuffer
         CALL    EditorRunKeys
         RET     C
-        CALL    BiosDisplayUpdate
+        CALL    GlcdTileFlushFull
         RET     C
         JP      EditorLiveLoop
 
