@@ -157,6 +157,9 @@ test('editor line editing proof covers split and join behavior', () => {
   assert.match(proof, /LineEditRecord6:\n\s+\.db\s+31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
   assert.match(proof, /LineEditRecordLast:\n\s+\.db\s+4,"LAST"/);
   assert.match(proof, /LineEditCursorCase8:/);
+  assert.match(proof, /LineEditCursorCase9:/);
+  assert.match(proof, /LineEditCursorCase10:/);
+  assert.match(proof, /LineEditResultCase10:/);
   assert.match(runner, /editor-line-editing-proof/);
   assert.match(runner, /verifyEditorLineEditingProof/);
   assert.match(runner, /assertSourceRecordClean/);
@@ -169,6 +172,9 @@ test('editor line editing proof covers split and join behavior', () => {
   assert.match(runner, /LineEditCursorCase6', row: 15, col: 2/);
   assert.match(runner, /LineEditCursorCase7', row: 2, col: 0/);
   assert.match(runner, /LineEditCursorCase8', row: 1, col: 1/);
+  assert.match(runner, /LineEditCursorCase9', row: 0, col: 0/);
+  assert.match(runner, /LineEditCursorCase10', row: 15, col: 0/);
+  assert.match(runner, /LineEditResultCase6', 'LineEditResultCase9', 'LineEditResultCase10'/);
   assert.match(packageJson, /"proof:display:editor-line-editing"/);
   assert.match(packageJson, /proof:display:editor-line-editing/);
 });

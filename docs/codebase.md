@@ -375,7 +375,8 @@ or when the final record is already in use. `EditorJoinPreviousLine`
 is called by backspace at column zero; it joins the current record into the
 previous record only when the combined text still fits in 31 bytes, then shifts
 following records up and clears the last record. Both operations are in-page
-only today.
+only today. The V1 sector-edge policy is deliberately conservative: final-row
+split and first-row join are no-ops rather than implicit cross-sector shifts.
 
 ## Proof Programs
 
@@ -620,8 +621,8 @@ What is still missing or intentionally skeletal:
 - The editor has no search or sector-crossing edit behavior yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
-- Split and join are currently limited to the loaded 512-byte page; they do not
-  move records across sectors or allocate/free TM8 storage.
+- Split and join are intentionally limited to the loaded 512-byte page for V1;
+  they do not move records across sectors or allocate/free TM8 storage.
 - The display chrome and marker policy are still mostly fixed proof data.
 - The Z80 storage readers are narrow readers, not a general reusable TM8
   filesystem layer.

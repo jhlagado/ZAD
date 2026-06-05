@@ -95,6 +95,21 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,LineEditCursorCase8
         CALL    LineEditSaveCursor
 
+        LD      A,10
+        LD      (CaseMarker),A
+        LD      HL,LineEditRecordEmpty
+        LD      DE,EditorNavPageBuffer + 480
+        CALL    LineEditCopyRecord
+        LD      A,15
+        LD      (EditorCursorRow),A
+        XOR     A
+        LD      (EditorCursorCol),A
+        CALL    EditorSplitLine
+        JP      C,ProofFailed
+        LD      (LineEditResultCase10),A
+        LD      HL,LineEditCursorCase10
+        CALL    LineEditSaveCursor
+
         LD      A,6
         LD      (CaseMarker),A
         LD      HL,LineEditRecordLast
@@ -106,7 +121,19 @@ PROOF_FAIL       .equ     0xE0
         LD      (EditorCursorCol),A
         CALL    EditorSplitLine
         JP      C,ProofFailed
+        LD      (LineEditResultCase6),A
         LD      HL,LineEditCursorCase6
+        CALL    LineEditSaveCursor
+
+        LD      A,9
+        LD      (CaseMarker),A
+        XOR     A
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorCol),A
+        CALL    EditorBackspaceChar
+        JP      C,ProofFailed
+        LD      (LineEditResultCase9),A
+        LD      HL,LineEditCursorCase9
         CALL    LineEditSaveCursor
 
         LD      A,PROOF_PASS
@@ -287,6 +314,17 @@ LineEditCursorCase7:
         .ds     2
 LineEditCursorCase8:
         .ds     2
+LineEditCursorCase9:
+        .ds     2
+LineEditCursorCase10:
+        .ds     2
+
+LineEditResultCase6:
+        .db     0xFF
+LineEditResultCase9:
+        .db     0xFF
+LineEditResultCase10:
+        .db     0xFF
 
 ResultMarker:
         .db     0

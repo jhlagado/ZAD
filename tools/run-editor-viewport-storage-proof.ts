@@ -638,6 +638,8 @@ function verifyEditorLineEditingProof(runtime: Runtime, _platformRuntime: Platfo
     { symbol: 'LineEditCursorCase6', row: 15, col: 2 },
     { symbol: 'LineEditCursorCase7', row: 2, col: 0 },
     { symbol: 'LineEditCursorCase8', row: 1, col: 1 },
+    { symbol: 'LineEditCursorCase9', row: 0, col: 0 },
+    { symbol: 'LineEditCursorCase10', row: 15, col: 0 },
   ];
   for (const expected of expectedCursors) {
     const address = symbolAddress(symbols, expected.symbol);
@@ -645,6 +647,13 @@ function verifyEditorLineEditingProof(runtime: Runtime, _platformRuntime: Platfo
     const col = runtime.hardware.memory[address + 1];
     if (row !== expected.row || col !== expected.col) {
       throw new Error(`editor line ${expected.symbol} cursor ${row},${col}; expected ${expected.row},${expected.col}`);
+    }
+  }
+
+  for (const symbol of ['LineEditResultCase6', 'LineEditResultCase9', 'LineEditResultCase10']) {
+    const value = runtime.hardware.memory[symbolAddress(symbols, symbol)];
+    if (value !== 0) {
+      throw new Error(`editor line ${symbol} result ${value}; expected 0 for no-op`);
     }
   }
 }

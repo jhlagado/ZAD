@@ -193,6 +193,22 @@ offset in sector  = (line_number % 16) * 32
 The same format allows the debugger to display source without loading the whole
 file.
 
+## Sector-Edge Editing Policy
+
+The V1 editor edits one loaded 512-byte source sector at a time. Split and join
+operations are deliberately conservative at sector boundaries:
+
+- Splitting the final record in the loaded sector is a no-op.
+- Joining before the first record in the loaded sector is a no-op.
+- The editor does not shift source records across sectors in V1.
+- The editor does not allocate or free TM8 storage blocks as a side effect of
+  line editing in V1.
+
+This keeps the first Debug80-testable editor predictable and avoids hiding
+multi-sector file mutation behind simple cursor commands. A later editor can
+add explicit sector/page shifting once save, backup, restore, and viewport
+movement are stable.
+
 ## Line Length Policy
 
 GLCD editing should encourage short assembly lines.
