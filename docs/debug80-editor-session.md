@@ -78,6 +78,60 @@ The runner verifies:
 - `/src/.main.asm.b` record 0 preserves the previous `R0 LINE 00`.
 - The final GLCD buffer is nonblank.
 
+## Editor Input Status
+
+The current session still drives the editor through a proof-oriented key stream.
+Movement is now represented inside the editor as named actions:
+
+```text
+page down
+page up
+cursor left
+cursor down
+cursor up
+cursor right
+```
+
+The proof stream maps temporary host-friendly bytes onto those actions:
+
+```text
+d / D    page down
+u / U    page up
+h / H    cursor left
+j / J    cursor down
+k / K    cursor up
+l / L    cursor right
+```
+
+These are not intended to be the final TEC-1G user-facing bindings. They are
+aliases for automated proofs and Debug80 script runs while the physical matrix
+keyboard input path is being settled.
+
+The intended interactive binding is:
+
+```text
+matrix ArrowLeft     cursor left
+matrix ArrowDown     cursor down
+matrix ArrowUp       cursor up
+matrix ArrowRight    cursor right
+modified arrows      page or word movement, exact modifiers to be finalized
+```
+
+As of this TECM8 milestone, Debug80's visible matrix-keyboard UI has arrow keys,
+but the observed Debug80 request path only special-cases `CapsLock`. Printable
+keys are resolved through ASCII and reverse-mapped to matrix row/column states.
+Browser keys named `ArrowLeft`, `ArrowDown`, `ArrowUp`, and `ArrowRight` are
+not printable ASCII, so they appear not to reach the emulated matrix state yet.
+
+If this blocks interactive testing, hand this minimal repro to the Debug80 team:
+
+1. Launch the TEC-1G target with matrix keyboard capture enabled.
+2. Press or click the visible matrix keyboard arrow keys.
+3. Observe whether `ArrowLeft`, `ArrowDown`, `ArrowUp`, and `ArrowRight` apply
+   any matrix row/column state.
+4. Expected result: each visible arrow key should generate the TEC-1G matrix
+   row/column event or documented MON3 matrix/ASCII code for that key.
+
 The GLCD capture is written as a portable graymap image:
 
 ```text

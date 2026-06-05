@@ -3,18 +3,25 @@
 ; Proof-oriented key stream for page movement, cursor movement, and in-page
 ; source-record editing.
 
-TECM8_EDITOR_KEY_PAGE_DOWN_LOWER        .equ    "d"
-TECM8_EDITOR_KEY_PAGE_DOWN_UPPER        .equ    "D"
-TECM8_EDITOR_KEY_PAGE_UP_LOWER          .equ    "u"
-TECM8_EDITOR_KEY_PAGE_UP_UPPER          .equ    "U"
-TECM8_EDITOR_KEY_CURSOR_LEFT_LOWER      .equ    "h"
-TECM8_EDITOR_KEY_CURSOR_LEFT_UPPER      .equ    "H"
-TECM8_EDITOR_KEY_CURSOR_DOWN_LOWER      .equ    "j"
-TECM8_EDITOR_KEY_CURSOR_DOWN_UPPER      .equ    "J"
-TECM8_EDITOR_KEY_CURSOR_UP_LOWER        .equ    "k"
-TECM8_EDITOR_KEY_CURSOR_UP_UPPER        .equ    "K"
-TECM8_EDITOR_KEY_CURSOR_RIGHT_LOWER     .equ    "l"
-TECM8_EDITOR_KEY_CURSOR_RIGHT_UPPER     .equ    "L"
+TECM8_EDITOR_ACTION_NONE                .equ    0
+TECM8_EDITOR_ACTION_PAGE_DOWN           .equ    1
+TECM8_EDITOR_ACTION_PAGE_UP             .equ    2
+TECM8_EDITOR_ACTION_CURSOR_LEFT         .equ    3
+TECM8_EDITOR_ACTION_CURSOR_DOWN         .equ    4
+TECM8_EDITOR_ACTION_CURSOR_UP           .equ    5
+TECM8_EDITOR_ACTION_CURSOR_RIGHT        .equ    6
+TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER  .equ    "d"
+TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_UPPER  .equ    "D"
+TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER    .equ    "u"
+TECM8_EDITOR_PROOF_KEY_PAGE_UP_UPPER    .equ    "U"
+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER .equ   "h"
+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_UPPER .equ   "H"
+TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_LOWER .equ   "j"
+TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_UPPER .equ   "J"
+TECM8_EDITOR_PROOF_KEY_CURSOR_UP_LOWER  .equ    "k"
+TECM8_EDITOR_PROOF_KEY_CURSOR_UP_UPPER  .equ    "K"
+TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_LOWER .equ  "l"
+TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_UPPER .equ  "L"
 TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
 TECM8_EDITOR_KEY_NEWLINE                .equ    13
@@ -88,11 +95,13 @@ EditorCursorRenderDone:
         RET
 
 ; EditorRunKeys -
-; Consume a NUL-terminated key stream. In command mode, `d`/`u` page and
-; `h`/`j`/`k`/`l` move the visible cursor. TAB enters insert mode for this
-; stream, printable ASCII inserts, backspace deletes before the cursor, delete
-; removes the character at the cursor, newline splits the current record, and
-; unknown keys are ignored.
+; Consume a NUL-terminated key stream. Movement and paging are dispatched as
+; editor actions so later matrix-key input can bind to the same commands without
+; pretending arrow keys are printable ASCII. The current proof stream still uses
+; host-friendly `d`/`u` and `h`/`j`/`k`/`l` aliases. TAB enters insert mode for
+; this stream, printable ASCII inserts, backspace deletes before the cursor,
+; delete removes the character at the cursor, newline splits the current record,
+; and unknown keys are ignored.
 ; Input:
 ;   HL = NUL-terminated key stream
 ;!      in        HL
@@ -134,30 +143,11 @@ EditorKeyLoop:
         OR      A
         JR      NZ,EditorKeyMaybeInsertMode
         LD      A,(EditorPendingChar)
-        CP      TECM8_EDITOR_KEY_PAGE_DOWN_LOWER
-        JP      Z,EditorKeyPageDown
-        CP      TECM8_EDITOR_KEY_PAGE_DOWN_UPPER
-        JP      Z,EditorKeyPageDown
-        CP      TECM8_EDITOR_KEY_PAGE_UP_LOWER
-        JP      Z,EditorKeyPageUp
-        CP      TECM8_EDITOR_KEY_PAGE_UP_UPPER
-        JP      Z,EditorKeyPageUp
-        CP      TECM8_EDITOR_KEY_CURSOR_LEFT_LOWER
-        JP      Z,EditorKeyCursorLeft
-        CP      TECM8_EDITOR_KEY_CURSOR_LEFT_UPPER
-        JP      Z,EditorKeyCursorLeft
-        CP      TECM8_EDITOR_KEY_CURSOR_DOWN_LOWER
-        JP      Z,EditorKeyCursorDown
-        CP      TECM8_EDITOR_KEY_CURSOR_DOWN_UPPER
-        JP      Z,EditorKeyCursorDown
-        CP      TECM8_EDITOR_KEY_CURSOR_UP_LOWER
-        JP      Z,EditorKeyCursorUp
-        CP      TECM8_EDITOR_KEY_CURSOR_UP_UPPER
-        JP      Z,EditorKeyCursorUp
-        CP      TECM8_EDITOR_KEY_CURSOR_RIGHT_LOWER
-        JP      Z,EditorKeyCursorRight
-        CP      TECM8_EDITOR_KEY_CURSOR_RIGHT_UPPER
-        JP      Z,EditorKeyCursorRight
+        CALL    EditorActionFromKey
+        RET     C
+        OR      A
+        JP      NZ,EditorDispatchAction
+        LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_BACKSPACE
         JP      Z,EditorKeyBackspace
         CP      TECM8_EDITOR_KEY_DELETE
@@ -194,6 +184,21 @@ EditorKeyPrompt:
         RET     C
         CALL    EditorPromptDispatch
         RET     C
+        JP      EditorKeyLoop
+
+EditorDispatchAction:
+        CP      TECM8_EDITOR_ACTION_PAGE_DOWN
+        JP      Z,EditorKeyPageDown
+        CP      TECM8_EDITOR_ACTION_PAGE_UP
+        JP      Z,EditorKeyPageUp
+        CP      TECM8_EDITOR_ACTION_CURSOR_LEFT
+        JP      Z,EditorKeyCursorLeft
+        CP      TECM8_EDITOR_ACTION_CURSOR_DOWN
+        JP      Z,EditorKeyCursorDown
+        CP      TECM8_EDITOR_ACTION_CURSOR_UP
+        JP      Z,EditorKeyCursorUp
+        CP      TECM8_EDITOR_ACTION_CURSOR_RIGHT
+        JP      Z,EditorKeyCursorRight
         JP      EditorKeyLoop
 
 EditorKeySave:
@@ -318,6 +323,69 @@ EditorKeyDelete:
 
 EditorKeyDone:
         CALL    EditorRenderCursor
+        RET
+
+; EditorActionFromKey -
+; Map one raw key byte to a named editor action. This isolates the temporary
+; proof key choices from movement semantics; a later matrix-key reader should
+; return these same action values for physical arrow keys and page commands.
+; Input:
+;   A = raw key byte
+; Output:
+;   A = TECM8_EDITOR_ACTION_* or TECM8_EDITOR_ACTION_NONE
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorActionFromKey:
+        CP      TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER
+        JR      Z,EditorActionPageDown
+        CP      TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_UPPER
+        JR      Z,EditorActionPageDown
+        CP      TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER
+        JR      Z,EditorActionPageUp
+        CP      TECM8_EDITOR_PROOF_KEY_PAGE_UP_UPPER
+        JR      Z,EditorActionPageUp
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER
+        JR      Z,EditorActionCursorLeft
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_UPPER
+        JR      Z,EditorActionCursorLeft
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_LOWER
+        JR      Z,EditorActionCursorDown
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_UPPER
+        JR      Z,EditorActionCursorDown
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_UP_LOWER
+        JR      Z,EditorActionCursorUp
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_UP_UPPER
+        JR      Z,EditorActionCursorUp
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_LOWER
+        JR      Z,EditorActionCursorRight
+        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_UPPER
+        JR      Z,EditorActionCursorRight
+        XOR     A
+        RET
+
+EditorActionPageDown:
+        LD      A,TECM8_EDITOR_ACTION_PAGE_DOWN
+        RET
+
+EditorActionPageUp:
+        LD      A,TECM8_EDITOR_ACTION_PAGE_UP
+        RET
+
+EditorActionCursorLeft:
+        LD      A,TECM8_EDITOR_ACTION_CURSOR_LEFT
+        RET
+
+EditorActionCursorDown:
+        LD      A,TECM8_EDITOR_ACTION_CURSOR_DOWN
+        RET
+
+EditorActionCursorUp:
+        LD      A,TECM8_EDITOR_ACTION_CURSOR_UP
+        RET
+
+EditorActionCursorRight:
+        LD      A,TECM8_EDITOR_ACTION_CURSOR_RIGHT
         RET
 
 ; EditorInsertChar -
