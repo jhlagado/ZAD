@@ -246,9 +246,16 @@ allocation block. The loader computes the sector-in-block and number of block
 links to follow. It depends on MON3's `DISK_BUFF` at `0x0600` through the BIOS
 storage wrappers.
 
-This is still proof-focused. It reads pages, follows block chains, and can write
-one loaded 512-byte page back to the same source file page. It is not yet a
-general TM8 filesystem layer.
+The save entry follows the same narrow path resolution as the loader. It finds
+the target TM8 file, resolves the requested page to the corresponding
+file-relative sector, reads that sector first to establish MON3's write context,
+copies the caller's 512-byte buffer into `DISK_BUFF`, and then calls
+`BiosFileWriteSector`. This proves page write-back for existing files, but it
+does not create catalog entries, allocate blocks, grow files, or write across a
+page boundary.
+
+This is still proof-focused. It reads pages, follows existing block chains, and
+writes existing pages. It is not yet a general TM8 filesystem layer.
 
 ### `src/editor-navigation.asm`
 
@@ -262,14 +269,34 @@ Public entries:
 - `EditorRenderCurrent`
 - `EditorRenderPageBuffer`
 - `EditorSaveCurrentPage`
+- `EditorBackupCurrentPage`
 - `EditorClearDirty`
 - `EditorPageDown`
 - `EditorPageUp`
+- `EditorNavDeriveBackupPath`
 
 The module stores a 64-byte path buffer, a 512-byte page buffer, and
-`EditorNavDirty`. Page moves are committed only after loading and rendering
-succeeds, so failed page-down or page-up attempts do not corrupt current-page
-state. Successful load/page movement and save clear the dirty flag.
+`EditorNavDirty`. It now also owns the first backup scratch buffers:
+`EditorNavBackupPathBuffer` for the derived hidden path and
+`EditorNavBackupPageBuffer` for the previous on-disk page. Page moves are
+committed only after loading and rendering succeeds, so failed page-down or
+page-up attempts do not corrupt current-page state. Successful load/page
+movement and save clear the dirty flag.
+
+`EditorSaveCurrentPage` is the current save coordinator. It first calls
+`EditorBackupCurrentPage`; if that succeeds, it writes `EditorNavPageBuffer`
+back to the current path/page and clears dirty. `EditorBackupCurrentPage`
+derives the hidden backup path from the current source path, loads the current
+on-disk page into `EditorNavBackupPageBuffer`, and writes that old page to the
+backup path. This is intentionally a first slice: the hidden backup file must
+already exist. Missing-file handling, catalog creation, replacement, allocation,
+and multi-page file backup remain outside this module today.
+
+`EditorNavDeriveBackupPath` implements the current naming convention. It keeps
+the original prefix, prepends `.` to the local filename, and appends `.b`.
+For example, `/src/main.asm` becomes `/src/.main.asm.b`. It fails with
+`TECM8_EDITOR_NAV_ERR_BACKUP` if the path is malformed or the derived name does
+not fit the fixed path buffer.
 
 ### `src/editor-interaction.asm`
 
@@ -302,8 +329,20 @@ the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
 and clears the flag only after the page write-back succeeds. There is not yet
-backup creation, backup restore, dirty quit protection, or sector-crossing
-insert/delete.
+backup catalog creation/replacement, backup restore, dirty quit protection, or
+sector-crossing insert/delete.
+
+The mutation primitives return a small change result in `A`: `1` means the
+buffer changed, `0` means the operation was a no-op, and carry still reports
+errors. The key loop uses that result so no-op delete, split, insert, and join
+paths do not dirty a clean buffer.
+
+The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
+the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the
+current on-disk page into `EditorNavBackupPageBuffer`, writes that page to the
+backup path, then writes the edited page to the source path. The backup file
+must already exist; catalog creation and allocation mutation are still future
+work.
 
 The module also owns the early status-line prompt state:
 
@@ -384,6 +423,12 @@ The display proofs build up the editor stack incrementally:
 - `proofs/display/editor-line-editing-proof.asm`: tests split-line/newline and
   join-line/backspace-at-start behavior inside the current 512-byte page
   buffer.
+- `proofs/display/editor-page-write-proof.asm`: tests edit/save/write-back
+  behavior through the storage-backed editor path. It now also checks that
+  no-op edit paths do not mark dirty, Ctrl-S clears dirty only after save,
+  prompt yes/no state works through the key loop, and the pre-existing hidden
+  backup file receives the previous on-disk page before the source page is
+  replaced.
 
 These proofs are the best executable tour of the unfinished editor.
 
@@ -438,9 +483,12 @@ The proof runners run AZM register-contract checking in strict mode. They pass
 TECM8 source for routines implemented in this repository.
 
 `tools/run-editor-viewport-storage-proof.ts` is the main editor proof runner.
-It now includes an `editor-line-editing-proof` case and verifies not just result
-markers, but also source-record text, zeroed padding, and cursor positions after
-split/join operations.
+It now includes `editor-line-editing-proof` and `editor-page-write-proof` cases
+and verifies not just result markers, but also source-record text, zeroed
+padding, cursor positions after split/join operations, dirty/prompt state, and
+persisted TM8 image bytes after save. For the current backup proof slice it
+pre-creates `/src/.main.asm.b`, then verifies that backup record 0 still
+contains the old on-disk text after the edited source page has been written.
 
 ### Storage Image And Audit Tools
 
@@ -539,17 +587,16 @@ What exists now:
   mutation, saves via Ctrl-S, and clears dirty after successful save.
 - Status-line yes/no prompt state exists and is rendered through the bottom
   chrome row for future restore and dirty-quit confirmations.
-- The design now has documented policies for status-line confirmations and
-  one-level hidden backup files, but those policies are not implemented in the
-  editor yet.
+- The editor derives a hidden one-level backup path and can preserve the
+  previous on-disk page there before save when the backup file already exists.
 
 What is still missing or intentionally skeletal:
 
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no backup creation, backup restore, search, dirty quit
-  protection, or real quit command yet.
+- The editor has no backup catalog creation/replacement, backup restore,
+  search, dirty quit protection, or real quit command yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not
