@@ -334,6 +334,80 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
   }
 }
 
+function cellHasPixels(memory: Uint8Array, row: number, column: number): boolean {
+  const mon3Tgbuf = 0x13c0;
+  const rowBytes = 16;
+  const textX = 6;
+  const cellX = textX + column * 6;
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    for (let x = cellX; x < cellX + 6; x += 1) {
+      const address = mon3Tgbuf + y * rowBytes + Math.floor(x / 8);
+      const mask = 0x80 >> (x % 8);
+      if ((memory[address] & mask) !== 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function readCellRows(memory: Uint8Array, row: number, column: number): number[] {
+  const mon3Tgbuf = 0x13c0;
+  const rowBytes = 16;
+  const textX = 6;
+  const cellX = textX + column * 6;
+  const rows = [];
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    let rowBits = 0;
+    for (let x = cellX; x < cellX + 6; x += 1) {
+      rowBits <<= 1;
+      const address = mon3Tgbuf + y * rowBytes + Math.floor(x / 8);
+      const mask = 0x80 >> (x % 8);
+      if ((memory[address] & mask) !== 0) {
+        rowBits |= 1;
+      }
+    }
+    rows.push(rowBits);
+  }
+  return rows;
+}
+
+function readFontRows(memory: Uint8Array, charCode: number): number[] {
+  const fontData = 0xdd9b;
+  const offset = fontData + (charCode - 1) * 6;
+  return Array.from(memory.subarray(offset, offset + 6), (value) => value & 0x3f);
+}
+
+function assertCellMatchesFont(memory: Uint8Array, row: number, column: number, charCode: number): void {
+  const actual = readCellRows(memory, row, column);
+  const expected = readFontRows(memory, charCode);
+  if (actual.join(',') !== expected.join(',')) {
+    throw new Error(
+      `GLCD tile proof rendered ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected font rows [${expected.join(',')}]`,
+    );
+  }
+}
+
+function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): void {
+  if (cellHasPixels(runtime.hardware.memory, 1, 0)) {
+    throw new Error('GLCD tile proof left stale pixels in a cleared cell');
+  }
+  if (!cellHasPixels(runtime.hardware.memory, 1, 1)) {
+    throw new Error('GLCD tile proof did not draw the adjacent cell');
+  }
+  if (!cellHasPixels(runtime.hardware.memory, 2, 0) || !cellHasPixels(runtime.hardware.memory, 2, 1)) {
+    throw new Error('GLCD tile proof did not draw a text run');
+  }
+  assertCellMatchesFont(runtime.hardware.memory, 1, 1, 'B'.charCodeAt(0));
+  assertCellMatchesFont(runtime.hardware.memory, 2, 0, 'O'.charCodeAt(0));
+  assertCellMatchesFont(runtime.hardware.memory, 2, 1, 'K'.charCodeAt(0));
+
+  const glcd = getGlcdBytes(platformRuntime);
+  if (!glcdRowHasPixels(glcd, 1) || !glcdRowHasPixels(glcd, 2)) {
+    throw new Error('GLCD tile proof did not flush tile rows to the visible GLCD');
+  }
+}
+
 function readCString(memory: Uint8Array, address: number): string {
   const bytes = [];
   for (let current = address; current < memory.length; current += 1) {
@@ -368,6 +442,9 @@ async function main(): Promise<void> {
   }
   if (proofName === 'structured-screen-proof') {
     verifyStructuredScreen(runtime, platformRuntime);
+  }
+  if (proofName === 'glcd-tile-proof') {
+    verifyGlcdTile(runtime, platformRuntime);
   }
   if (proofName === 'editor-viewport-proof') {
     verifyEditorViewport(runtime, platformRuntime, symbols);
