@@ -240,6 +240,8 @@ Public entries:
 - `EditorLoadMainPage`: page `A` of `/src/main.asm`
 - `EditorLoadSourcePage`: page `A` of an arbitrary TM8 path in `DE`
 - `EditorSaveSourcePage`: save caller buffer `HL` to page `A` of path `DE`
+- `EditorCreateSourceFile`: create a one-block source file at path `DE` in an
+  existing prefix
 
 Page indexes are limited to 0..127. A page is a 512-byte sector, not a 4K TM8
 allocation block. The loader computes the sector-in-block and number of block
@@ -250,12 +252,16 @@ The save entry follows the same narrow path resolution as the loader. It finds
 the target TM8 file, resolves the requested page to the corresponding
 file-relative sector, reads that sector first to establish MON3's write context,
 copies the caller's 512-byte buffer into `DISK_BUFF`, and then calls
-`BiosFileWriteSector`. This proves page write-back for existing files, but it
-does not create catalog entries, allocate blocks, grow files, or write across a
-page boundary.
+`BiosFileWriteSector`. `EditorCreateSourceFile` adds the narrow create path
+needed by editor backups: it finds a free data block, marks that allocation
+entry as end-of-chain, writes a catalog entry, and updates the superblock free
+block count/checksum. It assumes the prefix already exists and creates a
+single 4K source file; it is not a general grow, remove, rename, or directory
+creation API.
 
-This is still proof-focused. It reads pages, follows existing block chains, and
-writes existing pages. It is not yet a general TM8 filesystem layer.
+This is still proof-focused. It reads pages, follows existing block chains,
+writes existing pages, and can create the one-block backup files the editor
+needs. It is not yet a general TM8 filesystem layer.
 
 ### `src/editor-navigation.asm`
 
@@ -288,9 +294,9 @@ movement and save clear the dirty flag.
 back to the current path/page and clears dirty. `EditorBackupCurrentPage`
 derives the hidden backup path from the current source path, loads the current
 on-disk page into `EditorNavBackupPageBuffer`, and writes that old page to the
-backup path. This is intentionally a first slice: the hidden backup file must
-already exist. Missing-file handling, catalog creation, replacement, allocation,
-and multi-page file backup remain outside this module today.
+backup path. If the backup path is missing, it asks the storage loader to
+create a one-block file first, then retries the backup write. Multi-page backup
+policy remains outside this module today.
 
 `EditorNavDeriveBackupPath` implements the current naming convention. It keeps
 the original prefix, prepends `.` to the local filename, and appends `.b`.
@@ -328,9 +334,9 @@ the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
-and clears the flag only after the page write-back succeeds. There is not yet
-backup catalog creation/replacement, backup restore, dirty quit protection, or
-sector-crossing insert/delete.
+and clears the flag only after the backup and page write-back succeed. There is
+not yet backup restore, dirty quit protection, or sector-crossing
+insert/delete.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -340,9 +346,9 @@ paths do not dirty a clean buffer.
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
 the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the
 current on-disk page into `EditorNavBackupPageBuffer`, writes that page to the
-backup path, then writes the edited page to the source path. The backup file
-must already exist; catalog creation and allocation mutation are still future
-work.
+backup path, then writes the edited page to the source path. If the backup file
+does not exist, it creates a one-block hidden backup file in the existing
+prefix. Replacement is just the existing page-write path.
 
 The module also owns the early status-line prompt state:
 
@@ -487,8 +493,9 @@ It now includes `editor-line-editing-proof` and `editor-page-write-proof` cases
 and verifies not just result markers, but also source-record text, zeroed
 padding, cursor positions after split/join operations, dirty/prompt state, and
 persisted TM8 image bytes after save. For the current backup proof slice it
-pre-creates `/src/.main.asm.b`, then verifies that backup record 0 still
-contains the old on-disk text after the edited source page has been written.
+starts without `/src/.main.asm.b`, then verifies that the Z80 save path creates
+that hidden backup and stores the old on-disk text before the edited source page
+is written.
 
 ### Storage Image And Audit Tools
 
@@ -588,15 +595,15 @@ What exists now:
 - Status-line yes/no prompt state exists and is rendered through the bottom
   chrome row for future restore and dirty-quit confirmations.
 - The editor derives a hidden one-level backup path and can preserve the
-  previous on-disk page there before save when the backup file already exists.
+  previous on-disk page there before save, creating the backup file when needed.
 
 What is still missing or intentionally skeletal:
 
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no backup catalog creation/replacement, backup restore,
-  search, dirty quit protection, or real quit command yet.
+- The editor has no backup restore, search, dirty quit protection, or real quit
+  command yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not

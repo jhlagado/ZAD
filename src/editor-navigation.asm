@@ -68,7 +68,6 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 
 ; EditorBackupCurrentPage -
 ; Save the current on-disk page to the derived hidden backup path.
-; The backup file must already exist in this first implementation.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorBackupCurrentPage:
@@ -81,6 +80,16 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavBackupPageBuffer
         CALL    EditorLoadSourcePage
+        RET     C
+        LD      A,(EditorNavCurrentPage)
+        LD      DE,EditorNavBackupPathBuffer
+        LD      HL,EditorNavBackupPageBuffer
+        CALL    EditorSaveSourcePage
+        RET     NC
+        CP      EDITOR_LOAD_ERR_FIND
+        RET     NZ
+        LD      DE,EditorNavBackupPathBuffer
+        CALL    EditorCreateSourceFile
         RET     C
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer

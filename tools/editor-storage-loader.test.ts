@@ -25,7 +25,7 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /CALL\s+BiosFileReadSector/);
   assert.match(source, /CALL\s+BiosFileWriteSector/);
   assert.match(source, /EditorLoadVolumeName:\n\s+\.db\s+"VOLUME\.TM8",0/);
-  assert.match(source, /CP\s+128\n\s+JR\s+NC,EditorLoadPageErr/);
+  assert.match(source, /CP\s+128\n\s+JP\s+NC,EditorLoadPageErr/);
   assert.match(source, /LD\s+\(EditorLoadBlockSteps\),A/);
   assert.match(source, /CALL\s+EditorLoadResolveSourceBlock/);
   assert.match(source, /CALL\s+EditorLoadReadAllocationEntry/);
@@ -143,7 +143,7 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(packageJson, /proof:display:editor-viewport:storage/);
   assert.match(packageJson, /proof:display:editor-page-write/);
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
-  assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/\.main\.asm\.b', sourceRecords\)/);
+  assert.doesNotMatch(runner, /importFileIntoVolumeImage\(volume, '\/src\/\.main\.asm\.b', sourceRecords\)/);
   assert.match(runner, /editor-page-write-proof/);
   assert.match(runner, /verifyEditorPageWriteProof/);
   assert.match(runner, /DirtyAfterNoopDelete/);

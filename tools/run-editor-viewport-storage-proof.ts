@@ -285,9 +285,6 @@ function ensureImage(proofCase: ProofCase): string {
   const rootRecords = encodeSourceRecords(makeRootLines());
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
-  if (proofCase === PROOF_CASES['editor-page-write-proof']) {
-    volume = importFileIntoVolumeImage(volume, '/src/.main.asm.b', sourceRecords);
-  }
   volume = importFileIntoVolumeImage(volume, '/projects/demo/app.asm', appRecords);
   volume = importFileIntoVolumeImage(volume, '/root.asm', rootRecords);
   if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {

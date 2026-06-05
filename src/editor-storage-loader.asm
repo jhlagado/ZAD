@@ -43,6 +43,7 @@ EDITOR_LOAD_ERR_READ    .equ    0x35
 EDITOR_LOAD_ERR_BLOCK   .equ    0x36
 EDITOR_LOAD_ERR_PAGE    .equ    0x37
 EDITOR_LOAD_ERR_WRITE   .equ    0x38
+EDITOR_LOAD_ERR_CREATE  .equ    0x39
 
 ; EditorLoadMainSector -
 ; Load the first sector of /src/main.asm into caller buffer HL.
@@ -132,7 +133,7 @@ EditorLoadPrefixReady:
         LD      (EditorLoadDest),HL
         LD      (EditorLoadSourcePathPtr),DE
         CP      128
-        JR      NC,EditorLoadPageErr
+        JP      NC,EditorLoadPageErr
         AND     7
         LD      (EditorLoadSectorInBlock),A
         LD      A,(EditorLoadSectorIndex)
@@ -172,6 +173,47 @@ EditorSavePrefixReady:
         RET     C
         XOR     A
         RET
+
+; EditorCreateSourceFile -
+; Create a one-block source file for an already-existing TM8 prefix.
+; Input:
+;   DE = NUL-terminated TM8 path, e.g. /src/.main.asm.b
+;!      in        DE
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorCreateSourceFile:
+        LD      (EditorLoadSourcePathPtr),DE
+        CALL    EditorLoadParseSourcePath
+        RET     C
+
+        LD      HL,EditorLoadVolumeName
+        CALL    BiosFileOpen
+        JP      C,EditorLoadOpenErr
+
+        CALL    EditorLoadReadSuperblock
+        RET     C
+        LD      A,(EditorLoadPrefixLen)
+        OR      A
+        JR      Z,EditorCreateRootPrefix
+        CALL    EditorLoadFindSourcePrefix
+        RET     C
+        JR      EditorCreatePrefixReady
+
+EditorCreateRootPrefix:
+        LD      (EditorLoadSrcPrefixId),A
+
+EditorCreatePrefixReady:
+        CALL    EditorCreateFindCatalogSlot
+        RET     C
+        CALL    EditorCreateNextFileId
+        RET     C
+        CALL    EditorCreateFindFreeBlock
+        RET     C
+        CALL    EditorCreateMarkAllocatedBlock
+        RET     C
+        CALL    EditorCreateWriteCatalogEntry
+        RET     C
+        JP      EditorCreateUpdateSuperblock
 
 EditorLoadOpenErr:
         LD      A,EDITOR_LOAD_ERR_OPEN
@@ -364,6 +406,11 @@ EditorLoadReadErr:
 
 EditorLoadWriteErr:
         LD      A,EDITOR_LOAD_ERR_WRITE
+        SCF
+        RET
+
+EditorLoadCreateErr:
+        LD      A,EDITOR_LOAD_ERR_CREATE
         SCF
         RET
 
@@ -666,6 +713,378 @@ EditorLoadBlockErr:
 
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
+@EditorCreateFindFreeBlock:
+        LD      DE,TM8_ALLOC_START_BLOCK * TM8_BLOCK_BYTES
+        LD      (EditorCreateAllocOffset),DE
+        LD      HL,0
+        LD      (EditorCreateBlockCandidate),HL
+        LD      A,TM8_TOTAL_BLOCKS / (TM8_SECTOR_BYTES / 2)
+        LD      (EditorCreateAllocSectorsLeft),A
+
+EditorCreateFreeBlockSector:
+        LD      DE,(EditorCreateAllocOffset)
+        PUSH    DE
+        LD      HL,0
+        CALL    BiosFileReadSector
+        POP     DE
+        JP      C,EditorLoadReadErr
+
+        LD      HL,(EditorCreateBlockCandidate)
+        LD      A,H
+        OR      L
+        JR      NZ,EditorCreateFreeBlockWholeSector
+        LD      HL,DISK_BUFF + (TM8_DATA_START_BLOCK * 2)
+        LD      DE,TM8_DATA_START_BLOCK
+        LD      B,(TM8_SECTOR_BYTES / 2) - TM8_DATA_START_BLOCK
+        JR      EditorCreateFreeBlockLoopReady
+
+EditorCreateFreeBlockWholeSector:
+        LD      HL,DISK_BUFF
+        LD      DE,(EditorCreateBlockCandidate)
+        LD      B,0
+
+EditorCreateFreeBlockLoopReady:
+EditorCreateFreeBlockLoop:
+        LD      A,(HL)
+        INC     HL
+        OR      (HL)
+        JR      Z,EditorCreateFreeBlockFound
+        INC     HL
+        INC     DE
+        DJNZ    EditorCreateFreeBlockLoop
+        LD      (EditorCreateBlockCandidate),DE
+        LD      HL,(EditorCreateAllocOffset)
+        LD      BC,TM8_SECTOR_BYTES
+        ADD     HL,BC
+        LD      (EditorCreateAllocOffset),HL
+        LD      A,(EditorCreateAllocSectorsLeft)
+        DEC     A
+        LD      (EditorCreateAllocSectorsLeft),A
+        JR      NZ,EditorCreateFreeBlockSector
+        JP      EditorLoadCreateErr
+
+EditorCreateFreeBlockFound:
+        LD      (EditorCreateFreeBlock),DE
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@EditorCreateMarkAllocatedBlock:
+        LD      HL,(EditorCreateFreeBlock)
+        LD      A,H
+        ADD     A,A
+        ADD     A,0x10
+        LD      D,A
+        LD      E,0
+        LD      (EditorCreateAllocSectorHigh),A
+        LD      HL,0
+        CALL    BiosFileReadSector
+        JP      C,EditorLoadReadErr
+
+        LD      A,(EditorCreateFreeBlock)
+        ADD     A,A
+        LD      L,A
+        LD      H,0
+        JR      NC,EditorCreateMarkOffsetOk
+        INC     H
+
+EditorCreateMarkOffsetOk:
+        LD      DE,DISK_BUFF
+        ADD     HL,DE
+        LD      (HL),0xFF
+        INC     HL
+        LD      (HL),0xFF
+
+        LD      A,(EditorCreateAllocSectorHigh)
+        LD      D,A
+        LD      E,0
+        LD      HL,0
+        CALL    BiosFileWriteSector
+        JP      C,EditorLoadWriteErr
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@EditorCreateFindCatalogSlot:
+        LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
+        LD      A,TM8_CATALOG_SECTORS
+        LD      (EditorLoadSectorsLeft),A
+
+EditorCreateFreeCatalogSector:
+        PUSH    DE
+        LD      HL,0
+        CALL    BiosFileReadSector
+        POP     DE
+        JP      C,EditorLoadReadErr
+
+        LD      HL,DISK_BUFF
+        LD      B,TM8_ENTRIES_SECTOR
+
+EditorCreateFreeCatalogEntry:
+        LD      A,(HL)
+        OR      A
+        JR      Z,EditorCreateFreeCatalogFound
+        PUSH    DE
+        LD      DE,TM8_CATALOG_ENTRY
+        ADD     HL,DE
+        POP     DE
+        DJNZ    EditorCreateFreeCatalogEntry
+
+        EX      DE,HL
+        LD      BC,TM8_SECTOR_BYTES
+        ADD     HL,BC
+        EX      DE,HL
+        LD      A,(EditorLoadSectorsLeft)
+        DEC     A
+        LD      (EditorLoadSectorsLeft),A
+        JR      NZ,EditorCreateFreeCatalogSector
+        JP      EditorLoadCreateErr
+
+EditorCreateFreeCatalogFound:
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@EditorCreateNextFileId:
+        XOR     A
+        LD      (EditorCreateFileId),A
+
+EditorCreateNextFileIdTry:
+        CALL    EditorCreateFileIdUsed
+        RET     C
+        OR      A
+        JR      Z,EditorCreateNextFileIdOk
+        LD      A,(EditorCreateFileId)
+        INC     A
+        LD      (EditorCreateFileId),A
+        JR      NZ,EditorCreateNextFileIdTry
+        JP      EditorLoadCreateErr
+
+EditorCreateNextFileIdOk:
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@EditorCreateFileIdUsed:
+        LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
+        LD      A,TM8_CATALOG_SECTORS
+        LD      (EditorLoadSectorsLeft),A
+
+EditorCreateFileIdSector:
+        PUSH    DE
+        LD      HL,0
+        CALL    BiosFileReadSector
+        POP     DE
+        JP      C,EditorLoadReadErr
+
+        LD      HL,DISK_BUFF
+        LD      B,TM8_ENTRIES_SECTOR
+
+EditorCreateFileIdEntry:
+        LD      A,(HL)
+        CP      TM8_ENTRY_ACTIVE
+        JR      NZ,EditorCreateFileIdAdvance
+        INC     HL
+        LD      A,(EditorCreateFileId)
+        CP      (HL)
+        JR      Z,EditorCreateFileIdFound
+        DEC     HL
+
+EditorCreateFileIdAdvance:
+        PUSH    DE
+        LD      DE,TM8_CATALOG_ENTRY
+        ADD     HL,DE
+        POP     DE
+        DJNZ    EditorCreateFileIdEntry
+
+        EX      DE,HL
+        LD      BC,TM8_SECTOR_BYTES
+        ADD     HL,BC
+        EX      DE,HL
+        LD      A,(EditorLoadSectorsLeft)
+        DEC     A
+        LD      (EditorLoadSectorsLeft),A
+        JR      NZ,EditorCreateFileIdSector
+        XOR     A
+        RET
+
+EditorCreateFileIdFound:
+        LD      A,1
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@EditorCreateWriteCatalogEntry:
+        LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
+        LD      A,TM8_CATALOG_SECTORS
+        LD      (EditorLoadSectorsLeft),A
+
+EditorCreateCatalogSector:
+        PUSH    DE
+        LD      HL,0
+        CALL    BiosFileReadSector
+        POP     DE
+        JP      C,EditorLoadReadErr
+
+        LD      HL,DISK_BUFF
+        LD      B,TM8_ENTRIES_SECTOR
+
+EditorCreateCatalogEntry:
+        LD      A,(HL)
+        OR      A
+        JR      Z,EditorCreateCatalogFound
+        PUSH    DE
+        LD      DE,TM8_CATALOG_ENTRY
+        ADD     HL,DE
+        POP     DE
+        LD      A,(EditorCreateFileId)
+        DJNZ    EditorCreateCatalogEntry
+
+        EX      DE,HL
+        LD      BC,TM8_SECTOR_BYTES
+        ADD     HL,BC
+        EX      DE,HL
+        LD      A,(EditorLoadSectorsLeft)
+        DEC     A
+        LD      (EditorLoadSectorsLeft),A
+        JR      NZ,EditorCreateCatalogSector
+        JP      EditorLoadCreateErr
+
+EditorCreateCatalogFound:
+        LD      (EditorCreateEntryBase),HL
+        LD      A,TM8_ENTRY_ACTIVE
+        LD      (HL),A
+        INC     HL
+        LD      A,(EditorCreateFileId)
+        LD      (HL),A
+        INC     HL
+        LD      A,(EditorLoadSrcPrefixId)
+        LD      (HL),A
+        INC     HL
+        LD      A,(EditorLoadNameLen)
+        LD      (HL),A
+        INC     HL
+        LD      DE,(EditorLoadNamePtr)
+        LD      A,(EditorLoadNameLen)
+        LD      B,A
+
+EditorCreateCatalogNameLoop:
+        LD      A,(DE)
+        LD      (HL),A
+        INC     DE
+        INC     HL
+        DJNZ    EditorCreateCatalogNameLoop
+
+        LD      HL,(EditorCreateEntryBase)
+        LD      DE,44
+        ADD     HL,DE
+        LD      DE,(EditorCreateFreeBlock)
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+        INC     HL
+        LD      (HL),0
+        INC     HL
+        LD      (HL),0x10
+        INC     HL
+        LD      (HL),0
+        INC     HL
+        LD      (HL),0
+        INC     HL
+        LD      (HL),1
+
+        LD      A,(EditorLoadSectorsLeft)
+        LD      B,A
+        LD      A,TM8_CATALOG_SECTORS
+        SUB     B
+        ADD     A,TM8_CATALOG_SECTOR
+        ADD     A,A
+        LD      D,A
+        LD      E,0
+        LD      HL,0
+        CALL    BiosFileWriteSector
+        JP      C,EditorLoadWriteErr
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,DE,HL
+@EditorCreateUpdateSuperblock:
+        LD      HL,0
+        LD      DE,0
+        CALL    BiosFileReadSector
+        JP      C,EditorLoadReadErr
+
+        LD      HL,DISK_BUFF + 42
+        LD      A,(HL)
+        OR      A
+        JR      Z,EditorCreateFreeCountBorrow
+        DEC     (HL)
+        CALL    EditorCreateChecksumSubOne
+        JR      EditorCreateFreeCountOk
+
+EditorCreateFreeCountBorrow:
+        LD      (HL),0xFF
+        INC     HL
+        DEC     (HL)
+        CALL    EditorCreateChecksumAdd254
+
+EditorCreateFreeCountOk:
+        LD      HL,0
+        LD      DE,0
+        CALL    BiosFileWriteSector
+        JP      C,EditorLoadWriteErr
+        XOR     A
+        RET
+
+;!      out       A,zero
+;!      clobbers  A,HL
+@EditorCreateChecksumSubOne:
+        LD      HL,DISK_BUFF + 72
+        LD      A,(HL)
+        OR      A
+        JR      NZ,EditorCreateChecksumSubDec
+        DEC     (HL)
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,EditorCreateChecksumSubDec
+        DEC     (HL)
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,EditorCreateChecksumSubDec
+        DEC     (HL)
+        INC     HL
+
+EditorCreateChecksumSubDec:
+        DEC     (HL)
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,HL
+@EditorCreateChecksumAdd254:
+        LD      HL,DISK_BUFF + 72
+        LD      A,(HL)
+        ADD     A,0xFE
+        LD      (HL),A
+        RET     NC
+        INC     HL
+        INC     (HL)
+        RET     NZ
+        INC     HL
+        INC     (HL)
+        RET     NZ
+        INC     HL
+        INC     (HL)
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
 @EditorLoadWriteSourceSector:
         LD      HL,(EditorLoadFirstBlock)
         CALL    EditorLoadResolveSourceBlock
@@ -888,3 +1307,24 @@ EditorLoadSectorOffsetHigh:
 
 EditorLoadSectorOffsetUpper:
         .dw     0
+
+EditorCreateFreeBlock:
+        .dw     0
+
+EditorCreateBlockCandidate:
+        .dw     0
+
+EditorCreateAllocOffset:
+        .dw     0
+
+EditorCreateEntryBase:
+        .dw     0
+
+EditorCreateFileId:
+        .db     0
+
+EditorCreateAllocSectorsLeft:
+        .db     0
+
+EditorCreateAllocSectorHigh:
+        .db     0

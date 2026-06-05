@@ -53,9 +53,9 @@ and wait for further instructions before starting assembler integration.
 - The editor has a status-line yes/no prompt state: unrelated keys are ignored,
   yes/no answers complete the prompt, and the bottom chrome switches back after
   completion.
-- The editor derives the hidden backup path and, when that backup file already
-  exists, saves the previous on-disk page there before writing the edited page
-  to the source file.
+- The editor derives the hidden backup path, creates it when missing, and saves
+  the previous on-disk page there before writing the edited page to the source
+  file.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
 - Design policies exist for reserved source-record length bits, hidden dotfiles,
@@ -63,29 +63,23 @@ and wait for further instructions before starting assembler integration.
 
 ## Near-Term Goal Order
 
-1. **Backup catalog create/replace**
-   - Extend the Z80 TM8 writer beyond existing-file page writes.
-   - Create `/src/.main.asm.b` when it is missing.
-   - Replace the existing hidden backup when it is already present.
-   - Keep the current backup path convention and filename-length failure.
-
-2. **Restore from backup**
+1. **Restore from backup**
    - Add an editor command to load the hidden backup into the current buffer.
    - Confirm through status-line prompt mode.
    - Mark the restored buffer dirty so the user can inspect before saving.
 
-3. **Quit behavior**
+2. **Quit behavior**
    - Add a real quit command from editor back to shell.
    - If dirty, prompt before discarding unsaved changes.
    - Preserve proof-key streams while moving toward real keyboard input.
 
-4. **Sector-edge policy**
+3. **Sector-edge policy**
    - Keep current in-page split/join behavior.
    - Define and prove conservative behavior at page boundaries.
    - A first version may refuse sector-crossing line insert/delete rather than
      shifting data across multiple sectors.
 
-5. **Debug80-runnable editor session**
+4. **Debug80-runnable editor session**
    - Build a TECM8 entry path that can be launched in Debug80, not only proof
      harnesses.
    - Provide a prepared FAT32/TM8 image containing `/tecm8.prj` and source text.
