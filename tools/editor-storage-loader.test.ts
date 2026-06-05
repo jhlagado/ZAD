@@ -156,6 +156,7 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /DirtyAfterRestoreNo/);
   assert.match(runner, /DirtyAfterRestoreEsc/);
   assert.match(runner, /DirtyAfterRestore/);
+  assert.match(runner, /QuitAfterDirtyYes/);
   assert.match(runner, /RestoreRecord0FirstChar/);
   assert.match(runner, /editor backup persisted record 0/);
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);

@@ -316,6 +316,7 @@ key stream rather than real keyboard input. In command mode:
 - `d`/`D` page down
 - `u`/`U` page up
 - `h`/`j`/`k`/`l` move the cursor
+- Ctrl-Q quits the key stream, prompting first when the page is dirty
 - Ctrl-S saves the currently loaded page
 - Ctrl-R prompts to restore the hidden backup into the current buffer
 - TAB enters insert mode for the stream
@@ -342,8 +343,9 @@ operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
 and clears the flag only after the backup and page write-back succeed. Ctrl-R
 arms a status-line restore prompt; a yes answer loads the hidden backup into
 the current page buffer, rerenders it, and marks it dirty so the user can
-inspect before saving. There is not yet dirty quit protection or
-sector-crossing insert/delete.
+inspect before saving. Ctrl-Q exits the key stream immediately when clean; when
+dirty, it asks before discarding changes and only exits on yes. There is not
+yet sector-crossing insert/delete.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -364,7 +366,7 @@ The module also owns the early status-line prompt state:
 - `EditorPromptActive` routes subsequent keys to prompt handling.
 - `EditorPromptResult` records yes/no completion (`1` yes, `2` no).
 - `EditorPromptAction` records whether completion should trigger an editor
-  action such as backup restore.
+  action such as backup restore or dirty quit.
 - Unknown keys leave the prompt active; `Y`/`y`, `N`/`n`, or ESC complete it.
 
 `EditorSplitLine` shifts records down within the current 16-record page
@@ -602,18 +604,20 @@ What exists now:
 - The editor tracks dirty state for the loaded page, marks dirty after
   mutation, saves via Ctrl-S, and clears dirty after successful save.
 - Status-line yes/no prompt state exists and is rendered through the bottom
-  chrome row for restore and future dirty-quit confirmations.
+  chrome row for restore and dirty-quit confirmations.
 - The editor derives a hidden one-level backup path and can preserve the
   previous on-disk page there before save, creating the backup file when needed.
 - The editor can restore the hidden backup into the current buffer and mark the
   restored buffer dirty for inspection.
+- The editor can quit from the key stream, with dirty-state confirmation before
+  discarding unsaved changes.
 
 What is still missing or intentionally skeletal:
 
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no search, dirty quit protection, or real quit command yet.
+- The editor has no search or sector-crossing edit behavior yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not

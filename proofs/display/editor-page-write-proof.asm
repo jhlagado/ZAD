@@ -66,6 +66,12 @@ PROOF_FAIL       .equ     0xE0
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterSave),A
 
+        LD      HL,EditorCleanQuitKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorQuitRequested)
+        LD      (QuitAfterClean),A
+
         LD      HL,EditorPromptProofText
         CALL    EditorPromptAskYesNo
         JP      C,ProofFailed
@@ -121,6 +127,22 @@ PROOF_FAIL       .equ     0xE0
         LD      A,(HL)
         LD      (RestoreRecord0FirstChar),A
 
+        LD      HL,EditorDirtyQuitNoKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorQuitRequested)
+        LD      (QuitAfterDirtyNo),A
+        LD      A,(EditorPromptResult)
+        LD      (PromptResultAfterQuitNo),A
+
+        LD      HL,EditorDirtyQuitYesKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorQuitRequested)
+        LD      (QuitAfterDirtyYes),A
+        LD      A,(EditorPromptResult)
+        LD      (PromptResultAfterQuitYes),A
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -147,6 +169,9 @@ EditorPageEditKeys:
 EditorPageSaveKeys:
         .db     19,0
 
+EditorCleanQuitKeys:
+        .db     17,0
+
 EditorNoopDeleteKeys:
         .db     127,0
 
@@ -171,6 +196,12 @@ EditorRestoreNoKeys:
 EditorRestoreEscKeys:
         .db     18,27,0
 
+EditorDirtyQuitNoKeys:
+        .db     17,"N",0
+
+EditorDirtyQuitYesKeys:
+        .db     17,"Y",0
+
 EditorPromptProofText:
         .db     "Save changes? Y/N",0
 
@@ -187,6 +218,9 @@ DirtyAfterEdit:
         .db     0
 
 DirtyAfterSave:
+        .db     0
+
+QuitAfterClean:
         .db     0
 
 PromptActiveAfterIgnore:
@@ -226,6 +260,18 @@ RestoreRecord0Length:
         .db     0
 
 RestoreRecord0FirstChar:
+        .db     0
+
+QuitAfterDirtyNo:
+        .db     0
+
+PromptResultAfterQuitNo:
+        .db     0
+
+QuitAfterDirtyYes:
+        .db     0
+
+PromptResultAfterQuitYes:
         .db     0
 
 ResultMarker:

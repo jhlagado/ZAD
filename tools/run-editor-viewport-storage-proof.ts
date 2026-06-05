@@ -668,6 +668,10 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   if (dirtyAfterSave !== 0) {
     throw new Error(`editor page write dirty after save ${dirtyAfterSave}, expected 0`);
   }
+  const quitAfterClean = runtime.hardware.memory[symbolAddress(symbols, 'QuitAfterClean')];
+  if (quitAfterClean !== 1) {
+    throw new Error(`editor page write quit after clean ${quitAfterClean}, expected 1`);
+  }
   const dirtyAfterRestoreNo = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterRestoreNo')];
   const dirtyAfterRestoreEsc = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterRestoreEsc')];
   if (dirtyAfterRestoreNo !== 0) {
@@ -692,6 +696,10 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
     { symbol: 'RestoreEscRecord0FirstChar', expected: 'O'.charCodeAt(0) },
     { symbol: 'RestoreRecord0Length', expected: 8 },
     { symbol: 'RestoreRecord0FirstChar', expected: 'S'.charCodeAt(0) },
+    { symbol: 'QuitAfterDirtyNo', expected: 0 },
+    { symbol: 'PromptResultAfterQuitNo', expected: 2 },
+    { symbol: 'QuitAfterDirtyYes', expected: 1 },
+    { symbol: 'PromptResultAfterQuitYes', expected: 1 },
   ];
   for (const check of promptChecks) {
     const value = runtime.hardware.memory[symbolAddress(symbols, check.symbol)];
