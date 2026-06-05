@@ -42,6 +42,7 @@ EDITOR_LOAD_ERR_SIZE    .equ    0x34
 EDITOR_LOAD_ERR_READ    .equ    0x35
 EDITOR_LOAD_ERR_BLOCK   .equ    0x36
 EDITOR_LOAD_ERR_PAGE    .equ    0x37
+EDITOR_LOAD_ERR_WRITE   .equ    0x38
 
 ; EditorLoadMainSector -
 ; Load the first sector of /src/main.asm into caller buffer HL.
@@ -76,7 +77,7 @@ EDITOR_LOAD_ERR_PAGE    .equ    0x37
         LD      (EditorLoadDest),HL
         LD      (EditorLoadSourcePathPtr),DE
         CP      128
-        JR      NC,EditorLoadPageErr
+        JP      NC,EditorLoadPageErr
         AND     7
         LD      (EditorLoadSectorInBlock),A
         LD      A,(EditorLoadSectorIndex)
@@ -113,6 +114,61 @@ EditorLoadPrefixReady:
         CALL    EditorLoadFindSource
         RET     C
         CALL    EditorLoadReadSourceSector
+        RET     C
+        XOR     A
+        RET
+
+; EditorSaveSourcePage -
+; Save one 512-byte sector page from caller buffer HL into a source file.
+; Input:
+;   A  = page index, limited to 0..127
+;   DE = NUL-terminated TM8 path, e.g. /src/main.asm
+;   HL = caller source buffer
+;!      in        A,DE,HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorSaveSourcePage:
+        LD      (EditorLoadSectorIndex),A
+        LD      (EditorLoadDest),HL
+        LD      (EditorLoadSourcePathPtr),DE
+        CP      128
+        JR      NC,EditorLoadPageErr
+        AND     7
+        LD      (EditorLoadSectorInBlock),A
+        LD      A,(EditorLoadSectorIndex)
+        RRCA
+        RRCA
+        RRCA
+        AND     0x1F
+        LD      (EditorLoadBlockSteps),A
+        LD      A,(EditorLoadSectorIndex)
+        ADD     A,A
+        INC     A
+        LD      (EditorLoadRequiredSizeHigh),A
+
+        CALL    EditorLoadParseSourcePath
+        RET     C
+
+        LD      HL,EditorLoadVolumeName
+        CALL    BiosFileOpen
+        JP      C,EditorLoadOpenErr
+
+        CALL    EditorLoadReadSuperblock
+        RET     C
+        LD      A,(EditorLoadPrefixLen)
+        OR      A
+        JR      Z,EditorSaveRootPrefix
+        CALL    EditorLoadFindSourcePrefix
+        RET     C
+        JR      EditorSavePrefixReady
+
+EditorSaveRootPrefix:
+        LD      (EditorLoadSrcPrefixId),A
+
+EditorSavePrefixReady:
+        CALL    EditorLoadFindSource
+        RET     C
+        CALL    EditorLoadWriteSourceSector
         RET     C
         XOR     A
         RET
@@ -303,6 +359,11 @@ EditorLoadSuperErr:
 
 EditorLoadReadErr:
         LD      A,EDITOR_LOAD_ERR_READ
+        SCF
+        RET
+
+EditorLoadWriteErr:
+        LD      A,EDITOR_LOAD_ERR_WRITE
         SCF
         RET
 
@@ -603,6 +664,38 @@ EditorLoadBlockErr:
         XOR     A
         RET
 
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@EditorLoadWriteSourceSector:
+        LD      HL,(EditorLoadFirstBlock)
+        CALL    EditorLoadResolveSourceBlock
+        RET     C
+        LD      HL,(EditorLoadResolvedBlock)
+        CALL    EditorLoadBlockToOffset
+        LD      A,(EditorLoadSectorInBlock)
+        ADD     A,A
+        ADD     A,D
+        LD      D,A
+        LD      (EditorLoadSectorOffsetHigh),A
+        LD      (EditorLoadSectorOffsetUpper),HL
+        CALL    BiosFileReadSector
+        JP      C,EditorLoadReadErr
+
+        LD      HL,(EditorLoadDest)
+        LD      DE,DISK_BUFF
+        LD      BC,TM8_SECTOR_BYTES
+        LDIR
+
+        LD      A,(EditorLoadSectorOffsetHigh)
+        LD      D,A
+        LD      E,0
+        LD      HL,(EditorLoadSectorOffsetUpper)
+        CALL    BiosFileWriteSector
+        JP      C,EditorLoadWriteErr
+
+        XOR     A
+        RET
+
 ;!      in        HL
 ;!      out       A,carry,zero
 ;!      clobbers  BC,DE,HL
@@ -789,3 +882,9 @@ EditorLoadPrefixLen:
 
 EditorLoadNameLen:
         .db     0
+
+EditorLoadSectorOffsetHigh:
+        .db     0
+
+EditorLoadSectorOffsetUpper:
+        .dw     0

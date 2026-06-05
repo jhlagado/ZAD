@@ -105,6 +105,13 @@ const PROOF_CASES = {
     lines: makeSmallFileLines(),
     verify: verifyEditorLineEditingProof,
   },
+  'editor-page-write-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-page-write-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-page-write-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-page-write-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyEditorPageWriteProof,
+  },
 } as const;
 
 type ProofCaseName = keyof typeof PROOF_CASES;
@@ -422,6 +429,14 @@ function assertSourceRecordClean(memory: Uint8Array, address: number, record: nu
   }
 }
 
+function readFileFromProofImage(proofCase: ProofCase, tm8Path: string): Buffer {
+  const { readFileFromVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
+  const image = readFileSync(proofCase.image);
+  const volume = image.subarray(manifest.volume_start_byte_offset, manifest.volume_start_byte_offset + 4 * 1024 * 1024);
+  return readFileFromVolumeImage(Buffer.from(volume), tm8Path) as Buffer;
+}
+
 function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
 }
@@ -630,6 +645,25 @@ function verifyEditorLineEditingProof(runtime: Runtime, _platformRuntime: Platfo
     const col = runtime.hardware.memory[address + 1];
     if (row !== expected.row || col !== expected.col) {
       throw new Error(`editor line ${expected.symbol} cursor ${row},${col}; expected ${expected.row},${expected.col}`);
+    }
+  }
+}
+
+function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 0, 'OKSMALL 00');
+  assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 1, 'SMALL 01');
+
+  const stored = readFileFromProofImage(PROOF_CASES['editor-page-write-proof'], '/src/main.asm');
+  const length = stored[0];
+  const text = stored.subarray(1, 1 + length).toString('ascii');
+  if (text !== 'OKSMALL 00') {
+    throw new Error(`editor page write persisted record 0 "${text}", expected "OKSMALL 00"`);
+  }
+  for (let offset = 1 + length; offset < 32; offset += 1) {
+    const value = stored[offset];
+    if (value !== 0) {
+      throw new Error(`editor page write persisted padding offset ${offset} is ${resultToString(value)}, expected 0x00`);
     }
   }
 }

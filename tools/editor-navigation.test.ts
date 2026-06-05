@@ -17,6 +17,7 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorOpenPath',
     'EditorRenderCurrent',
     'EditorRenderPageBuffer',
+    'EditorSaveCurrentPage',
     'EditorPageDown',
     'EditorPageUp',
   ]) {
@@ -34,6 +35,7 @@ test('editor navigation commits page movement only after successful render', () 
 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
+  assert.match(source, /JP\s+EditorSaveSourcePage/);
   assert.match(source, /JP\s+EditorRenderPageBuffer/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);

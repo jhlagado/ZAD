@@ -15,17 +15,21 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /^@EditorLoadMainSector:/m);
   assert.match(source, /^@EditorLoadMainPage:/m);
   assert.match(source, /^@EditorLoadSourcePage:/m);
+  assert.match(source, /^@EditorSaveSourcePage:/m);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainSector:/);
   assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainPage:/);
   assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadSourcePage:/);
+  assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorSaveSourcePage:/);
 
   assert.match(source, /CALL\s+BiosFileOpen/);
   assert.match(source, /CALL\s+BiosFileReadSector/);
+  assert.match(source, /CALL\s+BiosFileWriteSector/);
   assert.match(source, /EditorLoadVolumeName:\n\s+\.db\s+"VOLUME\.TM8",0/);
   assert.match(source, /CP\s+128\n\s+JR\s+NC,EditorLoadPageErr/);
   assert.match(source, /LD\s+\(EditorLoadBlockSteps\),A/);
   assert.match(source, /CALL\s+EditorLoadResolveSourceBlock/);
   assert.match(source, /CALL\s+EditorLoadReadAllocationEntry/);
+  assert.match(source, /CALL\s+EditorLoadWriteSourceSector/);
   assert.match(source, /JR\s+NC,EditorLoadAllocationOffsetOk\n\s+INC\s+D/);
   assert.match(source, /EditorLoadPageErr:\n\s+LD\s+A,EDITOR_LOAD_ERR_PAGE\n\s+SCF\n\s+RET/);
 });
@@ -135,8 +139,12 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(packageJson, /"proof:display:editor-viewport:storage"/);
   assert.match(packageJson, /"proof:display:editor-viewport:storage:invalid-page"/);
   assert.match(packageJson, /"proof:display:editor-viewport:storage:small-file"/);
+  assert.match(packageJson, /"proof:display:editor-page-write"/);
   assert.match(packageJson, /proof:display:editor-viewport:storage/);
+  assert.match(packageJson, /proof:display:editor-page-write/);
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
+  assert.match(runner, /editor-page-write-proof/);
+  assert.match(runner, /verifyEditorPageWriteProof/);
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
   assert.match(runner, /editor-viewport-storage-small-file-proof/);
   assert.match(runner, /makeSmallFileLines/);
@@ -148,6 +156,7 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /P1 LINE 15/);
   assert.match(runner, /P8 LINE 15/);
   assert.match(runner, /readSourceRecord/);
+  assert.match(runner, /readFileFromProofImage/);
   assert.match(runner, /storage viewport copied/);
   assert.match(runner, /storage viewport loaded record/);
   assert.match(runner, /storage viewport proof did not render display row/);

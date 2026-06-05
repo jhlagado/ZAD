@@ -517,6 +517,8 @@ What exists now:
 - A shell `edit` command can launch that editor path in proofs.
 - Cursor movement, in-page character mutation, split-line, and join-line
   behavior are implemented and covered by proofs.
+- The editor can save the currently loaded 512-byte page buffer back to the
+  matching TM8 source page, with persisted image verification.
 - The design now has documented policies for status-line confirmations and
   one-level hidden backup files, but those policies are not implemented in the
   editor yet.
@@ -526,7 +528,6 @@ What is still missing or intentionally skeletal:
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no save/write-back path yet.
 - The editor has no dirty tracking, backup creation, backup restore, status
   prompt state machine, search, or real quit command yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone

@@ -49,6 +49,16 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         CALL    BiosDisplayUpdate
         RET
 
+; EditorSaveCurrentPage -
+; Save the already-loaded page buffer back to the current source page.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorSaveCurrentPage:
+        LD      A,(EditorNavCurrentPage)
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavPageBuffer
+        JP      EditorSaveSourcePage
+
 ; EditorPageDown -
 ; Advance one page, render it, and commit the page only if rendering succeeds.
 ;!      out       A,carry
