@@ -49,11 +49,14 @@ For the fastest orientation, read these files first:
 7. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
 8. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-9. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
-   `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
-   editor path.
-10. `proofs/display/editor-line-editing-proof.asm`: the newest focused proof
-    for split-line and join-line editor behavior.
+9. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+   cell layer and the structured screen renderer built on top of it.
+10. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+    `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
+    editor path.
+11. `proofs/display/glcd-tile-proof.asm` and
+    `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
+    cell renderer and the current line editing behavior.
 
 ## Z80 Source Tree
 
@@ -184,8 +187,8 @@ still unsupported here because no assembler or runner exists yet.
 
 ### `src/display-model.asm`
 
-This is the structured GLCD display layer. It renders an editor-like screen
-through the `BiosDisplay*` wrapper calls:
+This is the structured GLCD screen renderer. It renders an editor-like screen
+on top of the tile-cell layer:
 
 - row 0 is top chrome
 - rows 1-8 are editable source rows
@@ -204,8 +207,36 @@ The main entry points are:
 
 The cursor routines save and restore the original GLCD bytes under the cursor,
 which prevents cursor trails when the cursor moves. This module depends on the
-MON3 terminal graphics buffer at `0x13C0` and pushes updates through
-`BiosDisplayUpdate`.
+MON3 terminal graphics buffer at `0x13C0`, shares the tile layer's 6x6 cell
+geometry, and pushes updates through `BiosDisplayUpdate`.
+
+### `src/glcd-tile.asm`
+
+This is the direct GLCD tile-cell layer under the structured renderer. It
+writes TECM8-owned 6x6 character cells straight into MON3's `TGBUF` bitmap,
+uses the ROM font data at `0xDD9B`, and only relies on the BIOS layer to
+initialize, clear, and flush the display. It does not call MON3's terminal
+glyph drawing path, so TECM8 owns cell overwrite, clear, and text-run behavior
+directly.
+
+Public entries:
+
+- `GlcdTileClearCell`
+- `GlcdTileDrawCell`
+- `GlcdTileDrawTextRun`
+- `GlcdTileFlushFull`
+- `GlcdTilePrepareCell`
+
+`GlcdTilePrepareCell` validates the `20 x 10` cell bounds and maps a row and
+column to the first backing-bitmap byte plus bit offset. The draw and clear
+paths then walk six rows of six pixels with local set and clear mask tables.
+`GlcdTileFlushFull` writes `TGBUF` to the active viewport pointer and calls
+`BiosDisplayUpdate`, which keeps the visible GLCD in sync with the TECM8-owned
+bitmap state.
+
+This module is the current boundary between TECM8 display policy and MON3 GLCD
+transport. Higher-level display code can stay in row and column coordinates
+instead of issuing per-glyph MON3 terminal calls.
 
 ### `src/editor-viewport.asm`
 
@@ -417,6 +448,10 @@ The display proofs build up the editor stack incrementally:
 
 - `proofs/display/glcd-smoke-proof.asm`: calls BIOS display wrappers and
   proves visible GLCD output.
+- `proofs/display/glcd-tile-proof.asm`: writes TECM8-owned 6x6 cells into
+  `TGBUF`, clears and redraws adjacent cells, draws a short text run, and
+  proves that the visible GLCD matches the expected ROM glyph rows after
+  flushing.
 - `proofs/display/structured-screen-proof.asm`: renders a fixed structured
   screen with chrome rows, source rows, and gutter markers.
 - `proofs/display/editor-viewport-proof.asm`: converts eight source records
@@ -502,6 +537,12 @@ The proof runners run AZM register-contract checking in strict mode. They pass
 `src/mon3.asmi` for MON3 ROM calls and rely on the `;!` comments in included
 TECM8 source for routines implemented in this repository.
 
+`tools/run-display-proof.ts` is the shared GLCD proof runner for
+`glcd-smoke-proof`, `glcd-tile-proof`, `structured-screen-proof`, and the
+viewport display proofs. The tile proof path checks cleared-cell behavior, cell
+glyph rows against the MON3 font table, and that the flush path reaches the
+visible GLCD image.
+
 `tools/run-editor-viewport-storage-proof.ts` is the main editor proof runner.
 It now includes `editor-line-editing-proof` and `editor-page-write-proof` cases
 and verifies not just result markers, but also source-record text, zeroed
@@ -548,6 +589,7 @@ coverage:
 - source-record import/export conversion
 - project config host commands
 - generated MON3 report freshness
+- direct GLCD tile-layer contracts
 - static checks that assembly modules expose expected entry points
 - static checks that local entry points carry `;!` contract comments
 - proof wiring checks that package scripts invoke the right proof runners
