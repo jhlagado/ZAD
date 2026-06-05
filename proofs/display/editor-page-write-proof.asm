@@ -85,8 +85,41 @@ PROOF_FAIL       .equ     0xE0
         LD      A,(EditorPromptResult)
         LD      (PromptResultAfterYes),A
 
-        CALL    EditorRenderCurrent
+        LD      HL,EditorRestoreNoKeys
+        CALL    EditorRunKeys
         JP      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterRestoreNo),A
+        LD      HL,EditorNavPageBuffer
+        LD      A,(HL)
+        LD      (RestoreNoRecord0Length),A
+        INC     HL
+        LD      A,(HL)
+        LD      (RestoreNoRecord0FirstChar),A
+
+        LD      HL,EditorRestoreEscKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterRestoreEsc),A
+        LD      HL,EditorNavPageBuffer
+        LD      A,(HL)
+        LD      (RestoreEscRecord0Length),A
+        INC     HL
+        LD      A,(HL)
+        LD      (RestoreEscRecord0FirstChar),A
+
+        LD      HL,EditorRestoreYesKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterRestore),A
+        LD      HL,EditorNavPageBuffer
+        LD      A,(HL)
+        LD      (RestoreRecord0Length),A
+        INC     HL
+        LD      A,(HL)
+        LD      (RestoreRecord0FirstChar),A
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -129,6 +162,15 @@ EditorPromptIgnoreKeys:
 EditorPromptYesKeys:
         .db     "Y",0
 
+EditorRestoreYesKeys:
+        .db     18,"Y",0
+
+EditorRestoreNoKeys:
+        .db     18,"N",0
+
+EditorRestoreEscKeys:
+        .db     18,27,0
+
 EditorPromptProofText:
         .db     "Save changes? Y/N",0
 
@@ -157,6 +199,33 @@ PromptActiveAfterYes:
         .db     0
 
 PromptResultAfterYes:
+        .db     0
+
+DirtyAfterRestore:
+        .db     0
+
+DirtyAfterRestoreNo:
+        .db     0
+
+DirtyAfterRestoreEsc:
+        .db     0
+
+RestoreNoRecord0Length:
+        .db     0
+
+RestoreNoRecord0FirstChar:
+        .db     0
+
+RestoreEscRecord0Length:
+        .db     0
+
+RestoreEscRecord0FirstChar:
+        .db     0
+
+RestoreRecord0Length:
+        .db     0
+
+RestoreRecord0FirstChar:
         .db     0
 
 ResultMarker:

@@ -304,6 +304,10 @@ For example, `/src/main.asm` becomes `/src/.main.asm.b`. It fails with
 `TECM8_EDITOR_NAV_ERR_BACKUP` if the path is malformed or the derived name does
 not fit the fixed path buffer.
 
+`EditorLoadCurrentBackupPage` uses the same derived path convention and loads
+the hidden backup into `EditorNavPageBuffer`. The interaction layer decides
+whether to mark that restored buffer dirty.
+
 ### `src/editor-interaction.asm`
 
 This is the early editor interaction loop. It consumes a NUL-terminated proof
@@ -313,6 +317,7 @@ key stream rather than real keyboard input. In command mode:
 - `u`/`U` page up
 - `h`/`j`/`k`/`l` move the cursor
 - Ctrl-S saves the currently loaded page
+- Ctrl-R prompts to restore the hidden backup into the current buffer
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
 - backspace deletes before the cursor
@@ -334,9 +339,11 @@ the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
-and clears the flag only after the backup and page write-back succeed. There is
-not yet backup restore, dirty quit protection, or sector-crossing
-insert/delete.
+and clears the flag only after the backup and page write-back succeed. Ctrl-R
+arms a status-line restore prompt; a yes answer loads the hidden backup into
+the current page buffer, rerenders it, and marks it dirty so the user can
+inspect before saving. There is not yet dirty quit protection or
+sector-crossing insert/delete.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -356,6 +363,8 @@ The module also owns the early status-line prompt state:
   text.
 - `EditorPromptActive` routes subsequent keys to prompt handling.
 - `EditorPromptResult` records yes/no completion (`1` yes, `2` no).
+- `EditorPromptAction` records whether completion should trigger an editor
+  action such as backup restore.
 - Unknown keys leave the prompt active; `Y`/`y`, `N`/`n`, or ESC complete it.
 
 `EditorSplitLine` shifts records down within the current 16-record page
@@ -593,17 +602,18 @@ What exists now:
 - The editor tracks dirty state for the loaded page, marks dirty after
   mutation, saves via Ctrl-S, and clears dirty after successful save.
 - Status-line yes/no prompt state exists and is rendered through the bottom
-  chrome row for future restore and dirty-quit confirmations.
+  chrome row for restore and future dirty-quit confirmations.
 - The editor derives a hidden one-level backup path and can preserve the
   previous on-disk page there before save, creating the backup file when needed.
+- The editor can restore the hidden backup into the current buffer and mark the
+  restored buffer dirty for inspection.
 
 What is still missing or intentionally skeletal:
 
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no backup restore, search, dirty quit protection, or real quit
-  command yet.
+- The editor has no search, dirty quit protection, or real quit command yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not

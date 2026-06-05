@@ -96,6 +96,21 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      HL,EditorNavBackupPageBuffer
         JP      EditorSaveSourcePage
 
+; EditorLoadCurrentBackupPage -
+; Load the derived hidden backup path into the current page buffer.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorLoadCurrentBackupPage:
+        LD      HL,(EditorNavPathPtr)
+        LD      DE,EditorNavBackupPathBuffer
+        LD      B,TECM8_EDITOR_NAV_PATH_LEN
+        CALL    EditorNavDeriveBackupPath
+        RET     C
+        LD      A,(EditorNavCurrentPage)
+        LD      DE,EditorNavBackupPathBuffer
+        LD      HL,EditorNavPageBuffer
+        JP      EditorLoadSourcePage
+
 ; EditorClearDirty -
 ; Mark the current editor page clean after a successful load or save.
 ;!      out       A,carry

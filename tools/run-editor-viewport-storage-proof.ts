@@ -651,7 +651,7 @@ function verifyEditorLineEditingProof(runtime: Runtime, _platformRuntime: Platfo
 
 function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
-  assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 0, 'OKSMALL 00');
+  assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 0, 'SMALL 00');
   assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 1, 'SMALL 01');
 
   for (const symbol of ['DirtyAfterNoopDelete', 'DirtyAfterNoopSplit', 'DirtyAfterNoopInsert']) {
@@ -668,12 +668,30 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   if (dirtyAfterSave !== 0) {
     throw new Error(`editor page write dirty after save ${dirtyAfterSave}, expected 0`);
   }
+  const dirtyAfterRestoreNo = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterRestoreNo')];
+  const dirtyAfterRestoreEsc = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterRestoreEsc')];
+  if (dirtyAfterRestoreNo !== 0) {
+    throw new Error(`editor page write dirty after restore no ${dirtyAfterRestoreNo}, expected 0`);
+  }
+  if (dirtyAfterRestoreEsc !== 0) {
+    throw new Error(`editor page write dirty after restore esc ${dirtyAfterRestoreEsc}, expected 0`);
+  }
+  const dirtyAfterRestore = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterRestore')];
+  if (dirtyAfterRestore !== 1) {
+    throw new Error(`editor page write dirty after restore ${dirtyAfterRestore}, expected 1`);
+  }
 
   const promptChecks = [
     { symbol: 'PromptActiveAfterIgnore', expected: 1 },
     { symbol: 'PromptResultAfterIgnore', expected: 0 },
     { symbol: 'PromptActiveAfterYes', expected: 0 },
     { symbol: 'PromptResultAfterYes', expected: 1 },
+    { symbol: 'RestoreNoRecord0Length', expected: 10 },
+    { symbol: 'RestoreNoRecord0FirstChar', expected: 'O'.charCodeAt(0) },
+    { symbol: 'RestoreEscRecord0Length', expected: 10 },
+    { symbol: 'RestoreEscRecord0FirstChar', expected: 'O'.charCodeAt(0) },
+    { symbol: 'RestoreRecord0Length', expected: 8 },
+    { symbol: 'RestoreRecord0FirstChar', expected: 'S'.charCodeAt(0) },
   ];
   for (const check of promptChecks) {
     const value = runtime.hardware.memory[symbolAddress(symbols, check.symbol)];

@@ -19,6 +19,7 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorRenderPageBuffer',
     'EditorSaveCurrentPage',
     'EditorBackupCurrentPage',
+    'EditorLoadCurrentBackupPage',
     'EditorClearDirty',
     'EditorPageDown',
     'EditorPageUp',
@@ -46,6 +47,7 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
   assert.match(source, /@EditorSaveCurrentPage:\n\s+CALL\s+EditorBackupCurrentPage\n\s+RET\s+C/);
   assert.match(source, /CALL\s+EditorNavDeriveBackupPath/);
+  assert.match(source, /@EditorLoadCurrentBackupPage:/);
   assert.match(source, /LD\s+DE,EditorNavBackupPathBuffer/);
   assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);

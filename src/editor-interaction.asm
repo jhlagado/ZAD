@@ -18,6 +18,7 @@ TECM8_EDITOR_KEY_CURSOR_RIGHT_UPPER     .equ    "L"
 TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
 TECM8_EDITOR_KEY_NEWLINE                .equ    13
+TECM8_EDITOR_KEY_RESTORE                .equ    18
 TECM8_EDITOR_KEY_SAVE                   .equ    19
 TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
@@ -33,6 +34,8 @@ TECM8_EDITOR_EDIT_RECORD_TEXT_MAX       .equ    31
 TECM8_EDITOR_PROMPT_RESULT_NONE         .equ    0
 TECM8_EDITOR_PROMPT_RESULT_YES          .equ    1
 TECM8_EDITOR_PROMPT_RESULT_NO           .equ    2
+TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
+TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
@@ -115,6 +118,8 @@ EditorKeyLoop:
         JP      Z,EditorKeyInsertMode
         CP      TECM8_EDITOR_KEY_NEWLINE
         JP      Z,EditorKeySplitLine
+        CP      TECM8_EDITOR_KEY_RESTORE
+        JP      Z,EditorKeyRestorePrompt
         CP      TECM8_EDITOR_KEY_SAVE
         JP      Z,EditorKeySave
         LD      A,(EditorInsertMode)
@@ -179,10 +184,20 @@ EditorKeyPrompt:
         LD      A,(EditorPendingChar)
         CALL    EditorPromptHandleKey
         RET     C
+        CALL    EditorPromptDispatch
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeySave:
         CALL    EditorSaveCurrentPage
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyRestorePrompt:
+        LD      A,TECM8_EDITOR_PROMPT_ACTION_RESTORE
+        LD      (EditorPromptAction),A
+        LD      HL,EditorRestorePromptText
+        CALL    EditorPromptAskYesNo
         RET     C
         JP      EditorKeyLoop
 
@@ -699,6 +714,35 @@ EditorPromptComplete:
         LD      (EditorPromptActive),A
         JP      EditorRenderPageBuffer
 
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPromptDispatch:
+        LD      A,(EditorPromptActive)
+        OR      A
+        RET     NZ
+        LD      A,(EditorPromptAction)
+        CP      TECM8_EDITOR_PROMPT_ACTION_RESTORE
+        JR      Z,EditorPromptDispatchRestore
+        XOR     A
+        RET
+
+EditorPromptDispatchRestore:
+        XOR     A
+        LD      (EditorPromptAction),A
+        LD      A,(EditorPromptResult)
+        CP      TECM8_EDITOR_PROMPT_RESULT_YES
+        JR      Z,EditorRestoreConfirmed
+        XOR     A
+        RET
+
+EditorRestoreConfirmed:
+        CALL    EditorLoadCurrentBackupPage
+        RET     C
+        CALL    EditorKeyRenderDirty
+        RET     C
+        XOR     A
+        RET
+
 ;!      out       A,HL,carry,zero
 ;!      clobbers  A,B,DE,sign,parity,halfCarry
 @EditorKeyCurrentRecord:
@@ -791,6 +835,9 @@ EditorPendingChar:
 EditorInsertMode:
         .db     0
 
+EditorPromptAction:
+        .db     0
+
 EditorRecordBase:
         .dw     0
 
@@ -844,3 +891,6 @@ EditorCursorRenderedRow:
 
 EditorCursorRenderedCol:
         .db     0
+
+EditorRestorePromptText:
+        .db     "Restore backup? Y/N",0
