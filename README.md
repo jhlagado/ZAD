@@ -27,6 +27,7 @@ The root `/tecm8.prj` file stores the project main file as simple ASCII
 Start with the documentation:
 
 - [Project Overview](docs/project-overview.md)
+- [Live Roadmap](docs/roadmap.md)
 - [Implementation Plan](docs/implementation-plan.md)
 - [Workspace Disk Format](docs/workspace-disk-format.md)
 - [Virtual Filesystem](docs/virtual-filesystem.md)

@@ -34,6 +34,7 @@ npm run quality
 Start here:
 
 - [Project Overview](project-overview.md)
+- [Live Roadmap](roadmap.md)
 - [Codebase Tour](codebase.md)
 - [Storage Proof](storage-proof.md)
 - [Virtual Filesystem](virtual-filesystem.md)

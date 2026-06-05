@@ -467,6 +467,7 @@ toward.
 
 - `docs/README.md`: top-level documentation index.
 - `docs/project-overview.md`: product direction and user experience.
+- `docs/roadmap.md`: live milestone tracker and next-goal sequence.
 - `docs/implementation-plan.md`: phased roadmap.
 - `docs/workspace-disk-format.md`: exact TM8 disk layout.
 - `docs/virtual-filesystem.md`: prefix table, catalog, and virtual directory
@@ -515,7 +516,7 @@ What exists now:
 - A storage-backed editor can load and render source pages.
 - A shell `edit` command can launch that editor path in proofs.
 - Cursor movement, in-page character mutation, split-line, and join-line
-  behavior are being proven.
+  behavior are implemented and covered by proofs.
 - The design now has documented policies for status-line confirmations and
   one-level hidden backup files, but those policies are not implemented in the
   editor yet.
@@ -528,6 +529,8 @@ What is still missing or intentionally skeletal:
 - The editor has no save/write-back path yet.
 - The editor has no dirty tracking, backup creation, backup restore, status
   prompt state machine, search, or real quit command yet.
+- The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
+  is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not
   move records across sectors or allocate/free TM8 storage.
 - The display chrome and marker policy are still mostly fixed proof data.
