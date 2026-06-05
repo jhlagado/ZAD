@@ -145,6 +145,11 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
   assert.match(runner, /editor-page-write-proof/);
   assert.match(runner, /verifyEditorPageWriteProof/);
+  assert.match(runner, /DirtyAfterNoopDelete/);
+  assert.match(runner, /DirtyAfterNoopSplit/);
+  assert.match(runner, /DirtyAfterNoopInsert/);
+  assert.match(runner, /DirtyAfterEdit/);
+  assert.match(runner, /DirtyAfterSave/);
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
   assert.match(runner, /editor-viewport-storage-small-file-proof/);
   assert.match(runner, /makeSmallFileLines/);

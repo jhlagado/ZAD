@@ -47,6 +47,9 @@ and wait for further instructions before starting assembler integration.
 - The editor can write the current 512-byte page buffer back to the currently
   loaded TM8 source page, with proof coverage that persisted bytes survive in
   the FAT32/TM8 image.
+- The editor tracks whether the loaded page has unsaved edits, marks dirty
+  after in-page mutation, accepts a Ctrl-S save key, and clears dirty after a
+  successful save.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
 - Design policies exist for reserved source-record length bits, hidden dotfiles,
@@ -54,41 +57,35 @@ and wait for further instructions before starting assembler integration.
 
 ## Near-Term Goal Order
 
-1. **Dirty tracking and save command**
-   - Track whether the current page/window has unsaved edits.
-   - Set dirty after insert/delete/split/join.
-   - Clear dirty after successful save.
-   - Add a proof key for save and verify state transitions.
-
-2. **Status-line prompt mode**
+1. **Status-line prompt mode**
    - Add a small editor prompt state rather than modal dialogs.
    - Route keys to prompt mode for yes/no confirmation.
    - Return to the previous edit mode after accept/cancel.
    - Use this for dirty quit and restore confirmation.
 
-3. **One-level hidden backup on save**
+2. **One-level hidden backup on save**
    - Derive backup path as `.` + local filename + `.b`.
    - Example: `/src/main.asm` backs up to `/src/.main.asm.b`.
    - Before replacing an existing file, create or replace the hidden backup.
    - Fail clearly if the derived backup filename exceeds the catalog limit.
 
-4. **Restore from backup**
+3. **Restore from backup**
    - Add an editor command to load the hidden backup into the current buffer.
    - Confirm through status-line prompt mode.
    - Mark the restored buffer dirty so the user can inspect before saving.
 
-5. **Quit behavior**
+4. **Quit behavior**
    - Add a real quit command from editor back to shell.
    - If dirty, prompt before discarding unsaved changes.
    - Preserve proof-key streams while moving toward real keyboard input.
 
-6. **Sector-edge policy**
+5. **Sector-edge policy**
    - Keep current in-page split/join behavior.
    - Define and prove conservative behavior at page boundaries.
    - A first version may refuse sector-crossing line insert/delete rather than
      shifting data across multiple sectors.
 
-7. **Debug80-runnable editor session**
+6. **Debug80-runnable editor session**
    - Build a TECM8 entry path that can be launched in Debug80, not only proof
      harnesses.
    - Provide a prepared FAT32/TM8 image containing `/tecm8.prj` and source text.

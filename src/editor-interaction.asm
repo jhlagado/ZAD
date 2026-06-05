@@ -18,6 +18,7 @@ TECM8_EDITOR_KEY_CURSOR_RIGHT_UPPER     .equ    "L"
 TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
 TECM8_EDITOR_KEY_NEWLINE                .equ    13
+TECM8_EDITOR_KEY_SAVE                   .equ    19
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
@@ -103,21 +104,23 @@ EditorKeyLoop:
         LD      (EditorPendingChar),A
 
         CP      TECM8_EDITOR_KEY_INSERT_MODE
-        JR      Z,EditorKeyInsertMode
+        JP      Z,EditorKeyInsertMode
         CP      TECM8_EDITOR_KEY_NEWLINE
         JP      Z,EditorKeySplitLine
+        CP      TECM8_EDITOR_KEY_SAVE
+        JP      Z,EditorKeySave
         LD      A,(EditorInsertMode)
         OR      A
         JR      NZ,EditorKeyMaybeInsertMode
         LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_PAGE_DOWN_LOWER
-        JR      Z,EditorKeyPageDown
+        JP      Z,EditorKeyPageDown
         CP      TECM8_EDITOR_KEY_PAGE_DOWN_UPPER
-        JR      Z,EditorKeyPageDown
+        JP      Z,EditorKeyPageDown
         CP      TECM8_EDITOR_KEY_PAGE_UP_LOWER
-        JR      Z,EditorKeyPageUp
+        JP      Z,EditorKeyPageUp
         CP      TECM8_EDITOR_KEY_PAGE_UP_UPPER
-        JR      Z,EditorKeyPageUp
+        JP      Z,EditorKeyPageUp
         CP      TECM8_EDITOR_KEY_CURSOR_LEFT_LOWER
         JP      Z,EditorKeyCursorLeft
         CP      TECM8_EDITOR_KEY_CURSOR_LEFT_UPPER
@@ -162,6 +165,11 @@ EditorKeyMaybeInsertMode:
 EditorKeyInsertMode:
         LD      A,1
         LD      (EditorInsertMode),A
+        JP      EditorKeyLoop
+
+EditorKeySave:
+        CALL    EditorSaveCurrentPage
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyPageDown:
@@ -222,6 +230,8 @@ EditorKeyInsertPrintable:
         LD      A,(EditorPendingChar)
         CALL    EditorInsertChar
         RET     C
+        OR      A
+        JP      Z,EditorKeyLoop
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
@@ -229,6 +239,8 @@ EditorKeyInsertPrintable:
 EditorKeySplitLine:
         CALL    EditorSplitLine
         RET     C
+        OR      A
+        JP      Z,EditorKeyLoop
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
@@ -236,6 +248,8 @@ EditorKeySplitLine:
 EditorKeyBackspace:
         CALL    EditorBackspaceChar
         RET     C
+        OR      A
+        JP      Z,EditorKeyLoop
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
@@ -243,6 +257,8 @@ EditorKeyBackspace:
 EditorKeyDelete:
         CALL    EditorDeleteChar
         RET     C
+        OR      A
+        JP      Z,EditorKeyLoop
         CALL    EditorKeyRenderDirty
         RET     C
         JP      EditorKeyLoop
@@ -253,6 +269,7 @@ EditorKeyDone:
 
 ; EditorInsertChar -
 ; Insert printable A into the current fixed-width source record.
+; Returns A=1 when the buffer changed, A=0 when insertion was a no-op.
 ;!      in        A
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -308,6 +325,8 @@ EditorInsertWriteChar:
         LD      HL,(EditorRecordBase)
         INC     (HL)
         CALL    EditorKeyAdvanceCursor
+        LD      A,1
+        RET
 
 EditorInsertDone:
         XOR     A
@@ -315,6 +334,7 @@ EditorInsertDone:
 
 ; EditorBackspaceChar -
 ; Delete the character before the cursor in the current source record.
+; Returns A=1 when the buffer changed, A=0 when backspace was a no-op.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorBackspaceChar:
@@ -333,6 +353,7 @@ EditorBackspaceDone:
 ; EditorSplitLine -
 ; Split the current fixed-width source record at the cursor. The split is a
 ; no-op when the cursor is on the final page row or the final record is in use.
+; Returns A=1 when the buffer changed, A=0 when the split was a no-op.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorSplitLine:
@@ -444,6 +465,8 @@ EditorSplitCursorDown:
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A
+        LD      A,1
+        RET
 
 EditorSplitDone:
         XOR     A
@@ -452,6 +475,7 @@ EditorSplitDone:
 ; EditorJoinPreviousLine -
 ; Join the current record into the previous one when the cursor is at column 0.
 ; The join is a no-op on row 0 or when the combined text would exceed 31 bytes.
+; Returns A=1 when the buffer changed, A=0 when the join was a no-op.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorJoinPreviousLine:
@@ -547,6 +571,8 @@ EditorJoinClearLast:
         LD      (EditorCursorRow),A
         LD      A,(EditorLinePrevLength)
         LD      (EditorCursorCol),A
+        LD      A,1
+        RET
 
 EditorJoinDone:
         XOR     A
@@ -554,6 +580,7 @@ EditorJoinDone:
 
 ; EditorDeleteChar -
 ; Delete the character at the cursor in the current source record.
+; Returns A=1 when the buffer changed, A=0 when delete was a no-op.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorDeleteChar:
@@ -589,6 +616,8 @@ EditorDeleteShiftLoop:
 EditorDeleteShorten:
         LD      HL,(EditorRecordBase)
         DEC     (HL)
+        LD      A,1
+        RET
 
 EditorDeleteDone:
         XOR     A
@@ -597,10 +626,19 @@ EditorDeleteDone:
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorKeyRenderDirty:
+        CALL    EditorMarkDirty
         XOR     A
         LD      (EditorCursorRendered),A
         CALL    EditorRenderPageBuffer
         RET     C
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorMarkDirty:
+        LD      A,1
+        LD      (EditorNavDirty),A
         XOR     A
         RET
 

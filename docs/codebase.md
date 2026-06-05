@@ -239,14 +239,16 @@ Public entries:
 - `EditorLoadMainSector`: first sector of `/src/main.asm`
 - `EditorLoadMainPage`: page `A` of `/src/main.asm`
 - `EditorLoadSourcePage`: page `A` of an arbitrary TM8 path in `DE`
+- `EditorSaveSourcePage`: save caller buffer `HL` to page `A` of path `DE`
 
 Page indexes are limited to 0..127. A page is a 512-byte sector, not a 4K TM8
 allocation block. The loader computes the sector-in-block and number of block
 links to follow. It depends on MON3's `DISK_BUFF` at `0x0600` through the BIOS
 storage wrappers.
 
-This is still proof-focused. It reads pages and follows block chains, but it
-does not save modified editor pages back to the volume.
+This is still proof-focused. It reads pages, follows block chains, and can write
+one loaded 512-byte page back to the same source file page. It is not yet a
+general TM8 filesystem layer.
 
 ### `src/editor-navigation.asm`
 
@@ -259,12 +261,15 @@ Public entries:
 - `EditorOpenPath`
 - `EditorRenderCurrent`
 - `EditorRenderPageBuffer`
+- `EditorSaveCurrentPage`
+- `EditorClearDirty`
 - `EditorPageDown`
 - `EditorPageUp`
 
-The module stores a 64-byte path buffer and a 512-byte page buffer. Page moves
-are committed only after loading and rendering succeeds, so failed page-down or
-page-up attempts do not corrupt current-page state.
+The module stores a 64-byte path buffer, a 512-byte page buffer, and
+`EditorNavDirty`. Page moves are committed only after loading and rendering
+succeeds, so failed page-down or page-up attempts do not corrupt current-page
+state. Successful load/page movement and save clear the dirty flag.
 
 ### `src/editor-interaction.asm`
 
@@ -274,6 +279,7 @@ key stream rather than real keyboard input. In command mode:
 - `d`/`D` page down
 - `u`/`U` page up
 - `h`/`j`/`k`/`l` move the cursor
+- Ctrl-S saves the currently loaded page
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
 - backspace deletes before the cursor
@@ -293,9 +299,11 @@ entry points as well as the proof key-stream runner:
 The editing operations mutate `EditorNavPageBuffer` in memory and then rerender
 the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
-host source export can continue validating the fixed-record format. There is
-not yet a dirty flag, save path, sector-crossing insert/delete, or sector
-write-back path.
+host source export can continue validating the fixed-record format. Mutating
+operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
+and clears the flag only after the page write-back succeeds. There is not yet
+backup creation, backup restore, prompt handling, dirty quit protection, or
+sector-crossing insert/delete.
 
 `EditorSplitLine` shifts records down within the current 16-record page
 and splits the current record at the cursor. It is a no-op on the final page row
@@ -519,6 +527,8 @@ What exists now:
   behavior are implemented and covered by proofs.
 - The editor can save the currently loaded 512-byte page buffer back to the
   matching TM8 source page, with persisted image verification.
+- The editor tracks dirty state for the loaded page, marks dirty after
+  mutation, saves via Ctrl-S, and clears dirty after successful save.
 - The design now has documented policies for status-line confirmations and
   one-level hidden backup files, but those policies are not implemented in the
   editor yet.
@@ -528,8 +538,8 @@ What is still missing or intentionally skeletal:
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no dirty tracking, backup creation, backup restore, status
-  prompt state machine, search, or real quit command yet.
+- The editor has no backup creation, backup restore, status prompt state
+  machine, search, dirty quit protection, or real quit command yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not

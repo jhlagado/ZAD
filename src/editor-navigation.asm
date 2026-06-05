@@ -36,7 +36,9 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorRenderCurrent:
         LD      A,(EditorNavCurrentPage)
-        JP      EditorNavRenderPage
+        CALL    EditorNavRenderPage
+        RET     C
+        JP      EditorClearDirty
 
 ; EditorRenderPageBuffer -
 ; Render the already-loaded page buffer without reloading it from storage.
@@ -57,7 +59,18 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      A,(EditorNavCurrentPage)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
-        JP      EditorSaveSourcePage
+        CALL    EditorSaveSourcePage
+        RET     C
+        JP      EditorClearDirty
+
+; EditorClearDirty -
+; Mark the current editor page clean after a successful load or save.
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorClearDirty:
+        XOR     A
+        LD      (EditorNavDirty),A
+        RET
 
 ; EditorPageDown -
 ; Advance one page, render it, and commit the page only if rendering succeeds.
@@ -73,8 +86,7 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         RET     C
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
-        XOR     A
-        RET
+        JP      EditorClearDirty
 
 ; EditorPageUp -
 ; Move back one page, render it, and commit the page only if rendering succeeds.
@@ -90,8 +102,7 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         RET     C
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
-        XOR     A
-        RET
+        JP      EditorClearDirty
 
 ;!      in        A
 ;!      out       A,carry
@@ -132,6 +143,9 @@ EditorNavPathErr:
         RET
 
 EditorNavCurrentPage:
+        .db     0
+
+EditorNavDirty:
         .db     0
 
 EditorNavPendingPage:

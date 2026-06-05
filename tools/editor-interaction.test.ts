@@ -20,10 +20,13 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorDeleteChar:/m);
   assert.match(source, /^@EditorSplitLine:/m);
   assert.match(source, /^@EditorJoinPreviousLine:/m);
+  assert.match(source, /^@EditorMarkDirty:/m);
+  assert.match(source, /TECM8_EDITOR_KEY_SAVE\s+\.equ\s+19/);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
   assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorInsertChar:/);
   assert.match(source, /CALL\s+EditorPageDown/);
   assert.match(source, /CALL\s+EditorPageUp/);
+  assert.match(source, /CALL\s+EditorSaveCurrentPage/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
@@ -39,6 +42,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_DELETE\s+\.equ\s+127/);
   assert.match(source, /EditorInsertMode:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeyInsertMode:/);
+  assert.match(source, /EditorKeySave:/);
   assert.match(source, /EditorKeyMaybeInsertMode:/);
   assert.match(source, /EditorKeyCursorLeft:/);
   assert.match(source, /EditorKeyCursorDown:/);
@@ -46,6 +50,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyCursorRight:/);
   assert.match(source, /EditorKeyInsertPrintable:/);
   assert.match(source, /CALL\s+EditorInsertChar/);
+  assert.match(source, /CALL\s+EditorInsertChar\n\s+RET\s+C\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyLoop/);
+  assert.match(source, /CALL\s+EditorMarkDirty/);
   assert.match(source, /CALL\s+EditorBackspaceChar/);
   assert.match(source, /CALL\s+EditorDeleteChar/);
   assert.match(source, /CALL\s+EditorSplitLine/);

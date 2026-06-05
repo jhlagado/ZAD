@@ -654,6 +654,21 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 0, 'OKSMALL 00');
   assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 1, 'SMALL 01');
 
+  for (const symbol of ['DirtyAfterNoopDelete', 'DirtyAfterNoopSplit', 'DirtyAfterNoopInsert']) {
+    const value = runtime.hardware.memory[symbolAddress(symbols, symbol)];
+    if (value !== 0) {
+      throw new Error(`editor page write ${symbol} ${value}, expected 0`);
+    }
+  }
+  const dirtyAfterEdit = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterEdit')];
+  const dirtyAfterSave = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterSave')];
+  if (dirtyAfterEdit !== 1) {
+    throw new Error(`editor page write dirty after edit ${dirtyAfterEdit}, expected 1`);
+  }
+  if (dirtyAfterSave !== 0) {
+    throw new Error(`editor page write dirty after save ${dirtyAfterSave}, expected 0`);
+  }
+
   const stored = readFileFromProofImage(PROOF_CASES['editor-page-write-proof'], '/src/main.asm');
   const length = stored[0];
   const text = stored.subarray(1, 1 + length).toString('ascii');

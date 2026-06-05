@@ -18,12 +18,53 @@ PROOF_FAIL       .equ     0xE0
         CALL    EditorOpenMain
         JR      C,ProofFailed
 
-        LD      HL,EditorPageWriteKeys
+        LD      A,8
+        LD      (EditorCursorCol),A
+        LD      HL,EditorNoopDeleteKeys
+        CALL    EditorRunKeys
+        JR      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterNoopDelete),A
+
+        LD      A,15
+        LD      (EditorCursorRow),A
+        XOR     A
+        LD      (EditorCursorCol),A
+        LD      HL,EditorNoopSplitKeys
+        CALL    EditorRunKeys
+        JR      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterNoopSplit),A
+
+        XOR     A
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorCol),A
+        CALL    EditorKeyCurrentRecord
+        LD      (HL),31
+        LD      HL,EditorNoopInsertKeys
+        CALL    EditorRunKeys
+        JR      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterNoopInsert),A
+
+        CALL    EditorRenderCurrent
+        JR      C,ProofFailed
+        CALL    EditorCursorReset
+        JR      C,ProofFailed
+
+        LD      HL,EditorPageEditKeys
         CALL    EditorRunKeys
         JR      C,ProofFailed
 
-        CALL    EditorSaveCurrentPage
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterEdit),A
+
+        LD      HL,EditorPageSaveKeys
+        CALL    EditorRunKeys
         JR      C,ProofFailed
+
+        LD      A,(EditorNavDirty)
+        LD      (DirtyAfterSave),A
 
         CALL    EditorRenderCurrent
         JR      C,ProofFailed
@@ -48,8 +89,35 @@ ProofFailedDone:
         .include "../../src/editor-interaction.asm"
         .include "../../src/tecm8-bios.asm"
 
-EditorPageWriteKeys:
+EditorPageEditKeys:
         .db     9,"OK",0
+
+EditorPageSaveKeys:
+        .db     19,0
+
+EditorNoopDeleteKeys:
+        .db     127,0
+
+EditorNoopSplitKeys:
+        .db     13,0
+
+EditorNoopInsertKeys:
+        .db     9,"!",0
+
+DirtyAfterNoopDelete:
+        .db     0
+
+DirtyAfterNoopSplit:
+        .db     0
+
+DirtyAfterNoopInsert:
+        .db     0
+
+DirtyAfterEdit:
+        .db     0
+
+DirtyAfterSave:
+        .db     0
 
 ResultMarker:
         .db     0

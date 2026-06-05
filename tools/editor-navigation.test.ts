@@ -18,6 +18,7 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorRenderCurrent',
     'EditorRenderPageBuffer',
     'EditorSaveCurrentPage',
+    'EditorClearDirty',
     'EditorPageDown',
     'EditorPageUp',
   ]) {
@@ -27,6 +28,7 @@ test('editor navigation module exposes open, render, and page movement entries',
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorOpenPath:/);
 
   assert.match(source, /EditorNavCurrentPage:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavDirty:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavPageBuffer:\n\s+\.ds\s+512/);
 });
 
@@ -35,7 +37,9 @@ test('editor navigation commits page movement only after successful render', () 
 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
-  assert.match(source, /JP\s+EditorSaveSourcePage/);
+  assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /CALL\s+EditorSaveSourcePage/);
+  assert.match(source, /JP\s+EditorClearDirty/);
   assert.match(source, /JP\s+EditorRenderPageBuffer/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
