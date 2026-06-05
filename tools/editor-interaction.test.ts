@@ -28,6 +28,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_QUIT\s+\.equ\s+17/);
   assert.match(source, /TECM8_EDITOR_KEY_RESTORE\s+\.equ\s+18/);
   assert.match(source, /TECM8_EDITOR_KEY_SAVE\s+\.equ\s+19/);
+  assert.match(source, /TECM8_EDITOR_KEY_ARROW_UP\s+\.equ\s+0x03/);
+  assert.match(source, /TECM8_EDITOR_KEY_ARROW_DOWN\s+\.equ\s+0x04/);
+  assert.match(source, /TECM8_EDITOR_KEY_ARROW_LEFT\s+\.equ\s+0x05/);
+  assert.match(source, /TECM8_EDITOR_KEY_ARROW_RIGHT\s+\.equ\s+0x06/);
   assert.match(source, /TECM8_EDITOR_KEY_ESCAPE\s+\.equ\s+27/);
   assert.match(source, /TECM8_EDITOR_ACTION_CURSOR_LEFT\s+\.equ\s+3/);
   assert.match(source, /TECM8_EDITOR_ACTION_CURSOR_DOWN\s+\.equ\s+4/);
@@ -48,10 +52,11 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorPromptHandleKey/);
   assert.match(source, /CALL\s+EditorLoadCurrentBackupPage/);
   assert.match(source, /CALL\s+EditorActionFromKey/);
-  assert.match(source, /CALL\s+BiosInputPollAscii/);
+  assert.match(source, /CALL\s+BiosInputPollKey/);
   assert.match(source, /LD\s+HL,EditorLiveKeyBuffer\n\s+CALL\s+EditorRunKeys/);
   assert.match(source, /CALL\s+BiosDisplayUpdate/);
   assert.match(source, /EditorDispatchAction:/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_UP\n\s+JR\s+Z,EditorActionCursorUp/);
   assert.match(source, /CP\s+TECM8_EDITOR_ACTION_CURSOR_LEFT\n\s+JP\s+Z,EditorKeyCursorLeft/);
   assert.match(source, /CP\s+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER/);
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_[A-Z_]+\n\s+JP\s+Z,EditorKey/);

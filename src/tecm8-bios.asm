@@ -15,10 +15,18 @@ MON3_GLCD_SEND_STRING_TO_LCD .equ     0xDBB7
 MON3_GLCD_SET_CURSOR         .equ     0xDC0A
 MON3_GLCD_DRAW_GRAPHIC       .equ     0xDCEA
 MON3_MATRIX_SCAN             .equ     0xCC40
+MON3_MATRIX_SCAN_ASCII       .equ     0xD0CB
 MON3_PARSE_MATRIX_SCAN       .equ     0xD142
+MON3_GET_CAPS                .equ     0xCFCA
+MON3_TOGGLE_CAPS             .equ     0xD02B
 MON3_GLCD_VPORT              .equ     0x0E13
 MON3_GLCD_TGBUF              .equ     0x13C0
 TECM8_BIOS_DISPLAY_ERR_RANGE .equ     0x01
+TECM8_BIOS_KEY_MOD_SHIFT     .equ     0x01
+TECM8_BIOS_KEY_MOD_CTRL      .equ     0x02
+TECM8_BIOS_KEY_MOD_FN        .equ     0x04
+TECM8_BIOS_KEY_MOD_ALT       .equ     0x08
+TECM8_BIOS_KEY_MOD_CAPS      .equ     0x10
 
 ; BiosFileOpen -
 ; Open a MON3/FAT32 file by NUL-terminated name.
@@ -156,5 +164,141 @@ BiosDisplayDrawCharRange:
         CALL    MON3_PARSE_MATRIX_SCAN
         RET
 
+; BiosInputPollKey -
+; Poll MON3's raw matrix scanner once and return a TECM8 key event.
+; Output:
+;   carry set:   A = translated key/code, B = modifier flags, D/E = raw scan
+;   carry clear: no new key event; D/E contain the latest raw scan result or FFh
+; Normal callers should use A/B. D/E are exposed for diagnostics and unmapped
+; key handling.
+;!      out       A,B,D,E,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@BiosInputPollKey:
+        CALL    MON3_MATRIX_SCAN
+        JR      Z,BiosInputPollKeyRaw
+        LD      A,E
+        CP      0x40
+        JR      NC,BiosInputPollKeyNoRaw
+        LD      A,D
+        CP      3
+        JR      NZ,BiosInputPollKeyNoRaw
+
+BiosInputPollKeyRaw:
+        LD      A,D
+        LD      (BiosInputRawSecondary),A
+        LD      A,E
+        LD      (BiosInputRawPrimary),A
+        LD      A,(BiosInputLastPrimary)
+        CP      E
+        JR      NZ,BiosInputPollKeyNew
+        LD      A,(BiosInputLastSecondary)
+        CP      D
+        JR      NZ,BiosInputPollKeyNew
+        OR      A
+        RET
+
+BiosInputPollKeyNew:
+        LD      A,E
+        LD      (BiosInputLastPrimary),A
+        LD      A,D
+        LD      (BiosInputLastSecondary),A
+        LD      A,E
+        CP      0x07
+        JR      Z,BiosInputPollKeyToggleCaps
+        LD      A,D
+        CALL    BiosInputModifierFlags
+        LD      (BiosInputModifierBits),A
+        LD      A,(BiosInputRawSecondary)
+        LD      D,A
+        LD      A,(BiosInputRawPrimary)
+        LD      E,A
+        CALL    MON3_MATRIX_SCAN_ASCII
+        LD      (BiosInputTranslatedKey),A
+        CALL    MON3_GET_CAPS
+        OR      A
+        JR      Z,BiosInputPollKeyNoCaps
+        LD      A,(BiosInputModifierBits)
+        OR      TECM8_BIOS_KEY_MOD_CAPS
+        LD      (BiosInputModifierBits),A
+
+BiosInputPollKeyNoCaps:
+        LD      A,(BiosInputRawSecondary)
+        LD      D,A
+        LD      A,(BiosInputRawPrimary)
+        LD      E,A
+        LD      A,(BiosInputModifierBits)
+        LD      B,A
+        LD      A,(BiosInputTranslatedKey)
+        SCF
+        RET
+
+BiosInputPollKeyToggleCaps:
+        CALL    MON3_TOGGLE_CAPS
+
+        LD      A,(BiosInputRawSecondary)
+        LD      D,A
+        LD      A,(BiosInputRawPrimary)
+        LD      E,A
+        XOR     A
+        RET
+
+BiosInputPollKeyNoRaw:
+        LD      A,0xFF
+        LD      (BiosInputLastPrimary),A
+        LD      (BiosInputLastSecondary),A
+        LD      D,0xFF
+        LD      E,0xFF
+        XOR     A
+        RET
+
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@BiosInputModifierFlags:
+        CP      0
+        JR      Z,BiosInputModifierShift
+        CP      1
+        JR      Z,BiosInputModifierCtrl
+        CP      2
+        JR      Z,BiosInputModifierFn
+        CP      3
+        JR      Z,BiosInputModifierAlt
+        XOR     A
+        RET
+
+BiosInputModifierShift:
+        LD      A,TECM8_BIOS_KEY_MOD_SHIFT
+        RET
+
+BiosInputModifierCtrl:
+        LD      A,TECM8_BIOS_KEY_MOD_CTRL
+        RET
+
+BiosInputModifierFn:
+        LD      A,TECM8_BIOS_KEY_MOD_FN
+        RET
+
+BiosInputModifierAlt:
+        LD      A,TECM8_BIOS_KEY_MOD_ALT
+        RET
+
 BiosDisplayChar:
+        .db     0
+
+BiosInputLastPrimary:
+        .db     0xFF
+
+BiosInputLastSecondary:
+        .db     0xFF
+
+BiosInputRawPrimary:
+        .db     0xFF
+
+BiosInputRawSecondary:
+        .db     0xFF
+
+BiosInputTranslatedKey:
+        .db     0
+
+BiosInputModifierBits:
         .db     0

@@ -42,6 +42,7 @@ test('TECM8 BIOS display contract is documented for GLCD wrappers', () => {
     'BiosDisplayUpdate',
     'BiosDisplaySetBitmapMode',
     'BiosInputPollAscii',
+    'BiosInputPollKey',
   ]) {
     assert.match(docs, new RegExp(`\\b${name}\\b`));
   }
@@ -60,6 +61,7 @@ test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
     'BiosDisplayUpdate',
     'BiosDisplaySetBitmapMode',
     'BiosInputPollAscii',
+    'BiosInputPollKey',
   ]) {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
   }
@@ -67,8 +69,21 @@ test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
   assert.match(source, /;!\s+in\s+B,C\n;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplaySetCursor:/);
   assert.match(source, /;!\s+in\s+A,B,C\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplayDrawCharAt:/);
   assert.match(source, /MON3_MATRIX_SCAN\s+\.equ\s+0xCC40/);
+  assert.match(source, /MON3_MATRIX_SCAN_ASCII\s+\.equ\s+0xD0CB/);
   assert.match(source, /MON3_PARSE_MATRIX_SCAN\s+\.equ\s+0xD142/);
+  assert.match(source, /MON3_GET_CAPS\s+\.equ\s+0xCFCA/);
+  assert.match(source, /MON3_TOGGLE_CAPS\s+\.equ\s+0xD02B/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_SHIFT\s+\.equ\s+0x01/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_CTRL\s+\.equ\s+0x02/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_FN\s+\.equ\s+0x04/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_ALT\s+\.equ\s+0x08/);
   assert.match(source, /CALL\s+MON3_MATRIX_SCAN\n\s+CALL\s+MON3_PARSE_MATRIX_SCAN/);
+  assert.match(source, /@BiosInputPollKey:/);
+  assert.match(source, /CP\s+0x07\n\s+JR\s+Z,BiosInputPollKeyToggleCaps/);
+  assert.match(source, /CP\s+3\n\s+JR\s+NZ,BiosInputPollKeyNoRaw/);
+  assert.match(source, /CALL\s+MON3_MATRIX_SCAN_ASCII/);
+  assert.match(source, /CALL\s+MON3_TOGGLE_CAPS/);
+  assert.match(source, /BiosInputModifierBits:\n\s+\.db\s+0/);
 });
 
 test('GLCD display smoke proof calls TECM8 BIOS display wrappers', () => {

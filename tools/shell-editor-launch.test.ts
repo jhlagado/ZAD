@@ -35,8 +35,14 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(mainSource, /CALL\s+ShellRunEditorLine\n\s+JP\s+C,MainFailed\n\s+CALL\s+EditorCursorReset\n\s+CALL\s+EditorRunLive/);
   assert.match(runner, /symbolAddress\(symbols, 'ScriptStart'\)/);
   assert.match(runner, /process\.argv\.includes\('--live-smoke'\)/);
-  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 5, 5\)/);
-  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 5, 7\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 4\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 3\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 6\)/);
+  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 1 \}, \{ row: 0, col: 4 \}\)/);
+  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 0, col: 6 \}\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 7\)/);
+  assert.match(runner, /altModifierBits !== 0x08/);
+  assert.match(runner, /modifierBits !== 0x10/);
   assert.match(packageJson, /"debug80:editor-live-smoke"/);
   assert.match(packageJson, /debug80:editor-live-smoke/);
 });

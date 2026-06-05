@@ -22,6 +22,10 @@ TECM8_EDITOR_PROOF_KEY_CURSOR_UP_LOWER  .equ    "k"
 TECM8_EDITOR_PROOF_KEY_CURSOR_UP_UPPER  .equ    "K"
 TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_LOWER .equ  "l"
 TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_UPPER .equ  "L"
+TECM8_EDITOR_KEY_ARROW_UP                .equ    0x03
+TECM8_EDITOR_KEY_ARROW_DOWN              .equ    0x04
+TECM8_EDITOR_KEY_ARROW_LEFT              .equ    0x05
+TECM8_EDITOR_KEY_ARROW_RIGHT             .equ    0x06
 TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
 TECM8_EDITOR_KEY_NEWLINE                .equ    13
@@ -327,10 +331,9 @@ EditorKeyDone:
         RET
 
 ; EditorRunLive -
-; Poll MON3 matrix-key ASCII input until the editor requests quit. This first
-; live path is intentionally ASCII-based: Debug80's visible arrow keys still
-; need emulator-side special-key support, but normal matrix keys can exercise
-; cursor actions through the proof aliases.
+; Poll TECM8 key events from the MON3-backed matrix scanner until the editor
+; requests quit. A/B carry the editor-facing translated key and modifier flags;
+; raw D/E remains available at the BIOS layer for diagnostics.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorRunLive:
@@ -346,7 +349,7 @@ EditorLiveLoop:
         LD      A,(EditorQuitRequested)
         OR      A
         JP      NZ,EditorLiveDone
-        CALL    BiosInputPollAscii
+        CALL    BiosInputPollKey
         JR      NC,EditorLiveIdle
         LD      (EditorLiveKeyBuffer),A
         LD      HL,EditorLiveKeyBuffer
@@ -379,6 +382,14 @@ EditorLiveDone:
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorActionFromKey:
+        CP      TECM8_EDITOR_KEY_ARROW_UP
+        JR      Z,EditorActionCursorUp
+        CP      TECM8_EDITOR_KEY_ARROW_DOWN
+        JR      Z,EditorActionCursorDown
+        CP      TECM8_EDITOR_KEY_ARROW_LEFT
+        JR      Z,EditorActionCursorLeft
+        CP      TECM8_EDITOR_KEY_ARROW_RIGHT
+        JR      Z,EditorActionCursorRight
         CP      TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER
         JR      Z,EditorActionPageDown
         CP      TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_UPPER

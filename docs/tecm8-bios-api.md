@@ -266,6 +266,7 @@ parsed input, leaving command-line editing to TECM8.
 | `32h` | `TECM8_BIOS_KEY_WAIT` | Wait for a key event. |
 | `33h` | `TECM8_BIOS_KEY_SET_REPEAT` | Configure repeat timing. |
 | existing/direct | `BiosInputPollAscii` | Poll MON3 `matrixScan` + `parseMatrixScan` once. |
+| existing/direct | `BiosInputPollKey` | Poll MON3 `matrixScan` once and return a TECM8 key event. |
 
 Draft contracts:
 
@@ -291,10 +292,56 @@ BiosInputPollAscii
        carry clear if no ASCII key is ready
   clobbers: A, BC, DE, HL, flags
 
+BiosInputPollKey
+  in:  none
+  out: carry set if a new key event is available
+       carry clear if no new key event is available
+       A = translated key code, ASCII byte, or control code
+       B = modifier flags
+       D = raw secondary matrix key from MON3 matrixScan
+       E = raw primary matrix key from MON3 matrixScan
+  clobbers: A, BC, DE, HL, flags
+
 TECM8_BIOS_KEY_WAIT
   in:  none
   out: A = ASCII byte or TECM8 key code
   clobbers: A, DE, HL, flags
+```
+
+`BiosInputPollKey` is the preferred TECM8 editor/application surface. Normal
+callers should use `A` and `B`: `A` is the translated key and `B` is the
+modifier bitmask. `D` and `E` are preserved for diagnostics, compatibility, and
+unmapped-key handling.
+
+Modifier chords such as `Ctrl+ArrowDown` or `Alt+ArrowRight` return the real
+key in `A`, modifier bits in `B`, and the raw modifier/key pair in `D/E`. The
+current MON3-compatible raw scan treats `03h` as the primary `ArrowUp` key, so
+Alt is only exposed as a TECM8 secondary modifier when it is chorded with a
+separate primary key.
+
+The current modifier flags in `B` are:
+
+```text
+bit 0  shift
+bit 1  ctrl
+bit 2  fn
+bit 3  alt
+bit 4  caps
+```
+
+The current translated key values deliberately preserve the TEC-1G matrix arrow
+codes:
+
+```text
+03h  ArrowUp
+04h  ArrowDown
+05h  ArrowLeft
+06h  ArrowRight
+08h  Backspace
+09h  Tab
+0Dh  Enter
+1Bh  Escape
+20h-7Eh printable ASCII
 ```
 
 ## Serial Calls

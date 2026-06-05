@@ -65,8 +65,24 @@ out D,E,zero
 clobbers A,BC,DE,HL,carry,zero,sign,parity,halfCarry
 end
 
+extern MON3_MATRIX_SCAN_ASCII
+in D,E
+out A
+clobbers A,BC,HL,zero,sign,parity,halfCarry
+end
+
 extern MON3_PARSE_MATRIX_SCAN
 in D,E,zero
 out A,carry
 clobbers A,BC,HL,carry,zero,sign,parity,halfCarry
+end
+
+extern MON3_GET_CAPS
+out A
+clobbers A,zero,sign,parity,halfCarry
+end
+
+extern MON3_TOGGLE_CAPS
+out A
+clobbers A,zero,sign,parity,halfCarry
 end

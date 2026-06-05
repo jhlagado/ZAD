@@ -83,9 +83,10 @@ The runner verifies:
 
 ## Editor Input Status
 
-The manual `4000h` entry now polls MON3 `matrixScan` and `parseMatrixScan`
-through `BiosInputPollAscii`. Movement is represented inside the editor as
-named actions:
+The manual `4000h` entry now polls MON3 `matrixScan` through
+`BiosInputPollKey`. The editor consumes the translated key in `A` and modifier
+flags in `B`; raw `D/E` scan values remain available for diagnostics. Movement
+is represented inside the editor as named actions:
 
 ```text
 page down
@@ -96,8 +97,17 @@ cursor up
 cursor right
 ```
 
-The current live path and the proof stream both map temporary host-friendly
-ASCII bytes onto those actions:
+The current live path maps the TEC-1G matrix arrow codes directly onto cursor
+actions:
+
+```text
+03h / ArrowUp       cursor up
+04h / ArrowDown     cursor down
+05h / ArrowLeft     cursor left
+06h / ArrowRight    cursor right
+```
+
+The proof stream also keeps temporary host-friendly ASCII aliases:
 
 ```text
 d / D    page down
@@ -108,9 +118,8 @@ k / K    cursor up
 l / L    cursor right
 ```
 
-These are not intended to be the final TEC-1G user-facing bindings. They are
-aliases for automated proofs, Debug80 script runs, and current manual testing
-while the physical matrix arrow-key path is being settled.
+The `h`/`j`/`k`/`l` aliases are not intended to be the final TEC-1G user-facing
+bindings. They remain useful for automated proofs and fallback testing.
 
 The intended interactive binding is:
 
@@ -122,21 +131,10 @@ matrix ArrowRight    cursor right
 modified arrows      page or word movement, exact modifiers to be finalized
 ```
 
-As of this TECM8 milestone, Debug80's visible matrix-keyboard UI has arrow keys,
-but the observed Debug80 request path only special-cases `CapsLock`. Printable
-keys are resolved through ASCII and reverse-mapped to matrix row/column states,
-which is why `h`, `j`, `k`, `l`, `d`, and `u` work. Browser keys named
-`ArrowLeft`, `ArrowDown`, `ArrowUp`, and `ArrowRight` are not printable ASCII,
-so they appear not to reach the emulated matrix state yet.
-
-If this blocks interactive testing, hand this minimal repro to the Debug80 team:
-
-1. Launch the TEC-1G target with matrix keyboard capture enabled.
-2. Press or click the visible matrix keyboard arrow keys.
-3. Observe whether `ArrowLeft`, `ArrowDown`, `ArrowUp`, and `ArrowRight` apply
-   any matrix row/column state.
-4. Expected result: each visible arrow key should generate the TEC-1G matrix
-   row/column event or documented MON3 matrix/ASCII code for that key.
+Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
+matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
+`ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`, and `CapsLock` so the
+modifier-aware path is exercised, not only printable ASCII.
 
 The GLCD capture is written as a portable graymap image:
 
@@ -159,8 +157,13 @@ The live matrix-input smoke test can also be run directly:
 npm run debug80:editor-live-smoke
 ```
 
-It launches the manual `4000h` path under Debug80, injects matrix `j` then `l`,
-and verifies that the editor cursor reaches row 1, column 1.
+It launches the manual `4000h` path under Debug80, injects `ArrowDown`,
+`ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`,
+`CapsLock`, and `ArrowDown`, then verifies that the editor cursor reaches row 3,
+column 2. It also checks that `Alt+ArrowRight` reports modifier bit `0x08`, raw
+secondary `03h`, raw primary `06h`, translated key `06h`, and that the final
+post-CapsLock `ArrowDown` reports caps modifier bit `0x10`, raw primary `04h`,
+translated key `04h`.
 
 For an interactive Debug80 UI check:
 
@@ -170,8 +173,9 @@ For an interactive Debug80 UI check:
 4. Use MON3's normal `GO` flow to execute address `4000h`.
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
-6. In the matrix keyboard UI, use the letter keys for current movement testing:
-   `h` left, `j` down, `k` up, `l` right, `d` page down, and `u` page up.
+6. In the matrix keyboard UI, use the arrow keys for cursor movement. The
+   fallback aliases still work: `h` left, `j` down, `k` up, `l` right, `d`
+   page down, and `u` page up.
 7. `Ctrl-S` saves, `Ctrl-Q` quits, and `Ctrl-R` asks to restore from the
    hidden backup file.
 

@@ -294,6 +294,23 @@ function tapMatrixKey(
   runInstructions(runtime, platformRuntime, 20000);
 }
 
+function tapMatrixCombo(
+  platformRuntime: PlatformRuntime,
+  runtime: Runtime,
+  modifier: { row: number; col: number },
+  key: { row: number; col: number },
+): void {
+  if (!platformRuntime.applyMatrixKey) {
+    throw new Error('Debug80 runtime does not expose matrix key injection');
+  }
+  platformRuntime.applyMatrixKey(modifier.row, modifier.col, true);
+  platformRuntime.applyMatrixKey(key.row, key.col, true);
+  runInstructions(runtime, platformRuntime, 20000);
+  platformRuntime.applyMatrixKey(key.row, key.col, false);
+  platformRuntime.applyMatrixKey(modifier.row, modifier.col, false);
+  runInstructions(runtime, platformRuntime, 20000);
+}
+
 function readTm8File(tm8Path: string): Buffer {
   const { readFileFromVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
   const manifest = JSON.parse(readFileSync(IMAGE_PATH.replace(/\.[^.]*$/, '.json'), 'utf8'));
@@ -345,17 +362,56 @@ async function main(): Promise<void> {
     const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
     const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
     const cursorColAddr = symbolAddress(symbols, 'EditorCursorCol');
+    const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
+    const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
+    const rawSecondaryAddr = symbolAddress(symbols, 'BiosInputRawSecondary');
+    const translatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedKey');
     const { runtime, platformRuntime } = loadRuntime(bytes, IMAGE_PATH, APP_START, true);
     platformRuntime.setMatrixMode?.(true);
     const bootInstructions = runUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
-    tapMatrixKey(platformRuntime, runtime, 5, 5); // j: cursor down proof alias
+    tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown: raw key 04h
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    tapMatrixKey(platformRuntime, runtime, 5, 7); // l: cursor right proof alias
+    tapMatrixKey(platformRuntime, runtime, 0, 3); // ArrowUp: raw key 03h
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown: raw key 04h
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    tapMatrixKey(platformRuntime, runtime, 0, 6); // ArrowRight: raw key 06h
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }); // Ctrl+ArrowDown
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 6 }); // Alt+ArrowRight
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const altModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const altRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+    const altRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
+    const altTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    if (
+      altModifierBits !== 0x08 ||
+      altRawPrimary !== 0x06 ||
+      altRawSecondary !== 0x03 ||
+      altTranslatedKey !== 0x06
+    ) {
+      throw new Error(
+        `live editor alt event modifier=0x${altModifierBits.toString(16)} raw=${altRawSecondary.toString(16)}/${altRawPrimary.toString(16)} translated=0x${altTranslatedKey.toString(16)}`,
+      );
+    }
+    tapMatrixKey(platformRuntime, runtime, 0, 7); // CapsLock toggles caps state, no editor action
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown with caps state set
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const cursorRow = runtime.hardware.memory[cursorRowAddr];
     const cursorCol = runtime.hardware.memory[cursorColAddr];
-    if (cursorRow !== 1 || cursorCol !== 1) {
-      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=1 col=1`);
+    const modifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const rawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+    const rawSecondary = runtime.hardware.memory[rawSecondaryAddr];
+    const translatedKey = runtime.hardware.memory[translatedKeyAddr];
+    if (cursorRow !== 3 || cursorCol !== 2) {
+      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=3 col=2`);
+    }
+    if (modifierBits !== 0x10 || rawPrimary !== 0x04 || rawSecondary !== 0xff || translatedKey !== 0x04) {
+      throw new Error(
+        `live editor key event modifier=0x${modifierBits.toString(16)} raw=${rawSecondary.toString(16)}/${rawPrimary.toString(16)} translated=0x${translatedKey.toString(16)}`,
+      );
     }
     const summary = {
       result: 'ok',
@@ -363,6 +419,10 @@ async function main(): Promise<void> {
       bootInstructions,
       cursorRow,
       cursorCol,
+      modifierBits,
+      rawPrimary,
+      rawSecondary,
+      translatedKey,
     };
     writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
     console.log(JSON.stringify(summary, null, 2));
