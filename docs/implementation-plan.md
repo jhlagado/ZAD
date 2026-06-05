@@ -92,7 +92,9 @@ Goals:
   resolve project defaults and named one-off targets while returning action
   codes instead of launching the editor, assembler, or program runner.
 
-This phase can use MON3 GLCD terminal routines before a custom renderer exists.
+This phase used MON3 GLCD terminal routines to prove early shell/display paths.
+That is no longer acceptable for the interactive editor's hot path: the renderer
+phase below owns text-cell drawing and dirty update policy.
 
 Host-side project metadata commands are implemented so shell work has a stable
 format to target:
@@ -150,7 +152,40 @@ The v1 backup convention is documented in
 hidden from ordinary listings and project export/pack output, but implementing
 that hidden-file behavior is a separate low-priority filesystem task.
 
-## Phase 6: Build Tools
+## Phase 6: TECM8 Tiled GLCD Renderer
+
+Goals:
+
+- Replace MON3 terminal-style text drawing in the editor hot path.
+- Treat the 128x64 GLCD as a bitmap-backed tile surface using the current 6x6
+  font rhythm.
+- Write complete cells, including clear pixels, so old glyph strokes do not
+  remain after edits.
+- Redraw cursor movement with old/new cell updates rather than full-screen
+  repaint.
+- Redraw ordinary character insertion/deletion by affected cell range or line,
+  not by full viewport clear.
+- Keep full-screen repaint for page load, mode switch, and explicit redraw.
+- Establish the future boundary between low-level GLCD hardware access and
+  TECM8-owned editor display policy.
+
+Initial routines should be deliberately small and measurable:
+
+```text
+clear cell
+draw cell
+draw text run
+draw gutter marker
+draw/erase cursor cell
+flush full screen
+flush dirty row or dirty byte range
+```
+
+MON3's low-level GLCD plot/update routine may remain as a temporary hardware
+flush backend, but MON3 terminal initialization and character-output policy
+should not be used for normal editor mutation rendering.
+
+## Phase 7: Build Tools
 
 Goals:
 
@@ -158,7 +193,7 @@ Goals:
 - Generate object output.
 - Generate compact map data for future debugger.
 
-## Phase 7: Debugger
+## Phase 8: Debugger
 
 Goals:
 

@@ -57,6 +57,50 @@ not fixed to identical tile dimensions across devices. GLCD can use compact
 6x6 cells and a narrow bitmap gutter; a future TMS9918 backend can use 8x8
 tiles, a hardware name table, and hardware sprites where appropriate.
 
+The GLCD editor renderer should now be treated as a tiled text renderer over a
+bitmap, not as a general terminal repaint. The editor's normal operations are
+cell and line operations:
+
+```text
+cursor moved       erase old cursor cell, draw new cursor cell
+character typed    update source record, redraw affected cell range or line
+delete/backspace   redraw affected cell range or line
+split/join line    redraw from changed line downward
+page load          full screen render
+explicit redraw    full screen render
+```
+
+This requires TECM8 to own the text-cell drawing policy. MON3's current GLCD
+terminal routines are useful for proofing and early hardware access, but they
+clear and redraw too much for an interactive editor. A TECM8 tile write must
+replace the whole cell footprint, including blank pixels, so stale strokes from
+previous glyphs cannot remain. It should not merely OR glyph pixels into the
+buffer.
+
+The first TECM8 GLCD tile layer should provide narrow primitives along these
+lines:
+
+```text
+GlcdTileClearCell(row, col)
+GlcdTileDrawCell(row, col, glyph, flags)
+GlcdTileDrawTextRun(row, col, text, max_cells, flags)
+GlcdTileDrawGutter(row, marker_flags)
+GlcdTileFlushFull()
+GlcdTileFlushDirtyRow(row) or equivalent later dirty flush
+```
+
+The first implementation can still flush through MON3's low-level GLCD plotting
+routine if that is the fastest way to reach hardware. The boundary is that MON3
+should no longer decide editor terminal policy, cell clearing, cursor drawing, or
+dirty update scope.
+
+Cursor rendering should also move from a fragile single vertical stroke toward a
+cell-level visual treatment. A vertical bar can disappear inside glyphs such as
+`E`, `L`, and `N` because those glyphs already contain a left vertical stroke.
+A blinking inverse/XOR cell, or another full-cell overlay, is more appropriate
+for a 6x6 bitmap font. Blinking is useful later, but the cursor must be visible
+even before blink timing is added.
+
 Initial structured display constants:
 
 ```text
