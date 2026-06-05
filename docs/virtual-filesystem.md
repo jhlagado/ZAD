@@ -20,6 +20,58 @@ TECM8 treats that file as a private project volume. A FAT32 card can contain
 multiple TM8 volumes, but the TEC-1G normally works inside one active volume
 at a time.
 
+## Deferred Serial Archive Transfer
+
+TECM8 will eventually need a simple way to move projects between machines over
+serial links. The useful distinction is between the archive format and the wire
+encoding:
+
+```text
+project files
+-> archive stream
+-> text-safe transfer encoding
+-> serial
+```
+
+Existing standards are useful references. `uuencode`/`uudecode` and `shar`
+represent the old Unix mail/news era: binary or multi-file content was converted
+into line-oriented ASCII so it could survive simple transports. MIME multipart
+with Base64 became the later email attachment standard. Intel HEX and Motorola
+S-record are also line-oriented and checksummed, but they are address-oriented
+rather than file-tree-oriented.
+
+For TECM8, a literal Unix tarball is probably too broad as the native TEC-side
+format because it brings POSIX permissions, uid/gid fields, timestamps, links,
+padding rules, and dialect questions. A tar-like sequential archive is still the
+right idea: it preserves paths and streams naturally over serial.
+
+Preferred direction:
+
+```text
+TECM8-native archive stream
+Base64, Intel HEX, or another line-checksummed ASCII transport
+optional host-side import/export to tar or MIME for interoperability
+```
+
+A possible human-readable archive envelope:
+
+```text
+begin tecm8-archive v1
+file /tecm8.prj 42 crc
+base64...
+end
+file /src/main.asm 1234 crc
+base64...
+end
+end tecm8-archive crc
+```
+
+This deliberately borrows the good parts of MIME and uuencode: line-oriented
+ASCII, file names, lengths, and checksums. It avoids making the Z80 parse full
+MIME or full POSIX tar unless a host tool is doing that work. Host tools should
+be able to pack/unpack this format, and later may bridge it to `.tar`, MIME
+attachments, or whole `VOLUME.TM8` images when that is useful.
+
 Default v1 volume sizing:
 
 ```text
