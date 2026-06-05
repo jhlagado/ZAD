@@ -265,24 +265,31 @@ parsed input, leaving command-line editing to TECM8.
 | `31h` | `TECM8_BIOS_KEY_SCAN_ASCII` | Return translated ASCII/key code if available. |
 | `32h` | `TECM8_BIOS_KEY_WAIT` | Wait for a key event. |
 | `33h` | `TECM8_BIOS_KEY_SET_REPEAT` | Configure repeat timing. |
+| existing/direct | `BiosInputPollAscii` | Poll MON3 `matrixScan` + `parseMatrixScan` once. |
 
 Draft contracts:
 
 ```text
 TECM8_BIOS_KEY_SCAN_RAW
   in:  none
-  out: carry clear if key event is available
-       carry set if no key event is available
+  out: carry set if key event is available
+       carry clear if no key event is available
        E = primary key
        D = modifier or secondary key
   clobbers: A, DE, flags
 
 TECM8_BIOS_KEY_SCAN_ASCII
   in:  none
-  out: carry clear if translated key is available
-       carry set if no key event is available
+  out: carry set if translated key is available
+       carry clear if no key event is available
        A = ASCII byte or TECM8 key code
   clobbers: A, DE, HL, flags
+
+BiosInputPollAscii
+  in:  none
+  out: carry set if MON3 returned debounced ASCII in A
+       carry clear if no ASCII key is ready
+  clobbers: A, BC, DE, HL, flags
 
 TECM8_BIOS_KEY_WAIT
   in:  none

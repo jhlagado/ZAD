@@ -2,10 +2,13 @@
 
 This is the user-testable Debug80 session for the GLCD Editor V1 milestone.
 It is not only an isolated proof harness: it assembles `src/main.asm`, boots it
-at `4000h` in Debug80's TEC-1G runtime with MON3 loaded, mounts a generated
-FAT32 SD image, opens `VOLUME.TM8`, reads `/tecm8.prj`, launches `edit`, saves
-the project source file, quits, reopens it, and leaves the final editor screen
-on the GLCD.
+in Debug80's TEC-1G runtime with MON3 loaded, mounts a generated FAT32 SD image,
+opens `VOLUME.TM8`, reads `/tecm8.prj`, and launches the GLCD editor.
+
+The manual entry at `4000h` opens the editor and enters a live MON3 matrix
+keyboard polling loop. The automated runner enters `ScriptStart` instead: it
+saves the project source file, quits, reopens it, and leaves the final editor
+screen on the GLCD for verification.
 
 Run it with:
 
@@ -80,8 +83,9 @@ The runner verifies:
 
 ## Editor Input Status
 
-The current session still drives the editor through a proof-oriented key stream.
-Movement is now represented inside the editor as named actions:
+The manual `4000h` entry now polls MON3 `matrixScan` and `parseMatrixScan`
+through `BiosInputPollAscii`. Movement is represented inside the editor as
+named actions:
 
 ```text
 page down
@@ -92,7 +96,8 @@ cursor up
 cursor right
 ```
 
-The proof stream maps temporary host-friendly bytes onto those actions:
+The current live path and the proof stream both map temporary host-friendly
+ASCII bytes onto those actions:
 
 ```text
 d / D    page down
@@ -104,8 +109,8 @@ l / L    cursor right
 ```
 
 These are not intended to be the final TEC-1G user-facing bindings. They are
-aliases for automated proofs and Debug80 script runs while the physical matrix
-keyboard input path is being settled.
+aliases for automated proofs, Debug80 script runs, and current manual testing
+while the physical matrix arrow-key path is being settled.
 
 The intended interactive binding is:
 
@@ -119,9 +124,10 @@ modified arrows      page or word movement, exact modifiers to be finalized
 
 As of this TECM8 milestone, Debug80's visible matrix-keyboard UI has arrow keys,
 but the observed Debug80 request path only special-cases `CapsLock`. Printable
-keys are resolved through ASCII and reverse-mapped to matrix row/column states.
-Browser keys named `ArrowLeft`, `ArrowDown`, `ArrowUp`, and `ArrowRight` are
-not printable ASCII, so they appear not to reach the emulated matrix state yet.
+keys are resolved through ASCII and reverse-mapped to matrix row/column states,
+which is why `h`, `j`, `k`, `l`, `d`, and `u` work. Browser keys named
+`ArrowLeft`, `ArrowDown`, `ArrowUp`, and `ArrowRight` are not printable ASCII,
+so they appear not to reach the emulated matrix state yet.
 
 If this blocks interactive testing, hand this minimal repro to the Debug80 team:
 
@@ -147,6 +153,15 @@ The normal verification suite includes this session through:
 npm run check
 ```
 
+The live matrix-input smoke test can also be run directly:
+
+```sh
+npm run debug80:editor-live-smoke
+```
+
+It launches the manual `4000h` path under Debug80, injects matrix `j` then `l`,
+and verifies that the editor cursor reaches row 1, column 1.
+
 For an interactive Debug80 UI check:
 
 1. Run `npm run debug80:editor-image` once to generate the local SD image.
@@ -155,3 +170,11 @@ For an interactive Debug80 UI check:
 4. Use MON3's normal `GO` flow to execute address `4000h`.
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
+6. In the matrix keyboard UI, use the letter keys for current movement testing:
+   `h` left, `j` down, `k` up, `l` right, `d` page down, and `u` page up.
+7. `Ctrl-S` saves, `Ctrl-Q` quits, and `Ctrl-R` asks to restore from the
+   hidden backup file.
+
+After each key press the current implementation may repaint the whole GLCD
+viewport, so movement is expected to feel slow. That is a known renderer
+performance limitation, not an input failure.

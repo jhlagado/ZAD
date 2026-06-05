@@ -13,6 +13,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
 
   assert.match(source, /^@EditorRunKeys:/m);
+  assert.match(source, /^@EditorRunLive:/m);
   assert.match(source, /^@EditorCursorReset:/m);
   assert.match(source, /^@EditorRenderCursor:/m);
   assert.match(source, /^@EditorActionFromKey:/m);
@@ -47,6 +48,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorPromptHandleKey/);
   assert.match(source, /CALL\s+EditorLoadCurrentBackupPage/);
   assert.match(source, /CALL\s+EditorActionFromKey/);
+  assert.match(source, /CALL\s+BiosInputPollAscii/);
+  assert.match(source, /LD\s+HL,EditorLiveKeyBuffer\n\s+CALL\s+EditorRunKeys/);
+  assert.match(source, /CALL\s+BiosDisplayUpdate/);
   assert.match(source, /EditorDispatchAction:/);
   assert.match(source, /CP\s+TECM8_EDITOR_ACTION_CURSOR_LEFT\n\s+JP\s+Z,EditorKeyCursorLeft/);
   assert.match(source, /CP\s+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER/);
@@ -65,6 +69,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_NEWLINE\s+\.equ\s+13/);
   assert.match(source, /TECM8_EDITOR_KEY_DELETE\s+\.equ\s+127/);
   assert.match(source, /EditorInsertMode:\n\s+\.db\s+0/);
+  assert.match(source, /EditorLiveKeyBuffer:\n\s+\.db\s+0,0/);
   assert.match(source, /EditorKeyInsertMode:/);
   assert.match(source, /EditorKeyPrompt:/);
   assert.match(source, /EditorKeyQuit:/);

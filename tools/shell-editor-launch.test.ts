@@ -24,6 +24,23 @@ test('shell editor launcher exposes a contracted edit launch entry', () => {
   assert.doesNotMatch(source, /CALL\s+EditorOpenMain/);
 });
 
+test('Debug80 main entry separates live launch from scripted verification', () => {
+  const mainSource = readRepoFile('src/main.asm');
+  const runner = readRepoFile('tools/run-debug80-editor-session.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(mainSource, /^@Start:\n\s+JP\s+LiveStart/m);
+  assert.match(mainSource, /^@ScriptStart:/m);
+  assert.match(mainSource, /^@LiveStart:/m);
+  assert.match(mainSource, /CALL\s+ShellRunEditorLine\n\s+JP\s+C,MainFailed\n\s+CALL\s+EditorCursorReset\n\s+CALL\s+EditorRunLive/);
+  assert.match(runner, /symbolAddress\(symbols, 'ScriptStart'\)/);
+  assert.match(runner, /process\.argv\.includes\('--live-smoke'\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 5, 5\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 5, 7\)/);
+  assert.match(packageJson, /"debug80:editor-live-smoke"/);
+  assert.match(packageJson, /debug80:editor-live-smoke/);
+});
+
 test('shell edit navigation proof drives shell command into storage-backed editor', () => {
   assert.ok(existsSync(resolve(root, 'proofs/display/shell-edit-navigation-proof.asm')));
   const proof = readRepoFile('proofs/display/shell-edit-navigation-proof.asm');

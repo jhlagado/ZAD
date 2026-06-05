@@ -49,6 +49,8 @@ type Runtime = {
 };
 
 type PlatformRuntime = {
+  applyMatrixKey?: (row: number, col: number, pressed: boolean) => void;
+  setMatrixMode?: (enabled: boolean) => void;
   recordCycles: (cycles: number) => void;
   state: {
     display?: { glcdCtrl?: { glcd?: number[] | Uint8Array } };
@@ -168,7 +170,7 @@ function ensureSessionImage(): void {
   writeFileSync(IMAGE_PATH, image);
 }
 
-function makeConfig(imagePath: string) {
+function makeConfig(imagePath: string, startAddress = APP_START, matrixMode = false) {
   return {
     regions: [
       { start: 0x0000, end: 0x07ff, kind: 'rom' },
@@ -180,12 +182,12 @@ function makeConfig(imagePath: string) {
       { start: 0xc000, end: 0xffff },
     ],
     appStart: APP_START,
-    entry: APP_START,
+    entry: startAddress,
     updateMs: 100,
     yieldMs: 0,
     gimpSignal: false,
     expansionBankHi: false,
-    matrixMode: false,
+    matrixMode,
     protectOnReset: false,
     rtcEnabled: false,
     sdEnabled: true,
@@ -194,7 +196,12 @@ function makeConfig(imagePath: string) {
   };
 }
 
-function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; platformRuntime: PlatformRuntime } {
+function loadRuntime(
+  bytes: Uint8Array,
+  imagePath: string,
+  startAddress = APP_START,
+  matrixMode = false,
+): { runtime: Runtime; platformRuntime: PlatformRuntime } {
   const { createTec1gRuntime } = requireFromDebug80('out/platforms/tec1g/runtime.js') as {
     createTec1gRuntime: Function;
   };
@@ -205,14 +212,14 @@ function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; 
     createZ80Runtime: Function;
   };
 
-  const config = makeConfig(imagePath);
+  const config = makeConfig(imagePath, startAddress, matrixMode);
   const tec1gRuntime = createTec1gRuntime(config, () => {});
   const memory = new Uint8Array(0x10000);
   const rom = readFileSync(MON3_ROM_PATH);
   memory.set(rom.subarray(0, 0x4000), 0xc000);
   memory.set(bytes, APP_START);
 
-  const runtime = createZ80Runtime({ memory, startAddress: APP_START }, APP_START, tec1gRuntime.ioHandlers, {
+  const runtime = createZ80Runtime({ memory, startAddress }, startAddress, tec1gRuntime.ioHandlers, {
     romRanges: config.romRanges,
   }) as Runtime;
 
@@ -230,7 +237,7 @@ function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; 
   runtime.hardware.memory.set(runtime.hardware.memory.subarray(0xc000, 0xc100), 0x0000);
   runtime.hardware.forceMemWrite?.(MCB, MCB_SD_CARD);
   runtime.cpu.sp = 0x7ff0;
-  runtime.cpu.pc = APP_START;
+  runtime.cpu.pc = startAddress;
   return { runtime, platformRuntime: tec1gRuntime };
 }
 
@@ -244,6 +251,47 @@ function runUntil(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: 
     platformRuntime.recordCycles(result.cycles ?? 0);
   }
   throw new Error(`session did not reach done at 0x${doneAddr.toString(16)}; pc=0x${runtime.cpu.pc.toString(16)}`);
+}
+
+function stepRuntime(runtime: Runtime, platformRuntime: PlatformRuntime): void {
+  const result = runtime.step();
+  platformRuntime.recordCycles(result.cycles ?? 0);
+}
+
+function runUntilPc(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  targetAddr: number,
+  maxInstructions: number,
+): number {
+  for (let i = 0; i < maxInstructions; i += 1) {
+    if ((runtime.cpu.pc & 0xffff) === targetAddr) {
+      return i;
+    }
+    stepRuntime(runtime, platformRuntime);
+  }
+  throw new Error(`live smoke did not reach 0x${targetAddr.toString(16)}; pc=0x${runtime.cpu.pc.toString(16)}`);
+}
+
+function runInstructions(runtime: Runtime, platformRuntime: PlatformRuntime, count: number): void {
+  for (let i = 0; i < count; i += 1) {
+    stepRuntime(runtime, platformRuntime);
+  }
+}
+
+function tapMatrixKey(
+  platformRuntime: PlatformRuntime,
+  runtime: Runtime,
+  row: number,
+  col: number,
+): void {
+  if (!platformRuntime.applyMatrixKey) {
+    throw new Error('Debug80 runtime does not expose matrix key injection');
+  }
+  platformRuntime.applyMatrixKey(row, col, true);
+  runInstructions(runtime, platformRuntime, 20000);
+  platformRuntime.applyMatrixKey(row, col, false);
+  runInstructions(runtime, platformRuntime, 20000);
 }
 
 function readTm8File(tm8Path: string): Buffer {
@@ -293,11 +341,40 @@ async function main(): Promise<void> {
   }
 
   const { bytes, symbols } = await compileMain();
+  if (process.argv.includes('--live-smoke')) {
+    const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
+    const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
+    const cursorColAddr = symbolAddress(symbols, 'EditorCursorCol');
+    const { runtime, platformRuntime } = loadRuntime(bytes, IMAGE_PATH, APP_START, true);
+    platformRuntime.setMatrixMode?.(true);
+    const bootInstructions = runUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
+    tapMatrixKey(platformRuntime, runtime, 5, 5); // j: cursor down proof alias
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    tapMatrixKey(platformRuntime, runtime, 5, 7); // l: cursor right proof alias
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const cursorRow = runtime.hardware.memory[cursorRowAddr];
+    const cursorCol = runtime.hardware.memory[cursorColAddr];
+    if (cursorRow !== 1 || cursorCol !== 1) {
+      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=1 col=1`);
+    }
+    const summary = {
+      result: 'ok',
+      liveSmoke: true,
+      bootInstructions,
+      cursorRow,
+      cursorCol,
+    };
+    writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  const scriptStartAddr = symbolAddress(symbols, 'ScriptStart');
   const doneAddr = symbolAddress(symbols, 'MainDone');
   const resultAddr = symbolAddress(symbols, 'MainResultMarker');
   const errorAddr = symbolAddress(symbols, 'MainErrorMarker');
   const caseAddr = symbolAddress(symbols, 'MainCaseMarker');
-  const { runtime, platformRuntime } = loadRuntime(bytes, IMAGE_PATH);
+  const { runtime, platformRuntime } = loadRuntime(bytes, IMAGE_PATH, scriptStartAddr);
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const resultMarker = runtime.hardware.memory[resultAddr];
   if (resultMarker !== PASS) {

@@ -45,6 +45,7 @@ TECM8_EDITOR_PROMPT_RESULT_NO           .equ    2
 TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
 TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 TECM8_EDITOR_PROMPT_ACTION_QUIT         .equ    2
+TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
@@ -322,6 +323,47 @@ EditorKeyDelete:
         JP      EditorKeyLoop
 
 EditorKeyDone:
+        CALL    EditorRenderCursor
+        RET
+
+; EditorRunLive -
+; Poll MON3 matrix-key ASCII input until the editor requests quit. This first
+; live path is intentionally ASCII-based: Debug80's visible arrow keys still
+; need emulator-side special-key support, but normal matrix keys can exercise
+; cursor actions through the proof aliases.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorRunLive:
+        XOR     A
+        LD      (EditorQuitRequested),A
+        LD      (EditorInsertMode),A
+        CALL    EditorRenderCursor
+        RET     C
+        CALL    BiosDisplayUpdate
+        RET     C
+
+EditorLiveLoop:
+        LD      A,(EditorQuitRequested)
+        OR      A
+        JP      NZ,EditorLiveDone
+        CALL    BiosInputPollAscii
+        JR      NC,EditorLiveIdle
+        LD      (EditorLiveKeyBuffer),A
+        LD      HL,EditorLiveKeyBuffer
+        CALL    EditorRunKeys
+        RET     C
+        CALL    BiosDisplayUpdate
+        RET     C
+        JP      EditorLiveLoop
+
+EditorLiveIdle:
+        LD      B,TECM8_EDITOR_LIVE_IDLE_SPINS
+
+EditorLiveIdleLoop:
+        DJNZ    EditorLiveIdleLoop
+        JP      EditorLiveLoop
+
+EditorLiveDone:
         CALL    EditorRenderCursor
         RET
 
@@ -937,6 +979,9 @@ EditorKeyAdvanceDone:
 
 EditorKeyStreamPtr:
         .dw     0
+
+EditorLiveKeyBuffer:
+        .db     0,0
 
 EditorPendingChar:
         .db     0

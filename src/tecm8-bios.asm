@@ -14,6 +14,8 @@ MON3_GLCD_SEND_CHAR_TO_LCD   .equ     0xDB45
 MON3_GLCD_SEND_STRING_TO_LCD .equ     0xDBB7
 MON3_GLCD_SET_CURSOR         .equ     0xDC0A
 MON3_GLCD_DRAW_GRAPHIC       .equ     0xDCEA
+MON3_MATRIX_SCAN             .equ     0xCC40
+MON3_PARSE_MATRIX_SCAN       .equ     0xD142
 MON3_GLCD_VPORT              .equ     0x0E13
 MON3_GLCD_TGBUF              .equ     0x13C0
 TECM8_BIOS_DISPLAY_ERR_RANGE .equ     0x01
@@ -140,6 +142,18 @@ BiosDisplayDrawCharRange:
 @BiosDisplaySetBitmapMode:
         CALL    MON3_GLCD_SET_GR_MODE
         XOR     A
+        RET
+
+; BiosInputPollAscii -
+; Poll MON3's matrix keyboard scanner once.
+; Output:
+;   carry set: A = debounced ASCII key from MON3 parseMatrixScan
+;   carry clear: no ASCII key is ready
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@BiosInputPollAscii:
+        CALL    MON3_MATRIX_SCAN
+        CALL    MON3_PARSE_MATRIX_SCAN
         RET
 
 BiosDisplayChar:

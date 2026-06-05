@@ -41,6 +41,7 @@ test('TECM8 BIOS display contract is documented for GLCD wrappers', () => {
     'BiosDisplayDrawCharAt',
     'BiosDisplayUpdate',
     'BiosDisplaySetBitmapMode',
+    'BiosInputPollAscii',
   ]) {
     assert.match(docs, new RegExp(`\\b${name}\\b`));
   }
@@ -58,12 +59,16 @@ test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
     'BiosDisplayDrawCharAt',
     'BiosDisplayUpdate',
     'BiosDisplaySetBitmapMode',
+    'BiosInputPollAscii',
   ]) {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
   }
   assert.match(source, /;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplayInit:/);
   assert.match(source, /;!\s+in\s+B,C\n;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplaySetCursor:/);
   assert.match(source, /;!\s+in\s+A,B,C\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplayDrawCharAt:/);
+  assert.match(source, /MON3_MATRIX_SCAN\s+\.equ\s+0xCC40/);
+  assert.match(source, /MON3_PARSE_MATRIX_SCAN\s+\.equ\s+0xD142/);
+  assert.match(source, /CALL\s+MON3_MATRIX_SCAN\n\s+CALL\s+MON3_PARSE_MATRIX_SCAN/);
 });
 
 test('GLCD display smoke proof calls TECM8 BIOS display wrappers', () => {
