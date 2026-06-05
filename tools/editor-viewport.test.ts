@@ -25,6 +25,12 @@ test('editor viewport module exposes a source-record render entry point', () => 
   }
 
   assert.match(source, /CP\s+TECM8_EDITOR_MAX_RECORD_TEXT \+ 1/);
+  assert.match(source, /CALL\s+EditorViewportSelectBottom/);
+  assert.match(source, /LD\s+\(EditorScreenBottomPtr\),HL/);
+  assert.match(source, /EditorScreenBottomPtr:/);
+  assert.match(source, /EditorPromptActive:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPromptResult:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPromptTextPtr:\n\s+\.dw\s+EditorPromptDefaultText/);
   assert.match(source, /CALL\s+DisplayRenderScreen/);
 });
 

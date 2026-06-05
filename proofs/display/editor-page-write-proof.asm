@@ -13,16 +13,16 @@ PROOF_FAIL       .equ     0xE0
 ;!      clobbers  A,BC,DE,HL
 @Start:
         CALL    DisplayInit
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         CALL    EditorOpenMain
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,8
         LD      (EditorCursorCol),A
         LD      HL,EditorNoopDeleteKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterNoopDelete),A
 
@@ -32,7 +32,7 @@ PROOF_FAIL       .equ     0xE0
         LD      (EditorCursorCol),A
         LD      HL,EditorNoopSplitKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterNoopSplit),A
 
@@ -43,31 +43,50 @@ PROOF_FAIL       .equ     0xE0
         LD      (HL),31
         LD      HL,EditorNoopInsertKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterNoopInsert),A
 
         CALL    EditorRenderCurrent
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         CALL    EditorCursorReset
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      HL,EditorPageEditKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterEdit),A
 
         LD      HL,EditorPageSaveKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterSave),A
 
+        LD      HL,EditorPromptProofText
+        CALL    EditorPromptAskYesNo
+        JP      C,ProofFailed
+        LD      HL,EditorPromptIgnoreKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorPromptActive)
+        LD      (PromptActiveAfterIgnore),A
+        LD      A,(EditorPromptResult)
+        LD      (PromptResultAfterIgnore),A
+
+        LD      HL,EditorPromptYesKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorPromptActive)
+        LD      (PromptActiveAfterYes),A
+        LD      A,(EditorPromptResult)
+        LD      (PromptResultAfterYes),A
+
         CALL    EditorRenderCurrent
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -104,6 +123,15 @@ EditorNoopSplitKeys:
 EditorNoopInsertKeys:
         .db     9,"!",0
 
+EditorPromptIgnoreKeys:
+        .db     "x",0
+
+EditorPromptYesKeys:
+        .db     "Y",0
+
+EditorPromptProofText:
+        .db     "Save changes? Y/N",0
+
 DirtyAfterNoopDelete:
         .db     0
 
@@ -117,6 +145,18 @@ DirtyAfterEdit:
         .db     0
 
 DirtyAfterSave:
+        .db     0
+
+PromptActiveAfterIgnore:
+        .db     0
+
+PromptResultAfterIgnore:
+        .db     0
+
+PromptActiveAfterYes:
+        .db     0
+
+PromptResultAfterYes:
         .db     0
 
 ResultMarker:

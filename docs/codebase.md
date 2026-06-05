@@ -302,8 +302,16 @@ the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
 and clears the flag only after the page write-back succeeds. There is not yet
-backup creation, backup restore, prompt handling, dirty quit protection, or
-sector-crossing insert/delete.
+backup creation, backup restore, dirty quit protection, or sector-crossing
+insert/delete.
+
+The module also owns the early status-line prompt state:
+
+- `EditorPromptAskYesNo` arms a prompt using caller-provided NUL-terminated
+  text.
+- `EditorPromptActive` routes subsequent keys to prompt handling.
+- `EditorPromptResult` records yes/no completion (`1` yes, `2` no).
+- Unknown keys leave the prompt active; `Y`/`y`, `N`/`n`, or ESC complete it.
 
 `EditorSplitLine` shifts records down within the current 16-record page
 and splits the current record at the cursor. It is a no-op on the final page row
@@ -529,6 +537,8 @@ What exists now:
   matching TM8 source page, with persisted image verification.
 - The editor tracks dirty state for the loaded page, marks dirty after
   mutation, saves via Ctrl-S, and clears dirty after successful save.
+- Status-line yes/no prompt state exists and is rendered through the bottom
+  chrome row for future restore and dirty-quit confirmations.
 - The design now has documented policies for status-line confirmations and
   one-level hidden backup files, but those policies are not implemented in the
   editor yet.
@@ -538,8 +548,8 @@ What is still missing or intentionally skeletal:
 - No real top-level TECM8 shell entry has replaced `src/main.asm`.
 - Shell keyboard input is proof-seeded, not real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no backup creation, backup restore, status prompt state
-  machine, search, dirty quit protection, or real quit command yet.
+- The editor has no backup creation, backup restore, search, dirty quit
+  protection, or real quit command yet.
 - The roadmap milestone is Debug80-testable GLCD Editor V1. When that milestone
   is reached, stop before starting assembler integration.
 - Split and join are currently limited to the loaded 512-byte page; they do not

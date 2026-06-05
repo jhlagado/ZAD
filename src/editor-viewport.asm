@@ -31,8 +31,28 @@ EditorViewportBuildLoop:
         CP      TECM8_EDITOR_VISIBLE_ROWS
         JR      NZ,EditorViewportBuildLoop
 
+        CALL    EditorViewportSelectBottom
         LD      HL,EditorScreenDescriptor
         CALL    DisplayRenderScreen
+        RET
+
+; EditorViewportSelectBottom -
+; Select normal status chrome or the active prompt for the bottom display row.
+;!      out       A,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorViewportSelectBottom:
+        LD      A,(EditorPromptActive)
+        OR      A
+        JR      Z,EditorViewportNormalBottom
+        LD      HL,(EditorPromptTextPtr)
+        JR      EditorViewportStoreBottom
+
+EditorViewportNormalBottom:
+        LD      HL,EditorBottomChrome
+
+EditorViewportStoreBottom:
+        LD      (EditorScreenBottomPtr),HL
+        XOR     A
         RET
 
 ; EditorViewportCopyRecord -
@@ -96,12 +116,25 @@ EditorScreenDescriptor:
         .dw     EditorRowText6
         .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText7
+EditorScreenBottomPtr:
         .dw     EditorBottomChrome
 
 EditorTopChrome:
         .db     "TECM8 EDIT MAIN.ASM",0
 EditorBottomChrome:
         .db     "Ln 2 Col 1",0
+
+EditorPromptActive:
+        .db     0
+
+EditorPromptResult:
+        .db     0
+
+EditorPromptTextPtr:
+        .dw     EditorPromptDefaultText
+
+EditorPromptDefaultText:
+        .db     "Confirm? Y/N",0
 
 EditorRecordPtr:
         .dw     0

@@ -150,6 +150,8 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /DirtyAfterNoopInsert/);
   assert.match(runner, /DirtyAfterEdit/);
   assert.match(runner, /DirtyAfterSave/);
+  assert.match(runner, /PromptActiveAfterIgnore/);
+  assert.match(runner, /PromptResultAfterYes/);
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
   assert.match(runner, /editor-viewport-storage-small-file-proof/);
   assert.match(runner, /makeSmallFileLines/);

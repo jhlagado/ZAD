@@ -669,6 +669,19 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
     throw new Error(`editor page write dirty after save ${dirtyAfterSave}, expected 0`);
   }
 
+  const promptChecks = [
+    { symbol: 'PromptActiveAfterIgnore', expected: 1 },
+    { symbol: 'PromptResultAfterIgnore', expected: 0 },
+    { symbol: 'PromptActiveAfterYes', expected: 0 },
+    { symbol: 'PromptResultAfterYes', expected: 1 },
+  ];
+  for (const check of promptChecks) {
+    const value = runtime.hardware.memory[symbolAddress(symbols, check.symbol)];
+    if (value !== check.expected) {
+      throw new Error(`editor page write ${check.symbol} ${value}, expected ${check.expected}`);
+    }
+  }
+
   const stored = readFileFromProofImage(PROOF_CASES['editor-page-write-proof'], '/src/main.asm');
   const length = stored[0];
   const text = stored.subarray(1, 1 + length).toString('ascii');

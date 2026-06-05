@@ -19,6 +19,7 @@ TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
 TECM8_EDITOR_KEY_NEWLINE                .equ    13
 TECM8_EDITOR_KEY_SAVE                   .equ    19
+TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
@@ -29,6 +30,9 @@ TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
 TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
 TECM8_EDITOR_EDIT_RECORD_BYTES          .equ    32
 TECM8_EDITOR_EDIT_RECORD_TEXT_MAX       .equ    31
+TECM8_EDITOR_PROMPT_RESULT_NONE         .equ    0
+TECM8_EDITOR_PROMPT_RESULT_YES          .equ    1
+TECM8_EDITOR_PROMPT_RESULT_NO           .equ    2
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
@@ -103,6 +107,10 @@ EditorKeyLoop:
         LD      (EditorKeyStreamPtr),HL
         LD      (EditorPendingChar),A
 
+        LD      A,(EditorPromptActive)
+        OR      A
+        JP      NZ,EditorKeyPrompt
+        LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_INSERT_MODE
         JP      Z,EditorKeyInsertMode
         CP      TECM8_EDITOR_KEY_NEWLINE
@@ -165,6 +173,12 @@ EditorKeyMaybeInsertMode:
 EditorKeyInsertMode:
         LD      A,1
         LD      (EditorInsertMode),A
+        JP      EditorKeyLoop
+
+EditorKeyPrompt:
+        LD      A,(EditorPendingChar)
+        CALL    EditorPromptHandleKey
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeySave:
@@ -641,6 +655,49 @@ EditorDeleteDone:
         LD      (EditorNavDirty),A
         XOR     A
         RET
+
+; EditorPromptAskYesNo -
+; Activate a status-line yes/no prompt using the NUL-terminated text at HL.
+;!      in        HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPromptAskYesNo:
+        LD      (EditorPromptTextPtr),HL
+        XOR     A
+        LD      (EditorPromptResult),A
+        LD      A,1
+        LD      (EditorPromptActive),A
+        JP      EditorRenderPageBuffer
+
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPromptHandleKey:
+        CP      "y"
+        JR      Z,EditorPromptYes
+        CP      "Y"
+        JR      Z,EditorPromptYes
+        CP      "n"
+        JR      Z,EditorPromptNo
+        CP      "N"
+        JR      Z,EditorPromptNo
+        CP      TECM8_EDITOR_KEY_ESCAPE
+        JR      Z,EditorPromptNo
+        XOR     A
+        RET
+
+EditorPromptYes:
+        LD      A,TECM8_EDITOR_PROMPT_RESULT_YES
+        JR      EditorPromptComplete
+
+EditorPromptNo:
+        LD      A,TECM8_EDITOR_PROMPT_RESULT_NO
+
+EditorPromptComplete:
+        LD      (EditorPromptResult),A
+        XOR     A
+        LD      (EditorPromptActive),A
+        JP      EditorRenderPageBuffer
 
 ;!      out       A,HL,carry,zero
 ;!      clobbers  A,B,DE,sign,parity,halfCarry
