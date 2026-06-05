@@ -13,7 +13,29 @@ Run it with:
 npm run debug80:editor-session
 ```
 
-The command generates:
+For launching the `main` target from the Debug80 UI, prepare the disk image
+without running the scripted edit session:
+
+```sh
+npm run debug80:editor-image
+```
+
+That command creates the SD-card image that `debug80.json` points at:
+
+```text
+demos/debug80/editor-session-fat32.img
+```
+
+If Debug80 is launched before this image exists, or with SD card emulation
+disabled, MON3 storage calls can fail on the LCD with an IDE/disk timeout before
+the editor has a usable project volume.
+
+The Debug80 `main` target still boots through MON3 (`entry: 0`) and loads the
+program at `4000h` (`appStart: 4000h`). For a manual UI check, let MON3 finish
+initializing, then use MON3's normal `GO` flow to execute the TECM8 program at
+`4000h`.
+
+The full scripted session command generates:
 
 ```text
 demos/debug80/editor-session-fat32.img
@@ -70,3 +92,12 @@ The normal verification suite includes this session through:
 ```sh
 npm run check
 ```
+
+For an interactive Debug80 UI check:
+
+1. Run `npm run debug80:editor-image` once to generate the local SD image.
+2. Launch the `main` target in Debug80.
+3. Leave SD enabled and high-capacity mode enabled.
+4. Use MON3's normal `GO` flow to execute address `4000h`.
+5. The generated image contains `VOLUME.TM8` with
+   `/tecm8.prj` and `/src/main.asm`.

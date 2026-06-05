@@ -281,6 +281,17 @@ function writeGlcdCapture(glcd: number[]): void {
 
 async function main(): Promise<void> {
   ensureSessionImage();
+  if (process.argv.includes('--prepare-only')) {
+    const summary = {
+      result: 'ok',
+      preparedOnly: true,
+      image: IMAGE_PATH,
+    };
+    writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
   const { bytes, symbols } = await compileMain();
   const doneAddr = symbolAddress(symbols, 'MainDone');
   const resultAddr = symbolAddress(symbols, 'MainResultMarker');

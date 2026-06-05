@@ -52,7 +52,10 @@
         ],
         "appStart": 16384,
         "entry": 0,
-        "romHex": "roms/tec1g/mon3/mon3.bin"
+        "romHex": "roms/tec1g/mon3/mon3.bin",
+        "sdEnabled": true,
+        "sdHighCapacity": true,
+        "sdImagePath": "/Users/johnhardy/projects/TECM8/demos/debug80/editor-session-fat32.img"
       }
     }
   }
