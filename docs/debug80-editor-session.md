@@ -107,19 +107,17 @@ actions:
 06h / ArrowRight    cursor right
 ```
 
-The proof stream also keeps temporary host-friendly ASCII aliases:
+The proof stream also keeps temporary host-friendly ASCII aliases for page
+movement:
 
 ```text
 d / D    page down
 u / U    page up
-h / H    cursor left
-j / J    cursor down
-k / K    cursor up
-l / L    cursor right
 ```
 
-The `h`/`j`/`k`/`l` aliases are not intended to be the final TEC-1G user-facing
-bindings. They remain useful for automated proofs and fallback testing.
+The old `h`/`j`/`k`/`l` cursor aliases have been removed from the editor action
+mapper now that real matrix arrow keys work. Printable letters should be text,
+not hidden movement commands.
 
 The intended interactive binding is:
 
@@ -174,8 +172,7 @@ For an interactive Debug80 UI check:
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
 6. In the matrix keyboard UI, use the arrow keys for cursor movement. The
-   fallback aliases still work: `h` left, `j` down, `k` up, `l` right, `d`
-   page down, and `u` page up.
+   temporary page aliases still work: `d` page down and `u` page up.
 7. `Ctrl-S` saves, `Ctrl-Q` quits, and `Ctrl-R` asks to restore from the
    hidden backup file.
 

@@ -14,14 +14,6 @@ TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER  .equ    "d"
 TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_UPPER  .equ    "D"
 TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER    .equ    "u"
 TECM8_EDITOR_PROOF_KEY_PAGE_UP_UPPER    .equ    "U"
-TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER .equ   "h"
-TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_UPPER .equ   "H"
-TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_LOWER .equ   "j"
-TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_UPPER .equ   "J"
-TECM8_EDITOR_PROOF_KEY_CURSOR_UP_LOWER  .equ    "k"
-TECM8_EDITOR_PROOF_KEY_CURSOR_UP_UPPER  .equ    "K"
-TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_LOWER .equ  "l"
-TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_UPPER .equ  "L"
 TECM8_EDITOR_KEY_ARROW_UP                .equ    0x03
 TECM8_EDITOR_KEY_ARROW_DOWN              .equ    0x04
 TECM8_EDITOR_KEY_ARROW_LEFT              .equ    0x05
@@ -103,10 +95,10 @@ EditorCursorRenderDone:
 ; Consume a NUL-terminated key stream. Movement and paging are dispatched as
 ; editor actions so later matrix-key input can bind to the same commands without
 ; pretending arrow keys are printable ASCII. The current proof stream still uses
-; host-friendly `d`/`u` and `h`/`j`/`k`/`l` aliases. TAB enters insert mode for
-; this stream, printable ASCII inserts, backspace deletes before the cursor,
-; delete removes the character at the cursor, newline splits the current record,
-; and unknown keys are ignored.
+; host-friendly `d`/`u` aliases for page movement. TAB enters insert mode,
+; printable ASCII inserts, backspace deletes before the cursor, delete removes
+; the character at the cursor, newline splits the current record, and unknown
+; keys are ignored.
 ; Input:
 ;   HL = NUL-terminated key stream
 ;!      in        HL
@@ -398,22 +390,6 @@ EditorLiveDone:
         JR      Z,EditorActionPageUp
         CP      TECM8_EDITOR_PROOF_KEY_PAGE_UP_UPPER
         JR      Z,EditorActionPageUp
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER
-        JR      Z,EditorActionCursorLeft
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_UPPER
-        JR      Z,EditorActionCursorLeft
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_LOWER
-        JR      Z,EditorActionCursorDown
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_UPPER
-        JR      Z,EditorActionCursorDown
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_UP_LOWER
-        JR      Z,EditorActionCursorUp
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_UP_UPPER
-        JR      Z,EditorActionCursorUp
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_LOWER
-        JR      Z,EditorActionCursorRight
-        CP      TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_UPPER
-        JR      Z,EditorActionCursorRight
         XOR     A
         RET
 
