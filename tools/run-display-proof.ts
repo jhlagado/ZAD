@@ -204,8 +204,10 @@ function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
 }
 
+const DISPLAY_Y_ORIGIN = 2;
+
 function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
-  const firstPixelRow = displayRow * 6;
+  const firstPixelRow = displayRow * 6 + DISPLAY_Y_ORIGIN;
   for (let y = firstPixelRow; y < firstPixelRow + 6; y += 1) {
     const start = y * 16;
     const end = start + 16;
@@ -229,7 +231,6 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   }
 
   const mon3Tgbuf = 0x13c0;
-  const rowStride = 16 * 6;
   const rowBytes = 16;
   const textColumnByte = 1;
   const expectedMarkers = [
@@ -242,7 +243,7 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
 
   for (const marker of expectedMarkers) {
     for (let y = 0; y < 6; y += 1) {
-      const address = mon3Tgbuf + marker.row * rowStride + y * rowBytes;
+      const address = mon3Tgbuf + (marker.row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
       const value = runtime.hardware.memory[address];
       if ((value & marker.pattern) !== marker.pattern) {
         throw new Error(
@@ -250,7 +251,7 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
         );
       }
 
-      const glcdOffset = marker.row * rowStride + y * rowBytes;
+      const glcdOffset = (marker.row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
       const visibleValue = glcd[glcdOffset] ?? 0;
       if ((visibleValue & marker.pattern) !== marker.pattern) {
         throw new Error(
@@ -269,9 +270,9 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   for (const row of expectedTextRows) {
     let hasTextPixels = false;
     for (let y = 0; y < 6; y += 1) {
-      const address = mon3Tgbuf + row.row * rowStride + y * rowBytes + textColumnByte;
+      const address = mon3Tgbuf + (row.row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes + textColumnByte;
       const memoryValue = runtime.hardware.memory[address];
-      const glcdOffset = row.row * rowStride + y * rowBytes + textColumnByte;
+      const glcdOffset = (row.row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes + textColumnByte;
       const visibleValue = glcd[glcdOffset] ?? 0;
       if (memoryValue !== 0 && visibleValue !== 0) {
         hasTextPixels = true;
@@ -305,7 +306,6 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
   }
 
   const mon3Tgbuf = 0x13c0;
-  const rowStride = 16 * 6;
   const rowBytes = 16;
   const expectedMarkers = [
     { row: 1, pattern: 0xf0, name: 'breakpoint' },
@@ -315,7 +315,7 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
 
   for (const marker of expectedMarkers) {
     for (let y = 0; y < 6; y += 1) {
-      const address = mon3Tgbuf + marker.row * rowStride + y * rowBytes;
+      const address = mon3Tgbuf + (marker.row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
       const value = runtime.hardware.memory[address];
       if ((value & marker.pattern) !== marker.pattern) {
         throw new Error(
@@ -323,7 +323,7 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
         );
       }
 
-      const glcdOffset = marker.row * rowStride + y * rowBytes;
+      const glcdOffset = (marker.row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
       const visibleValue = glcd[glcdOffset] ?? 0;
       if ((visibleValue & marker.pattern) !== marker.pattern) {
         throw new Error(

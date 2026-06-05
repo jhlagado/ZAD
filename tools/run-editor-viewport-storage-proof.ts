@@ -441,8 +441,10 @@ function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
 }
 
+const DISPLAY_Y_ORIGIN = 2;
+
 function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
-  const firstPixelRow = displayRow * 6;
+  const firstPixelRow = displayRow * 6 + DISPLAY_Y_ORIGIN;
   for (let y = firstPixelRow; y < firstPixelRow + 6; y += 1) {
     const start = y * 16;
     const end = start + 16;
@@ -740,7 +742,6 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
 
 function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {
   const mon3Tgbuf = 0x13c0;
-  const rowStride = 16 * 6;
   const rowBytes = 16;
   const displayRow = 8;
   const cursorByte = 4;
@@ -748,7 +749,7 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
   const glcd = getGlcdBytes(platformRuntime);
 
   for (let y = 0; y < 6; y += 1) {
-    const address = mon3Tgbuf + displayRow * rowStride + y * rowBytes + cursorByte;
+    const address = mon3Tgbuf + (displayRow * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes + cursorByte;
     const value = runtime.hardware.memory[address];
     if ((value & cursorMask) !== cursorMask) {
       throw new Error(
@@ -756,7 +757,7 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
       );
     }
 
-    const glcdOffset = displayRow * rowStride + y * rowBytes + cursorByte;
+    const glcdOffset = (displayRow * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes + cursorByte;
     const visibleValue = glcd[glcdOffset] ?? 0;
     if ((visibleValue & cursorMask) !== cursorMask) {
       throw new Error(

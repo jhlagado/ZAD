@@ -8,11 +8,13 @@ TECM8_DISPLAY_GLCD_ROWS             .equ    10
 TECM8_DISPLAY_EDIT_ROWS             .equ    8
 TECM8_DISPLAY_GUTTER_PIXELS         .equ    4
 TECM8_DISPLAY_TEXT_X                .equ    6
+TECM8_DISPLAY_Y_ORIGIN              .equ    2
 TECM8_DISPLAY_TOP_ROW               .equ    0
 TECM8_DISPLAY_FIRST_EDIT_ROW        .equ    1
 TECM8_DISPLAY_BOTTOM_ROW            .equ    9
 TECM8_DISPLAY_ROW_HEIGHT            .equ    6
 TECM8_DISPLAY_ROW_BYTES             .equ    16
+TECM8_DISPLAY_Y_ORIGIN_BYTES        .equ    TECM8_DISPLAY_Y_ORIGIN * TECM8_DISPLAY_ROW_BYTES
 TECM8_DISPLAY_ROW_STRIDE            .equ    TECM8_DISPLAY_ROW_HEIGHT * TECM8_DISPLAY_ROW_BYTES
 TECM8_DISPLAY_GUTTER_ROWS           .equ    TECM8_DISPLAY_ROW_HEIGHT
 TECM8_DISPLAY_MAX_TEXT_CHARS        .equ    20
@@ -176,6 +178,8 @@ DisplayGutterPatternReady:
         LD      (DisplayPattern),A
         LD      A,(DisplayRow)
         LD      HL,MON3_TGBUF
+        LD      DE,TECM8_DISPLAY_Y_ORIGIN_BYTES
+        ADD     HL,DE
         LD      DE,TECM8_DISPLAY_ROW_STRIDE
         OR      A
         JR      Z,DisplayGutterWriteRows
@@ -219,6 +223,8 @@ DisplayGutterWriteLoop:
         LD      A,(DisplayCursorCellRow)
         ADD     A,TECM8_DISPLAY_FIRST_EDIT_ROW
         LD      HL,MON3_TGBUF
+        LD      DE,TECM8_DISPLAY_Y_ORIGIN_BYTES
+        ADD     HL,DE
         LD      DE,TECM8_DISPLAY_ROW_STRIDE
 
 DisplayCursorRowOffsetLoop:
@@ -323,6 +329,8 @@ DisplayCursorNoop:
         LD      A,(DisplayCursorCellRow)
         ADD     A,TECM8_DISPLAY_FIRST_EDIT_ROW
         LD      HL,MON3_TGBUF
+        LD      DE,TECM8_DISPLAY_Y_ORIGIN_BYTES
+        ADD     HL,DE
         LD      DE,TECM8_DISPLAY_ROW_STRIDE
 
 DisplayCursorEraseRowOffsetLoop:
@@ -407,7 +415,7 @@ DisplayCursorEraseNoop:
 ; DisplayRowToPixel -
 ; Convert a 0-9 display row to a Y pixel coordinate.
 ; Input: A = row
-; Output: C = row * 6
+; Output: C = row * 6 + TECM8_DISPLAY_Y_ORIGIN
 ;!      in        A
 ;!      out       C,zero
 ;!      clobbers  A
@@ -416,6 +424,7 @@ DisplayCursorEraseNoop:
         ADD     A,A
         ADD     A,C
         ADD     A,A
+        ADD     A,TECM8_DISPLAY_Y_ORIGIN
         LD      C,A
         RET
 
