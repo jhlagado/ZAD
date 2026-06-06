@@ -700,10 +700,10 @@ What exists now:
 
 What is still missing or intentionally skeletal:
 
-- The Debug80-testable GLCD Editor V1 milestone has a runnable session, but it
-  still uses a scripted key stream rather than real matrix keyboard input.
 - `asm` and `run` resolve request blocks but do not launch real tools.
 - The editor has no search or sector-crossing edit behavior yet.
+- Dirty page movement is conservative: Ctrl+Arrow paging is ignored until the
+  current page is saved or discarded, because V1 has a single dirty page buffer.
 - Stop before starting assembler integration until a new milestone is chosen.
 - Split and join are intentionally limited to the loaded 512-byte page for V1;
   they do not move records across sectors or allocate/free TM8 storage.

@@ -231,14 +231,33 @@ GLCD. Use this exact smoke test:
    cell. This should redraw the affected row rather than doing the older
    obvious full-screen clear/repaint path.
 
-8. Press `Ctrl-S`.
+8. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`.
+
+   Expected: because the page is now dirty, paging is ignored and the display
+   stays on the `R0 LINE ...` page. This prevents accidental loss of unsaved
+   page-buffer edits.
+
+9. Press `Ctrl-S`.
 
    Expected: the status row shows `Saving...`, then the file is saved. There
    may be a visible pause because storage is still MON3/FAT32-backed and slow.
    When the save returns, the source row hidden by the transient status message
    is restored.
 
-9. Press `Ctrl-X`.
+10. Press `Ctrl+ArrowDown`.
+
+   Expected: after saving, the generated two-page fixture moves to the second
+   source page and the visible rows begin with `R1 LINE 00`, `R1 LINE 01`, and
+   later `R1 LINE ...` records. Page movement is tested against this prepared
+   fixture; V1 does not grow the document across source sectors when Enter is
+   pressed at the end of a page.
+
+11. Press `Ctrl+ArrowUp`.
+
+   Expected: the editor returns to the first page and shows `R0 LINE ...`
+   records again.
+
+12. Press `Ctrl-X`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt. If it is dirty, the status row asks a yes/no question.
@@ -255,6 +274,10 @@ Ordinary cursor movement and simple in-line printable edits now use dirty
 rendering: cursor keys redraw the cursor overlay, and printable insert/delete
 redraws the affected source row. Page loads, split/join operations, explicit
 redraws, and mode changes may still repaint the full viewport.
+
+The cursor is constrained to the visible 20-column GLCD editor viewport in this
+phase. The 32-byte source-record format still stores up to 31 text bytes, but
+horizontal scrolling is not implemented yet.
 
 The cursor is currently a non-blinking inverse 6x6 cell. It should remain
 visible over glyphs with vertical strokes such as `E`, `L`, and `N`, unlike the

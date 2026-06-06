@@ -93,7 +93,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorCol\),A/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
-  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+31/);
+  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+19/);
   assert.match(source, /TECM8_EDITOR_KEY_BACKSPACE\s+\.equ\s+8/);
   assert.match(source, /TECM8_EDITOR_KEY_INSERT_MODE\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_KEY_NEWLINE\s+\.equ\s+13/);
@@ -155,8 +155,8 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(runner, /EditorCursorRow/);
   assert.match(runner, /EditorCursorCol/);
   assert.match(runner, /expected 7/);
-  assert.match(runner, /expected 5/);
-  assert.match(runner, /mutatedRecord !== 'A1dl\?LINE 07'/);
+  assert.match(runner, /expected 3/);
+  assert.match(runner, /mutatedRecord !== 'dl\?1 LINE 07'/);
   assert.match(runner, /assertCellMatchesInvertedFont/);
   assert.match(runner, /assertGlcdCellMatchesInvertedFont/);
   assert.doesNotMatch(runner, /previous cursor/);

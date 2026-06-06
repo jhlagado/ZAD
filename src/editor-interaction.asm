@@ -27,7 +27,7 @@ TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
 TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
-TECM8_EDITOR_CURSOR_MAX_COL             .equ    31
+TECM8_EDITOR_CURSOR_MAX_COL             .equ    19
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
 TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
 TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
@@ -266,6 +266,9 @@ EditorKeyQuitPrompt:
         JP      EditorKeyLoop
 
 EditorKeyPageDown:
+        LD      A,(EditorNavDirty)
+        OR      A
+        JP      NZ,EditorKeyLoop
         CALL    EditorPageDown
         JR      C,EditorKeyNavigationErr
         XOR     A
@@ -273,6 +276,9 @@ EditorKeyPageDown:
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
+        LD      A,(EditorNavDirty)
+        OR      A
+        JP      NZ,EditorKeyLoop
         CALL    EditorPageUp
         JR      C,EditorKeyNavigationErr
         XOR     A

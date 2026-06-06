@@ -206,11 +206,18 @@ Debug80:
    first line changes from `R0 LINE 00` to `R0Z LINE 00`, the cursor advances
    one cell, and the edit uses the row dirty path rather than the older
    full-screen clear/repaint path.
-10. Press `Ctrl-S`. Expected: the status row shows `Saving...`, storage may
+10. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`. Expected: because the page is
+    dirty, paging is ignored and the editor remains on the first page.
+11. Press `Ctrl-S`. Expected: the status row shows `Saving...`, storage may
     pause for several seconds, then the editor returns to the source view.
-11. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
+12. Press `Ctrl+ArrowDown`. Expected: after saving, the prepared two-page
+    fixture moves to the second page and shows rows beginning with `R1 LINE 00`.
+    This phase tests paging through the fixture; it does not require Enter to
+    grow the file across sectors.
+13. Press `Ctrl+ArrowUp`. Expected: the first page returns.
+14. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
     answer the status prompt.
-12. Restart the editor and confirm the saved text is still present.
+15. Restart the editor and confirm the saved text is still present.
 
 ## Later Milestones
 

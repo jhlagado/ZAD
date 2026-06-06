@@ -507,7 +507,13 @@ function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime,
 function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
   if (runtime.hardware.memory[currentPage] !== 7) {
-    throw new Error(`editor navigation current page ${runtime.hardware.memory[currentPage]}, expected 7`);
+    throw new Error(
+      `editor navigation current page ${runtime.hardware.memory[currentPage]}, expected 7 after dirty paging no-op`,
+    );
+  }
+  const dirty = symbolAddress(symbols, 'EditorNavDirty');
+  if (runtime.hardware.memory[dirty] !== 1) {
+    throw new Error(`editor navigation dirty flag ${runtime.hardware.memory[dirty]}, expected 1`);
   }
 
   const expectedRows = [
@@ -547,7 +553,7 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1, [
     { symbol: 'EditorRowText0', text: 'A1 LINE 00' },
     { symbol: 'EditorRowText1', text: 'A1 LINE 01' },
-    { symbol: 'EditorRowText7', text: 'A1dl?LINE 07' },
+    { symbol: 'EditorRowText7', text: 'dl?1 LINE 07' },
     { symbol: 'EditorRowText9', text: 'A1 LINE 09' },
   ]);
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
@@ -555,13 +561,13 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   if (runtime.hardware.memory[cursorRow] !== 7) {
     throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 7`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 5) {
-    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 5`);
+  if (runtime.hardware.memory[cursorCol] !== 3) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 3`);
   }
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
   const mutatedRecord = readSourceRecord(runtime.hardware.memory, pageBuffer, 7);
-  if (mutatedRecord !== 'A1dl?LINE 07') {
-    throw new Error(`shell edit mutated record "${mutatedRecord}", expected "A1dl?LINE 07"`);
+  if (mutatedRecord !== 'dl?1 LINE 07') {
+    throw new Error(`shell edit mutated record "${mutatedRecord}", expected "dl?1 LINE 07"`);
   }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
 }
@@ -804,8 +810,8 @@ function readStatusRowTextByte(memory: Uint8Array): number[] {
 
 function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {
   const glcd = getGlcdBytes(platformRuntime);
-  assertCellMatchesInvertedFont(runtime.hardware.memory, 7, 5, 'L'.charCodeAt(0));
-  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 7, 5, 'L'.charCodeAt(0));
+  assertCellMatchesInvertedFont(runtime.hardware.memory, 7, 3, '1'.charCodeAt(0));
+  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 7, 3, '1'.charCodeAt(0));
 }
 
 function readCellRows(memory: Uint8Array, row: number, column: number): number[] {
