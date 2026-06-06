@@ -376,8 +376,6 @@ EditorKeyDoneNoCursor:
         LD      (EditorInsertMode),A
         CALL    EditorRenderCursor
         RET     C
-        CALL    GlcdTileFlushFull
-        RET     C
 
 EditorLiveLoop:
         LD      A,(EditorQuitRequested)
@@ -388,8 +386,6 @@ EditorLiveLoop:
         LD      (EditorLiveKeyBuffer),A
         LD      HL,EditorLiveKeyBuffer
         CALL    EditorRunKeys
-        RET     C
-        CALL    GlcdTileFlushFull
         RET     C
         JP      EditorLiveLoop
 

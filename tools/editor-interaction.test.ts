@@ -61,6 +61,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorActionFromKey/);
   assert.match(source, /CALL\s+BiosInputPollKey/);
   assert.match(source, /LD\s+HL,EditorLiveKeyBuffer\n\s+CALL\s+EditorRunKeys/);
+  assert.doesNotMatch(source, /CALL\s+EditorRunKeys\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
+  assert.doesNotMatch(source, /CALL\s+EditorRenderCursor\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /EditorDispatchAction:/);
   assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_UP\n\s+JR\s+Z,EditorActionCursorUp/);
