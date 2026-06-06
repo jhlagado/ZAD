@@ -156,6 +156,22 @@ function ensureSessionImage(): void {
     'R0 LINE 13',
     'R0 LINE 14',
     'R0 LINE 15',
+    'R1 LINE 00',
+    'R1 LINE 01',
+    'R1 LINE 02',
+    'R1 LINE 03',
+    'R1 LINE 04',
+    'R1 LINE 05',
+    'R1 LINE 06',
+    'R1 LINE 07',
+    'R1 LINE 08',
+    'R1 LINE 09',
+    'R1 LINE 10',
+    'R1 LINE 11',
+    'R1 LINE 12',
+    'R1 LINE 13',
+    'R1 LINE 14',
+    'R1 LINE 15',
   ]);
   volume = importFileIntoVolumeImage(volume, '/tecm8.prj', encodeProjectConfig('/src/main.asm'));
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
@@ -398,6 +414,7 @@ async function main(): Promise<void> {
     const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
     const cursorColAddr = symbolAddress(symbols, 'EditorCursorCol');
     const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
+    const currentPageAddr = symbolAddress(symbols, 'EditorNavCurrentPage');
     const quitRequestedAddr = symbolAddress(symbols, 'EditorQuitRequested');
     const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
@@ -416,6 +433,19 @@ async function main(): Promise<void> {
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }); // Ctrl+ArrowDown
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pageAfterCtrlDown = runtime.hardware.memory[currentPageAddr];
+    const rowAfterCtrlDown = runtime.hardware.memory[cursorRowAddr];
+    if (pageAfterCtrlDown !== 1 || rowAfterCtrlDown !== 1) {
+      throw new Error(
+        `live editor after Ctrl+ArrowDown page=${pageAfterCtrlDown} row=${rowAfterCtrlDown}, expected page=1 row=1`,
+      );
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }); // Ctrl+ArrowUp
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pageAfterCtrlUp = runtime.hardware.memory[currentPageAddr];
+    if (pageAfterCtrlUp !== 0) {
+      throw new Error(`live editor page after Ctrl+ArrowUp ${pageAfterCtrlUp}, expected 0`);
+    }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 6 }); // Alt+ArrowRight
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const altModifierBits = runtime.hardware.memory[modifierBitsAddr];
@@ -442,8 +472,8 @@ async function main(): Promise<void> {
     const rawPrimary = runtime.hardware.memory[rawPrimaryAddr];
     const rawSecondary = runtime.hardware.memory[rawSecondaryAddr];
     const translatedKey = runtime.hardware.memory[translatedKeyAddr];
-    if (cursorRow !== 3 || cursorCol !== 2) {
-      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=3 col=2`);
+    if (cursorRow !== 2 || cursorCol !== 2) {
+      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=2 col=2`);
     }
     if (modifierBits !== 0x10 || rawPrimary !== 0x04 || rawSecondary !== 0xff || translatedKey !== 0x04) {
       throw new Error(
@@ -490,6 +520,9 @@ async function main(): Promise<void> {
       bootInstructions,
       cursorRow,
       cursorCol,
+      pageAfterCtrlDown,
+      rowAfterCtrlDown,
+      pageAfterCtrlUp,
       dirtyAfterEdit,
       dirtyAfterSave,
       modifierBits,

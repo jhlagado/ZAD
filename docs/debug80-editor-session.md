@@ -126,13 +126,16 @@ matrix ArrowLeft     cursor left
 matrix ArrowDown     cursor down
 matrix ArrowUp       cursor up
 matrix ArrowRight    cursor right
-modified arrows      page or word movement, exact modifiers to be finalized
+Ctrl+ArrowDown       page down
+Ctrl+ArrowUp         page up
+other modified arrows reserved for later word/page movement
 ```
 
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
-`ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`, `CapsLock`, `z`, `Ctrl-S`,
-and `Ctrl-X` so the modifier-aware path is exercised, not only printable ASCII.
+`ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
+`z`, `Ctrl-S`, and `Ctrl-X` so the modifier-aware path is exercised, not only
+printable ASCII.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
 
@@ -159,9 +162,13 @@ npm run debug80:editor-live-smoke
 
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
-`ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`,
-`CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, and `Ctrl-X`, then verifies that the
-editor cursor reaches row 3, column 2 before save/quit. It also checks that
+`ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
+`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, and `Ctrl-X`, then
+verifies that `Ctrl+ArrowDown` is treated as page movement rather than cursor
+movement. The generated image has two source pages, so the smoke verifies that
+`Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
+the cursor row stays unchanged. It also verifies that the editor cursor reaches
+row 2, column 2 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`

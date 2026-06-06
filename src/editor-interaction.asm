@@ -29,6 +29,7 @@ TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
+TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    31
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
@@ -128,8 +129,25 @@ EditorHideCursorDone:
 @EditorRunKeys:
         LD      (EditorKeyStreamPtr),HL
         XOR     A
+        LD      (EditorKeyStreamModifier),A
         LD      (EditorInsertMode),A
         LD      (EditorQuitRequested),A
+        JP      EditorKeyLoop
+
+; EditorRunModifiedKey -
+; Consume one live key event with modifier flags from BiosInputPollKey.
+; Input:
+;   A = translated key
+;   B = modifier flags
+;!      in        A,B
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorRunModifiedKey:
+        LD      (EditorLiveKeyBuffer),A
+        LD      A,B
+        LD      (EditorKeyStreamModifier),A
+        LD      HL,EditorLiveKeyBuffer
+        LD      (EditorKeyStreamPtr),HL
 
 EditorKeyLoop:
         LD      A,(EditorQuitRequested)
@@ -142,6 +160,8 @@ EditorKeyLoop:
         INC     HL
         LD      (EditorKeyStreamPtr),HL
         LD      (EditorPendingChar),A
+        LD      A,(EditorKeyStreamModifier)
+        LD      (EditorPendingModifier),A
 
         LD      A,(EditorPromptActive)
         OR      A
@@ -358,10 +378,14 @@ EditorKeyDone:
         OR      A
         JR      NZ,EditorKeyDoneNoCursor
         CALL    EditorRenderCursor
+        RET     C
+        XOR     A
+        LD      (EditorKeyStreamModifier),A
         RET
 
 EditorKeyDoneNoCursor:
         XOR     A
+        LD      (EditorKeyStreamModifier),A
         RET
 
 ; EditorRunLive -
@@ -383,9 +407,7 @@ EditorLiveLoop:
         JP      NZ,EditorLiveDone
         CALL    BiosInputPollKey
         JR      NC,EditorLiveIdle
-        LD      (EditorLiveKeyBuffer),A
-        LD      HL,EditorLiveKeyBuffer
-        CALL    EditorRunKeys
+        CALL    EditorRunModifiedKey
         RET     C
         JP      EditorLiveLoop
 
@@ -413,9 +435,9 @@ EditorLiveDone:
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorActionFromKey:
         CP      TECM8_EDITOR_KEY_ARROW_UP
-        JR      Z,EditorActionCursorUp
+        JR      Z,EditorActionArrowUp
         CP      TECM8_EDITOR_KEY_ARROW_DOWN
-        JR      Z,EditorActionCursorDown
+        JR      Z,EditorActionArrowDown
         CP      TECM8_EDITOR_KEY_ARROW_LEFT
         JR      Z,EditorActionCursorLeft
         CP      TECM8_EDITOR_KEY_ARROW_RIGHT
@@ -430,6 +452,18 @@ EditorLiveDone:
         JR      Z,EditorActionPageUp
         XOR     A
         RET
+
+EditorActionArrowUp:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
+        JR      NZ,EditorActionPageUp
+        JR      EditorActionCursorUp
+
+EditorActionArrowDown:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
+        JR      NZ,EditorActionPageDown
+        JR      EditorActionCursorDown
 
 EditorActionPageDown:
         LD      A,TECM8_EDITOR_ACTION_PAGE_DOWN
@@ -1024,6 +1058,12 @@ EditorKeyStreamPtr:
 
 EditorLiveKeyBuffer:
         .db     0,0
+
+EditorKeyStreamModifier:
+        .db     0
+
+EditorPendingModifier:
+        .db     0
 
 EditorPendingChar:
         .db     0

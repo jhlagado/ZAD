@@ -13,6 +13,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
 
   assert.match(source, /^@EditorRunKeys:/m);
+  assert.match(source, /^@EditorRunModifiedKey:/m);
   assert.match(source, /^@EditorRunLive:/m);
   assert.match(source, /^@EditorCursorReset:/m);
   assert.match(source, /^@EditorRenderCursor:/m);
@@ -35,6 +36,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_DOWN\s+\.equ\s+0x04/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_LEFT\s+\.equ\s+0x05/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_RIGHT\s+\.equ\s+0x06/);
+  assert.match(source, /TECM8_EDITOR_KEY_MOD_CTRL\s+\.equ\s+0x02/);
   assert.match(source, /TECM8_EDITOR_KEY_ESCAPE\s+\.equ\s+27/);
   assert.match(source, /CP\s+TECM8_EDITOR_KEY_ALT_QUIT\n\s+JP\s+Z,EditorKeyQuit/);
   assert.match(source, /TECM8_EDITOR_ACTION_CURSOR_LEFT\s+\.equ\s+3/);
@@ -48,6 +50,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_YES\s+\.equ\s+1/);
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_NO\s+\.equ\s+2/);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
+  assert.match(source, /;!\s+in\s+A,B\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunModifiedKey:/);
   assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,zero,sign,parity,halfCarry\n@EditorActionFromKey:/);
   assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorInsertChar:/);
   assert.match(source, /CALL\s+EditorPageDown/);
@@ -60,12 +63,17 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorLoadCurrentBackupPage/);
   assert.match(source, /CALL\s+EditorActionFromKey/);
   assert.match(source, /CALL\s+BiosInputPollKey/);
-  assert.match(source, /LD\s+HL,EditorLiveKeyBuffer\n\s+CALL\s+EditorRunKeys/);
+  assert.match(source, /XOR\s+A\n\s+LD\s+\(EditorKeyStreamModifier\),A\n\s+LD\s+\(EditorInsertMode\),A/);
+  assert.match(source, /CALL\s+BiosInputPollKey\n\s+JR\s+NC,EditorLiveIdle\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(source, /@EditorRunModifiedKey:\n\s+LD\s+\(EditorLiveKeyBuffer\),A\n\s+LD\s+A,B\n\s+LD\s+\(EditorKeyStreamModifier\),A/);
   assert.doesNotMatch(source, /CALL\s+EditorRunKeys\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.doesNotMatch(source, /CALL\s+EditorRenderCursor\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /EditorDispatchAction:/);
-  assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_UP\n\s+JR\s+Z,EditorActionCursorUp/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_UP\n\s+JR\s+Z,EditorActionArrowUp/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_DOWN\n\s+JR\s+Z,EditorActionArrowDown/);
+  assert.match(source, /EditorActionArrowUp:\n\s+LD\s+A,\(EditorPendingModifier\)\n\s+AND\s+TECM8_EDITOR_KEY_MOD_CTRL\n\s+JR\s+NZ,EditorActionPageUp/);
+  assert.match(source, /EditorActionArrowDown:\n\s+LD\s+A,\(EditorPendingModifier\)\n\s+AND\s+TECM8_EDITOR_KEY_MOD_CTRL\n\s+JR\s+NZ,EditorActionPageDown/);
   assert.match(source, /CP\s+TECM8_EDITOR_ACTION_CURSOR_LEFT\n\s+JP\s+Z,EditorKeyCursorLeft/);
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER/);
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_[A-Z_]+\n\s+JP\s+Z,EditorKey/);
@@ -90,6 +98,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_DELETE\s+\.equ\s+127/);
   assert.match(source, /EditorInsertMode:\n\s+\.db\s+0/);
   assert.match(source, /EditorLiveKeyBuffer:\n\s+\.db\s+0,0/);
+  assert.match(source, /EditorKeyStreamModifier:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPendingModifier:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeyInsertMode:/);
   assert.match(source, /EditorKeyPrompt:/);
   assert.match(source, /EditorKeyQuit:/);
