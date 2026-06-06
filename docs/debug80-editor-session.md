@@ -230,8 +230,10 @@ GLCD. Use this exact smoke test:
 
 8. Press `Ctrl-S`.
 
-   Expected: the file is saved. There may be a visible pause because storage is
-   still MON3/FAT32-backed and slow.
+   Expected: the status row shows `Saving...`, then the file is saved. There
+   may be a visible pause because storage is still MON3/FAT32-backed and slow.
+   When the save returns, the source row hidden by the transient status message
+   is restored.
 
 9. Press `Ctrl-X`.
 

@@ -122,10 +122,16 @@ direction for a future TECM8 GLCD BIOS/display library.
    exact MON3 launch path, and list specific matrix-keyboard checks for cursor
    movement, typing, saving, quitting, and restore prompts.
 
+   Status: implemented in `docs/debug80-editor-session.md` and mirrored below.
+   The manual path uses MON3 `GO` at `4000h` against the FAT32 image produced
+   by `npm run debug80:editor-image`.
+
 5. **Phase completion review.**
    Run local verification including `npm run check`, get a high-effort local
    subagent review for the code changes, address findings, close subagents,
    commit, push, monitor any remote CI runs, and then stop.
+
+   Status: pending final full-phase verification after this roadmap refresh.
 
 ## Debug80-Testable GLCD Editor V1 Done Criteria
 
@@ -151,6 +157,12 @@ verifies the saved source and hidden backup. See
   isolated subroutine behavior.
 
 ## TECM8 Tiled GLCD Renderer V1 Done Criteria
+
+Status: functionally reached. The editor owns 6x6 tile-cell text rendering,
+uses an inverse-cell cursor, avoids full viewport render for ordinary cursor
+movement and in-line printable edits, and has a documented Debug80 manual test.
+The remaining action for this phase is final full verification/review and then
+stop before choosing a new milestone.
 
 - The editor has a TECM8-owned GLCD tile writer for 6x6 cells.
 - Tile writes replace both set and clear pixels for the affected cell.
@@ -181,17 +193,22 @@ Debug80:
 2. Launch Debug80's `main` target with SD enabled.
 3. Let MON3 initialize, then use MON3 `GO` at `4000h`.
 4. Confirm the GLCD shows the TECM8 editor with `/src/main.asm`.
-5. Press matrix arrow keys and confirm the cursor moves without a visible
-   full-screen blank/repaint.
-6. Type a few printable letters on one source line and confirm only that line
-   visibly changes, without a full-screen blank/repaint.
-7. Press `Ctrl-S` to save.
-8. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
-   answer the status prompt.
-9. Restart the editor and confirm the saved text is still present.
-
-The manual test script should be updated with exact expected screen changes
-before this phase is marked complete.
+5. Confirm the initial screen begins with `TECM8 EDIT MAIN.ASM`, followed by
+   source rows such as `R0 LINE 00`, `R0 LINE 01`, and later rows.
+6. Confirm the cursor is a non-blinking inverse 6x6 cell near the top-left
+   source text area, not a single vertical stroke.
+7. Press matrix `ArrowRight` twice. Expected: the cursor moves two cells to the
+   right without a visible full-screen blank/repaint.
+8. Press matrix `ArrowDown`, then `ArrowUp`. Expected: the cursor moves down one
+   source row and back up one source row without a page redraw.
+9. Type `Z`. Expected: the first line changes from `R0 LINE 00` to
+   `ZR0 LINE 00`, the cursor advances one cell, and the edit uses the row dirty
+   path rather than the older full-screen clear/repaint path.
+10. Press `Ctrl-S`. Expected: the status row shows `Saving...`, storage may
+    pause for several seconds, then the editor returns to the source view.
+11. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
+    answer the status prompt.
+12. Restart the editor and confirm the saved text is still present.
 
 ## Later Milestones
 
