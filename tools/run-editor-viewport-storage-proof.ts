@@ -91,6 +91,13 @@ const PROOF_CASES = {
     lines: makeMultiBlockLines(),
     verify: verifyShellEditInteractionProof,
   },
+  'editor-dirty-render-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-dirty-render-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-dirty-render-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-dirty-render-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyEditorDirtyRenderProof,
+  },
   'editor-mutation-boundary-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-proof-last-run.json'),
@@ -557,6 +564,29 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
     throw new Error(`shell edit mutated record "${mutatedRecord}", expected "A1dl?LINE 07"`);
   }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
+}
+
+function verifyEditorDirtyRenderProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const expectedCounts = [
+    { symbol: 'MoveScreenCount', expected: 0 },
+    { symbol: 'MovePageCount', expected: 0 },
+    { symbol: 'MoveRowCount', expected: 0 },
+    { symbol: 'InsertScreenCount', expected: 0 },
+    { symbol: 'InsertPageCount', expected: 0 },
+    { symbol: 'InsertRowCount', expected: 1 },
+  ];
+  for (const count of expectedCounts) {
+    const value = runtime.hardware.memory[symbolAddress(symbols, count.symbol)];
+    if (value !== count.expected) {
+      throw new Error(`editor dirty render ${count.symbol} ${value}, expected ${count.expected}`);
+    }
+  }
+
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  const record = readSourceRecord(runtime.hardware.memory, pageBuffer, 0);
+  if (record !== 'PZ0 LINE 00') {
+    throw new Error(`editor dirty render inserted record "${record}", expected "PZ0 LINE 00"`);
+  }
 }
 
 function verifyEditorMutationBoundaryProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {

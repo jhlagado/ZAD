@@ -145,6 +145,31 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(packageJson, /proof:display:shell-edit-interaction/);
 });
 
+test('editor dirty render proof covers ordinary movement and printable edit paths', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-dirty-render-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-dirty-render-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+ResetRenderCounters/);
+  assert.match(proof, /MoveScreenCount:/);
+  assert.match(proof, /MovePageCount:/);
+  assert.match(proof, /MoveRowCount:/);
+  assert.match(proof, /InsertScreenCount:/);
+  assert.match(proof, /InsertPageCount:/);
+  assert.match(proof, /InsertRowCount:/);
+  assert.match(proof, /DisplayRenderScreenCount/);
+  assert.match(proof, /EditorRenderPageBufferCount/);
+  assert.match(proof, /EditorViewportRenderRecordRowCount/);
+  assert.match(runner, /editor-dirty-render-proof/);
+  assert.match(runner, /verifyEditorDirtyRenderProof/);
+  assert.match(runner, /MoveScreenCount/);
+  assert.match(runner, /InsertRowCount/);
+  assert.match(runner, /PZ0 LINE 00/);
+  assert.match(packageJson, /"proof:display:editor-dirty-render"/);
+  assert.match(packageJson, /proof:display:editor-dirty-render/);
+});
+
 test('editor mutation boundary proof covers fixed-record edge cases', () => {
   assert.ok(existsSync(resolve(root, 'proofs/display/editor-mutation-boundary-proof.asm')));
   const proof = readRepoFile('proofs/display/editor-mutation-boundary-proof.asm');

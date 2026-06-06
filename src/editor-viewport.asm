@@ -43,6 +43,11 @@ EditorViewportBuildLoop:
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorViewportRenderRecordRow:
+        LD      (EditorViewportRenderRecordRowInput),A
+        LD      A,(EditorViewportRenderRecordRowCount)
+        INC     A
+        LD      (EditorViewportRenderRecordRowCount),A
+        LD      A,(EditorViewportRenderRecordRowInput)
         CP      TECM8_EDITOR_VISIBLE_ROWS
         JR      NC,EditorViewportRowError
         LD      (EditorRowIndex),A
@@ -217,6 +222,10 @@ EditorRecordPtr:
         .dw     0
 EditorTextPtr:
         .dw     0
+EditorViewportRenderRecordRowInput:
+        .db     0
+EditorViewportRenderRecordRowCount:
+        .db     0
 EditorRowIndex:
         .db     0
 

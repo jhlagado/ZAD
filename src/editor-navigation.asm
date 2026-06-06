@@ -46,6 +46,9 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorRenderPageBuffer:
+        LD      A,(EditorRenderPageBufferCount)
+        INC     A
+        LD      (EditorRenderPageBufferCount),A
         LD      HL,EditorNavPageBuffer
         CALL    EditorViewportRender
         RET     C
@@ -307,6 +310,8 @@ EditorNavBackupPathBuffer:
 
 EditorNavBackupPageBuffer:
         .ds     512
+EditorRenderPageBufferCount:
+        .db     0
 
 EditorNavBackupNamePtr:
         .dw     0

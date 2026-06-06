@@ -42,6 +42,9 @@ MON3_TGBUF                          .equ    0x13C0
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @DisplayRenderScreen:
+        LD      A,(DisplayRenderScreenCount)
+        INC     A
+        LD      (DisplayRenderScreenCount),A
         LD      (DisplayCursor),HL
         CALL    BiosDisplayClear
         RET     C
@@ -467,3 +470,5 @@ DisplayCursorFirstMaskTable:
         .db     0xFC,0x7E,0x3F,0x1F,0x0F,0x07,0x03,0x01
 DisplayCursorSecondMaskTable:
         .db     0x00,0x00,0x00,0x80,0xC0,0xE0,0xF0,0xF8
+DisplayRenderScreenCount:
+        .db     0

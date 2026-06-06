@@ -110,6 +110,13 @@ direction for a future TECM8 GLCD BIOS/display library.
    simple printable insertion avoid the full-screen render path. Prefer counters
    or explicit render-path markers over wall-clock timing.
 
+   Status: implemented with `proof:display:editor-dirty-render`. The proof
+   resets render counters after initial load, verifies ordinary cursor movement
+   leaves full-screen/page/row render counts at zero, and verifies one printable
+   insertion redraws exactly one source row without invoking full viewport render.
+   This does not yet prove a minimal GLCD hardware flush; that remains part of
+   the future GLCD tile/display-library work.
+
 4. **Manual Debug80 test package.**
    Ensure `npm run debug80:editor-image` produces the manual image, document the
    exact MON3 launch path, and list specific matrix-keyboard checks for cursor

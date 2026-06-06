@@ -61,7 +61,7 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /^TECM8_DISPLAY_Y_ORIGIN_BYTES\s+\.equ\s+TECM8_DISPLAY_Y_ORIGIN \* TECM8_DISPLAY_ROW_BYTES$/m);
   assert.match(source, /^MON3_TGBUF\s+\.equ\s+0x13C0$/m);
   assert.match(source, /@DisplayRenderGutter:\n\s+LD\s+\(DisplayRow\),A/);
-  assert.match(source, /@DisplayRenderScreen:\n\s+LD\s+\(DisplayCursor\),HL\n\s+CALL\s+BiosDisplayClear/);
+  assert.match(source, /@DisplayRenderScreen:\n\s+LD\s+A,\(DisplayRenderScreenCount\)\n\s+INC\s+A\n\s+LD\s+\(DisplayRenderScreenCount\),A\n\s+LD\s+\(DisplayCursor\),HL\n\s+CALL\s+BiosDisplayClear/);
   assert.doesNotMatch(source, /TECM8_DISPLAY_TOP_ROW/);
   assert.doesNotMatch(source, /TECM8_DISPLAY_FIRST_EDIT_ROW/);
   assert.doesNotMatch(source, /TECM8_DISPLAY_BOTTOM_ROW/);
@@ -72,6 +72,7 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /CP\s+TECM8_DISPLAY_MAX_TEXT_CHARS/);
   assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /DisplayCursorSavedBytes:/);
+  assert.match(source, /DisplayRenderScreenCount:/);
   assert.match(source, /LD\s+\(DisplayCursorOriginalByte\),A/);
   assert.match(source, /CALL\s+GlcdTileClearTextRow/);
   assert.match(source, /CALL\s+GlcdTileDrawTextRun/);
