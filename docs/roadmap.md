@@ -24,7 +24,8 @@ The target display model is a TECM8-owned tiled GLCD layer:
 128x64 bitmap hardware
 6x6 text cells for the current GLCD font rhythm
 4-pixel gutter plus 20 visible text cells
-10 physical text rows, with rows 0 and 9 normally used as chrome
+10 physical text rows, normally all source text in the 6x6 profile
+row 9 can temporarily become a prompt/status overlay
 tile writes replace both black and white pixels for the full cell footprint
 ```
 
@@ -58,7 +59,7 @@ direction for a future TECM8 GLCD BIOS/display library.
   after in-page mutation, accepts a Ctrl-S save key, and clears dirty after a
   successful save.
 - The editor has a status-line yes/no prompt state: unrelated keys are ignored,
-  yes/no answers complete the prompt, and the bottom chrome switches back after
+  yes/no answers complete the prompt, and the hidden source row is redrawn after
   completion.
 - The editor derives the hidden backup path, creates it when missing, and saves
   the previous on-disk page there before writing the edited page to the source

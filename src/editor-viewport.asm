@@ -4,13 +4,13 @@
 ; display descriptor consumed by DisplayRenderScreen.
 
 TECM8_EDITOR_RECORD_BYTES          .equ    32
-TECM8_EDITOR_VISIBLE_ROWS          .equ    8
+TECM8_EDITOR_VISIBLE_ROWS          .equ    10
 TECM8_EDITOR_MAX_RECORD_TEXT       .equ    31
 TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
 TECM8_EDITOR_ERR_RECORD_LENGTH     .equ    0x01
 
 ; EditorViewportRender -
-; Render the first eight 32-byte source records in the sector/window at HL.
+; Render the first ten 32-byte source records in the sector/window at HL.
 ; Input: HL = source record window
 ;!      in        HL
 ;!      out       A,carry
@@ -31,28 +31,34 @@ EditorViewportBuildLoop:
         CP      TECM8_EDITOR_VISIBLE_ROWS
         JR      NZ,EditorViewportBuildLoop
 
-        CALL    EditorViewportSelectBottom
         LD      HL,EditorScreenDescriptor
         CALL    DisplayRenderScreen
         RET
 
-; EditorViewportSelectBottom -
-; Select normal status chrome or the active prompt for the bottom display row.
+; EditorViewportRenderStatusOverlay -
+; Temporarily render the active prompt over the last visible source row.
 ;!      out       A,carry
-;!      clobbers  A,HL,zero,sign,parity,halfCarry
-@EditorViewportSelectBottom:
-        LD      A,(EditorPromptActive)
-        OR      A
-        JR      Z,EditorViewportNormalBottom
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorViewportRenderStatusOverlay:
         LD      HL,(EditorPromptTextPtr)
-        JR      EditorViewportStoreBottom
+        LD      A,TECM8_DISPLAY_STATUS_ROW
+        LD      C,TECM8_DISPLAY_MARKER_NONE
+        CALL    DisplayRenderLine
+        RET     C
+        CALL    GlcdTileFlushFull
+        RET
 
-EditorViewportNormalBottom:
-        LD      HL,EditorBottomChrome
-
-EditorViewportStoreBottom:
-        LD      (EditorScreenBottomPtr),HL
-        XOR     A
+; EditorViewportRestoreStatusRow -
+; Redraw the source row hidden by a transient prompt/status overlay.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorViewportRestoreStatusRow:
+        LD      HL,EditorRowText9
+        LD      A,TECM8_DISPLAY_STATUS_ROW
+        LD      C,TECM8_DISPLAY_MARKER_NONE
+        CALL    DisplayRenderLine
+        RET     C
+        CALL    GlcdTileFlushFull
         RET
 
 ; EditorViewportCopyRecord -
@@ -99,7 +105,6 @@ EditorViewportRecordLengthError:
         RET
 
 EditorScreenDescriptor:
-        .dw     EditorTopChrome
         .db     TECM8_DISPLAY_MARKER_BREAKPOINT
         .dw     EditorRowText0
         .db     TECM8_DISPLAY_MARKER_CURRENT
@@ -116,13 +121,10 @@ EditorScreenDescriptor:
         .dw     EditorRowText6
         .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText7
-EditorScreenBottomPtr:
-        .dw     EditorBottomChrome
-
-EditorTopChrome:
-        .db     "TECM8 EDIT MAIN.ASM",0
-EditorBottomChrome:
-        .db     "Ln 2 Col 1",0
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     EditorRowText8
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     EditorRowText9
 
 EditorPromptActive:
         .db     0
@@ -158,4 +160,8 @@ EditorRowText5:
 EditorRowText6:
         .ds     TECM8_EDITOR_ROW_TEXT_BYTES
 EditorRowText7:
+        .ds     TECM8_EDITOR_ROW_TEXT_BYTES
+EditorRowText8:
+        .ds     TECM8_EDITOR_ROW_TEXT_BYTES
+EditorRowText9:
         .ds     TECM8_EDITOR_ROW_TEXT_BYTES

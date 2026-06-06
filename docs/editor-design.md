@@ -31,17 +31,20 @@ capacity is therefore 20 columns by 10 rows. Older notes that refer to an
 8-row GLCD editor should be read as an editor viewport policy, not a physical
 display limit.
 
-The default GLCD editor should reserve two of those ten rows for chrome:
+The default 6x6 GLCD editor should expose all ten rows as source rows:
 
 ```text
-row 0      mode/menu/status row
-rows 1-8   editable source viewport
-row 9      command/status/error row
+rows 0-9   editable source viewport
 ```
 
-This preserves the earlier 8 editable line assumption while acknowledging the
-full 10-row display. A later full-screen mode can hide one or both chrome rows
-and expose 9 or 10 editable rows when the user wants more source context.
+Status, error, and confirmation prompts are transient overlays, not permanent
+chrome. The normal overlay row is physical row 9. While a prompt is active it
+temporarily hides the source row underneath; when the prompt completes, the
+renderer redraws the obscured source row from the viewport buffer.
+
+This keeps the design font-independent. A future 6x8 profile with a better
+5x7 glyph can reduce the physical viewport to eight rows, or seven source rows
+plus a transient row, without changing the editor's source/page model.
 
 The gutter should not automatically consume a full 6-pixel character cell. A
 4-pixel left gutter is enough for breakpoint, current-line, selection, dirty,
@@ -112,13 +115,11 @@ Initial structured display constants:
 ```text
 TECM8_DISPLAY_GLCD_COLUMNS      20
 TECM8_DISPLAY_GLCD_ROWS         10
-TECM8_DISPLAY_EDIT_ROWS         8
+TECM8_DISPLAY_EDIT_ROWS         10
 TECM8_DISPLAY_GUTTER_PIXELS     4
 TECM8_DISPLAY_TEXT_X            6
 TECM8_DISPLAY_Y_ORIGIN          2
-TECM8_DISPLAY_TOP_ROW           0
-TECM8_DISPLAY_FIRST_EDIT_ROW    1
-TECM8_DISPLAY_BOTTOM_ROW        9
+TECM8_DISPLAY_STATUS_ROW        9
 TECM8_DISPLAY_MARKER_NONE       0
 TECM8_DISPLAY_MARKER_BREAKPOINT bit 0
 TECM8_DISPLAY_MARKER_CURRENT    bit 1
@@ -129,24 +130,23 @@ The first display-model proof uses a fixed screen descriptor rather than an
 editor buffer:
 
 ```text
-word top_chrome_text
-8 x {
+10 x {
   byte marker_flags
   word source_line_text
 }
-word bottom_chrome_text
 ```
 
 That descriptor is intentionally small. It proves the rendering contract for
-chrome rows, editable rows, gutter metadata, and status text without starting
-the editor implementation.
+source rows and gutter metadata without starting the editor implementation.
+Prompt/status rendering is exercised through row-level redraw helpers rather
+than through a permanent descriptor field.
 
 Future TMS9918 mapping:
 
 ```text
 GLCD 20x10 physical cells       -> TMS 32x24 physical tile field
-GLCD rows 0 and 9 chrome        -> TMS top/bottom status bands
-GLCD rows 1-8 editor viewport   -> TMS editor viewport, likely taller
+GLCD rows 0-9 source viewport   -> TMS editor viewport, likely taller
+GLCD transient status row       -> TMS status band or overlay policy
 GLCD 4-pixel bitmap gutter      -> TMS left tile column or sprite markers
 GLCD software sprite overlays   -> TMS hardware sprites where suitable
 ```
@@ -326,14 +326,13 @@ The renderer draws visible lines from the current viewport.
 GLCD v1 likely uses:
 
 ```text
-1 top mode/status row
-8 editable source rows
-1 bottom command/error/status row
+10 editable source rows in the current 6x6 profile
+row 9 as a transient command/error/status overlay when needed
 ```
 
-Either chrome row may be hidden to show more source lines. The renderer should
-therefore know both the physical GLCD geometry and the active editor viewport
-geometry.
+A later 6x8 font profile may expose fewer source rows or reserve a permanent
+status row. The renderer should therefore know both the physical GLCD geometry
+and the active editor viewport geometry.
 
 Unlike a serial terminal, an editor has both past and future document content.
 Scrolling is not primarily "scrollback"; it is moving a viewport through known
@@ -441,10 +440,10 @@ a prompt state:
 
 ```text
 normal edit mode
-  bottom status row shows ordinary command/status text
+  all rows show source text
 
 confirmation mode
-  bottom status row asks a question
+  status row temporarily asks a question
   Y/Enter accepts
   N/Esc cancels
   accepted action returns to edit mode
@@ -466,8 +465,8 @@ actions include save, restore-from-backup, quit-with-dirty-buffer, overwrite, an
 discard changes.
 
 Prompt mode should block ordinary editing keys until it is answered. After the
-answer, the editor should redraw the status line and return to the previous edit
-or insert mode as appropriate.
+answer, the editor should redraw the source row hidden by the prompt and return
+to the previous edit or insert mode as appropriate.
 
 ## First Editor Feature Set
 

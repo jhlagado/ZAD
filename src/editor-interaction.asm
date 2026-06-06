@@ -30,7 +30,7 @@ TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    31
-TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    8
+TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
 TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
 TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
 TECM8_EDITOR_EDIT_RECORD_BYTES          .equ    32
@@ -88,6 +88,26 @@ EditorCursorRenderCheckVisible:
         LD      (EditorCursorRendered),A
 
 EditorCursorRenderDone:
+        XOR     A
+        RET
+
+; EditorHideCursor -
+; Erase any rendered cursor without drawing a replacement.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorHideCursor:
+        LD      A,(EditorCursorRendered)
+        OR      A
+        JR      Z,EditorHideCursorDone
+        LD      A,(EditorCursorRenderedCol)
+        LD      C,A
+        LD      A,(EditorCursorRenderedRow)
+        CALL    DisplayEraseCursorCell
+        RET     C
+        XOR     A
+        LD      (EditorCursorRendered),A
+
+EditorHideCursorDone:
         XOR     A
         RET
 
@@ -319,7 +339,14 @@ EditorKeyDelete:
         JP      EditorKeyLoop
 
 EditorKeyDone:
+        LD      A,(EditorPromptActive)
+        OR      A
+        JR      NZ,EditorKeyDoneNoCursor
         CALL    EditorRenderCursor
+        RET
+
+EditorKeyDoneNoCursor:
+        XOR     A
         RET
 
 ; EditorRunLive -
@@ -799,11 +826,13 @@ EditorDeleteDone:
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorPromptAskYesNo:
         LD      (EditorPromptTextPtr),HL
+        CALL    EditorHideCursor
+        RET     C
         XOR     A
         LD      (EditorPromptResult),A
         LD      A,1
         LD      (EditorPromptActive),A
-        JP      EditorRenderPageBuffer
+        JP      EditorViewportRenderStatusOverlay
 
 ;!      in        A
 ;!      out       A,carry
@@ -833,7 +862,7 @@ EditorPromptComplete:
         LD      (EditorPromptResult),A
         XOR     A
         LD      (EditorPromptActive),A
-        JP      EditorRenderPageBuffer
+        JP      EditorViewportRestoreStatusRow
 
 ;!      out       A,carry,zero
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry

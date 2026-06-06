@@ -153,6 +153,9 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /DirtyAfterSave/);
   assert.match(runner, /PromptActiveAfterIgnore/);
   assert.match(runner, /PromptResultAfterYes/);
+  assert.match(runner, /PromptOverlayRow9Bytes/);
+  assert.match(runner, /PromptRestoredRow9Bytes/);
+  assert.match(runner, /readStatusRowTextByte/);
   assert.match(runner, /DirtyAfterRestoreNo/);
   assert.match(runner, /DirtyAfterRestoreEsc/);
   assert.match(runner, /DirtyAfterRestore/);
@@ -169,6 +172,7 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /P0 LINE 00/);
   assert.match(runner, /P1 LINE 15/);
   assert.match(runner, /P8 LINE 15/);
+  assert.match(runner, /EditorRowText9/);
   assert.match(runner, /readSourceRecord/);
   assert.match(runner, /readFileFromProofImage/);
   assert.match(runner, /storage viewport copied/);

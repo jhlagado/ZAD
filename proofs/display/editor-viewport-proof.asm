@@ -1,6 +1,6 @@
 ; Editor viewport display proof.
 ;
-; Converts eight fixed 32-byte source records into a structured GLCD screen.
+; Converts ten fixed 32-byte source records into a structured GLCD screen.
 
         .org    0x4000
 
@@ -54,6 +54,10 @@ EditorSourceRecords:
         .db     5,"DONE:"
         .ds     26
         .db     3,"RET"
+        .ds     28
+        .db     3,"NOP"
+        .ds     28
+        .db     3,"END"
         .ds     28
 
 ResultMarker:

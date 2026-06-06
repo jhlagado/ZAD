@@ -1,8 +1,7 @@
 ; Structured display screen proof.
 ;
 ; Runs under Debug80's TEC-1G runtime with MON3 loaded. The proof renders a
-; small editor-like screen model: top chrome, eight editable lines with gutter
-; markers, and a bottom status/command row.
+; small editor-like screen model: ten source lines with gutter markers.
 
         .org    0x4000
 
@@ -23,10 +22,15 @@ MON3_VPORT      .equ     0x0E13
         CALL    DisplayRenderScreen
         JR      C,ProofFailed
 
-        LD      A,TECM8_DISPLAY_FIRST_EDIT_ROW
+        XOR     A
         LD      C,TECM8_DISPLAY_MARKER_BREAKPOINT
         LD      HL,SourceLine0
         CALL    DisplayRenderLine
+        JR      C,ProofFailed
+
+        XOR     A
+        LD      C,0
+        CALL    DisplayRenderCursorCell
         JR      C,ProofFailed
 
         CALL    GlcdTileFlushFull
@@ -50,7 +54,6 @@ ProofFailedDone:
         .include "../../src/tecm8-bios.asm"
 
 StructuredScreen:
-        .dw     TopChrome
         .db     TECM8_DISPLAY_MARKER_BREAKPOINT
         .dw     SourceLine0
         .db     TECM8_DISPLAY_MARKER_CURRENT
@@ -67,10 +70,12 @@ StructuredScreen:
         .dw     SourceLine6
         .db     TECM8_DISPLAY_MARKER_SELECTED
         .dw     SourceLine7
-        .dw     BottomChrome
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine8
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine9
 
 StructuredScreenLong:
-        .dw     TopChrome
         .db     TECM8_DISPLAY_MARKER_BREAKPOINT
         .dw     SourceLine0Long
         .db     TECM8_DISPLAY_MARKER_CURRENT
@@ -87,10 +92,11 @@ StructuredScreenLong:
         .dw     SourceLine6
         .db     TECM8_DISPLAY_MARKER_SELECTED
         .dw     SourceLine7
-        .dw     BottomChrome
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine8
+        .db     TECM8_DISPLAY_MARKER_NONE
+        .dw     SourceLine9
 
-TopChrome:
-        .db     "TECM8 MAIN.ASM",0
 SourceLine0:
         .db     "ORG 4000H",0
 SourceLine0Long:
@@ -109,8 +115,10 @@ SourceLine6:
         .db     "DONE:",0
 SourceLine7:
         .db     "RET",0
-BottomChrome:
-        .db     "Ln 2 Col 5 INS",0
+SourceLine8:
+        .db     "NOP",0
+SourceLine9:
+        .db     "END",0
 
 ResultMarker:
         .db     0

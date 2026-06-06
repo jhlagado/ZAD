@@ -25,13 +25,23 @@ test('editor viewport module exposes a source-record render entry point', () => 
   }
 
   assert.match(source, /CP\s+TECM8_EDITOR_MAX_RECORD_TEXT \+ 1/);
-  assert.match(source, /CALL\s+EditorViewportSelectBottom/);
-  assert.match(source, /LD\s+\(EditorScreenBottomPtr\),HL/);
-  assert.match(source, /EditorScreenBottomPtr:/);
+  assert.match(source, /^TECM8_EDITOR_VISIBLE_ROWS\s+\.equ\s+10$/m);
+  assert.match(source, /^@EditorViewportRenderStatusOverlay:/m);
+  assert.match(source, /^@EditorViewportRestoreStatusRow:/m);
+  assert.match(source, /LD\s+A,TECM8_DISPLAY_STATUS_ROW/);
+  assert.match(source, /LD\s+HL,EditorRowText9/);
+  assert.match(source, /CALL\s+DisplayRenderLine/);
+  assert.match(source, /CALL\s+GlcdTileFlushFull/);
+  assert.doesNotMatch(source, /EditorViewportSelectBottom/);
+  assert.doesNotMatch(source, /EditorScreenBottomPtr/);
+  assert.doesNotMatch(source, /EditorTopChrome/);
+  assert.doesNotMatch(source, /EditorBottomChrome/);
   assert.match(source, /EditorPromptActive:\n\s+\.db\s+0/);
   assert.match(source, /EditorPromptResult:\n\s+\.db\s+0/);
   assert.match(source, /EditorPromptTextPtr:\n\s+\.dw\s+EditorPromptDefaultText/);
   assert.match(source, /CALL\s+DisplayRenderScreen/);
+  assert.match(source, /EditorRowText8:\n\s+\.ds\s+TECM8_EDITOR_ROW_TEXT_BYTES/);
+  assert.match(source, /EditorRowText9:\n\s+\.ds\s+TECM8_EDITOR_ROW_TEXT_BYTES/);
 });
 
 test('editor viewport proof builds records and renders through the display model', () => {
@@ -53,6 +63,7 @@ test('editor viewport proof is wired into package checks with content verificati
   assert.match(runner, /verifyEditorViewport/);
   assert.match(runner, /requiresVisiblePixels = proofName !== 'editor-viewport-bad-record-proof'/);
   assert.match(runner, /EditorRowText0/);
+  assert.match(runner, /EditorRowText9/);
   assert.match(runner, /editor viewport proof copied/);
   assert.match(runner, /editor viewport proof missing .* gutter bits/);
   assert.match(runner, /editor viewport proof missing visible .* gutter bits/);

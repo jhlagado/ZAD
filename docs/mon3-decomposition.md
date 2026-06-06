@@ -193,8 +193,8 @@ Several MON3 components are useful references but should not define TECM8's
 long-term shape:
 
 - GLCD terminal: keep MON3 calls at first, then replace with a TECM8 renderer
-  that supports the 20x10 6x6-cell display, an eight-line editor viewport,
-  two chrome rows, and a four-pixel gutter.
+  that supports the 20x10 6x6-cell display, a ten-line source viewport,
+  transient status overlays, and a four-pixel gutter.
 - Shell/menu: keep a tiny MON3-style launcher only if compact; TECM8 should own
   the normal shell and command loop.
 - Editor: build a sector-window editor above the virtual filesystem rather

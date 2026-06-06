@@ -234,11 +234,11 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   const rowBytes = 16;
   const textColumnByte = 1;
   const expectedMarkers = [
-    { row: 1, pattern: 0xf0, name: 'breakpoint' },
-    { row: 2, pattern: 0x80, name: 'current' },
-    { row: 3, pattern: 0xc0, name: 'selected' },
-    { row: 6, pattern: 0xf0, name: 'breakpoint-current' },
-    { row: 8, pattern: 0xc0, name: 'selected' },
+    { row: 0, pattern: 0xf0, name: 'breakpoint' },
+    { row: 1, pattern: 0x80, name: 'current' },
+    { row: 2, pattern: 0xc0, name: 'selected' },
+    { row: 5, pattern: 0xf0, name: 'breakpoint-current' },
+    { row: 7, pattern: 0xc0, name: 'selected' },
   ];
 
   for (const marker of expectedMarkers) {
@@ -261,10 +261,29 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
     }
   }
 
+  const cursorMask = 0x02;
+  for (let y = 0; y < 6; y += 1) {
+    const address = mon3Tgbuf + (DISPLAY_Y_ORIGIN + y) * rowBytes;
+    const value = runtime.hardware.memory[address];
+    if ((value & cursorMask) !== cursorMask) {
+      throw new Error(
+        `structured display proof missing row-0 cursor bit at 0x${address.toString(16)}: got ${resultToString(value)} expected mask ${resultToString(cursorMask)}`,
+      );
+    }
+
+    const glcdOffset = (DISPLAY_Y_ORIGIN + y) * rowBytes;
+    const visibleValue = glcd[glcdOffset] ?? 0;
+    if ((visibleValue & cursorMask) !== cursorMask) {
+      throw new Error(
+        `structured display proof missing visible row-0 cursor bit at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(cursorMask)}`,
+      );
+    }
+  }
+
   const expectedTextRows = [
-    { row: 0, name: 'top chrome' },
-    { row: 1, name: 'first source row' },
-    { row: 9, name: 'bottom chrome' },
+    { row: 0, name: 'first source row' },
+    { row: 1, name: 'second source row' },
+    { row: 9, name: 'tenth source row' },
   ];
 
   for (const row of expectedTextRows) {
@@ -284,7 +303,7 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   }
 
   for (let column = 'ORG 4000H'.length; column < 20; column += 1) {
-    if (cellHasPixels(runtime.hardware.memory, 1, column)) {
+    if (cellHasPixels(runtime.hardware.memory, 0, column)) {
       throw new Error(`structured display proof left stale pixels after shorter row redraw at column ${column}`);
     }
   }
@@ -302,6 +321,7 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
     { symbol: 'EditorRowText0', text: 'ORG 4000H' },
     { symbol: 'EditorRowText1', text: 'CALL INIT' },
     { symbol: 'EditorRowText7', text: 'RET' },
+    { symbol: 'EditorRowText9', text: 'END' },
   ];
   for (const row of expectedRows) {
     const address = symbolAddress(symbols, row.symbol);
@@ -314,9 +334,9 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
   const mon3Tgbuf = 0x13c0;
   const rowBytes = 16;
   const expectedMarkers = [
-    { row: 1, pattern: 0xf0, name: 'breakpoint' },
-    { row: 2, pattern: 0x80, name: 'current' },
-    { row: 4, pattern: 0xc0, name: 'selected' },
+    { row: 0, pattern: 0xf0, name: 'breakpoint' },
+    { row: 1, pattern: 0x80, name: 'current' },
+    { row: 3, pattern: 0xc0, name: 'selected' },
   ];
 
   for (const marker of expectedMarkers) {

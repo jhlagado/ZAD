@@ -75,6 +75,8 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,EditorPromptProofText
         CALL    EditorPromptAskYesNo
         JP      C,ProofFailed
+        LD      HL,PromptOverlayRow9Bytes
+        CALL    CaptureStatusRowTextByte
         LD      HL,EditorPromptIgnoreKeys
         CALL    EditorRunKeys
         JP      C,ProofFailed
@@ -86,6 +88,8 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,EditorPromptYesKeys
         CALL    EditorRunKeys
         JP      C,ProofFailed
+        LD      HL,PromptRestoredRow9Bytes
+        CALL    CaptureStatusRowTextByte
         LD      A,(EditorPromptActive)
         LD      (PromptActiveAfterYes),A
         LD      A,(EditorPromptResult)
@@ -156,6 +160,36 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
+; Capture one text byte from each pixel row of the transient status row. This
+; lets the host proof compare prompt-visible and source-restored row states.
+; Input: HL = six-byte destination
+;!      in        HL
+;!      out       carry,zero
+;!      clobbers  A,BC,DE,HL
+@CaptureStatusRowTextByte:
+        LD      DE,MON3_TGBUF + ((TECM8_DISPLAY_STATUS_ROW * TECM8_DISPLAY_ROW_HEIGHT + TECM8_DISPLAY_Y_ORIGIN) * TECM8_DISPLAY_ROW_BYTES) + 1
+        CALL    CaptureStatusRowOneByte
+        CALL    CaptureStatusRowOneByte
+        CALL    CaptureStatusRowOneByte
+        CALL    CaptureStatusRowOneByte
+        CALL    CaptureStatusRowOneByte
+        CALL    CaptureStatusRowOneByte
+        XOR     A
+        RET
+
+;!      in        DE,HL
+;!      out       DE,HL,carry,halfCarry
+;!      clobbers  A,BC,carry,halfCarry
+@CaptureStatusRowOneByte:
+        LD      A,(DE)
+        LD      (HL),A
+        INC     HL
+        EX      DE,HL
+        LD      BC,TECM8_DISPLAY_ROW_BYTES
+        ADD     HL,BC
+        EX      DE,HL
+        RET
+
         .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
         .include "../../src/editor-viewport.asm"
@@ -204,7 +238,7 @@ EditorDirtyQuitYesKeys:
         .db     17,"Y",0
 
 EditorPromptProofText:
-        .db     "Save changes? Y/N",0
+        .db     "Confirm? Y/N",0
 
 DirtyAfterNoopDelete:
         .db     0
@@ -235,6 +269,12 @@ PromptActiveAfterYes:
 
 PromptResultAfterYes:
         .db     0
+
+PromptOverlayRow9Bytes:
+        .ds     6
+
+PromptRestoredRow9Bytes:
+        .ds     6
 
 DirtyAfterRestore:
         .db     0

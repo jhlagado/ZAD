@@ -462,6 +462,7 @@ function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime,
     { symbol: 'EditorRowText0', text: 'P8 LINE 00' },
     { symbol: 'EditorRowText1', text: 'P8 LINE 01' },
     { symbol: 'EditorRowText7', text: 'P8 LINE 07' },
+    { symbol: 'EditorRowText9', text: 'P8 LINE 09' },
   ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
@@ -506,6 +507,7 @@ function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntim
     { symbol: 'EditorRowText0', text: 'P7 LINE 00' },
     { symbol: 'EditorRowText1', text: 'P7 LINE 01' },
     { symbol: 'EditorRowText7', text: 'P7 LINE 07' },
+    { symbol: 'EditorRowText9', text: 'P7 LINE 09' },
   ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
@@ -539,6 +541,7 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
     { symbol: 'EditorRowText0', text: 'A1 LINE 00' },
     { symbol: 'EditorRowText1', text: 'A1 LINE 01' },
     { symbol: 'EditorRowText7', text: 'A1dl?LINE 07' },
+    { symbol: 'EditorRowText9', text: 'A1 LINE 09' },
   ]);
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
   const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
@@ -719,6 +722,19 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
     }
   }
 
+  const promptOverlay = readMemoryBytes(runtime.hardware.memory, symbolAddress(symbols, 'PromptOverlayRow9Bytes'), 6);
+  const promptRestored = readMemoryBytes(runtime.hardware.memory, symbolAddress(symbols, 'PromptRestoredRow9Bytes'), 6);
+  if (promptOverlay.join(',') === promptRestored.join(',')) {
+    throw new Error(`editor page write prompt overlay row 9 did not differ from restored source row: [${promptOverlay.join(',')}]`);
+  }
+
+  const finalRow9 = readStatusRowTextByte(runtime.hardware.memory);
+  if (promptRestored.join(',') !== finalRow9.join(',')) {
+    throw new Error(
+      `editor page write restored row 9 snapshot [${promptRestored.join(',')}] does not match final row 9 [${finalRow9.join(',')}]`,
+    );
+  }
+
   const stored = readFileFromProofImage(PROOF_CASES['editor-page-write-proof'], '/src/main.asm');
   const length = stored[0];
   const text = stored.subarray(1, 1 + length).toString('ascii');
@@ -740,10 +756,26 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   }
 }
 
+function readMemoryBytes(memory: Uint8Array, address: number, length: number): number[] {
+  return Array.from(memory.subarray(address, address + length));
+}
+
+function readStatusRowTextByte(memory: Uint8Array): number[] {
+  const mon3Tgbuf = 0x13c0;
+  const rowBytes = 16;
+  const displayRow = 9;
+  const textByte = 1;
+  const values = [];
+  for (let y = 0; y < 6; y += 1) {
+    values.push(memory[mon3Tgbuf + (displayRow * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes + textByte]);
+  }
+  return values;
+}
+
 function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {
   const mon3Tgbuf = 0x13c0;
   const rowBytes = 16;
-  const displayRow = 8;
+  const displayRow = 7;
   const cursorByte = 4;
   const cursorMask = 0x08;
   const glcd = getGlcdBytes(platformRuntime);
@@ -779,6 +811,7 @@ function verifyShellEditLaunchProof(
     { symbol: 'EditorRowText0', text: `${expectedPrefix} LINE 00` },
     { symbol: 'EditorRowText1', text: `${expectedPrefix} LINE 01` },
     { symbol: 'EditorRowText7', text: `${expectedPrefix} LINE 07` },
+    { symbol: 'EditorRowText9', text: `${expectedPrefix} LINE 09` },
   ],
 ): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');

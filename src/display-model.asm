@@ -5,13 +5,11 @@
 
 TECM8_DISPLAY_GLCD_COLUMNS          .equ    20
 TECM8_DISPLAY_GLCD_ROWS             .equ    10
-TECM8_DISPLAY_EDIT_ROWS             .equ    8
+TECM8_DISPLAY_EDIT_ROWS             .equ    10
 TECM8_DISPLAY_GUTTER_PIXELS         .equ    4
 TECM8_DISPLAY_TEXT_X                .equ    6
 TECM8_DISPLAY_Y_ORIGIN              .equ    2
-TECM8_DISPLAY_TOP_ROW               .equ    0
-TECM8_DISPLAY_FIRST_EDIT_ROW        .equ    1
-TECM8_DISPLAY_BOTTOM_ROW            .equ    9
+TECM8_DISPLAY_STATUS_ROW            .equ    9
 TECM8_DISPLAY_ROW_HEIGHT            .equ    6
 TECM8_DISPLAY_ROW_BYTES             .equ    16
 TECM8_DISPLAY_Y_ORIGIN_BYTES        .equ    TECM8_DISPLAY_Y_ORIGIN * TECM8_DISPLAY_ROW_BYTES
@@ -39,9 +37,7 @@ MON3_TGBUF                          .equ    0x13C0
 ; DisplayRenderScreen -
 ; Render a fixed structured screen descriptor.
 ; Input: HL = descriptor:
-;        dw top text
-;        eight records of db marker, dw source text
-;        dw bottom text
+;        ten records of db marker, dw source text
 ;!      in        HL
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -49,22 +45,10 @@ MON3_TGBUF                          .equ    0x13C0
         LD      (DisplayCursor),HL
         CALL    BiosDisplayClear
         RET     C
-        LD      HL,(DisplayCursor)
-        LD      E,(HL)
-        INC     HL
-        LD      D,(HL)
-        INC     HL
-        LD      (DisplayCursor),HL
-        LD      H,D
-        LD      L,E
-        LD      A,TECM8_DISPLAY_TOP_ROW
-        LD      C,TECM8_DISPLAY_MARKER_NONE
-        CALL    DisplayRenderLine
-        RET     C
 
         LD      A,TECM8_DISPLAY_EDIT_ROWS
         LD      (DisplayRemaining),A
-        LD      A,TECM8_DISPLAY_FIRST_EDIT_ROW
+        XOR     A
         LD      (DisplayRow),A
 
 DisplayScreenLoop:
@@ -88,16 +72,6 @@ DisplayScreenLoop:
         DEC     A
         LD      (DisplayRemaining),A
         JR      NZ,DisplayScreenLoop
-
-        LD      HL,(DisplayCursor)
-        LD      E,(HL)
-        INC     HL
-        LD      D,(HL)
-        LD      H,D
-        LD      L,E
-        LD      A,TECM8_DISPLAY_BOTTOM_ROW
-        LD      C,TECM8_DISPLAY_MARKER_NONE
-        CALL    DisplayRenderLine
         RET
 
 ; DisplayRenderLine -
@@ -184,7 +158,7 @@ DisplayGutterWriteLoop:
 
 ; DisplayRenderCursorCell -
 ; Overlay a vertical cursor bit for one visible edit-pane cell.
-; Input: A = edit row (0-7), C = text column (0-19)
+; Input: A = edit row (0-9), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -198,17 +172,19 @@ DisplayGutterWriteLoop:
         LD      (DisplayCursorCellCol),A
 
         LD      A,(DisplayCursorCellRow)
-        ADD     A,TECM8_DISPLAY_FIRST_EDIT_ROW
         LD      HL,MON3_TGBUF
         LD      DE,TECM8_DISPLAY_Y_ORIGIN_BYTES
         ADD     HL,DE
         LD      DE,TECM8_DISPLAY_ROW_STRIDE
+        OR      A
+        JR      Z,DisplayCursorRowReady
 
 DisplayCursorRowOffsetLoop:
         ADD     HL,DE
         DEC     A
         JR      NZ,DisplayCursorRowOffsetLoop
 
+DisplayCursorRowReady:
         LD      A,TECM8_DISPLAY_TEXT_X
         LD      (DisplayCursorPixelX),A
         LD      A,(DisplayCursorCellCol)
@@ -290,7 +266,7 @@ DisplayCursorNoop:
 
 ; DisplayEraseCursorCell -
 ; Clear the vertical cursor bit for one visible edit-pane cell.
-; Input: A = edit row (0-7), C = text column (0-19)
+; Input: A = edit row (0-9), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -304,17 +280,19 @@ DisplayCursorNoop:
         LD      (DisplayCursorCellCol),A
 
         LD      A,(DisplayCursorCellRow)
-        ADD     A,TECM8_DISPLAY_FIRST_EDIT_ROW
         LD      HL,MON3_TGBUF
         LD      DE,TECM8_DISPLAY_Y_ORIGIN_BYTES
         ADD     HL,DE
         LD      DE,TECM8_DISPLAY_ROW_STRIDE
+        OR      A
+        JR      Z,DisplayCursorEraseRowReady
 
 DisplayCursorEraseRowOffsetLoop:
         ADD     HL,DE
         DEC     A
         JR      NZ,DisplayCursorEraseRowOffsetLoop
 
+DisplayCursorEraseRowReady:
         LD      A,TECM8_DISPLAY_TEXT_X
         LD      (DisplayCursorPixelX),A
         LD      A,(DisplayCursorCellCol)

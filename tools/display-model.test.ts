@@ -18,6 +18,7 @@ test('editor design documents the structured display model constants', () => {
     'TECM8_DISPLAY_EDIT_ROWS',
     'TECM8_DISPLAY_GUTTER_PIXELS',
     'TECM8_DISPLAY_Y_ORIGIN',
+    'TECM8_DISPLAY_STATUS_ROW',
     'TECM8_DISPLAY_MARKER_BREAKPOINT',
     'TECM8_DISPLAY_MARKER_CURRENT',
   ]) {
@@ -50,14 +51,20 @@ test('structured display model has assembly entry points and contracts', () => {
     'TECM8_DISPLAY_GUTTER_PIXELS',
     'TECM8_DISPLAY_Y_ORIGIN',
     'TECM8_DISPLAY_Y_ORIGIN_BYTES',
+    'TECM8_DISPLAY_STATUS_ROW',
   ]) {
     assert.match(source, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
   assert.match(source, /^TECM8_DISPLAY_Y_ORIGIN\s+\.equ\s+2$/m);
+  assert.match(source, /^TECM8_DISPLAY_EDIT_ROWS\s+\.equ\s+10$/m);
+  assert.match(source, /^TECM8_DISPLAY_STATUS_ROW\s+\.equ\s+9$/m);
   assert.match(source, /^TECM8_DISPLAY_Y_ORIGIN_BYTES\s+\.equ\s+TECM8_DISPLAY_Y_ORIGIN \* TECM8_DISPLAY_ROW_BYTES$/m);
   assert.match(source, /^MON3_TGBUF\s+\.equ\s+0x13C0$/m);
   assert.match(source, /@DisplayRenderGutter:\n\s+LD\s+\(DisplayRow\),A/);
   assert.match(source, /@DisplayRenderScreen:\n\s+LD\s+\(DisplayCursor\),HL\n\s+CALL\s+BiosDisplayClear/);
+  assert.doesNotMatch(source, /TECM8_DISPLAY_TOP_ROW/);
+  assert.doesNotMatch(source, /TECM8_DISPLAY_FIRST_EDIT_ROW/);
+  assert.doesNotMatch(source, /TECM8_DISPLAY_BOTTOM_ROW/);
   assert.match(source, /AND\s+0x0F/);
   assert.match(source, /@DisplayRenderCursorCell:/);
   assert.match(source, /@DisplayEraseCursorCell:/);

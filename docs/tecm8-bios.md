@@ -220,19 +220,18 @@ optional graphics operations, not in terms of MON3's exact GLCD buffers.
 
 MON3's current GLCD terminal uses 6x6 pixel character cells, not 8x8 tiles.
 On the 128x64 GLCD this gives a practical text terminal of 20 columns by 10
-rows. The editor may still choose to expose only eight editable rows by
-reserving the top and bottom rows for mode, menu, status, command, or error
-display:
+rows. The current TECM8 editor policy is to expose all ten rows as source text
+in the 6x6 profile and temporarily redraw the last row as a status, command, or
+error overlay only when needed:
 
 ```text
-row 0      mode/menu/status
-rows 1-8   editable source lines
-row 9      command/status/errors
+rows 0-9   editable source lines
+row 9      transient status/errors overlay when active
 ```
 
-Those chrome rows should be policy, not a hardware assumption. A full-screen
-editor mode can hide one or both rows and use more of the physical 10-row
-display.
+That overlay row should be policy, not a hardware assumption. A later 6x8 font
+profile may reduce the number of visible source rows or reserve an explicit
+status row without changing the editor's source model.
 
 The editor/debugger gutter does not need to consume a full character cell. A
 4-pixel bitmap gutter can carry breakpoint, current-line, selection, dirty, or

@@ -190,9 +190,8 @@ still unsupported here because no assembler or runner exists yet.
 This is the structured GLCD screen renderer. It renders an editor-like screen
 on top of the tile-cell layer:
 
-- row 0 is top chrome
-- rows 1-8 are editable source rows
-- row 9 is bottom status/command chrome
+- rows 0-9 are editable source rows in the current 6x6 profile
+- row 9 can be temporarily redrawn as a prompt/status overlay
 - a 4-pixel gutter carries marker flags
 - text is drawn as 20 columns of MON3 6x6 glyphs
 
@@ -657,8 +656,9 @@ What exists now:
   matching TM8 source page, with persisted image verification.
 - The editor tracks dirty state for the loaded page, marks dirty after
   mutation, saves via Ctrl-S, and clears dirty after successful save.
-- Status-line yes/no prompt state exists and is rendered through the bottom
-  chrome row for restore and dirty-quit confirmations.
+- Status-line yes/no prompt state exists and is rendered as a transient row 9
+  overlay for restore and dirty-quit confirmations; the hidden source row is
+  redrawn when the prompt clears.
 - The editor derives a hidden one-level backup path and can preserve the
   previous on-disk page there before save, creating the backup file when needed.
 - The editor can restore the hidden backup into the current buffer and mark the
@@ -675,7 +675,8 @@ What is still missing or intentionally skeletal:
 - Stop before starting assembler integration until a new milestone is chosen.
 - Split and join are intentionally limited to the loaded 512-byte page for V1;
   they do not move records across sectors or allocate/free TM8 storage.
-- The display chrome and marker policy are still mostly fixed proof data.
+- The marker policy is still mostly fixed proof data, and prompt overlays still
+  flush more than they should.
 - The Z80 storage readers are narrow readers, not a general reusable TM8
   filesystem layer.
 - Banked overlays and a trimmed TECM8 BIOS are design targets, not implemented
