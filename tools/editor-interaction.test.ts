@@ -30,11 +30,13 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_QUIT\s+\.equ\s+17/);
   assert.match(source, /TECM8_EDITOR_KEY_RESTORE\s+\.equ\s+18/);
   assert.match(source, /TECM8_EDITOR_KEY_SAVE\s+\.equ\s+19/);
+  assert.match(source, /TECM8_EDITOR_KEY_ALT_QUIT\s+\.equ\s+24/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_UP\s+\.equ\s+0x03/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_DOWN\s+\.equ\s+0x04/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_LEFT\s+\.equ\s+0x05/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_RIGHT\s+\.equ\s+0x06/);
   assert.match(source, /TECM8_EDITOR_KEY_ESCAPE\s+\.equ\s+27/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_ALT_QUIT\n\s+JP\s+Z,EditorKeyQuit/);
   assert.match(source, /TECM8_EDITOR_ACTION_CURSOR_LEFT\s+\.equ\s+3/);
   assert.match(source, /TECM8_EDITOR_ACTION_CURSOR_DOWN\s+\.equ\s+4/);
   assert.match(source, /TECM8_EDITOR_ACTION_CURSOR_UP\s+\.equ\s+5/);

@@ -45,10 +45,10 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 7\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 7, 5\)/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 1 \}, \{ row: 6, col: 6 \}/);
-  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 1 \}, \{ row: 6, col: 4 \}/);
+  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 1 \}, \{ row: 7, col: 3 \}/);
   assert.match(runner, /altModifierBits !== 0x08/);
   assert.match(runner, /saveTranslatedKey !== 0x13/);
-  assert.match(runner, /quitTranslatedKey !== 0x11/);
+  assert.match(runner, /quitTranslatedKey !== 0x18/);
   assert.match(runner, /modifierBits !== 0x10/);
   assert.match(packageJson, /"debug80:editor-live-smoke"/);
   assert.match(packageJson, /debug80:editor-live-smoke/);

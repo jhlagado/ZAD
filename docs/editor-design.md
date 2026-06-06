@@ -419,7 +419,7 @@ Possible early commands:
 ```text
 Ctrl-S  save
 Ctrl-Q  quit
-Ctrl-X  save and quit
+Ctrl-X  alternate quit for host environments that capture Ctrl-Q
 Ctrl-G  go to line
 Ctrl-K  delete line
 Ctrl-N  insert new line

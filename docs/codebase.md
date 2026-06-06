@@ -354,6 +354,7 @@ key stream rather than real keyboard input. In command mode:
 - `h`/`j`/`k`/`l` move the cursor
 - Ctrl-Q quits the key stream, prompting first when the page is dirty
 - Ctrl-S saves the currently loaded page
+- Ctrl-X is an alternate quit binding for host environments that capture Ctrl-Q
 - Ctrl-R prompts to restore the hidden backup into the current buffer
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
@@ -376,12 +377,12 @@ the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
-and clears the flag only after the backup and page write-back succeed. Ctrl-R
+and clears the flag only after the backup and page write-back succeeds. Ctrl-R
 arms a status-line restore prompt; a yes answer loads the hidden backup into
 the current page buffer, rerenders it, and marks it dirty so the user can
-inspect before saving. Ctrl-Q exits the key stream immediately when clean; when
-dirty, it asks before discarding changes and only exits on yes. There is not
-yet sector-crossing insert/delete.
+inspect before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when
+clean; when dirty, they ask before discarding changes and only exit on yes.
+There is not yet sector-crossing insert/delete.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports

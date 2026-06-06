@@ -24,6 +24,7 @@ TECM8_EDITOR_KEY_NEWLINE                .equ    13
 TECM8_EDITOR_KEY_QUIT                   .equ    17
 TECM8_EDITOR_KEY_RESTORE                .equ    18
 TECM8_EDITOR_KEY_SAVE                   .equ    19
+TECM8_EDITOR_KEY_ALT_QUIT               .equ    24
 TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
@@ -156,6 +157,8 @@ EditorKeyLoop:
         JP      Z,EditorKeyRestorePrompt
         CP      TECM8_EDITOR_KEY_SAVE
         JP      Z,EditorKeySave
+        CP      TECM8_EDITOR_KEY_ALT_QUIT
+        JP      Z,EditorKeyQuit
         LD      A,(EditorInsertMode)
         OR      A
         JR      NZ,EditorKeyMaybeInsertMode

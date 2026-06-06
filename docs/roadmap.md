@@ -186,7 +186,8 @@ Debug80:
 6. Type a few printable letters on one source line and confirm only that line
    visibly changes, without a full-screen blank/repaint.
 7. Press `Ctrl-S` to save.
-8. Press `Ctrl-Q` to quit; if dirty, answer the status prompt.
+8. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
+   answer the status prompt.
 9. Restart the editor and confirm the saved text is still present.
 
 The manual test script should be updated with exact expected screen changes

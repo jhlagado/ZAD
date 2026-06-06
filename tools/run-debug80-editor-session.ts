@@ -465,7 +465,7 @@ async function main(): Promise<void> {
         `live editor save dirty=${dirtyAfterSave} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 translated=0x13`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 4 }, 200_000, 200_000); // Ctrl+Q
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 3 }, 200_000, 200_000); // Ctrl+X
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
     if (afterQuitPc === liveLoopAddr && runtime.hardware.memory[quitRequestedAddr] === 1) {
@@ -478,11 +478,11 @@ async function main(): Promise<void> {
       const quitRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
       const quitRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
       throw new Error(
-        `live editor Ctrl-Q returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
+        `live editor Ctrl-X returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
       );
     }
-    if (quitTranslatedKey !== 0x11) {
-      throw new Error(`live editor quit translated=0x${quitTranslatedKey.toString(16)}, expected 0x11`);
+    if (quitTranslatedKey !== 0x18) {
+      throw new Error(`live editor quit translated=0x${quitTranslatedKey.toString(16)}, expected 0x18`);
     }
     const summary = {
       result: 'ok',

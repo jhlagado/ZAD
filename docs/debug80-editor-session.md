@@ -132,7 +132,7 @@ modified arrows      page or word movement, exact modifiers to be finalized
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`, `CapsLock`, `z`, `Ctrl-S`,
-and `Ctrl-Q` so the modifier-aware path is exercised, not only printable ASCII.
+and `Ctrl-X` so the modifier-aware path is exercised, not only printable ASCII.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
 
@@ -160,13 +160,13 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`,
-`CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, and `Ctrl-Q`, then verifies that the
+`CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, and `Ctrl-X`, then verifies that the
 editor cursor reaches row 3, column 2 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
 marks the editor dirty, that `Ctrl-S` translates to `13h` and clears dirty, and
-that `Ctrl-Q` translates to `11h` and exits the live editor.
+that `Ctrl-X` translates to `18h` and exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -178,8 +178,8 @@ For an interactive Debug80 UI check:
    `/tecm8.prj` and `/src/main.asm`.
 6. In the matrix keyboard UI, use the arrow keys for cursor movement. The
    temporary page aliases still work: `d` page down and `u` page up.
-7. `Ctrl-S` saves, `Ctrl-Q` quits, and `Ctrl-R` asks to restore from the
-   hidden backup file.
+7. `Ctrl-S` saves, `Ctrl-X` quits through the same editor path as `Ctrl-Q`, and
+   `Ctrl-R` asks to restore from the hidden backup file.
 
 ## Phase Milestone Manual Test
 
@@ -233,15 +233,13 @@ GLCD. Use this exact smoke test:
    Expected: the file is saved. There may be a visible pause because storage is
    still MON3/FAT32-backed and slow.
 
-9. Press `Ctrl-Q`.
+9. Press `Ctrl-X`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt. If it is dirty, the status row asks a yes/no question.
 
-   If the host environment captures `Ctrl-Q` before Debug80 sees it, press the
-   on-screen matrix `Ctrl` key and the matrix `Q` key instead, or temporarily
-   disable the host shortcut. The TECM8 input path expects the matrix chord, not
-   a host-level command.
+   `Ctrl-Q` remains available as plain quit, but `Ctrl-X` is the preferred
+   Debug80 exit path because host tools commonly reserve `Ctrl-Q`.
 
 The current phase does not require fast GLCD hardware flushing. Cursor movement
 and simple printable edits avoid full viewport render, but cursor overlay and
