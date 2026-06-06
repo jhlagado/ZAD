@@ -261,24 +261,9 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
     }
   }
 
-  const cursorMask = 0x02;
-  for (let y = 0; y < 6; y += 1) {
-    const address = mon3Tgbuf + (DISPLAY_Y_ORIGIN + y) * rowBytes;
-    const value = runtime.hardware.memory[address];
-    if ((value & cursorMask) !== cursorMask) {
-      throw new Error(
-        `structured display proof missing row-0 cursor bit at 0x${address.toString(16)}: got ${resultToString(value)} expected mask ${resultToString(cursorMask)}`,
-      );
-    }
-
-    const glcdOffset = (DISPLAY_Y_ORIGIN + y) * rowBytes;
-    const visibleValue = glcd[glcdOffset] ?? 0;
-    if ((visibleValue & cursorMask) !== cursorMask) {
-      throw new Error(
-        `structured display proof missing visible row-0 cursor bit at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(cursorMask)}`,
-      );
-    }
-  }
+  assertCellMatchesInvertedFont(runtime.hardware.memory, 1, 0, 'C'.charCodeAt(0));
+  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 1, 0, 'C'.charCodeAt(0));
+  assertCursorAdjacentMarkerPreserved(runtime.hardware.memory, glcd);
 
   const expectedTextRows = [
     { row: 0, name: 'first source row' },
@@ -410,6 +395,73 @@ function assertCellMatchesFont(memory: Uint8Array, row: number, column: number, 
   if (actual.join(',') !== expected.join(',')) {
     throw new Error(
       `GLCD tile proof rendered ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected font rows [${expected.join(',')}]`,
+    );
+  }
+}
+
+function assertCellMatchesInvertedFont(memory: Uint8Array, row: number, column: number, charCode: number): void {
+  const actual = readCellRows(memory, row, column);
+  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+  if (actual.join(',') !== expected.join(',')) {
+    throw new Error(
+      `GLCD cursor proof rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
+    );
+  }
+}
+
+function assertCursorAdjacentMarkerPreserved(memory: Uint8Array, glcd: number[]): void {
+  const markers = [
+    { address: 0x13e4, glcdOffset: 36, expected: 0x5a, name: 'one-byte cursor adjacent byte' },
+    { address: 0x13f0, glcdOffset: 48, expected: 0xf5, name: 'far-right cursor next scanline byte' },
+  ];
+  for (const marker of markers) {
+    const memoryValue = memory[marker.address];
+    if (memoryValue !== marker.expected) {
+      throw new Error(
+        `structured display proof did not preserve ${marker.name} in TGBUF: got ${resultToString(memoryValue)} expected ${resultToString(marker.expected)}`,
+      );
+    }
+    const glcdValue = glcd[marker.glcdOffset] ?? 0;
+    if (glcdValue !== marker.expected) {
+      throw new Error(
+        `structured display proof did not preserve visible ${marker.name}: got ${resultToString(glcdValue)} expected ${resultToString(marker.expected)}`,
+      );
+    }
+  }
+}
+
+function readGlcdCellRows(glcd: number[], row: number, column: number): number[] {
+  const rowBytes = 16;
+  const textX = 6;
+  const cellX = textX + column * 6;
+  const rows = [];
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    let rowBits = 0;
+    for (let x = cellX; x < cellX + 6; x += 1) {
+      rowBits <<= 1;
+      const offset = y * rowBytes + Math.floor(x / 8);
+      const mask = 0x80 >> (x % 8);
+      if (((glcd[offset] ?? 0) & mask) !== 0) {
+        rowBits |= 1;
+      }
+    }
+    rows.push(rowBits);
+  }
+  return rows;
+}
+
+function assertGlcdCellMatchesInvertedFont(
+  memory: Uint8Array,
+  glcd: number[],
+  row: number,
+  column: number,
+  charCode: number,
+): void {
+  const actual = readGlcdCellRows(glcd, row, column);
+  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+  if (actual.join(',') !== expected.join(',')) {
+    throw new Error(
+      `visible GLCD cursor proof rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
     );
   }
 }

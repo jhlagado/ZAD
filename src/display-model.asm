@@ -20,7 +20,7 @@ TECM8_DISPLAY_MARKER_NONE           .equ    0
 TECM8_DISPLAY_MARKER_BREAKPOINT     .equ    1
 TECM8_DISPLAY_MARKER_CURRENT        .equ    2
 TECM8_DISPLAY_MARKER_SELECTED       .equ    4
-TECM8_DISPLAY_CURSOR_PATTERN        .equ    0x80
+TECM8_DISPLAY_CURSOR_SAVED_BYTES    .equ    TECM8_DISPLAY_ROW_HEIGHT * 2
 
 MON3_TGBUF                          .equ    0x13C0
 
@@ -157,7 +157,7 @@ DisplayGutterWriteLoop:
         RET
 
 ; DisplayRenderCursorCell -
-; Overlay a vertical cursor bit for one visible edit-pane cell.
+; Overlay an inverse 6x6 cursor cell for one visible edit-pane cell.
 ; Input: A = edit row (0-9), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
@@ -220,24 +220,23 @@ DisplayCursorByteOffsetLoop:
         DJNZ    DisplayCursorByteOffsetLoop
 
 DisplayCursorByteOffsetReady:
+        LD      (DisplayCursorCellPtr),HL
         LD      A,(DisplayCursorBitIndex)
-        LD      B,A
-        LD      A,TECM8_DISPLAY_CURSOR_PATTERN
-        LD      C,A
-        LD      A,B
-        OR      A
-        JR      Z,DisplayCursorMaskReady
-        LD      A,C
-
-DisplayCursorMaskLoop:
-        SRL     A
-        DJNZ    DisplayCursorMaskLoop
-        LD      C,A
-
-DisplayCursorMaskReady:
+        LD      E,A
+        LD      D,0
+        LD      HL,DisplayCursorFirstMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        LD      (DisplayCursorFirstMask),A
+        LD      A,(DisplayCursorBitIndex)
+        LD      E,A
+        LD      D,0
+        LD      HL,DisplayCursorSecondMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        LD      (DisplayCursorSecondMask),A
         LD      B,TECM8_DISPLAY_ROW_HEIGHT
         LD      DE,TECM8_DISPLAY_ROW_BYTES
-        LD      (DisplayCursorCellPtr),HL
         LD      HL,DisplayCursorSavedBytes
         LD      (DisplayCursorSavePtr),HL
         LD      HL,(DisplayCursorCellPtr)
@@ -253,8 +252,39 @@ DisplayCursorWriteLoop:
         LD      (DisplayCursorSavePtr),HL
         LD      HL,(DisplayCursorCellPtr)
         LD      A,(DisplayCursorOriginalByte)
-        OR      C
+        LD      C,A
+        LD      A,(DisplayCursorFirstMask)
+        XOR     C
         LD      (HL),A
+        LD      A,(DisplayCursorSecondMask)
+        OR      A
+        JR      Z,DisplayCursorSkipSecondWrite
+        INC     HL
+        LD      A,(HL)
+        LD      (DisplayCursorOriginalByte),A
+        LD      (DisplayCursorCellPtr),HL
+        LD      HL,(DisplayCursorSavePtr)
+        LD      A,(DisplayCursorOriginalByte)
+        LD      (HL),A
+        INC     HL
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+        LD      A,(DisplayCursorOriginalByte)
+        LD      C,A
+        LD      A,(DisplayCursorSecondMask)
+        XOR     C
+        LD      (HL),A
+        DEC     HL
+        JR      DisplayCursorNextRow
+
+DisplayCursorSkipSecondWrite:
+        LD      HL,(DisplayCursorSavePtr)
+        LD      (HL),0
+        INC     HL
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+
+DisplayCursorNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorWriteLoop
         CALL    GlcdTileFlushFull
@@ -265,7 +295,7 @@ DisplayCursorNoop:
         RET
 
 ; DisplayEraseCursorCell -
-; Clear the vertical cursor bit for one visible edit-pane cell.
+; Restore the bytes saved before an inverse cursor cell was overlaid.
 ; Input: A = edit row (0-9), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
@@ -276,7 +306,7 @@ DisplayCursorNoop:
         LD      (DisplayCursorCellRow),A
         LD      A,C
         CP      TECM8_DISPLAY_MAX_TEXT_CHARS
-        JR      NC,DisplayCursorEraseNoop
+        JP      NC,DisplayCursorEraseNoop
         LD      (DisplayCursorCellCol),A
 
         LD      A,(DisplayCursorCellRow)
@@ -328,24 +358,16 @@ DisplayCursorEraseByteOffsetLoop:
         DJNZ    DisplayCursorEraseByteOffsetLoop
 
 DisplayCursorEraseByteOffsetReady:
+        LD      (DisplayCursorCellPtr),HL
         LD      A,(DisplayCursorBitIndex)
-        LD      B,A
-        LD      A,TECM8_DISPLAY_CURSOR_PATTERN
-        LD      C,A
-        LD      A,B
-        OR      A
-        JR      Z,DisplayCursorEraseMaskReady
-        LD      A,C
-
-DisplayCursorEraseMaskLoop:
-        SRL     A
-        DJNZ    DisplayCursorEraseMaskLoop
-        LD      C,A
-
-DisplayCursorEraseMaskReady:
+        LD      E,A
+        LD      D,0
+        LD      HL,DisplayCursorSecondMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        LD      (DisplayCursorSecondMask),A
         LD      B,TECM8_DISPLAY_ROW_HEIGHT
         LD      DE,TECM8_DISPLAY_ROW_BYTES
-        LD      (DisplayCursorCellPtr),HL
         LD      HL,DisplayCursorSavedBytes
         LD      (DisplayCursorSavePtr),HL
         LD      HL,(DisplayCursorCellPtr)
@@ -358,6 +380,27 @@ DisplayCursorEraseWriteLoop:
         LD      (DisplayCursorSavePtr),HL
         LD      HL,(DisplayCursorCellPtr)
         LD      (HL),A
+        LD      A,(DisplayCursorSecondMask)
+        OR      A
+        JR      Z,DisplayCursorEraseSkipSecond
+        INC     HL
+        LD      (DisplayCursorCellPtr),HL
+        LD      HL,(DisplayCursorSavePtr)
+        LD      A,(HL)
+        INC     HL
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+        LD      (HL),A
+        DEC     HL
+        JR      DisplayCursorEraseNextRow
+
+DisplayCursorEraseSkipSecond:
+        LD      HL,(DisplayCursorSavePtr)
+        INC     HL
+        LD      (DisplayCursorSavePtr),HL
+        LD      HL,(DisplayCursorCellPtr)
+
+DisplayCursorEraseNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorEraseWriteLoop
         CALL    GlcdTileFlushFull
@@ -413,5 +456,14 @@ DisplayCursorSavePtr:
         .dw     0
 DisplayCursorOriginalByte:
         .db     0
+DisplayCursorFirstMask:
+        .db     0
+DisplayCursorSecondMask:
+        .db     0
 DisplayCursorSavedBytes:
-        .ds     TECM8_DISPLAY_ROW_HEIGHT
+        .ds     TECM8_DISPLAY_CURSOR_SAVED_BYTES
+
+DisplayCursorFirstMaskTable:
+        .db     0xFC,0x7E,0x3F,0x1F,0x0F,0x07,0x03,0x01
+DisplayCursorSecondMaskTable:
+        .db     0x00,0x00,0x00,0x80,0xC0,0xE0,0xF0,0xF8

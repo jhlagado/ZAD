@@ -180,3 +180,7 @@ Ordinary cursor movement and simple in-line printable edits now use dirty
 rendering: cursor keys redraw the cursor overlay, and printable insert/delete
 redraws the affected source row. Page loads, split/join operations, explicit
 redraws, and mode changes may still repaint the full viewport.
+
+The cursor is currently a non-blinking inverse 6x6 cell. It should remain
+visible over glyphs with vertical strokes such as `E`, `L`, and `N`, unlike the
+earlier single vertical bar cursor.

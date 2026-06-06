@@ -8,6 +8,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 MON3_VPORT      .equ     0x0E13
+CursorAdjacentMarker .equ     0x13E4
+CursorFarRightMarker .equ     0x13F0
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
@@ -29,6 +31,28 @@ MON3_VPORT      .equ     0x0E13
         JR      C,ProofFailed
 
         XOR     A
+        LD      C,3
+        CALL    DisplayRenderCursorCell
+        JR      C,ProofFailed
+        LD      A,0x5A
+        LD      (CursorAdjacentMarker),A
+        XOR     A
+        LD      C,3
+        CALL    DisplayEraseCursorCell
+        JR      C,ProofFailed
+
+        XOR     A
+        LD      C,19
+        CALL    DisplayRenderCursorCell
+        JR      C,ProofFailed
+        LD      A,0xF5
+        LD      (CursorFarRightMarker),A
+        XOR     A
+        LD      C,19
+        CALL    DisplayEraseCursorCell
+        JR      C,ProofFailed
+
+        LD      A,1
         LD      C,0
         CALL    DisplayRenderCursorCell
         JR      C,ProofFailed

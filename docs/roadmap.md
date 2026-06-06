@@ -102,6 +102,9 @@ direction for a future TECM8 GLCD BIOS/display library.
    visible over glyphs such as `E`, `L`, and `N`. It may remain a non-blinking
    cursor for this phase; blink timing can be a later milestone.
 
+   Status: implemented as a saved-byte inverse 6x6 cell overlay. The cursor is
+   non-blinking for now.
+
 3. **No-full-repaint Debug80 smoke coverage.**
    Add observable proof/smoke coverage that ordinary cursor movement and a
    simple printable insertion avoid the full-screen render path. Prefer counters

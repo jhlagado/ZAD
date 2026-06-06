@@ -138,7 +138,8 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(runner, /expected 7/);
   assert.match(runner, /expected 5/);
   assert.match(runner, /mutatedRecord !== 'A1dl\?LINE 07'/);
-  assert.match(runner, /cursorMask = 0x08/);
+  assert.match(runner, /assertCellMatchesInvertedFont/);
+  assert.match(runner, /assertGlcdCellMatchesInvertedFont/);
   assert.doesNotMatch(runner, /previous cursor/);
   assert.match(packageJson, /"proof:display:shell-edit-interaction"/);
   assert.match(packageJson, /proof:display:shell-edit-interaction/);
