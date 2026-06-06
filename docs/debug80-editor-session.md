@@ -204,11 +204,13 @@ GLCD. Use this exact smoke test:
 4. Expected initial GLCD result:
 
    ```text
-   TECM8 EDIT MAIN.ASM
    R0 LINE 00
    R0 LINE 01
    ...
    ```
+
+   This phase does not render a persistent title/header row. The visible rows
+   are the source records from `/src/main.asm`.
 
    The cursor should be a non-blinking inverse cell, initially near the top-left
    source text area. It should not be the earlier single vertical stroke.
@@ -224,9 +226,10 @@ GLCD. Use this exact smoke test:
 
 7. Type `Z`.
 
-   Expected: the first line changes from `R0 LINE 00` to `ZR0 LINE 00`, and the
-   cursor advances one cell. This should redraw the affected row rather than
-   doing the older obvious full-screen clear/repaint path.
+   Expected: because the cursor is two cells to the right, the first line
+   changes from `R0 LINE 00` to `R0Z LINE 00`, and the cursor advances one
+   cell. This should redraw the affected row rather than doing the older
+   obvious full-screen clear/repaint path.
 
 8. Press `Ctrl-S`.
 

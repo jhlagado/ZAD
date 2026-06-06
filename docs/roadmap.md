@@ -193,17 +193,19 @@ Debug80:
 2. Launch Debug80's `main` target with SD enabled.
 3. Let MON3 initialize, then use MON3 `GO` at `4000h`.
 4. Confirm the GLCD shows the TECM8 editor with `/src/main.asm`.
-5. Confirm the initial screen begins with `TECM8 EDIT MAIN.ASM`, followed by
-   source rows such as `R0 LINE 00`, `R0 LINE 01`, and later rows.
+5. Confirm the initial screen shows the loaded source rows, beginning with
+   `R0 LINE 00`, `R0 LINE 01`, and later rows. This phase does not render a
+   persistent title/header row.
 6. Confirm the cursor is a non-blinking inverse 6x6 cell near the top-left
    source text area, not a single vertical stroke.
 7. Press matrix `ArrowRight` twice. Expected: the cursor moves two cells to the
    right without a visible full-screen blank/repaint.
 8. Press matrix `ArrowDown`, then `ArrowUp`. Expected: the cursor moves down one
    source row and back up one source row without a page redraw.
-9. Type `Z`. Expected: the first line changes from `R0 LINE 00` to
-   `ZR0 LINE 00`, the cursor advances one cell, and the edit uses the row dirty
-   path rather than the older full-screen clear/repaint path.
+9. Type `Z`. Expected: because the cursor is now two cells to the right, the
+   first line changes from `R0 LINE 00` to `R0Z LINE 00`, the cursor advances
+   one cell, and the edit uses the row dirty path rather than the older
+   full-screen clear/repaint path.
 10. Press `Ctrl-S`. Expected: the status row shows `Saving...`, storage may
     pause for several seconds, then the editor returns to the source view.
 11. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
