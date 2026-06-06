@@ -176,6 +176,68 @@ For an interactive Debug80 UI check:
 7. `Ctrl-S` saves, `Ctrl-Q` quits, and `Ctrl-R` asks to restore from the
    hidden backup file.
 
+## Phase Milestone Manual Test
+
+This phase is complete when the Debug80 UI can manually show the editor running
+from MON3 at `4000h`, with visible cursor movement and basic typing on the
+GLCD. Use this exact smoke test:
+
+1. From the repo, run:
+
+   ```sh
+   npm run debug80:editor-image
+   ```
+
+2. In Debug80, launch the `main` target. Keep the FAT32 SD image mounted at:
+
+   ```text
+   demos/debug80/editor-session-fat32.img
+   ```
+
+3. Let MON3 initialize. Use MON3's normal `GO` flow to execute `4000h`.
+
+4. Expected initial GLCD result:
+
+   ```text
+   TECM8 EDIT MAIN.ASM
+   R0 LINE 00
+   R0 LINE 01
+   ...
+   ```
+
+   The cursor should be a non-blinking inverse cell, initially near the top-left
+   source text area. It should not be the earlier single vertical stroke.
+
+5. Press matrix `ArrowRight` twice.
+
+   Expected: the cursor moves two cells to the right. The whole GLCD should not
+   visibly blank and repaint as a page load.
+
+6. Press matrix `ArrowDown`, then `ArrowUp`.
+
+   Expected: the cursor moves down one source row and back up one source row.
+
+7. Type `Z`.
+
+   Expected: the first line changes from `R0 LINE 00` to `ZR0 LINE 00`, and the
+   cursor advances one cell. This should redraw the affected row rather than
+   doing the older obvious full-screen clear/repaint path.
+
+8. Press `Ctrl-S`.
+
+   Expected: the file is saved. There may be a visible pause because storage is
+   still MON3/FAT32-backed and slow.
+
+9. Press `Ctrl-Q`.
+
+   Expected: if the page is clean after save, the editor exits without a dirty
+   discard prompt. If it is dirty, the status row asks a yes/no question.
+
+The current phase does not require fast GLCD hardware flushing. Cursor movement
+and simple printable edits avoid full viewport render, but cursor overlay and
+row edits still flush through the current full GLCD transfer routine. Replacing
+that with tile/dirty-region GLCD transfer is the next display-performance phase.
+
 Ordinary cursor movement and simple in-line printable edits now use dirty
 rendering: cursor keys redraw the cursor overlay, and printable insert/delete
 redraws the affected source row. Page loads, split/join operations, explicit
