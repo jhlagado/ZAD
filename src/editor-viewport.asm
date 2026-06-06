@@ -8,6 +8,7 @@ TECM8_EDITOR_VISIBLE_ROWS          .equ    10
 TECM8_EDITOR_MAX_RECORD_TEXT       .equ    31
 TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
 TECM8_EDITOR_ERR_RECORD_LENGTH     .equ    0x01
+TECM8_EDITOR_ERR_ROW               .equ    0x02
 
 ; EditorViewportRender -
 ; Render the first ten 32-byte source records in the sector/window at HL.
@@ -33,6 +34,80 @@ EditorViewportBuildLoop:
 
         LD      HL,EditorScreenDescriptor
         CALL    DisplayRenderScreen
+        RET
+
+; EditorViewportRenderRecordRow -
+; Copy one source record into its row text buffer and redraw that display row.
+; Input: A = visible row (0-9), HL = source record
+;!      in        A,HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorViewportRenderRecordRow:
+        CP      TECM8_EDITOR_VISIBLE_ROWS
+        JR      NC,EditorViewportRowError
+        LD      (EditorRowIndex),A
+        LD      (EditorRecordPtr),HL
+        CALL    EditorViewportRowTextPtr
+        LD      (EditorTextPtr),HL
+        CALL    EditorViewportCopyRecord
+        RET     C
+        LD      A,(EditorRowIndex)
+        CALL    EditorViewportMarkerForRow
+        LD      A,(EditorRowIndex)
+        LD      HL,(EditorTextPtr)
+        LD      DE,0 - TECM8_EDITOR_ROW_TEXT_BYTES
+        ADD     HL,DE
+        CALL    DisplayRenderLine
+        RET
+
+;!      in        A
+;!      out       HL,carry
+;!      clobbers  A,B,DE,zero,sign,parity,halfCarry
+@EditorViewportRowTextPtr:
+        LD      HL,EditorRowText0
+        OR      A
+        RET     Z
+        LD      B,A
+        LD      DE,TECM8_EDITOR_ROW_TEXT_BYTES
+
+EditorViewportRowTextPtrLoop:
+        ADD     HL,DE
+        DJNZ    EditorViewportRowTextPtrLoop
+        XOR     A
+        RET
+
+;!      in        A
+;!      out       C,carry
+;!      clobbers  A,C,zero,sign,parity,halfCarry
+@EditorViewportMarkerForRow:
+        CP      0
+        JR      Z,EditorViewportMarkerBreakpoint
+        CP      1
+        JR      Z,EditorViewportMarkerCurrent
+        CP      3
+        JR      Z,EditorViewportMarkerSelected
+        LD      C,TECM8_DISPLAY_MARKER_NONE
+        XOR     A
+        RET
+
+EditorViewportMarkerBreakpoint:
+        LD      C,TECM8_DISPLAY_MARKER_BREAKPOINT
+        XOR     A
+        RET
+
+EditorViewportMarkerCurrent:
+        LD      C,TECM8_DISPLAY_MARKER_CURRENT
+        XOR     A
+        RET
+
+EditorViewportMarkerSelected:
+        LD      C,TECM8_DISPLAY_MARKER_SELECTED
+        XOR     A
+        RET
+
+EditorViewportRowError:
+        LD      A,TECM8_EDITOR_ERR_ROW
+        SCF
         RET
 
 ; EditorViewportRenderStatusOverlay -

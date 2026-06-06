@@ -307,7 +307,7 @@ EditorKeyInsertPrintable:
         RET     C
         OR      A
         JP      Z,EditorKeyLoop
-        CALL    EditorKeyRenderDirty
+        CALL    EditorKeyRenderCurrentLineDirty
         RET     C
         JP      EditorKeyLoop
 
@@ -321,6 +321,18 @@ EditorKeySplitLine:
         JP      EditorKeyLoop
 
 EditorKeyBackspace:
+        LD      A,(EditorCursorCol)
+        OR      A
+        JR      Z,EditorKeyBackspaceJoin
+        CALL    EditorBackspaceChar
+        RET     C
+        OR      A
+        JP      Z,EditorKeyLoop
+        CALL    EditorKeyRenderCurrentLineDirty
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyBackspaceJoin:
         CALL    EditorBackspaceChar
         RET     C
         OR      A
@@ -334,7 +346,7 @@ EditorKeyDelete:
         RET     C
         OR      A
         JP      Z,EditorKeyLoop
-        CALL    EditorKeyRenderDirty
+        CALL    EditorKeyRenderCurrentLineDirty
         RET     C
         JP      EditorKeyLoop
 
@@ -804,9 +816,24 @@ EditorDeleteDone:
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorKeyRenderDirty:
         CALL    EditorMarkDirty
-        XOR     A
-        LD      (EditorCursorRendered),A
+        CALL    EditorHideCursor
+        RET     C
         CALL    EditorRenderPageBuffer
+        RET     C
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyRenderCurrentLineDirty:
+        CALL    EditorMarkDirty
+        CALL    EditorHideCursor
+        RET     C
+        CALL    EditorKeyCurrentRecord
+        LD      A,(EditorCursorRow)
+        CALL    EditorViewportRenderRecordRow
+        RET     C
+        CALL    GlcdTileFlushFull
         RET     C
         XOR     A
         RET

@@ -24,6 +24,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorSplitLine:/m);
   assert.match(source, /^@EditorJoinPreviousLine:/m);
   assert.match(source, /^@EditorMarkDirty:/m);
+  assert.match(source, /^@EditorKeyRenderCurrentLineDirty:/m);
   assert.match(source, /^@EditorPromptAskYesNo:/m);
   assert.match(source, /^@EditorPromptDispatch:/m);
   assert.match(source, /TECM8_EDITOR_KEY_QUIT\s+\.equ\s+17/);
@@ -67,6 +68,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
+  assert.match(source, /CALL\s+EditorViewportRenderRecordRow/);
+  assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
+  assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
+  assert.match(source, /EditorKeyBackspaceJoin:[\s\S]*?CALL\s+EditorKeyRenderDirty/);
   assert.match(source, /EditorKeyDone:\n\s+LD\s+A,\(EditorPromptActive\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorKeyDoneNoCursor/);
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorCol:\n\s+\.db\s+0/);

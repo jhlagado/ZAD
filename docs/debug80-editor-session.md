@@ -176,6 +176,7 @@ For an interactive Debug80 UI check:
 7. `Ctrl-S` saves, `Ctrl-Q` quits, and `Ctrl-R` asks to restore from the
    hidden backup file.
 
-After each key press the current implementation may repaint the whole GLCD
-viewport, so movement is expected to feel slow. That is a known renderer
-performance limitation, not an input failure.
+Ordinary cursor movement and simple in-line printable edits now use dirty
+rendering: cursor keys redraw the cursor overlay, and printable insert/delete
+redraws the affected source row. Page loads, split/join operations, explicit
+redraws, and mode changes may still repaint the full viewport.

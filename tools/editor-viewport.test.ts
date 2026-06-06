@@ -13,7 +13,9 @@ test('editor viewport module exposes a source-record render entry point', () => 
   const source = readRepoFile('src/editor-viewport.asm');
 
   assert.match(source, /^@EditorViewportRender:/m);
+  assert.match(source, /^@EditorViewportRenderRecordRow:/m);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRender:/);
+  assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRenderRecordRow:/);
 
   for (const constant of [
     'TECM8_EDITOR_RECORD_BYTES',
@@ -28,6 +30,8 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^TECM8_EDITOR_VISIBLE_ROWS\s+\.equ\s+10$/m);
   assert.match(source, /^@EditorViewportRenderStatusOverlay:/m);
   assert.match(source, /^@EditorViewportRestoreStatusRow:/m);
+  assert.match(source, /^@EditorViewportRowTextPtr:/m);
+  assert.match(source, /^@EditorViewportMarkerForRow:/m);
   assert.match(source, /LD\s+A,TECM8_DISPLAY_STATUS_ROW/);
   assert.match(source, /LD\s+HL,EditorRowText9/);
   assert.match(source, /CALL\s+DisplayRenderLine/);

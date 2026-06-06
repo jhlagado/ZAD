@@ -254,11 +254,14 @@ clear. They may later become line metadata bits, but the existing code and host
 conversion tools still treat the byte as a plain `0..31` length.
 
 `EditorViewportRender` takes `HL` pointing at a source-record window,
-copies the first eight records into NUL-terminated row buffers, checks that no
+copies the first ten records into NUL-terminated row buffers, checks that no
 record length exceeds 31, then calls `DisplayRenderScreen`.
+`EditorViewportRenderRecordRow` performs the same record-to-row conversion for
+one visible row and calls `DisplayRenderLine`, which is the dirty-rendering path
+used by ordinary in-line editor mutations.
 
-This module currently has fixed placeholder chrome text and fixed marker flags.
-It is a viewport proof surface, not a full editor model yet.
+This module currently has fixed marker flags. It is a viewport proof surface,
+not a full editor model yet.
 
 ### `src/editor-storage-loader.asm`
 

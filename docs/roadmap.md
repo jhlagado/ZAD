@@ -87,43 +87,35 @@ direction for a future TECM8 GLCD BIOS/display library.
 
 ## Near-Term Goal Order
 
-1. **Measure and document the current display bottleneck.**
-   Confirm the exact full-screen clear/redraw path, separate Debug80 canvas
-   scaling artifacts from GLCD buffer contents, and record the target replacement
-   architecture in the design docs.
+1. **Dirty editor rendering.**
+   Change ordinary cursor movement and simple in-line printable edits so they do
+   not call the full-screen `DisplayRenderScreen` path. Cursor movement should
+   erase and redraw only the cursor overlay. Printable edits should redraw the
+   affected source row from the loaded 512-byte page buffer.
 
-2. **Introduce a TECM8 GLCD tile-buffer layer.**
-   Add Z80 routines that compute cell addresses in the GLCD backing buffer and
-   write a complete 6x6 cell, including blank pixels. Keep the first scope narrow:
-   `GlcdTileClearCell`, `GlcdTileDrawCell`, and `GlcdTileDrawTextRun` or
-   equivalent names.
+   Status: implemented for cursor movement, printable insertion, delete, and
+   backspace within a line. Split/join and page movement still use full viewport
+   render because they can legitimately shift many source rows.
 
-3. **Move structured screen rendering onto tile primitives.**
-   Replace per-character MON3 terminal drawing in the structured display model
-   with TECM8 tile writes. Full-page rendering may still clear and repaint, but
-   it should no longer depend on MON3 terminal text policy. Status: implemented
-   for text rows via `GlcdTileClearTextRow` and `GlcdTileDrawTextRun`; gutter
-   and cursor paths still use direct `TGBUF` writes pending later cursor/dirty
-   rendering work.
+2. **Visible cell-level cursor.**
+   Replace the fragile single vertical stroke with a cursor treatment that stays
+   visible over glyphs such as `E`, `L`, and `N`. It may remain a non-blinking
+   cursor for this phase; blink timing can be a later milestone.
 
-4. **Add dirty line/cell rendering for editor mutations.**
-   Change printable insert/delete paths so they redraw the affected line or cell
-   range instead of calling `DisplayRenderScreen`. Cursor-only movement should
-   erase the old cursor overlay, draw the new overlay, and avoid page redraw.
+3. **No-full-repaint Debug80 smoke coverage.**
+   Add observable proof/smoke coverage that ordinary cursor movement and a
+   simple printable insertion avoid the full-screen render path. Prefer counters
+   or explicit render-path markers over wall-clock timing.
 
-5. **Improve cursor visibility.**
-   Replace the fragile single vertical stroke with a cell-level cursor treatment,
-   likely inverse/XOR or another full-cell overlay. Blinking can follow once the
-   nonblank overlay is reliable.
+4. **Manual Debug80 test package.**
+   Ensure `npm run debug80:editor-image` produces the manual image, document the
+   exact MON3 launch path, and list specific matrix-keyboard checks for cursor
+   movement, typing, saving, quitting, and restore prompts.
 
-6. **Add Debug80 performance smoke coverage.**
-   Extend the live editor smoke so it proves that a key insertion no longer calls
-   the full-screen render path. Prefer observable state or counters over timing,
-   because emulator speed and host canvas scaling vary.
-
-7. **Define the MON3 GLCD deprecation boundary.**
-   Decide which MON3 GLCD routines remain temporary low-level hardware services
-   and which terminal/rendering services are no longer allowed in editor drawing.
+5. **Phase completion review.**
+   Run local verification including `npm run check`, get a high-effort local
+   subagent review for the code changes, address findings, close subagents,
+   commit, push, monitor any remote CI runs, and then stop.
 
 ## Debug80-Testable GLCD Editor V1 Done Criteria
 
@@ -169,6 +161,26 @@ verifies the saved source and hidden backup. See
 After these criteria are satisfied, stop and reassess whether the next milestone
 should continue display work, return to shell ergonomics, or begin assembler
 integration.
+
+## Manual Milestone Test
+
+The phase is complete only when a user can manually inspect the editor in
+Debug80:
+
+1. Run `npm run debug80:editor-image`.
+2. Launch Debug80's `main` target with SD enabled.
+3. Let MON3 initialize, then use MON3 `GO` at `4000h`.
+4. Confirm the GLCD shows the TECM8 editor with `/src/main.asm`.
+5. Press matrix arrow keys and confirm the cursor moves without a visible
+   full-screen blank/repaint.
+6. Type a few printable letters on one source line and confirm only that line
+   visibly changes, without a full-screen blank/repaint.
+7. Press `Ctrl-S` to save.
+8. Press `Ctrl-Q` to quit; if dirty, answer the status prompt.
+9. Restart the editor and confirm the saved text is still present.
+
+The manual test script should be updated with exact expected screen changes
+before this phase is marked complete.
 
 ## Later Milestones
 
