@@ -75,10 +75,14 @@ contract blocks from the included source.
 ### `src/main.asm`
 
 This is now the Debug80-testable TECM8 editor session entry. It runs at `4000h`
-under the TEC-1G/MON3 profile, initializes the GLCD, opens the project main
-source through `edit`, inserts a small visible edit, saves, quits, reopens the
-same file, and leaves the final editor screen visible. It includes the real
-project config loader and storage-backed editor path rather than a stub.
+under the TEC-1G/MON3 profile and splits into two entry paths. `Start` jumps to
+`LiveStart`, which initializes the GLCD, resolves `edit`, resets the cursor,
+and enters `EditorRunLive` for manual matrix-key testing against the real
+storage-backed editor path. `ScriptStart` is the automated proof entry: it
+opens the project main source through `edit`, inserts a small visible edit,
+saves, quits, reopens the same file, and leaves the final editor screen
+visible. Both paths include the real project config loader and storage-backed
+editor path rather than a stub.
 
 ### `src/tecm8-bios.asm` and `src/mon3.asmi`
 
@@ -88,6 +92,8 @@ currently a thin MON3 compatibility layer:
 - `BiosFileOpen`
 - `BiosFileReadSector`
 - `BiosFileWriteSector`
+- `BiosInputPollAscii`
+- `BiosInputPollKey`
 - `BiosDisplayInit`
 - `BiosDisplayClear`
 - `BiosDisplaySetCursor`
@@ -99,8 +105,11 @@ currently a thin MON3 compatibility layer:
 
 The wrappers depend on MON3 entry points such as `F5A1h` for file open,
 `F5D5h` for sector read, `F66Dh` for sector write, and MON3 GLCD routines in
-the `D8xxh` to `DCxxh` range. Higher-level code should call the wrapper names,
-not hard-code MON3 addresses.
+the `D8xxh` to `DCxxh` range. `BiosInputPollKey` also wraps the MON3 matrix
+scanner path, returns translated keys with TECM8 modifier bits, exposes the raw
+scan bytes for diagnostics, and normalizes Ctrl+A..Z into the ASCII control
+codes consumed by the editor command loop. Higher-level code should call the
+wrapper names, not hard-code MON3 addresses.
 
 `src/mon3.asmi` documents the external MON3 symbols that are not implemented in
 this repository. The TECM8 wrapper routines themselves live in
@@ -325,6 +334,13 @@ committed only after loading and rendering succeeds, so failed page-down or
 page-up attempts do not corrupt current-page state. Successful load/page
 movement and save clear the dirty flag.
 
+Storage-backed loads, backup restore, and save now also route through
+`EditorNavShowStatus`, which renders transient `Loading...` or `Saving...`
+text through `EditorViewportRenderStatusOverlay` before the storage call and
+restores the hidden source row afterward. The status overlay shares row 9 with
+the editor prompt path, so slow navigation and save operations present visible
+feedback without adding a second status surface.
+
 `EditorSaveCurrentPage` is the current save coordinator. It first calls
 `EditorBackupCurrentPage`; if that succeeds, it writes `EditorNavPageBuffer`
 back to the current path/page and clears dirty. `EditorBackupCurrentPage`
@@ -346,8 +362,9 @@ whether to mark that restored buffer dirty.
 
 ### `src/editor-interaction.asm`
 
-This is the early editor interaction loop. It consumes a NUL-terminated proof
-key stream rather than real keyboard input. In command mode:
+This is the early editor interaction loop. It supports both a NUL-terminated
+proof key stream and the live matrix-key path that polls MON3 through
+`BiosInputPollKey`. In command mode:
 
 - `d`/`D` page down
 - `u`/`U` page up
@@ -364,8 +381,9 @@ key stream rather than real keyboard input. In command mode:
 - delete removes the character at the cursor
 
 The public interface now exposes the primitive edit operations as separate
-entry points as well as the proof key-stream runner:
+entry points, the proof key-stream runner, and the live polling loop:
 
+- `EditorRunLive`
 - `EditorInsertChar`
 - `EditorBackspaceChar`
 - `EditorDeleteChar`
@@ -388,6 +406,12 @@ The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
 errors. The key loop uses that result so no-op delete, split, insert, and join
 paths do not dirty a clean buffer.
+
+`EditorRunLive` renders the cursor, polls one TECM8 key event at a time from
+`BiosInputPollKey`, feeds the translated key byte back through `EditorRunKeys`,
+and flushes the tile buffer after handled input. Because the BIOS layer
+normalizes Ctrl-letter chords to ASCII control codes, the same command loop
+handles proof streams and live Ctrl-S, Ctrl-Q, Ctrl-X, and Ctrl-R input.
 
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
 the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the
@@ -558,11 +582,14 @@ that hidden backup and stores the old on-disk text before the edited source page
 is written.
 
 `tools/run-debug80-editor-session.ts` is the milestone runner for the first
-user-testable editor session. It assembles `src/main.asm`, generates
-`demos/debug80/editor-session-fat32.img`, mounts it in Debug80's TEC-1G runtime,
-verifies `/src/main.asm` was saved as fixed source records, verifies the hidden
-backup, and writes `demos/debug80/editor-session-glcd.pgm` as a local GLCD
-capture.
+user-testable editor session. Its default path assembles `src/main.asm`,
+generates `demos/debug80/editor-session-fat32.img`, mounts it in Debug80's
+TEC-1G runtime, verifies `/src/main.asm` was saved as fixed source records,
+verifies the hidden backup, and writes
+`demos/debug80/editor-session-glcd.pgm` as a local GLCD capture. Its
+`--live-smoke` path boots the manual `LiveStart` entry, injects matrix-key
+events, and checks that live edit, save, and quit commands reach the same
+dirty-state and translated-key results as the scripted editor loop.
 
 ### Storage Image And Audit Tools
 
