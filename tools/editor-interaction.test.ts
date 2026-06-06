@@ -47,6 +47,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /TECM8_EDITOR_PROOF_KEY_CURSOR_DOWN_LOWER/);
   assert.doesNotMatch(source, /TECM8_EDITOR_PROOF_KEY_CURSOR_UP_LOWER/);
   assert.doesNotMatch(source, /TECM8_EDITOR_PROOF_KEY_CURSOR_RIGHT_LOWER/);
+  assert.doesNotMatch(source, /TECM8_EDITOR_PROOF_KEY_PAGE_/);
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_YES\s+\.equ\s+1/);
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_NO\s+\.equ\s+2/);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
@@ -77,6 +78,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CP\s+TECM8_EDITOR_ACTION_CURSOR_LEFT\n\s+JP\s+Z,EditorKeyCursorLeft/);
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER/);
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_[A-Z_]+\n\s+JP\s+Z,EditorKey/);
+  assert.doesNotMatch(source, /EditorActionPageDownLower/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
@@ -134,10 +136,13 @@ test('shell-launched editor interaction proof is wired into storage proof runner
 
   assert.match(proof, /CALL\s+ShellRunEditorSession/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
-  assert.match(proof, /\.db\s+TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_UP,TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER/);
+  assert.match(proof, /CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_DOWN\n\s+LD\s+B,TECM8_EDITOR_KEY_MOD_CTRL\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.doesNotMatch(proof, /TECM8_EDITOR_PROOF_KEY_PAGE_/);
+  assert.match(proof, /NoKeys:\n\s+\.db\s+0/);
+  assert.match(proof, /\.db\s+TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_UP/);
   assert.match(proof, /\.db\s+TECM8_EDITOR_KEY_ARROW_RIGHT,TECM8_EDITOR_KEY_ARROW_DOWN/);
   assert.match(proof, /\.db\s+TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_LEFT/);
-  assert.match(proof, /\.db\s+TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER/);
   assert.match(proof, /\.db\s+9/);
   assert.match(proof, /\.db\s+"dl!"/);
   assert.match(proof, /\.db\s+8/);

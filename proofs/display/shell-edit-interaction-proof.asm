@@ -17,17 +17,30 @@ PROOF_FAIL       .equ     0xE0
         LD      A,1
         LD      (CaseMarker),A
         LD      HL,CmdEdit
-        LD      DE,EditorKeys
+        LD      DE,NoKeys
         CALL    ShellRunEditorSession
         JR      C,ProofFailed
 
         LD      A,2
         LD      (CaseMarker),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JR      C,ProofFailed
+
+        LD      A,3
+        LD      (CaseMarker),A
+        LD      HL,EditorKeys
+        CALL    EditorRunKeys
+        JR      C,ProofFailed
+
+        LD      A,4
+        LD      (CaseMarker),A
         LD      HL,EditorKeyLeft
         CALL    EditorRunKeys
         JR      C,ProofFailed
 
-        LD      A,3
+        LD      A,5
         LD      (CaseMarker),A
         LD      HL,EditorKeyRight
         CALL    EditorRunKeys
@@ -86,8 +99,11 @@ LoadProjectStubOk:
 CmdEdit:
         .db     "edit",0
 
+NoKeys:
+        .db     0
+
 EditorKeys:
-        .db     TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_UP,TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER
+        .db     TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_UP
         .db     TECM8_EDITOR_KEY_ARROW_RIGHT,TECM8_EDITOR_KEY_ARROW_RIGHT
         .db     TECM8_EDITOR_KEY_ARROW_RIGHT,TECM8_EDITOR_KEY_ARROW_RIGHT
         .db     TECM8_EDITOR_KEY_ARROW_RIGHT,TECM8_EDITOR_KEY_ARROW_RIGHT
@@ -125,7 +141,6 @@ EditorKeys:
         .db     TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_LEFT
         .db     TECM8_EDITOR_KEY_ARROW_LEFT,TECM8_EDITOR_KEY_ARROW_LEFT
         .db     TECM8_EDITOR_KEY_ARROW_LEFT
-        .db     TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER
         .db     9
         .db     "dl!"
         .db     8

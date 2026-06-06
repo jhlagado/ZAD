@@ -366,9 +366,9 @@ This is the early editor interaction loop. It supports both a NUL-terminated
 proof key stream and the live matrix-key path that polls MON3 through
 `BiosInputPollKey`. In command mode:
 
-- `d`/`D` page down
-- `u`/`U` page up
-- `h`/`j`/`k`/`l` move the cursor
+- matrix arrows move the cursor
+- Ctrl+ArrowDown pages down
+- Ctrl+ArrowUp pages up
 - Ctrl-Q quits the key stream, prompting first when the page is dirty
 - Ctrl-S saves the currently loaded page
 - Ctrl-X is an alternate quit binding for host environments that capture Ctrl-Q
@@ -408,10 +408,11 @@ errors. The key loop uses that result so no-op delete, split, insert, and join
 paths do not dirty a clean buffer.
 
 `EditorRunLive` renders the cursor, polls one TECM8 key event at a time from
-`BiosInputPollKey`, feeds the translated key byte back through `EditorRunKeys`,
-and flushes the tile buffer after handled input. Because the BIOS layer
-normalizes Ctrl-letter chords to ASCII control codes, the same command loop
-handles proof streams and live Ctrl-S, Ctrl-Q, Ctrl-X, and Ctrl-R input.
+`BiosInputPollKey`, and dispatches that key through `EditorRunModifiedKey` so
+the editor sees both the translated key byte and modifier flags. Because the
+BIOS layer normalizes Ctrl-letter chords to ASCII control codes, the same
+command loop handles proof streams and live Ctrl-S, Ctrl-Q, Ctrl-X, and Ctrl-R
+input. Ctrl+Up and Ctrl+Down use the modifier flags directly for page movement.
 
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
 the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the

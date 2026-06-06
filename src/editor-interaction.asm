@@ -10,10 +10,6 @@ TECM8_EDITOR_ACTION_CURSOR_LEFT         .equ    3
 TECM8_EDITOR_ACTION_CURSOR_DOWN         .equ    4
 TECM8_EDITOR_ACTION_CURSOR_UP           .equ    5
 TECM8_EDITOR_ACTION_CURSOR_RIGHT        .equ    6
-TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER  .equ    "d"
-TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_UPPER  .equ    "D"
-TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER    .equ    "u"
-TECM8_EDITOR_PROOF_KEY_PAGE_UP_UPPER    .equ    "U"
 TECM8_EDITOR_KEY_ARROW_UP                .equ    0x03
 TECM8_EDITOR_KEY_ARROW_DOWN              .equ    0x04
 TECM8_EDITOR_KEY_ARROW_LEFT              .equ    0x05
@@ -115,12 +111,11 @@ EditorHideCursorDone:
 
 ; EditorRunKeys -
 ; Consume a NUL-terminated key stream. Movement and paging are dispatched as
-; editor actions so later matrix-key input can bind to the same commands without
-; pretending arrow keys are printable ASCII. The current proof stream still uses
-; host-friendly `d`/`u` aliases for page movement. TAB enters insert mode,
-; printable ASCII inserts, backspace deletes before the cursor, delete removes
-; the character at the cursor, newline splits the current record, and unknown
-; keys are ignored.
+; editor actions so matrix-key input can bind to the same commands without
+; pretending arrow keys are printable ASCII. TAB enters insert mode, printable
+; ASCII inserts, backspace deletes before the cursor, delete removes the
+; character at the cursor, newline splits the current record, and unknown keys
+; are ignored.
 ; Input:
 ;   HL = NUL-terminated key stream
 ;!      in        HL
@@ -442,14 +437,6 @@ EditorLiveDone:
         JR      Z,EditorActionCursorLeft
         CP      TECM8_EDITOR_KEY_ARROW_RIGHT
         JR      Z,EditorActionCursorRight
-        CP      TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_LOWER
-        JR      Z,EditorActionPageDown
-        CP      TECM8_EDITOR_PROOF_KEY_PAGE_DOWN_UPPER
-        JR      Z,EditorActionPageDown
-        CP      TECM8_EDITOR_PROOF_KEY_PAGE_UP_LOWER
-        JR      Z,EditorActionPageUp
-        CP      TECM8_EDITOR_PROOF_KEY_PAGE_UP_UPPER
-        JR      Z,EditorActionPageUp
         XOR     A
         RET
 

@@ -107,17 +107,10 @@ actions:
 06h / ArrowRight    cursor right
 ```
 
-The proof stream also keeps temporary host-friendly ASCII aliases for page
-movement:
-
-```text
-d / D    page down
-u / U    page up
-```
-
 The old `h`/`j`/`k`/`l` cursor aliases have been removed from the editor action
-mapper now that real matrix arrow keys work. Printable letters should be text,
-not hidden movement commands.
+mapper now that real matrix arrow keys work. The temporary `u`/`d` page aliases
+have also been removed. Printable letters should be text, not hidden movement
+commands.
 
 The intended interactive binding is:
 
@@ -183,8 +176,8 @@ For an interactive Debug80 UI check:
 4. Use MON3's normal `GO` flow to execute address `4000h`.
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
-6. In the matrix keyboard UI, use the arrow keys for cursor movement. The
-   temporary page aliases still work: `d` page down and `u` page up.
+6. In the matrix keyboard UI, use the arrow keys for cursor movement.
+   `Ctrl+ArrowDown` pages down and `Ctrl+ArrowUp` pages up.
 7. `Ctrl-S` saves, `Ctrl-X` quits through the same editor path as `Ctrl-Q`, and
    `Ctrl-R` asks to restore from the hidden backup file.
 
