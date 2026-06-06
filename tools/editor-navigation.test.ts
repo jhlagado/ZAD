@@ -24,6 +24,7 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorPageDown',
     'EditorPageUp',
     'EditorNavDeriveBackupPath',
+    'EditorNavShowStatus',
   ]) {
     assert.match(source, new RegExp(`^@${name}:`, 'm'));
   }
@@ -45,19 +46,27 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
   assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
-  assert.match(source, /@EditorSaveCurrentPage:\n\s+CALL\s+EditorBackupCurrentPage\n\s+RET\s+C/);
+  assert.match(source, /@EditorSaveCurrentPage:\n\s+LD\s+HL,EditorStatusSavingText\n\s+CALL\s+EditorNavShowStatus\n\s+RET\s+C\n\s+CALL\s+EditorBackupCurrentPage/);
+  assert.match(source, /CALL\s+EditorClearDirty\n\s+JP\s+EditorViewportRestoreStatusRow/);
+  assert.match(source, /EditorSaveCurrentPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
   assert.match(source, /CALL\s+EditorNavDeriveBackupPath/);
   assert.match(source, /@EditorLoadCurrentBackupPage:/);
+  assert.match(source, /LD\s+HL,EditorStatusLoadingText\n\s+CALL\s+EditorNavShowStatus\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavCurrentPage\)/);
+  assert.match(source, /CALL\s+EditorLoadSourcePage\n\s+JR\s+C,EditorLoadCurrentBackupPageRestoreError\n\s+XOR\s+A\n\s+RET/);
+  assert.match(source, /EditorLoadCurrentBackupPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
   assert.match(source, /LD\s+DE,EditorNavBackupPathBuffer/);
   assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);
-  assert.match(source, /JP\s+EditorClearDirty/);
   assert.match(source, /JP\s+EditorRenderPageBuffer/);
+  assert.match(source, /@EditorNavRenderPage:\n\s+LD\s+\(EditorNavRenderPageInput\),A\n\s+LD\s+HL,EditorStatusLoadingText\n\s+CALL\s+EditorNavShowStatus/);
+  assert.match(source, /EditorNavRenderPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
   assert.match(source, /CALL\s+EditorNavCopyPath/);
   assert.match(source, /CALL\s+EditorViewportRender/);
   assert.match(source, /CALL\s+GlcdTileFlushFull/);
+  assert.match(source, /EditorStatusLoadingText:\n\s+\.db\s+"Loading\.\.\.",0/);
+  assert.match(source, /EditorStatusSavingText:\n\s+\.db\s+"Saving\.\.\.",0/);
   assert.match(source, /TECM8_EDITOR_NAV_ERR_PAGE\s+\.equ\s+0x50/);
 });
 

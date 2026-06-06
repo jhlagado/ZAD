@@ -60,14 +60,24 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorSaveCurrentPage:
-        CALL    EditorBackupCurrentPage
+        LD      HL,EditorStatusSavingText
+        CALL    EditorNavShowStatus
         RET     C
+        CALL    EditorBackupCurrentPage
+        JR      C,EditorSaveCurrentPageRestoreError
         LD      A,(EditorNavCurrentPage)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
         CALL    EditorSaveSourcePage
-        RET     C
-        JP      EditorClearDirty
+        JR      C,EditorSaveCurrentPageRestoreError
+        CALL    EditorClearDirty
+        JP      EditorViewportRestoreStatusRow
+
+EditorSaveCurrentPageRestoreError:
+        PUSH    AF
+        CALL    EditorViewportRestoreStatusRow
+        POP     AF
+        RET
 
 ; EditorBackupCurrentPage -
 ; Save the current on-disk page to the derived hidden backup path.
@@ -109,10 +119,22 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      B,TECM8_EDITOR_NAV_PATH_LEN
         CALL    EditorNavDeriveBackupPath
         RET     C
+        LD      HL,EditorStatusLoadingText
+        CALL    EditorNavShowStatus
+        RET     C
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavPageBuffer
-        JP      EditorLoadSourcePage
+        CALL    EditorLoadSourcePage
+        JR      C,EditorLoadCurrentBackupPageRestoreError
+        XOR     A
+        RET
+
+EditorLoadCurrentBackupPageRestoreError:
+        PUSH    AF
+        CALL    EditorViewportRestoreStatusRow
+        POP     AF
+        RET
 
 ; EditorClearDirty -
 ; Mark the current editor page clean after a successful load or save.
@@ -159,11 +181,31 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorNavRenderPage:
+        LD      (EditorNavRenderPageInput),A
+        LD      HL,EditorStatusLoadingText
+        CALL    EditorNavShowStatus
+        RET     C
+        LD      A,(EditorNavRenderPageInput)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
         CALL    EditorLoadSourcePage
-        RET     C
+        JR      C,EditorNavRenderPageRestoreError
         JP      EditorRenderPageBuffer
+
+EditorNavRenderPageRestoreError:
+        PUSH    AF
+        CALL    EditorViewportRestoreStatusRow
+        POP     AF
+        RET
+
+; EditorNavShowStatus -
+; Render a transient status line before a slow storage operation.
+;!      in        HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavShowStatus:
+        LD      (EditorPromptTextPtr),HL
+        JP      EditorViewportRenderStatusOverlay
 
 EditorNavPageErr:
         LD      A,TECM8_EDITOR_NAV_ERR_PAGE
@@ -296,6 +338,9 @@ EditorNavDirty:
 EditorNavPendingPage:
         .db     0
 
+EditorNavRenderPageInput:
+        .db     0
+
 EditorNavPathPtr:
         .dw     0
 
@@ -324,6 +369,12 @@ EditorNavBackupSourcePtr:
 
 EditorNavBackupSuffix:
         .db     ".b",0
+
+EditorStatusLoadingText:
+        .db     "Loading...",0
+
+EditorStatusSavingText:
+        .db     "Saving...",0
 
 EditorNavPageBuffer:
         .ds     512
