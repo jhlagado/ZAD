@@ -222,6 +222,9 @@ BiosInputPollKeyNew:
         LD      (BiosInputModifierBits),A
 
 BiosInputPollKeyNoCaps:
+        LD      A,(BiosInputTranslatedKey)
+        CALL    BiosInputNormalizeControlKey
+        LD      (BiosInputTranslatedKey),A
         LD      A,(BiosInputRawSecondary)
         LD      D,A
         LD      A,(BiosInputRawPrimary)
@@ -280,6 +283,38 @@ BiosInputModifierFn:
 
 BiosInputModifierAlt:
         LD      A,TECM8_BIOS_KEY_MOD_ALT
+        RET
+
+; BiosInputNormalizeControlKey -
+; Convert Ctrl+A..Z and Ctrl+a..z into ASCII control codes 01h..1Ah.
+; Input: A = translated ASCII/key code
+;!      in        A
+;!      out       A
+;!      clobbers  A,C,zero,sign,parity,halfCarry
+@BiosInputNormalizeControlKey:
+        LD      C,A
+        LD      A,(BiosInputModifierBits)
+        AND     TECM8_BIOS_KEY_MOD_CTRL
+        JR      Z,BiosInputNormalizeNoCtrl
+        LD      A,C
+        CP      "A"
+        JR      C,BiosInputNormalizeLower
+        CP      "Z" + 1
+        JR      NC,BiosInputNormalizeLower
+        AND     0x1F
+        RET
+
+BiosInputNormalizeLower:
+        LD      A,C
+        CP      "a"
+        JR      C,BiosInputNormalizeNoCtrl
+        CP      "z" + 1
+        JR      NC,BiosInputNormalizeNoCtrl
+        AND     0x1F
+        RET
+
+BiosInputNormalizeNoCtrl:
+        LD      A,C
         RET
 
 BiosDisplayChar:

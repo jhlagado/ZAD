@@ -131,8 +131,10 @@ modified arrows      page or word movement, exact modifiers to be finalized
 
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
-`ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`, and `CapsLock` so the
-modifier-aware path is exercised, not only printable ASCII.
+`ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`, `CapsLock`, `z`, `Ctrl-S`,
+and `Ctrl-Q` so the modifier-aware path is exercised, not only printable ASCII.
+TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
+`A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
 
 The GLCD capture is written as a portable graymap image:
 
@@ -155,13 +157,16 @@ The live matrix-input smoke test can also be run directly:
 npm run debug80:editor-live-smoke
 ```
 
-It launches the manual `4000h` path under Debug80, injects `ArrowDown`,
+It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
+RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Alt+ArrowRight`,
-`CapsLock`, and `ArrowDown`, then verifies that the editor cursor reaches row 3,
-column 2. It also checks that `Alt+ArrowRight` reports modifier bit `0x08`, raw
-secondary `03h`, raw primary `06h`, translated key `06h`, and that the final
-post-CapsLock `ArrowDown` reports caps modifier bit `0x10`, raw primary `04h`,
-translated key `04h`.
+`CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, and `Ctrl-Q`, then verifies that the
+editor cursor reaches row 3, column 2 before save/quit. It also checks that
+`Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
+`06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
+caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
+marks the editor dirty, that `Ctrl-S` translates to `13h` and clears dirty, and
+that `Ctrl-Q` translates to `11h` and exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -232,6 +237,11 @@ GLCD. Use this exact smoke test:
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt. If it is dirty, the status row asks a yes/no question.
+
+   If the host environment captures `Ctrl-Q` before Debug80 sees it, press the
+   on-screen matrix `Ctrl` key and the matrix `Q` key instead, or temporarily
+   disable the host shortcut. The TECM8 input path expects the matrix chord, not
+   a host-level command.
 
 The current phase does not require fast GLCD hardware flushing. Cursor movement
 and simple printable edits avoid full viewport render, but cursor overlay and

@@ -34,6 +34,7 @@ const SYS_CTRL = 0xff;
 const SHADOW_OFF = 0x01;
 const MCB = 0x0888;
 const MCB_SD_CARD = 0x80;
+const MON3_SYS_MODE = 0x089d;
 const TM8_VOLUME_BYTES = 4 * 1024 * 1024;
 
 type Runtime = {
@@ -236,6 +237,7 @@ function loadRuntime(
   tec1gRuntime.ioHandlers.write?.(SYS_CTRL, SHADOW_OFF);
   runtime.hardware.memory.set(runtime.hardware.memory.subarray(0xc000, 0xc100), 0x0000);
   runtime.hardware.forceMemWrite?.(MCB, MCB_SD_CARD);
+  runtime.hardware.forceMemWrite?.(MON3_SYS_MODE, SHADOW_OFF);
   runtime.cpu.sp = 0x7ff0;
   runtime.cpu.pc = startAddress;
   return { runtime, platformRuntime: tec1gRuntime };
@@ -273,6 +275,34 @@ function runUntilPc(
   throw new Error(`live smoke did not reach 0x${targetAddr.toString(16)}; pc=0x${runtime.cpu.pc.toString(16)}`);
 }
 
+function stepThenRunUntilPc(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  targetAddr: number,
+  maxInstructions: number,
+): number {
+  stepRuntime(runtime, platformRuntime);
+  return runUntilPc(runtime, platformRuntime, targetAddr, maxInstructions);
+}
+
+function runUntilAnyPc(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  targetAddrs: number[],
+  maxInstructions: number,
+): number {
+  for (let i = 0; i < maxInstructions; i += 1) {
+    const pc = runtime.cpu.pc & 0xffff;
+    if (targetAddrs.includes(pc)) {
+      return pc;
+    }
+    stepRuntime(runtime, platformRuntime);
+  }
+  throw new Error(
+    `live smoke did not reach any target ${targetAddrs.map((addr) => `0x${addr.toString(16)}`).join(', ')}; pc=0x${runtime.cpu.pc.toString(16)}`,
+  );
+}
+
 function runInstructions(runtime: Runtime, platformRuntime: PlatformRuntime, count: number): void {
   for (let i = 0; i < count; i += 1) {
     stepRuntime(runtime, platformRuntime);
@@ -284,14 +314,16 @@ function tapMatrixKey(
   runtime: Runtime,
   row: number,
   col: number,
+  settleInstructions = 20000,
+  releaseInstructions = 20000,
 ): void {
   if (!platformRuntime.applyMatrixKey) {
     throw new Error('Debug80 runtime does not expose matrix key injection');
   }
   platformRuntime.applyMatrixKey(row, col, true);
-  runInstructions(runtime, platformRuntime, 20000);
+  runInstructions(runtime, platformRuntime, settleInstructions);
   platformRuntime.applyMatrixKey(row, col, false);
-  runInstructions(runtime, platformRuntime, 20000);
+  runInstructions(runtime, platformRuntime, releaseInstructions);
 }
 
 function tapMatrixCombo(
@@ -299,16 +331,18 @@ function tapMatrixCombo(
   runtime: Runtime,
   modifier: { row: number; col: number },
   key: { row: number; col: number },
+  settleInstructions = 20000,
+  releaseInstructions = 20000,
 ): void {
   if (!platformRuntime.applyMatrixKey) {
     throw new Error('Debug80 runtime does not expose matrix key injection');
   }
   platformRuntime.applyMatrixKey(modifier.row, modifier.col, true);
   platformRuntime.applyMatrixKey(key.row, key.col, true);
-  runInstructions(runtime, platformRuntime, 20000);
+  runInstructions(runtime, platformRuntime, settleInstructions);
   platformRuntime.applyMatrixKey(key.row, key.col, false);
   platformRuntime.applyMatrixKey(modifier.row, modifier.col, false);
-  runInstructions(runtime, platformRuntime, 20000);
+  runInstructions(runtime, platformRuntime, releaseInstructions);
 }
 
 function readTm8File(tm8Path: string): Buffer {
@@ -360,8 +394,11 @@ async function main(): Promise<void> {
   const { bytes, symbols } = await compileMain();
   if (process.argv.includes('--live-smoke')) {
     const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
+    const doneAddr = symbolAddress(symbols, 'MainDone');
     const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
     const cursorColAddr = symbolAddress(symbols, 'EditorCursorCol');
+    const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
+    const quitRequestedAddr = symbolAddress(symbols, 'EditorQuitRequested');
     const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
     const rawSecondaryAddr = symbolAddress(symbols, 'BiosInputRawSecondary');
@@ -413,16 +450,54 @@ async function main(): Promise<void> {
         `live editor key event modifier=0x${modifierBits.toString(16)} raw=${rawSecondary.toString(16)}/${rawPrimary.toString(16)} translated=0x${translatedKey.toString(16)}`,
       );
     }
+    tapMatrixKey(platformRuntime, runtime, 7, 5); // z
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const dirtyAfterEdit = runtime.hardware.memory[dirtyAddr];
+    if (dirtyAfterEdit !== 1) {
+      throw new Error(`live editor dirty after z ${dirtyAfterEdit}, expected 1`);
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // Ctrl+S
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
+    const dirtyAfterSave = runtime.hardware.memory[dirtyAddr];
+    const saveTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    if (dirtyAfterSave !== 0 || saveTranslatedKey !== 0x13) {
+      throw new Error(
+        `live editor save dirty=${dirtyAfterSave} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 translated=0x13`,
+      );
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 4 }, 200_000, 200_000); // Ctrl+Q
+    stepRuntime(runtime, platformRuntime);
+    let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
+    if (afterQuitPc === liveLoopAddr && runtime.hardware.memory[quitRequestedAddr] === 1) {
+      stepRuntime(runtime, platformRuntime);
+      afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
+    }
+    const quitTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    if (afterQuitPc !== doneAddr) {
+      const quitModifierBits = runtime.hardware.memory[modifierBitsAddr];
+      const quitRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+      const quitRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
+      throw new Error(
+        `live editor Ctrl-Q returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
+      );
+    }
+    if (quitTranslatedKey !== 0x11) {
+      throw new Error(`live editor quit translated=0x${quitTranslatedKey.toString(16)}, expected 0x11`);
+    }
     const summary = {
       result: 'ok',
       liveSmoke: true,
       bootInstructions,
       cursorRow,
       cursorCol,
+      dirtyAfterEdit,
+      dirtyAfterSave,
       modifierBits,
       rawPrimary,
       rawSecondary,
       translatedKey,
+      saveTranslatedKey,
+      quitTranslatedKey,
     };
     writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
     console.log(JSON.stringify(summary, null, 2));
