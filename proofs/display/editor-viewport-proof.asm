@@ -20,6 +20,22 @@ PROOF_FAIL       .equ     0xE0
         CALL    GlcdTileFlushFull
         JR      C,ProofFailed
 
+        LD      A,TECM8_DISPLAY_STATUS_ROW
+        CALL    EditorViewportSetCurrentRow
+        JR      C,ProofFailed
+
+        LD      HL,EditorSourceRecords
+        CALL    EditorViewportRender
+        JR      C,ProofFailed
+
+        LD      HL,ProofStatusText
+        LD      (EditorPromptTextPtr),HL
+        CALL    EditorViewportRenderStatusOverlay
+        JR      C,ProofFailed
+
+        CALL    EditorViewportRestoreStatusRow
+        JR      C,ProofFailed
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -62,3 +78,6 @@ EditorSourceRecords:
 
 ResultMarker:
         .db     0
+
+ProofStatusText:
+        .db     "Saving...",0

@@ -52,7 +52,7 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
-        RET
+        JP      EditorViewportSetCurrentRow
 
 ; EditorRenderCursor -
 ; Overlay the logical cursor when it is inside the visible edit pane.
@@ -307,16 +307,22 @@ EditorKeyCursorDown:
         LD      A,(EditorCursorRow)
         CP      TECM8_EDITOR_CURSOR_MAX_ROW
         JP      Z,EditorKeyLoop
+        LD      (EditorCursorPreviousRow),A
         INC     A
         LD      (EditorCursorRow),A
+        CALL    EditorKeyRenderCursorRowMarkers
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyCursorUp:
         LD      A,(EditorCursorRow)
         OR      A
         JP      Z,EditorKeyLoop
+        LD      (EditorCursorPreviousRow),A
         DEC     A
         LD      (EditorCursorRow),A
+        CALL    EditorKeyRenderCursorRowMarkers
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyCursorRight:
@@ -867,6 +873,29 @@ EditorDeleteDone:
         RET
 
 ;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyRenderCursorRowMarkers:
+        CALL    EditorHideCursor
+        RET     C
+        LD      A,(EditorCursorRow)
+        CALL    EditorViewportSetCurrentRow
+        RET     C
+        LD      A,(EditorCursorPreviousRow)
+        CALL    EditorKeyRecordAtRow
+        LD      A,(EditorCursorPreviousRow)
+        CALL    EditorViewportRenderRecordRow
+        RET     C
+        LD      A,(EditorCursorRow)
+        CALL    EditorKeyCurrentRecord
+        LD      A,(EditorCursorRow)
+        CALL    EditorViewportRenderRecordRow
+        RET     C
+        CALL    GlcdTileFlushFull
+        RET     C
+        XOR     A
+        RET
+
+;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorMarkDirty:
         LD      A,1
@@ -1124,6 +1153,9 @@ EditorCursorRenderedRow:
         .db     0
 
 EditorCursorRenderedCol:
+        .db     0
+
+EditorCursorPreviousRow:
         .db     0
 
 EditorRestorePromptText:

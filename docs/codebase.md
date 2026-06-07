@@ -218,6 +218,13 @@ which prevents cursor trails when the cursor moves. This module depends on the
 MON3 terminal graphics buffer at `0x13C0`, shares the tile layer's 6x6 cell
 geometry, and pushes updates through `BiosDisplayUpdate`.
 
+The live editor no longer uses the old proof-only breakpoint and selection
+markers in the gutter. The viewport owns a single current-row marker, and the
+interaction layer updates that marker from the cursor row. Other marker types
+remain available in the display model for later breakpoint, selection, dirty,
+or diagnostic metadata, but they should not appear until the editor has real
+state to justify them.
+
 ### `src/glcd-tile.asm`
 
 This is the direct GLCD tile-cell layer under the structured renderer. It
@@ -413,6 +420,10 @@ The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
 errors. The key loop uses that result so no-op delete, split, insert, and join
 paths do not dirty a clean buffer.
+
+Horizontal cursor movement only redraws the cursor overlay. Vertical cursor
+movement also redraws the old and new source rows so the current-row gutter
+marker follows the cursor without a full viewport repaint.
 
 `EditorRunLive` renders the cursor, polls one TECM8 key event at a time from
 `BiosInputPollKey`, and dispatches that key through `EditorRunModifiedKey` so

@@ -31,6 +31,7 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^@EditorViewportRenderStatusOverlay:/m);
   assert.match(source, /^@EditorViewportRestoreStatusRow:/m);
   assert.match(source, /^@EditorViewportRowTextPtr:/m);
+  assert.match(source, /^@EditorViewportSetCurrentRow:/m);
   assert.match(source, /^@EditorViewportMarkerForRow:/m);
   assert.match(source, /LD\s+A,TECM8_DISPLAY_STATUS_ROW/);
   assert.match(source, /LD\s+HL,EditorRowText9/);
@@ -69,8 +70,8 @@ test('editor viewport proof is wired into package checks with content verificati
   assert.match(runner, /EditorRowText0/);
   assert.match(runner, /EditorRowText9/);
   assert.match(runner, /editor viewport proof copied/);
-  assert.match(runner, /editor viewport proof missing .* gutter bits/);
-  assert.match(runner, /editor viewport proof missing visible .* gutter bits/);
+  assert.match(runner, /editor viewport proof missing current-row gutter bits/);
+  assert.match(runner, /editor viewport proof unexpected stale gutter bits/);
 });
 
 test('editor viewport malformed-record proof is wired into package checks', () => {

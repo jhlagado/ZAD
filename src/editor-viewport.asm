@@ -32,6 +32,7 @@ EditorViewportBuildLoop:
         CP      TECM8_EDITOR_VISIBLE_ROWS
         JR      NZ,EditorViewportBuildLoop
 
+        CALL    EditorViewportRefreshMarkers
         LD      HL,EditorScreenDescriptor
         CALL    DisplayRenderScreen
         RET
@@ -81,22 +82,27 @@ EditorViewportRowTextPtrLoop:
         XOR     A
         RET
 
+; EditorViewportSetCurrentRow -
+; Select the visible source row that should receive the current-line gutter mark.
+; Input: A = visible row (0-9)
 ;!      in        A
-;!      out       C,carry
-;!      clobbers  A,C,zero,sign,parity,halfCarry
-@EditorViewportMarkerForRow:
-        CP      0
-        JR      Z,EditorViewportMarkerBreakpoint
-        CP      1
-        JR      Z,EditorViewportMarkerCurrent
-        CP      3
-        JR      Z,EditorViewportMarkerSelected
-        LD      C,TECM8_DISPLAY_MARKER_NONE
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorViewportSetCurrentRow:
+        CP      TECM8_EDITOR_VISIBLE_ROWS
+        JR      NC,EditorViewportRowError
+        LD      (EditorViewportCurrentRow),A
         XOR     A
         RET
 
-EditorViewportMarkerBreakpoint:
-        LD      C,TECM8_DISPLAY_MARKER_BREAKPOINT
+;!      in        A
+;!      out       C,carry
+;!      clobbers  A,C,HL,zero,sign,parity,halfCarry
+@EditorViewportMarkerForRow:
+        LD      HL,EditorViewportCurrentRow
+        CP      (HL)
+        JR      Z,EditorViewportMarkerCurrent
+        LD      C,TECM8_DISPLAY_MARKER_NONE
         XOR     A
         RET
 
@@ -105,8 +111,29 @@ EditorViewportMarkerCurrent:
         XOR     A
         RET
 
-EditorViewportMarkerSelected:
-        LD      C,TECM8_DISPLAY_MARKER_SELECTED
+; EditorViewportRefreshMarkers -
+; Rebuild descriptor gutter markers from the current viewport state.
+;!      out       A,carry
+;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+@EditorViewportRefreshMarkers:
+        LD      HL,EditorScreenDescriptor
+        XOR     A
+        LD      (EditorRowIndex),A
+
+EditorViewportRefreshMarkersLoop:
+        LD      A,(EditorRowIndex)
+        PUSH    HL
+        CALL    EditorViewportMarkerForRow
+        POP     HL
+        LD      (HL),C
+        INC     HL
+        INC     HL
+        INC     HL
+        LD      A,(EditorRowIndex)
+        INC     A
+        LD      (EditorRowIndex),A
+        CP      TECM8_EDITOR_VISIBLE_ROWS
+        JR      NZ,EditorViewportRefreshMarkersLoop
         XOR     A
         RET
 
@@ -133,9 +160,10 @@ EditorViewportRowError:
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorViewportRestoreStatusRow:
+        LD      A,TECM8_DISPLAY_STATUS_ROW
+        CALL    EditorViewportMarkerForRow
         LD      HL,EditorRowText9
         LD      A,TECM8_DISPLAY_STATUS_ROW
-        LD      C,TECM8_DISPLAY_MARKER_NONE
         CALL    DisplayRenderLine
         RET     C
         CALL    GlcdTileFlushFull
@@ -185,13 +213,13 @@ EditorViewportRecordLengthError:
         RET
 
 EditorScreenDescriptor:
-        .db     TECM8_DISPLAY_MARKER_BREAKPOINT
+        .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText0
-        .db     TECM8_DISPLAY_MARKER_CURRENT
+        .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText1
         .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText2
-        .db     TECM8_DISPLAY_MARKER_SELECTED
+        .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText3
         .db     TECM8_DISPLAY_MARKER_NONE
         .dw     EditorRowText4
@@ -227,6 +255,9 @@ EditorViewportRenderRecordRowInput:
 EditorViewportRenderRecordRowCount:
         .db     0
 EditorRowIndex:
+        .db     0
+
+EditorViewportCurrentRow:
         .db     0
 
 EditorRowText0:

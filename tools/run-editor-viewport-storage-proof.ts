@@ -594,7 +594,7 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, _platformRuntime: Platfo
   const expectedCounts = [
     { symbol: 'MoveScreenCount', expected: 0 },
     { symbol: 'MovePageCount', expected: 0 },
-    { symbol: 'MoveRowCount', expected: 0 },
+    { symbol: 'MoveRowCount', expected: 4 },
     { symbol: 'InsertScreenCount', expected: 0 },
     { symbol: 'InsertPageCount', expected: 0 },
     { symbol: 'InsertRowCount', expected: 1 },

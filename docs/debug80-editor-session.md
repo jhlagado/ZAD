@@ -220,6 +220,8 @@ GLCD. Use this exact smoke test:
 
    The cursor should be a non-blinking inverse cell, initially near the top-left
    source text area. It should not be the earlier single vertical stroke.
+   The left gutter should be mostly clean: only the current source row should
+   have a small marker, not the old prototype breakpoint/selection blocks.
 
 5. Press matrix `ArrowRight` twice.
 
@@ -229,7 +231,8 @@ GLCD. Use this exact smoke test:
 6. Press matrix `ArrowDown`, then `ArrowUp`.
 
    Expected: the cursor moves down one source row and back up one source row.
-
+   The current-row gutter marker should follow it. This should not blank and
+   repaint the whole GLCD as a page load.
 7. Type `Z`.
 
    Expected: because the cursor is two cells to the right, the first line
@@ -280,9 +283,11 @@ row edits still flush through the current full GLCD transfer routine. Replacing
 that with tile/dirty-region GLCD transfer is the next display-performance phase.
 
 Ordinary cursor movement and simple in-line printable edits now use dirty
-rendering: cursor keys redraw the cursor overlay, and printable insert/delete
-redraws the affected source row. Page loads, split/join operations, explicit
-redraws, and mode changes may still repaint the full viewport.
+rendering: horizontal cursor keys redraw the cursor overlay, vertical cursor
+keys redraw the old/new source rows so the gutter marker follows the cursor,
+and printable insert/delete redraws the affected source row. Page loads,
+split/join operations, explicit redraws, and mode changes may still repaint the
+full viewport.
 
 The cursor is constrained to the visible 20-column GLCD editor viewport in this
 phase. The 32-byte source-record format still stores up to 31 text bytes, but

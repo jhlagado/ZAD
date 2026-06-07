@@ -34,6 +34,7 @@ TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
         JR      ShellEditorLaunchTargetErr
 
 ShellEditorLaunchOpenPath:
+        CALL    EditorCursorReset
         INC     HL
         CALL    EditorOpenPath
         RET     C

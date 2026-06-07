@@ -18,6 +18,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorCursorReset:/m);
   assert.match(source, /^@EditorRenderCursor:/m);
   assert.match(source, /^@EditorHideCursor:/m);
+  assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /^@EditorActionFromKey:/m);
   assert.match(source, /^@EditorInsertChar:/m);
   assert.match(source, /^@EditorBackspaceChar:/m);
@@ -92,7 +93,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorCol:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorRendered:\n\s+\.db\s+0/);
-  assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorCol\),A/);
+  assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
+  assert.match(source, /CALL\s+EditorViewportSetCurrentRow/);
+  assert.match(source, /CALL\s+EditorKeyRenderCursorRowMarkers/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+19/);
