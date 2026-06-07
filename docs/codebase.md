@@ -326,13 +326,18 @@ Public entries:
 - `EditorPageUp`
 - `EditorNavDeriveBackupPath`
 
-The module stores a 64-byte path buffer, a 512-byte page buffer, and
-`EditorNavDirty`. It now also owns the first backup scratch buffers:
+The module stores a 64-byte path buffer, a 512-byte live page buffer, and
+`EditorNavDirty`. It also keeps one clean neighbour page cached at `3000h`,
+outside the program image below the `4000h` MON3 launch address. That cache is
+deliberately above the GLCD-heavy lower RAM region and gives common
+down-then-up or up-then-down navigation a RAM-only return path instead of a
+second SD read. It now also owns the first backup scratch buffers:
 `EditorNavBackupPathBuffer` for the derived hidden path and
 `EditorNavBackupPageBuffer` for the previous on-disk page. Page moves are
 committed only after loading and rendering succeeds, so failed page-down or
-page-up attempts do not corrupt current-page state. Successful load/page
-movement and save clear the dirty flag.
+page-up attempts do not corrupt current-page state. Cache hits render the
+already-loaded page buffer directly and skip the transient loading status.
+Successful load/page movement and save clear the dirty flag.
 
 Storage-backed loads, backup restore, and save now also route through
 `EditorNavShowStatus`, which renders transient `Loading...` or `Saving...`

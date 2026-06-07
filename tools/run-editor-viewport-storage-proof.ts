@@ -188,10 +188,11 @@ async function compileProof(proofCase: ProofCase): Promise<{ bytes: Uint8Array; 
 
 function symbolAddress(symbols: D8Symbol[], name: string): number {
   const symbol = symbols.find((entry) => entry.name === name);
-  if (!symbol || typeof symbol.address !== 'number') {
+  const address = symbol?.address ?? symbol?.value;
+  if (typeof address !== 'number') {
     throw new Error(`missing address symbol: ${name}`);
   }
-  return symbol.address;
+  return address;
 }
 
 function makeMultiBlockLines(): string[] {
@@ -515,6 +516,10 @@ function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntim
   if (runtime.hardware.memory[dirty] !== 1) {
     throw new Error(`editor navigation dirty flag ${runtime.hardware.memory[dirty]}, expected 1`);
   }
+  const cacheHits = symbolAddress(symbols, 'EditorNavCacheHitCount');
+  if (runtime.hardware.memory[cacheHits] === 0) {
+    throw new Error('editor navigation did not use the RAM page cache for back navigation');
+  }
 
   const expectedRows = [
     { symbol: 'EditorRowText0', text: 'P7 LINE 00' },
@@ -525,7 +530,20 @@ function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntim
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
     if (actual !== row.text) {
-      throw new Error(`editor navigation copied ${row.symbol} as "${actual}", expected "${row.text}"`);
+      const cachedPage = symbolAddress(symbols, 'EditorNavCachedPage');
+      const cacheValid = symbolAddress(symbols, 'EditorNavCacheValid');
+      const cacheStores = symbolAddress(symbols, 'EditorNavCacheStoreCount');
+      const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+      const cacheBuffer = symbolAddress(symbols, 'EditorNavCachePageBuffer');
+      const pageRecord = Array.from(runtime.hardware.memory.slice(pageBuffer, pageBuffer + 12))
+        .map((value) => value.toString(16).padStart(2, '0'))
+        .join(' ');
+      const cacheRecord = Array.from(runtime.hardware.memory.slice(cacheBuffer, cacheBuffer + 12))
+        .map((value) => value.toString(16).padStart(2, '0'))
+        .join(' ');
+      throw new Error(
+        `editor navigation copied ${row.symbol} as "${actual}", expected "${row.text}"; cache page=${runtime.hardware.memory[cachedPage]} valid=${runtime.hardware.memory[cacheValid]} hits=${runtime.hardware.memory[cacheHits]} stores=${runtime.hardware.memory[cacheStores]} pageBuffer=0x${pageBuffer.toString(16)} [${pageRecord}] cacheBuffer=0x${cacheBuffer.toString(16)} [${cacheRecord}]`,
+      );
     }
   }
 

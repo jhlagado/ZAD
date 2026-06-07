@@ -225,8 +225,10 @@ Debug80:
     fixture moves to the second page and shows rows beginning with `R1 LINE 00`.
     This phase tests paging through the fixture; it does not require Enter to
     grow the file across sectors.
-13. Press `Ctrl+ArrowUp`. Expected: the first page returns. After the Debug80
-    modifier update, repeat the page down/up check with Alt+Arrow.
+13. Press `Ctrl+ArrowUp`. Expected: the first page returns. This return path
+    should use the editor's one-page RAM cache at `3000h`, so it should avoid a
+    second SD read after the immediately preceding page-down operation. After
+    the Debug80 modifier update, repeat the page down/up check with Alt+Arrow.
 14. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
     answer the status prompt.
 15. Restart the editor and confirm the saved text is still present.

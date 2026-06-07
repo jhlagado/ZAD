@@ -6,6 +6,8 @@ TECM8_EDITOR_NAV_ERR_PAGE       .equ    0x50
 TECM8_EDITOR_NAV_ERR_PATH       .equ    0x51
 TECM8_EDITOR_NAV_ERR_BACKUP     .equ    0x52
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
+TECM8_EDITOR_NAV_PAGE_BYTES     .equ    512
+TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
 
 ; EditorOpenMain -
 ; Reset navigation to page 0 and render /src/main.asm.
@@ -29,6 +31,7 @@ TECM8_EDITOR_NAV_PATH_LEN       .equ    64
         LD      (EditorNavPathPtr),HL
         XOR     A
         LD      (EditorNavCurrentPage),A
+        LD      (EditorNavCacheValid),A
         JP      EditorRenderCurrent
 
 ; EditorRenderCurrent -
@@ -152,11 +155,18 @@ EditorLoadCurrentBackupPageRestoreError:
 @EditorPageDown:
         LD      A,(EditorNavCurrentPage)
         CP      127
-        JR      Z,EditorNavPageErr
+        JP      Z,EditorNavPageErr
         INC     A
         LD      (EditorNavPendingPage),A
+        CALL    EditorNavRenderCachedPendingPage
+        RET     C
+        OR      A
+        JR      NZ,EditorNavCommitPendingPage
+        CALL    EditorNavRememberCurrentPage
+        LD      A,(EditorNavPendingPage)
         CALL    EditorNavRenderPage
         RET     C
+EditorNavCommitPendingPage:
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
         JP      EditorClearDirty
@@ -168,14 +178,92 @@ EditorLoadCurrentBackupPageRestoreError:
 @EditorPageUp:
         LD      A,(EditorNavCurrentPage)
         OR      A
-        JR      Z,EditorNavPageErr
+        JP      Z,EditorNavPageErr
         DEC     A
         LD      (EditorNavPendingPage),A
+        CALL    EditorNavRenderCachedPendingPage
+        RET     C
+        OR      A
+        JR      NZ,EditorNavCommitPendingPage
+        CALL    EditorNavRememberCurrentPage
+        LD      A,(EditorNavPendingPage)
         CALL    EditorNavRenderPage
         RET     C
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
         JP      EditorClearDirty
+
+; EditorNavRememberCurrentPage -
+; Keep the clean current page in the one-page RAM cache before loading another.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavRememberCurrentPage:
+        LD      A,(EditorNavCacheStoreCount)
+        INC     A
+        LD      (EditorNavCacheStoreCount),A
+        LD      HL,EditorNavPageBuffer
+        LD      DE,EditorNavCachePageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+        LDIR
+        LD      A,(EditorNavCurrentPage)
+        LD      (EditorNavCachedPage),A
+        LD      A,1
+        LD      (EditorNavCacheValid),A
+        XOR     A
+        RET
+
+; EditorNavRenderCachedPendingPage -
+; Swap the pending page from the RAM cache into the live buffer when available.
+; Returns NC,A=1 on cache hit, NC,A=0 on miss, or C on render failure.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavRenderCachedPendingPage:
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        RET     Z
+        LD      A,(EditorNavPendingPage)
+        LD      HL,EditorNavCachedPage
+        CP      (HL)
+        JR      NZ,EditorNavCachedPageMiss
+        CALL    EditorNavSwapCachePage
+        LD      A,(EditorNavCurrentPage)
+        LD      (EditorNavCachedPage),A
+        LD      A,(EditorNavCacheHitCount)
+        INC     A
+        LD      (EditorNavCacheHitCount),A
+        CALL    EditorRenderPageBuffer
+        RET     C
+        LD      A,1
+        RET
+
+EditorNavCachedPageMiss:
+        XOR     A
+        RET
+
+; EditorNavSwapCachePage -
+; Exchange the live page buffer with the cached page buffer.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavSwapCachePage:
+        LD      HL,EditorNavPageBuffer
+        LD      DE,EditorNavCachePageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+
+EditorNavSwapCachePageLoop:
+        LD      A,(HL)
+        LD      (EditorNavSwapByte),A
+        LD      A,(DE)
+        LD      (HL),A
+        LD      A,(EditorNavSwapByte)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorNavSwapCachePageLoop
+        XOR     A
+        RET
 
 ;!      in        A
 ;!      out       A,carry
@@ -341,6 +429,21 @@ EditorNavPendingPage:
 EditorNavRenderPageInput:
         .db     0
 
+EditorNavCachedPage:
+        .db     0
+
+EditorNavCacheValid:
+        .db     0
+
+EditorNavCacheHitCount:
+        .db     0
+
+EditorNavCacheStoreCount:
+        .db     0
+
+EditorNavSwapByte:
+        .db     0
+
 EditorNavPathPtr:
         .dw     0
 
@@ -376,5 +479,7 @@ EditorStatusLoadingText:
 EditorStatusSavingText:
         .db     "Saving...",0
 
+EditorNavCachePageBuffer       .equ    TECM8_EDITOR_NAV_CACHE_BASE
+
 EditorNavPageBuffer:
-        .ds     512
+        .ds     TECM8_EDITOR_NAV_PAGE_BYTES

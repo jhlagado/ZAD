@@ -37,7 +37,9 @@ test('editor navigation module exposes open, render, and page movement entries',
   assert.match(source, /EditorNavBackupPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
   assert.match(source, /EditorNavBackupPageBuffer:\n\s+\.ds\s+512/);
   assert.match(source, /EditorNavBackupSourcePtr:\n\s+\.dw\s+0/);
-  assert.match(source, /EditorNavPageBuffer:\n\s+\.ds\s+512/);
+  assert.match(source, /TECM8_EDITOR_NAV_CACHE_BASE\s+\.equ\s+0x3000/);
+  assert.match(source, /EditorNavCachePageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_CACHE_BASE/);
+  assert.match(source, /EditorNavPageBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PAGE_BYTES/);
 });
 
 test('editor navigation commits page movement only after successful render', () => {
@@ -58,6 +60,10 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);
   assert.match(source, /JP\s+EditorRenderPageBuffer/);
+  assert.match(source, /@EditorNavRememberCurrentPage:/);
+  assert.match(source, /@EditorNavRenderCachedPendingPage:/);
+  assert.match(source, /@EditorNavSwapCachePage:/);
+  assert.match(source, /LD\s+A,\(EditorNavPendingPage\)\n\s+CALL\s+EditorNavRenderPage/);
   assert.match(source, /@EditorNavRenderPage:\n\s+LD\s+\(EditorNavRenderPageInput\),A\n\s+LD\s+HL,EditorStatusLoadingText\n\s+CALL\s+EditorNavShowStatus/);
   assert.match(source, /EditorNavRenderPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
@@ -83,6 +89,7 @@ test('editor navigation proof drives page state over storage-backed source', () 
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-navigation\.asm"/);
   assert.match(runner, /editor-navigation-proof/);
   assert.match(runner, /verifyNavigationProof/);
+  assert.match(runner, /EditorNavCacheHitCount/);
   assert.match(runner, /maxInstructions = 80_000_000/);
   assert.match(runner, /P7 LINE 07/);
   assert.match(packageJson, /"proof:display:editor-navigation"/);
