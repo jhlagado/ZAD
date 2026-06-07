@@ -369,6 +369,8 @@ proof key stream and the live matrix-key path that polls MON3 through
 - matrix arrows move the cursor
 - Ctrl+ArrowDown pages down
 - Ctrl+ArrowUp pages up
+- Alt+ArrowDown pages down
+- Alt+ArrowUp pages up
 - Ctrl-Q quits the key stream, prompting first when the page is dirty
 - Ctrl-S saves the currently loaded page
 - Ctrl-X is an alternate quit binding for host environments that capture Ctrl-Q
@@ -412,7 +414,8 @@ paths do not dirty a clean buffer.
 the editor sees both the translated key byte and modifier flags. Because the
 BIOS layer normalizes Ctrl-letter chords to ASCII control codes, the same
 command loop handles proof streams and live Ctrl-S, Ctrl-Q, Ctrl-X, and Ctrl-R
-input. Ctrl+Up and Ctrl+Down use the modifier flags directly for page movement.
+input. Ctrl+Up/Down and Alt+Up/Down use modifier flags directly for page
+movement.
 
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
 the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the
@@ -702,8 +705,9 @@ What is still missing or intentionally skeletal:
 
 - `asm` and `run` resolve request blocks but do not launch real tools.
 - The editor has no search or sector-crossing edit behavior yet.
-- Dirty page movement is conservative: Ctrl+Arrow paging is ignored until the
-  current page is saved or discarded, because V1 has a single dirty page buffer.
+- Dirty page movement is conservative: Ctrl+Arrow and Alt+Arrow paging are
+  ignored until the current page is saved or discarded, because V1 has a single
+  dirty page buffer.
 - Stop before starting assembler integration until a new milestone is chosen.
 - Split and join are intentionally limited to the loaded 512-byte page for V1;
   they do not move records across sectors or allocate/free TM8 storage.

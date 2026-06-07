@@ -26,6 +26,8 @@ TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
 TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
+TECM8_EDITOR_KEY_MOD_ALT                .equ    0x08
+TECM8_EDITOR_KEY_MOD_PAGE               .equ    0x0A
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    19
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
@@ -448,13 +450,13 @@ EditorLiveDone:
 
 EditorActionArrowUp:
         LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_CTRL
+        AND     TECM8_EDITOR_KEY_MOD_PAGE
         JR      NZ,EditorActionPageUp
         JR      EditorActionCursorUp
 
 EditorActionArrowDown:
         LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_CTRL
+        AND     TECM8_EDITOR_KEY_MOD_PAGE
         JR      NZ,EditorActionPageDown
         JR      EditorActionCursorDown
 

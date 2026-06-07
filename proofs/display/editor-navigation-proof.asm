@@ -1,8 +1,9 @@
 ; Storage-backed editor navigation proof.
 ;
 ; Opens /src/main.asm, pages down into the second TM8 allocation block,
-; pages back up once, proves dirty key-stream paging does not discard the
-; current page buffer, and leaves rendered row text/state for host checks.
+; pages back up once through the Alt key path, proves dirty Ctrl key-stream
+; paging does not discard the current page buffer, and leaves rendered row
+; text/state for host checks.
 
         .org    0x4000
 
@@ -27,7 +28,9 @@ ProofPageDownLoop:
         JR      C,ProofFailed
         DJNZ    ProofPageDownLoop
 
-        CALL    EditorPageUp
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        CALL    EditorRunModifiedKey
         JR      C,ProofFailed
 
         LD      A,1

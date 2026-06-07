@@ -313,11 +313,11 @@ callers should use `A` and `B`: `A` is the translated key and `B` is the
 modifier bitmask. `D` and `E` are preserved for diagnostics, compatibility, and
 unmapped-key handling.
 
-Modifier chords such as `Ctrl+ArrowDown` or `Alt+ArrowRight` return the real
-key in `A`, modifier bits in `B`, and the raw modifier/key pair in `D/E`. The
-current MON3-compatible raw scan treats `03h` as the primary `ArrowUp` key, so
-Alt is only exposed as a TECM8 secondary modifier when it is chorded with a
-separate primary key.
+Modifier chords such as `Ctrl+ArrowDown`, `Alt+ArrowDown`, or `Alt+ArrowRight`
+return the real key in `A`, modifier bits in `B`, and the raw modifier/key pair
+in `D/E`. The current MON3-compatible raw scan treats `03h` as the primary
+`ArrowUp` key, so host-side Debug80 modifier mapping may need to synthesize
+Alt+ArrowUp explicitly for macOS testing.
 
 The current modifier flags in `B` are:
 

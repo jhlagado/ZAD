@@ -121,6 +121,8 @@ matrix ArrowUp       cursor up
 matrix ArrowRight    cursor right
 Ctrl+ArrowDown       page down
 Ctrl+ArrowUp         page up
+Alt+ArrowDown        page down, after Debug80 modifier support
+Alt+ArrowUp          page up, after Debug80 modifier support
 other modified arrows reserved for later word/page movement
 ```
 
@@ -129,6 +131,9 @@ matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
 `z`, `Ctrl-S`, and `Ctrl-X` so the modifier-aware path is exercised, not only
 printable ASCII.
+The Z80 editor accepts Alt+ArrowUp and Alt+ArrowDown for paging as well; the
+automated live smoke keeps using Ctrl+Arrow until Debug80 can reliably inject
+the macOS-friendly Alt/meta modifier path.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
 
@@ -177,7 +182,8 @@ For an interactive Debug80 UI check:
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
 6. In the matrix keyboard UI, use the arrow keys for cursor movement.
-   `Ctrl+ArrowDown` pages down and `Ctrl+ArrowUp` pages up.
+   `Ctrl+ArrowDown` pages down and `Ctrl+ArrowUp` pages up. After the Debug80
+   modifier update, `Alt+ArrowDown` and `Alt+ArrowUp` should do the same.
 7. `Ctrl-S` saves, `Ctrl-X` quits through the same editor path as `Ctrl-Q`, and
    `Ctrl-R` asks to restore from the hidden backup file.
 
@@ -231,7 +237,8 @@ GLCD. Use this exact smoke test:
    cell. This should redraw the affected row rather than doing the older
    obvious full-screen clear/repaint path.
 
-8. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`.
+8. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`. After the Debug80 modifier
+   update, also test `Alt+ArrowDown`, then `Alt+ArrowUp`.
 
    Expected: because the page is now dirty, paging is ignored and the display
    stays on the `R0 LINE ...` page. This prevents accidental loss of unsaved
@@ -244,7 +251,8 @@ GLCD. Use this exact smoke test:
    When the save returns, the source row hidden by the transient status message
    is restored.
 
-10. Press `Ctrl+ArrowDown`.
+10. Press `Ctrl+ArrowDown`. After the Debug80 modifier update, also test
+    `Alt+ArrowDown`.
 
    Expected: after saving, the generated two-page fixture moves to the second
    source page and the visible rows begin with `R1 LINE 00`, `R1 LINE 01`, and
@@ -252,7 +260,8 @@ GLCD. Use this exact smoke test:
    fixture; V1 does not grow the document across source sectors when Enter is
    pressed at the end of a page.
 
-11. Press `Ctrl+ArrowUp`.
+11. Press `Ctrl+ArrowUp`. After the Debug80 modifier update, also test
+    `Alt+ArrowUp`.
 
    Expected: the editor returns to the first page and shows `R0 LINE ...`
    records again.

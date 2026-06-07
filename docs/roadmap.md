@@ -217,13 +217,16 @@ Debug80:
    full-screen clear/repaint path.
 10. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`. Expected: because the page is
     dirty, paging is ignored and the editor remains on the first page.
+    After the Debug80 modifier update, repeat this check with `Alt+ArrowDown`
+    and `Alt+ArrowUp`.
 11. Press `Ctrl-S`. Expected: the status row shows `Saving...`, storage may
     pause for several seconds, then the editor returns to the source view.
 12. Press `Ctrl+ArrowDown`. Expected: after saving, the prepared two-page
     fixture moves to the second page and shows rows beginning with `R1 LINE 00`.
     This phase tests paging through the fixture; it does not require Enter to
     grow the file across sectors.
-13. Press `Ctrl+ArrowUp`. Expected: the first page returns.
+13. Press `Ctrl+ArrowUp`. Expected: the first page returns. After the Debug80
+    modifier update, repeat the page down/up check with Alt+Arrow.
 14. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
     answer the status prompt.
 15. Restart the editor and confirm the saved text is still present.
