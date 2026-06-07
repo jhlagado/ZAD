@@ -106,9 +106,16 @@ rows no longer call MON3's terminal glyph drawing path.
 Cursor rendering should also move from a fragile single vertical stroke toward a
 cell-level visual treatment. A vertical bar can disappear inside glyphs such as
 `E`, `L`, and `N` because those glyphs already contain a left vertical stroke.
-A blinking inverse/XOR cell, or another full-cell overlay, is more appropriate
-for a 6x6 bitmap font. Blinking is useful later, but the cursor must be visible
-even before blink timing is added.
+The current default is therefore a saved-byte inverse cell: the renderer saves
+the affected cell bytes, draws an inverted 6x6 cell, then restores the original
+cell when the cursor moves. A blinking cursor is useful, but it is a low
+priority until cursor updates can avoid an irritating full GLCD transfer.
+
+A vertical insertion caret remains a reasonable later option. If it returns, it
+should be treated as a distinct cursor shape rather than the default fallback:
+draw it in the inter-character spacing column where possible, blink it, and use
+the same save/restore or dirty-cell compositing path so it does not disappear
+inside glyph strokes.
 
 Initial structured display constants:
 

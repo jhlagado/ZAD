@@ -105,6 +105,15 @@ direction for a future TECM8 GLCD BIOS/display library.
    Status: implemented as a saved-byte inverse 6x6 cell overlay. The cursor is
    non-blinking for now.
 
+   Deferred low-priority follow-ups:
+
+   - Add cursor blink timing in the live editor idle loop once the update cost
+     is acceptable.
+   - Revisit a vertical insertion caret as an optional cursor shape, preferably
+     drawn in the inter-character spacing column and blinked/restored through
+     the same saved-cell or dirty-cell mechanism. The block cursor remains the
+     default until partial GLCD updates are cheap enough.
+
 3. **No-full-repaint Debug80 smoke coverage.**
    Add observable proof/smoke coverage that ordinary cursor movement and a
    simple printable insertion avoid the full-screen render path. Prefer counters
@@ -254,6 +263,10 @@ Debug80:
 - Decide host `fs pack`/`unpack` defaults for hidden files and backups.
 - Implement cleanup for hidden `.b` backups.
 - Decide whether to use source-record length bits 5-7 for line metadata.
+- Add a low-cost blinking cursor after the renderer can update the cursor cell
+  or row without an irritating full GLCD transfer.
+- Add an optional vertical insertion caret after cursor compositing is cheap and
+  reliable enough not to disappear into glyph strokes.
 - Add multi-sector line insertion/deletion after in-page behavior is stable.
 - Consider a tiny one-level undo or page snapshot only after save/backup is
   working.
