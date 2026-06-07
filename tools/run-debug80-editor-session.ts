@@ -486,16 +486,21 @@ async function main(): Promise<void> {
     if (dirtyAfterEdit !== 1) {
       throw new Error(`live editor dirty after z ${dirtyAfterEdit}, expected 1`);
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // Ctrl+S
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     const dirtyAfterSave = runtime.hardware.memory[dirtyAddr];
     const saveTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
-    if (dirtyAfterSave !== 0 || saveTranslatedKey !== 0x13) {
+    const saveModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    if (
+      dirtyAfterSave !== 0 ||
+      (saveTranslatedKey !== 0x53 && saveTranslatedKey !== 0x73) ||
+      (saveModifierBits & 0x08) === 0
+    ) {
       throw new Error(
-        `live editor save dirty=${dirtyAfterSave} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 translated=0x13`,
+        `live editor Alt-S save dirty=${dirtyAfterSave} modifier=0x${saveModifierBits.toString(16)} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 alt-modified S/s`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // clean Ctrl+S no-op
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // clean Alt+S no-op
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const dirtyAfterCleanSave = runtime.hardware.memory[dirtyAddr];
     if (dirtyAfterCleanSave !== 0) {
@@ -513,13 +518,13 @@ async function main(): Promise<void> {
         `live editor post-save edit dirty=${dirtyAfterPostSaveEdit}, expected 1; modifier=0x${postSaveModifierBits.toString(16)} raw=${postSaveRawSecondary.toString(16)}/${postSaveRawPrimary.toString(16)} translated=0x${postSaveTranslatedKey.toString(16)}`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // save post-save edit
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // save post-save edit
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     const dirtyAfterSecondSave = runtime.hardware.memory[dirtyAddr];
     if (dirtyAfterSecondSave !== 0) {
       throw new Error(`live editor second save dirty=${dirtyAfterSecondSave}, expected 0`);
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 3 }, 200_000, 200_000); // Ctrl+X
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 3 }, 200_000, 200_000); // Alt+X
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
     if (afterQuitPc === liveLoopAddr && runtime.hardware.memory[quitRequestedAddr] === 1) {
@@ -532,11 +537,14 @@ async function main(): Promise<void> {
       const quitRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
       const quitRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
       throw new Error(
-        `live editor Ctrl-X returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
+        `live editor Alt-X returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
       );
     }
-    if (quitTranslatedKey !== 0x18) {
-      throw new Error(`live editor quit translated=0x${quitTranslatedKey.toString(16)}, expected 0x18`);
+    const quitModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    if ((quitTranslatedKey !== 0x58 && quitTranslatedKey !== 0x78) || (quitModifierBits & 0x08) === 0) {
+      throw new Error(
+        `live editor quit modifier=0x${quitModifierBits.toString(16)} translated=0x${quitTranslatedKey.toString(16)}, expected alt-modified X/x`,
+      );
     }
     const summary = {
       result: 'ok',
@@ -552,6 +560,7 @@ async function main(): Promise<void> {
       dirtyAfterCleanSave,
       dirtyAfterPostSaveEdit,
       dirtyAfterSecondSave,
+      saveModifierBits,
       modifierBits,
       rawPrimary,
       rawSecondary,

@@ -119,21 +119,21 @@ matrix ArrowLeft     cursor left
 matrix ArrowDown     cursor down
 matrix ArrowUp       cursor up
 matrix ArrowRight    cursor right
-Ctrl+ArrowDown       page down
-Ctrl+ArrowUp         page up
-Alt+ArrowDown        page down, after Debug80 modifier support
-Alt+ArrowUp          page up, after Debug80 modifier support
+Alt+ArrowDown        page down
+Alt+ArrowUp          page up
+Ctrl+ArrowDown       page down compatibility alias
+Ctrl+ArrowUp         page up compatibility alias
 other modified arrows reserved for later word/page movement
 ```
 
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
-`z`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a second `Ctrl-S`, and `Ctrl-X`
+`z`, `Alt-S`, a clean `Alt-S`, another `z`, a second `Alt-S`, and `Alt-X`
 so the modifier-aware path is exercised, not only printable ASCII.
-The Z80 editor accepts Alt+ArrowUp and Alt+ArrowDown for paging as well; the
-automated live smoke keeps using Ctrl+Arrow until Debug80 can reliably inject
-the macOS-friendly Alt/meta modifier path.
+The Z80 editor keeps Ctrl commands as compatibility aliases, but manual Debug80
+testing on macOS should prefer Option/Alt because Control and Command collide
+with host application and window-manager shortcuts.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
 
@@ -161,8 +161,8 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, a clean `Ctrl-S`,
-another `z`, a second `Ctrl-S`, and `Ctrl-X`, then verifies that
+`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Alt-S`, a clean `Alt-S`,
+another `z`, a second `Alt-S`, and `Alt-X`, then verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
@@ -171,10 +171,10 @@ row 2, column 2 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
-marks the editor dirty, that `Ctrl-S` translates to `13h` and clears dirty, that
-a clean save leaves the editor clean, that post-save `z` makes the editor dirty
-again, that the second save clears dirty again, and that `Ctrl-X` translates to
-`18h` and exits the live editor.
+marks the editor dirty, that Alt-modified `S` clears dirty, that a clean save
+leaves the editor clean, that post-save `z` makes the editor dirty again, that
+the second save clears dirty again, and that Alt-modified `X` exits the live
+editor.
 
 For an interactive Debug80 UI check:
 
@@ -185,10 +185,11 @@ For an interactive Debug80 UI check:
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
 6. In the matrix keyboard UI, use the arrow keys for cursor movement.
-   `Ctrl+ArrowDown` pages down and `Ctrl+ArrowUp` pages up. After the Debug80
-   modifier update, `Alt+ArrowDown` and `Alt+ArrowUp` should do the same.
-7. `Ctrl-S` saves, `Ctrl-X` quits through the same editor path as `Ctrl-Q`, and
-   `Ctrl-R` asks to restore from the hidden backup file.
+   `Alt+ArrowDown` pages down and `Alt+ArrowUp` pages up. Ctrl+Arrow remains a
+   compatibility alias, but it is not the preferred macOS Debug80 test path.
+7. `Alt-S` saves, `Alt-X` quits, and `Alt-R` asks to restore from the hidden
+   backup file. Ctrl-S/Ctrl-X/Ctrl-R remain compatibility aliases where the host
+   environment does not capture them.
 
 ## Phase Milestone Manual Test
 
@@ -243,14 +244,13 @@ GLCD. Use this exact smoke test:
    cell. This should redraw the affected row rather than doing the older
    obvious full-screen clear/repaint path.
 
-8. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`. After the Debug80 modifier
-   update, also test `Alt+ArrowDown`, then `Alt+ArrowUp`.
+8. Press `Alt+ArrowDown`, then `Alt+ArrowUp`.
 
    Expected: because the page is now dirty, paging is ignored and the display
    stays on the `R0 LINE ...` page. This prevents accidental loss of unsaved
    page-buffer edits.
 
-9. Press `Ctrl-S`.
+9. Press `Alt-S`.
 
    Expected: the status row shows `Saving...`, then the file is saved. There
    may be a visible pause because storage is still MON3/FAT32-backed and slow.
@@ -258,17 +258,16 @@ GLCD. Use this exact smoke test:
    is restored. A second save while the page is already clean should be ignored
    and should not start another slow SD write.
 
-   If manual `Command-S` on macOS saves but then leaves the editor apparently
-   unresponsive, compare it with `npm run debug80:editor-live-smoke`. The smoke
-   test injects the same matrix-level `Ctrl-S`, then types another `z`, and
+   If manual `Command-S` or `Ctrl-S` on macOS saves but then leaves the editor
+   apparently unresponsive, compare it with `npm run debug80:editor-live-smoke`.
+   The smoke test injects the same matrix-level `Alt-S`, then types another `z`, and
    expects the editor to become dirty again. If the smoke test passes but the
-   browser session wedges after `Command-S`, the likely bug is in Debug80's
-   browser keyboard-event path, such as a stuck synthesized Control modifier,
-   missed key release during the long SD write, or focus/key-repeat state after
-   the host-level Command chord.
+   browser session wedges after a host-level Command or Control chord, the
+   likely bug is in Debug80's browser keyboard-event path, such as a stuck
+   synthesized modifier, missed key release during the long SD write, or
+   focus/key-repeat state after the host-level chord.
 
-10. Press `Ctrl+ArrowDown`. After the Debug80 modifier update, also test
-    `Alt+ArrowDown`.
+10. Press `Alt+ArrowDown`.
 
    Expected: after saving, the generated two-page fixture moves to the second
    source page and the visible rows begin with `R1 LINE 00`, `R1 LINE 01`, and
@@ -276,19 +275,19 @@ GLCD. Use this exact smoke test:
    fixture; V1 does not grow the document across source sectors when Enter is
    pressed at the end of a page.
 
-11. Press `Ctrl+ArrowUp`. After the Debug80 modifier update, also test
-    `Alt+ArrowUp`.
+11. Press `Alt+ArrowUp`.
 
    Expected: the editor returns to the first page and shows `R0 LINE ...`
    records again.
 
-12. Press `Ctrl-X`.
+12. Press `Alt-X`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt. If it is dirty, the status row asks a yes/no question.
 
-   `Ctrl-Q` remains available as plain quit, but `Ctrl-X` is the preferred
-   Debug80 exit path because host tools commonly reserve `Ctrl-Q`.
+   Ctrl-Q and Ctrl-X remain available as aliases, but Alt-X is the preferred
+   Debug80 exit path on macOS because host tools commonly reserve Ctrl and
+   Command chords.
 
 The current phase does not require fast GLCD hardware flushing. Cursor movement
 and simple printable edits avoid full viewport render, but cursor overlay and

@@ -29,6 +29,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorKeyRenderCurrentLineDirty:/m);
   assert.match(source, /^@EditorPromptAskYesNo:/m);
   assert.match(source, /^@EditorPromptDispatch:/m);
+  assert.match(source, /^@EditorModifiedCommandFromKey:/m);
   assert.match(source, /TECM8_EDITOR_KEY_QUIT\s+\.equ\s+17/);
   assert.match(source, /TECM8_EDITOR_KEY_RESTORE\s+\.equ\s+18/);
   assert.match(source, /TECM8_EDITOR_KEY_SAVE\s+\.equ\s+19/);
@@ -96,6 +97,15 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /CALL\s+EditorViewportSetCurrentRow/);
   assert.match(source, /CALL\s+EditorKeyRenderCursorRowMarkers/);
+  assert.match(source, /CALL\s+EditorModifiedCommandFromKey\n\s+RET\s+C\n\s+OR\s+A\n\s+JP\s+NZ,EditorDispatchModifiedCommand/);
+  assert.match(source, /EditorModifiedCommandFromKey:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_PAGE/);
+  assert.match(source, /CP\s+"s"\n\s+JR\s+Z,EditorModifiedCommandSave/);
+  assert.match(source, /CP\s+"S"\n\s+JR\s+Z,EditorModifiedCommandSave/);
+  assert.match(source, /CP\s+"x"\n\s+JR\s+Z,EditorModifiedCommandAltQuit/);
+  assert.match(source, /CP\s+"X"\n\s+JR\s+Z,EditorModifiedCommandAltQuit/);
+  assert.match(source, /CP\s+"q"\n\s+JR\s+Z,EditorModifiedCommandQuit/);
+  assert.match(source, /CP\s+"Q"\n\s+JR\s+Z,EditorModifiedCommandQuit/);
+  assert.match(source, /EditorDispatchModifiedCommand:[\s\S]*?CP\s+TECM8_EDITOR_KEY_SAVE\n\s+JP\s+Z,EditorKeySave/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+19/);

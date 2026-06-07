@@ -379,14 +379,14 @@ proof key stream and the live matrix-key path that polls MON3 through
 `BiosInputPollKey`. In command mode:
 
 - matrix arrows move the cursor
-- Ctrl+ArrowDown pages down
-- Ctrl+ArrowUp pages up
 - Alt+ArrowDown pages down
 - Alt+ArrowUp pages up
-- Ctrl-Q quits the key stream, prompting first when the page is dirty
-- Ctrl-S saves the currently loaded page
-- Ctrl-X is an alternate quit binding for host environments that capture Ctrl-Q
-- Ctrl-R prompts to restore the hidden backup into the current buffer
+- Ctrl+ArrowDown and Ctrl+ArrowUp remain page-movement compatibility aliases
+- Alt-Q or Alt-X quits the key stream, prompting first when the page is dirty
+- Alt-S saves the currently loaded page
+- Alt-R prompts to restore the hidden backup into the current buffer
+- Ctrl-Q, Ctrl-X, Ctrl-S, and Ctrl-R remain compatibility aliases where the
+  host environment does not capture them
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
 - backspace deletes before the cursor
@@ -409,8 +409,9 @@ the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
-and clears the flag only after the backup and page write-back succeeds. Ctrl-R
-arms a status-line restore prompt; a yes answer loads the hidden backup into
+and clears the flag only after the backup and page write-back succeeds. Alt-S
+uses the same save path and is the preferred Debug80/macOS manual-test binding.
+Ctrl-R arms a status-line restore prompt; a yes answer loads the hidden backup into
 the current page buffer, rerenders it, and marks it dirty so the user can
 inspect before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when
 clean; when dirty, they ask before discarding changes and only exit on yes.
@@ -430,8 +431,11 @@ marker follows the cursor without a full viewport repaint.
 the editor sees both the translated key byte and modifier flags. Because the
 BIOS layer normalizes Ctrl-letter chords to ASCII control codes, the same
 command loop handles proof streams and live Ctrl-S, Ctrl-Q, Ctrl-X, and Ctrl-R
-input. Ctrl+Up/Down and Alt+Up/Down use modifier flags directly for page
-movement.
+input. The editor also checks modified printable command letters before normal
+printable insertion, so Alt-S/Alt-Q/Alt-X/Alt-R are first-class commands and a
+host path that reports Ctrl+S as printable `S` plus a Ctrl modifier will not
+insert `S` before saving. Ctrl+Up/Down and Alt+Up/Down use modifier flags
+directly for page movement.
 
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
 the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the
@@ -528,7 +532,7 @@ The display proofs build up the editor stack incrementally:
   buffer.
 - `proofs/display/editor-page-write-proof.asm`: tests edit/save/write-back
   behavior through the storage-backed editor path. It now also checks that
-  no-op edit paths do not mark dirty, Ctrl-S clears dirty only after save,
+  no-op edit paths do not mark dirty, save clears dirty only after write-back,
   prompt yes/no state works through the key loop, and the pre-existing hidden
   backup file receives the previous on-disk page before the source page is
   replaced.
@@ -706,7 +710,7 @@ What exists now:
 - The editor can save the currently loaded 512-byte page buffer back to the
   matching TM8 source page, with persisted image verification.
 - The editor tracks dirty state for the loaded page, marks dirty after
-  mutation, saves via Ctrl-S, and clears dirty after successful save.
+  mutation, saves via Alt-S or Ctrl-S, and clears dirty after successful save.
 - Status-line yes/no prompt state exists and is rendered as a transient row 9
   overlay for restore and dirty-quit confirmations; the hidden source row is
   redrawn when the prompt clears.

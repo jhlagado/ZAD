@@ -163,6 +163,10 @@ EditorKeyLoop:
         LD      A,(EditorPromptActive)
         OR      A
         JP      NZ,EditorKeyPrompt
+        CALL    EditorModifiedCommandFromKey
+        RET     C
+        OR      A
+        JP      NZ,EditorDispatchModifiedCommand
         LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_INSERT_MODE
         JP      Z,EditorKeyInsertMode
@@ -236,6 +240,17 @@ EditorDispatchAction:
         JP      Z,EditorKeyCursorUp
         CP      TECM8_EDITOR_ACTION_CURSOR_RIGHT
         JP      Z,EditorKeyCursorRight
+        JP      EditorKeyLoop
+
+EditorDispatchModifiedCommand:
+        CP      TECM8_EDITOR_KEY_SAVE
+        JP      Z,EditorKeySave
+        CP      TECM8_EDITOR_KEY_QUIT
+        JP      Z,EditorKeyQuit
+        CP      TECM8_EDITOR_KEY_ALT_QUIT
+        JP      Z,EditorKeyQuit
+        CP      TECM8_EDITOR_KEY_RESTORE
+        JP      Z,EditorKeyRestorePrompt
         JP      EditorKeyLoop
 
 EditorKeySave:
@@ -491,6 +506,57 @@ EditorActionCursorUp:
 
 EditorActionCursorRight:
         LD      A,TECM8_EDITOR_ACTION_CURSOR_RIGHT
+        RET
+
+; EditorModifiedCommandFromKey -
+; Prefer modifier-aware editor commands before printable insertion. This keeps
+; Alt-S/Alt-X usable for macOS Debug80 testing and also catches Ctrl-letter
+; events when the host path reports a printable letter plus modifier flags
+; instead of an ASCII control byte.
+; Input: EditorPendingChar, EditorPendingModifier
+; Output: A = TECM8_EDITOR_KEY_* command or 0
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorModifiedCommandFromKey:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_PAGE
+        JR      Z,EditorModifiedCommandNone
+        LD      A,(EditorPendingChar)
+        CP      "s"
+        JR      Z,EditorModifiedCommandSave
+        CP      "S"
+        JR      Z,EditorModifiedCommandSave
+        CP      "x"
+        JR      Z,EditorModifiedCommandAltQuit
+        CP      "X"
+        JR      Z,EditorModifiedCommandAltQuit
+        CP      "q"
+        JR      Z,EditorModifiedCommandQuit
+        CP      "Q"
+        JR      Z,EditorModifiedCommandQuit
+        CP      "r"
+        JR      Z,EditorModifiedCommandRestore
+        CP      "R"
+        JR      Z,EditorModifiedCommandRestore
+
+EditorModifiedCommandNone:
+        XOR     A
+        RET
+
+EditorModifiedCommandSave:
+        LD      A,TECM8_EDITOR_KEY_SAVE
+        RET
+
+EditorModifiedCommandAltQuit:
+        LD      A,TECM8_EDITOR_KEY_ALT_QUIT
+        RET
+
+EditorModifiedCommandQuit:
+        LD      A,TECM8_EDITOR_KEY_QUIT
+        RET
+
+EditorModifiedCommandRestore:
+        LD      A,TECM8_EDITOR_KEY_RESTORE
         RET
 
 ; EditorInsertChar -
