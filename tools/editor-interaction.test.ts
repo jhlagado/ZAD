@@ -18,6 +18,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorCursorReset:/m);
   assert.match(source, /^@EditorRenderCursor:/m);
   assert.match(source, /^@EditorHideCursor:/m);
+  assert.match(source, /^@EditorInvalidateCursorOverlay:/m);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /^@EditorActionFromKey:/m);
   assert.match(source, /^@EditorInsertChar:/m);
@@ -85,6 +86,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /EditorActionPageDownLower/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
+  assert.match(source, /@EditorInvalidateCursorOverlay:\n\s+XOR\s+A\n\s+LD\s+\(EditorCursorRendered\),A\n\s+RET/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /CALL\s+EditorViewportRenderRecordRow/);
   assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
@@ -124,6 +126,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorQuitRequested:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeySave:/);
   assert.match(source, /EditorKeySave:\n\s+LD\s+A,\(EditorNavDirty\)\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyLoop/);
+  assert.match(source, /EditorKeySave:[\s\S]*?CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorSaveCurrentPage/);
+  assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown\n\s+JR\s+C,EditorKeyNavigationErr\n\s+CALL\s+EditorInvalidateCursorOverlay/);
+  assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp\n\s+JR\s+C,EditorKeyNavigationErr\n\s+CALL\s+EditorInvalidateCursorOverlay/);
   assert.match(source, /EditorKeyMaybeInsertMode:/);
   assert.match(source, /EditorKeyCursorLeft:/);
   assert.match(source, /EditorKeyCursorDown:/);

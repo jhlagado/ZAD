@@ -111,6 +111,15 @@ EditorHideCursorDone:
         XOR     A
         RET
 
+; EditorInvalidateCursorOverlay -
+; Mark the cursor overlay absent after a full redraw replaces the pixels under it.
+;!      out       A,zero,sign,parity,halfCarry
+;!      clobbers  A
+@EditorInvalidateCursorOverlay:
+        XOR     A
+        LD      (EditorCursorRendered),A
+        RET
+
 ; EditorRunKeys -
 ; Consume a NUL-terminated key stream. Movement and paging are dispatched as
 ; editor actions so matrix-key input can bind to the same commands without
@@ -257,6 +266,8 @@ EditorKeySave:
         LD      A,(EditorNavDirty)
         OR      A
         JP      Z,EditorKeyLoop
+        CALL    EditorHideCursor
+        RET     C
         CALL    EditorSaveCurrentPage
         RET     C
         JP      EditorKeyLoop
@@ -291,8 +302,7 @@ EditorKeyPageDown:
         JP      NZ,EditorKeyLoop
         CALL    EditorPageDown
         JR      C,EditorKeyNavigationErr
-        XOR     A
-        LD      (EditorCursorRendered),A
+        CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
@@ -301,8 +311,7 @@ EditorKeyPageUp:
         JP      NZ,EditorKeyLoop
         CALL    EditorPageUp
         JR      C,EditorKeyNavigationErr
-        XOR     A
-        LD      (EditorCursorRendered),A
+        CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
 EditorKeyNavigationErr:
