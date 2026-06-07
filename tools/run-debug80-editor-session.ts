@@ -501,6 +501,24 @@ async function main(): Promise<void> {
     if (dirtyAfterCleanSave !== 0) {
       throw new Error(`live editor clean save dirty=${dirtyAfterCleanSave}, expected 0`);
     }
+    tapMatrixKey(platformRuntime, runtime, 7, 5); // z after save: editor should still accept input
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const dirtyAfterPostSaveEdit = runtime.hardware.memory[dirtyAddr];
+    if (dirtyAfterPostSaveEdit !== 1) {
+      const postSaveModifierBits = runtime.hardware.memory[modifierBitsAddr];
+      const postSaveRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+      const postSaveRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
+      const postSaveTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+      throw new Error(
+        `live editor post-save edit dirty=${dirtyAfterPostSaveEdit}, expected 1; modifier=0x${postSaveModifierBits.toString(16)} raw=${postSaveRawSecondary.toString(16)}/${postSaveRawPrimary.toString(16)} translated=0x${postSaveTranslatedKey.toString(16)}`,
+      );
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // save post-save edit
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
+    const dirtyAfterSecondSave = runtime.hardware.memory[dirtyAddr];
+    if (dirtyAfterSecondSave !== 0) {
+      throw new Error(`live editor second save dirty=${dirtyAfterSecondSave}, expected 0`);
+    }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 3 }, 200_000, 200_000); // Ctrl+X
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
@@ -532,6 +550,8 @@ async function main(): Promise<void> {
       dirtyAfterEdit,
       dirtyAfterSave,
       dirtyAfterCleanSave,
+      dirtyAfterPostSaveEdit,
+      dirtyAfterSecondSave,
       modifierBits,
       rawPrimary,
       rawSecondary,

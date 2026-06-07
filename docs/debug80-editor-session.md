@@ -129,8 +129,8 @@ other modified arrows reserved for later word/page movement
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
-`z`, `Ctrl-S`, and `Ctrl-X` so the modifier-aware path is exercised, not only
-printable ASCII.
+`z`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a second `Ctrl-S`, and `Ctrl-X`
+so the modifier-aware path is exercised, not only printable ASCII.
 The Z80 editor accepts Alt+ArrowUp and Alt+ArrowDown for paging as well; the
 automated live smoke keeps using Ctrl+Arrow until Debug80 can reliably inject
 the macOS-friendly Alt/meta modifier path.
@@ -161,17 +161,20 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, and `Ctrl-X`, then
-verifies that `Ctrl+ArrowDown` is treated as page movement rather than cursor
-movement. The generated image has two source pages, so the smoke verifies that
+`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Ctrl-S`, a clean `Ctrl-S`,
+another `z`, a second `Ctrl-S`, and `Ctrl-X`, then verifies that
+`Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
+generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
 the cursor row stays unchanged. It also verifies that the editor cursor reaches
 row 2, column 2 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
-marks the editor dirty, that `Ctrl-S` translates to `13h` and clears dirty, and
-that `Ctrl-X` translates to `18h` and exits the live editor.
+marks the editor dirty, that `Ctrl-S` translates to `13h` and clears dirty, that
+a clean save leaves the editor clean, that post-save `z` makes the editor dirty
+again, that the second save clears dirty again, and that `Ctrl-X` translates to
+`18h` and exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -254,6 +257,15 @@ GLCD. Use this exact smoke test:
    When the save returns, the source row hidden by the transient status message
    is restored. A second save while the page is already clean should be ignored
    and should not start another slow SD write.
+
+   If manual `Command-S` on macOS saves but then leaves the editor apparently
+   unresponsive, compare it with `npm run debug80:editor-live-smoke`. The smoke
+   test injects the same matrix-level `Ctrl-S`, then types another `z`, and
+   expects the editor to become dirty again. If the smoke test passes but the
+   browser session wedges after `Command-S`, the likely bug is in Debug80's
+   browser keyboard-event path, such as a stuck synthesized Control modifier,
+   missed key release during the long SD write, or focus/key-repeat state after
+   the host-level Command chord.
 
 10. Press `Ctrl+ArrowDown`. After the Debug80 modifier update, also test
     `Alt+ArrowDown`.
