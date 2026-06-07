@@ -252,7 +252,8 @@ GLCD. Use this exact smoke test:
    Expected: the status row shows `Saving...`, then the file is saved. There
    may be a visible pause because storage is still MON3/FAT32-backed and slow.
    When the save returns, the source row hidden by the transient status message
-   is restored.
+   is restored. A second save while the page is already clean should be ignored
+   and should not start another slow SD write.
 
 10. Press `Ctrl+ArrowDown`. After the Debug80 modifier update, also test
     `Alt+ArrowDown`.

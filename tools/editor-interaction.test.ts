@@ -113,6 +113,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyRestorePrompt:/);
   assert.match(source, /EditorQuitRequested:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeySave:/);
+  assert.match(source, /EditorKeySave:\n\s+LD\s+A,\(EditorNavDirty\)\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyLoop/);
   assert.match(source, /EditorKeyMaybeInsertMode:/);
   assert.match(source, /EditorKeyCursorLeft:/);
   assert.match(source, /EditorKeyCursorDown:/);

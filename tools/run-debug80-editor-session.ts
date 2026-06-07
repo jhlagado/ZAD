@@ -495,6 +495,12 @@ async function main(): Promise<void> {
         `live editor save dirty=${dirtyAfterSave} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 translated=0x13`,
       );
     }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // clean Ctrl+S no-op
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const dirtyAfterCleanSave = runtime.hardware.memory[dirtyAddr];
+    if (dirtyAfterCleanSave !== 0) {
+      throw new Error(`live editor clean save dirty=${dirtyAfterCleanSave}, expected 0`);
+    }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 3 }, 200_000, 200_000); // Ctrl+X
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
@@ -525,6 +531,7 @@ async function main(): Promise<void> {
       pageAfterCtrlUp,
       dirtyAfterEdit,
       dirtyAfterSave,
+      dirtyAfterCleanSave,
       modifierBits,
       rawPrimary,
       rawSecondary,

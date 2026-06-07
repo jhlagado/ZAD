@@ -239,6 +239,9 @@ EditorDispatchAction:
         JP      EditorKeyLoop
 
 EditorKeySave:
+        LD      A,(EditorNavDirty)
+        OR      A
+        JP      Z,EditorKeyLoop
         CALL    EditorSaveCurrentPage
         RET     C
         JP      EditorKeyLoop
