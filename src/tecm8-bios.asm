@@ -61,15 +61,19 @@ TECM8_BIOS_KEY_MOD_CAPS      .equ     0x10
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @BiosDisplayInit:
         CALL    MON3_GLCD_INIT_TERMINAL
+        CALL    MON3_GLCD_CLEAR_GBUF
+        CALL    MON3_GLCD_PLOT_TO_LCD
         XOR     A
         RET
 
 ; BiosDisplayClear -
-; Clear the active MON3 GLCD terminal buffer.
+; Clear the active MON3 GLCD graphics buffer without reinitializing the terminal
+; cursor policy.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @BiosDisplayClear:
-        CALL    MON3_GLCD_INIT_TERMINAL
+        CALL    MON3_GLCD_CLEAR_GBUF
+        CALL    MON3_GLCD_PLOT_TO_LCD
         XOR     A
         RET
 

@@ -66,6 +66,9 @@ test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
   }
   assert.match(source, /;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplayInit:/);
+  assert.match(source, /@BiosDisplayInit:\n\s+CALL\s+MON3_GLCD_INIT_TERMINAL\n\s+CALL\s+MON3_GLCD_CLEAR_GBUF\n\s+CALL\s+MON3_GLCD_PLOT_TO_LCD/);
+  assert.match(source, /@BiosDisplayClear:\n\s+CALL\s+MON3_GLCD_CLEAR_GBUF\n\s+CALL\s+MON3_GLCD_PLOT_TO_LCD/);
+  assert.doesNotMatch(source, /@BiosDisplayClear:\n\s+CALL\s+MON3_GLCD_INIT_TERMINAL/);
   assert.match(source, /;!\s+in\s+B,C\n;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplaySetCursor:/);
   assert.match(source, /;!\s+in\s+A,B,C\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@BiosDisplayDrawCharAt:/);
   assert.match(source, /MON3_MATRIX_SCAN\s+\.equ\s+0xCC40/);

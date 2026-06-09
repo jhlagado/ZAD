@@ -181,7 +181,7 @@ layer.
 | Call | TECM8 wrapper | MON3 continuity |
 | ---: | --- | --- |
 | existing | `BiosDisplayInit` | Initializes MON3's GLCD terminal path. |
-| existing | `BiosDisplayClear` | Reinitializes/clears the MON3 GLCD terminal buffer. |
+| existing | `BiosDisplayClear` | Clears and plots the MON3 GLCD graphics buffer without reinitializing the terminal cursor policy. |
 | existing/extension | `BiosDisplaySetCursor` | Uses MON3 graphics cursor coordinates. |
 | existing | `BiosDisplayPutChar` | Sends one character through the MON3 GLCD terminal. |
 | existing | `BiosDisplayPutString` | Sends a NUL-terminated string through the MON3 GLCD terminal. |
