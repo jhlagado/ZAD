@@ -411,11 +411,14 @@ host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
 and clears the flag only after the backup and page write-back succeeds. Alt-S
 uses the same save path and is the preferred Debug80/macOS manual-test binding.
-Ctrl-R arms a status-line restore prompt; a yes answer loads the hidden backup into
-the current page buffer, rerenders it, and marks it dirty so the user can
-inspect before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when
-clean; when dirty, they ask before discarding changes and only exit on yes.
-There is not yet sector-crossing insert/delete.
+Before that save path runs, `EditorHideCursor` removes the inverse-cell overlay
+so the transient `Saving...` redraw and the restored edit row do not inherit
+stale cursor pixels. A clean save is ignored before any storage call. Ctrl-R
+arms a status-line restore prompt; a yes answer loads the hidden backup into the
+current page buffer, rerenders it, and marks it dirty so the user can inspect
+before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when clean;
+when dirty, they ask before discarding changes and only exit on yes. There is
+not yet sector-crossing insert/delete.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -612,8 +615,9 @@ TEC-1G runtime, verifies `/src/main.asm` was saved as fixed source records,
 verifies the hidden backup, and writes
 `demos/debug80/editor-session-glcd.pgm` as a local GLCD capture. Its
 `--live-smoke` path boots the manual `LiveStart` entry, injects matrix-key
-events, and checks that live edit, save, and quit commands reach the same
-dirty-state and translated-key results as the scripted editor loop.
+events, and checks that live edit, clean-save no-op, post-save input, second
+save, and quit commands reach the same dirty-state and translated-key results
+as the scripted editor loop.
 
 ### Storage Image And Audit Tools
 
