@@ -155,7 +155,7 @@ function ensureSessionImage(): void {
     'R0 LINE 12',
     'R0 LINE 13',
     'R0 LINE 14',
-    'R0 LINE 15',
+    '',
     'R1 LINE 00',
     'R1 LINE 01',
     'R1 LINE 02',
@@ -375,6 +375,25 @@ function readSourceRecord(records: Buffer, record: number): string {
   return records.subarray(start + 1, start + 1 + length).toString('ascii');
 }
 
+function readRuntimeSourceRecord(memory: Uint8Array, address: number, record: number): string {
+  const start = address + record * 32;
+  const length = memory[start];
+  return Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
+}
+
+function assertRuntimeSourceRecord(
+  runtime: Runtime,
+  pageBufferAddr: number,
+  record: number,
+  expected: string,
+  label: string,
+): void {
+  const actual = readRuntimeSourceRecord(runtime.hardware.memory, pageBufferAddr, record);
+  if (actual !== expected) {
+    throw new Error(`${label} record ${record} "${actual}", expected "${expected}"`);
+  }
+}
+
 function glcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
 }
@@ -415,6 +434,7 @@ async function main(): Promise<void> {
     const cursorColAddr = symbolAddress(symbols, 'EditorCursorCol');
     const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
     const currentPageAddr = symbolAddress(symbols, 'EditorNavCurrentPage');
+    const pageBufferAddr = symbolAddress(symbols, 'EditorNavPageBuffer');
     const quitRequestedAddr = symbolAddress(symbols, 'EditorQuitRequested');
     const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
@@ -486,6 +506,23 @@ async function main(): Promise<void> {
     if (dirtyAfterEdit !== 1) {
       throw new Error(`live editor dirty after z ${dirtyAfterEdit}, expected 1`);
     }
+    tapMatrixKey(platformRuntime, runtime, 1, 2); // Enter: split line
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const cursorRowAfterEnter = runtime.hardware.memory[cursorRowAddr];
+    const cursorColAfterEnter = runtime.hardware.memory[cursorColAddr];
+    if (cursorRowAfterEnter !== 3 || cursorColAfterEnter !== 0) {
+      const enterModifierBits = runtime.hardware.memory[modifierBitsAddr];
+      const enterRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+      const enterRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
+      const enterTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+      throw new Error(
+        `live editor cursor after Enter ${cursorRowAfterEnter},${cursorColAfterEnter}; expected 3,0; modifier=0x${enterModifierBits.toString(16)} raw=${enterRawSecondary.toString(16)}/${enterRawPrimary.toString(16)} translated=0x${enterTranslatedKey.toString(16)}`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'R0Z', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 3, ' LINE 02', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 4, 'R0 LINE 03', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, 'R0 LINE 14', 'after Enter split');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     const dirtyAfterSave = runtime.hardware.memory[dirtyAddr];
@@ -499,6 +536,38 @@ async function main(): Promise<void> {
       throw new Error(
         `live editor Alt-S save dirty=${dirtyAfterSave} modifier=0x${saveModifierBits.toString(16)} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 alt-modified S/s`,
       );
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 4 }, 200_000, 200_000); // Alt+ArrowDown
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
+    const pageAfterSplitSaveDown = runtime.hardware.memory[currentPageAddr];
+    if (pageAfterSplitSaveDown !== 1) {
+      throw new Error(`live editor page after saved split Alt+ArrowDown ${pageAfterSplitSaveDown}, expected 1`);
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }, 200_000, 200_000); // Ctrl+ArrowUp
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
+    const pageAfterSplitSaveUp = runtime.hardware.memory[currentPageAddr];
+    if (pageAfterSplitSaveUp !== 0) {
+      throw new Error(`live editor page after saved split Alt+ArrowUp ${pageAfterSplitSaveUp}, expected 0`);
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'R0Z', 'after saved split page return');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 3, ' LINE 02', 'after saved split page return');
+    tapMatrixKey(platformRuntime, runtime, 1, 0); // Backspace: join with previous line
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const cursorRowAfterJoin = runtime.hardware.memory[cursorRowAddr];
+    const cursorColAfterJoin = runtime.hardware.memory[cursorColAddr];
+    if (cursorRowAfterJoin !== 2 || cursorColAfterJoin !== 3) {
+      throw new Error(
+        `live editor cursor after Backspace join ${cursorRowAfterJoin},${cursorColAfterJoin}; expected 2,3`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'R0Z LINE 02', 'after Backspace join');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 3, 'R0 LINE 03', 'after Backspace join');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, '', 'after Backspace join');
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // save joined page
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
+    const dirtyAfterJoinSave = runtime.hardware.memory[dirtyAddr];
+    if (dirtyAfterJoinSave !== 0) {
+      throw new Error(`live editor dirty after join save ${dirtyAfterJoinSave}, expected 0`);
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // clean Alt+S no-op
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
@@ -556,9 +625,16 @@ async function main(): Promise<void> {
       rowAfterCtrlDown,
       pageAfterCtrlUp,
       dirtyAfterEdit,
+      cursorRowAfterEnter,
+      cursorColAfterEnter,
+      cursorRowAfterJoin,
+      cursorColAfterJoin,
       dirtyAfterSave,
+      pageAfterSplitSaveDown,
+      pageAfterSplitSaveUp,
       dirtyAfterCleanSave,
       dirtyAfterPostSaveEdit,
+      dirtyAfterJoinSave,
       dirtyAfterSecondSave,
       saveModifierBits,
       modifierBits,

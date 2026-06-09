@@ -44,8 +44,18 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 0, col: 6 \}\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 7\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 7, 5\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 1, 2\)/);
+  assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 1, 0\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 2, 'R0Z', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 3, ' LINE 02', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 15, 'R0 LINE 14', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 3, ' LINE 02', 'after saved split page return'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 2, 'R0Z LINE 02', 'after Backspace join'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 15, '', 'after Backspace join'\)/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 6 \}/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 7, col: 3 \}/);
+  assert.match(runner, /cursorRowAfterEnter !== 3 \|\| cursorColAfterEnter !== 0/);
+  assert.match(runner, /cursorRowAfterJoin !== 2 \|\| cursorColAfterJoin !== 3/);
   assert.match(runner, /altModifierBits !== 0x08/);
   assert.match(runner, /saveModifierBits & 0x08/);
   assert.match(runner, /quitModifierBits & 0x08/);

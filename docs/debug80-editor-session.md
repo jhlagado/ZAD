@@ -56,6 +56,11 @@ The generated TM8 volume contains:
 /src/main.asm
 ```
 
+The generated `/src/main.asm` fixture has two source pages. Page 0 contains
+`R0 LINE 00` through `R0 LINE 14` plus an empty final record so Enter/split-line
+can be tested without crossing a sector boundary. Page 1 contains `R1 LINE 00`
+through `R1 LINE 15` for page movement tests.
+
 `/tecm8.prj` contains:
 
 ```text
@@ -120,7 +125,7 @@ matrix ArrowDown     cursor down
 matrix ArrowUp       cursor up
 matrix ArrowRight    cursor right
 Alt+ArrowDown        page down
-Alt+ArrowUp          page up
+Alt+ArrowUp          page up where Debug80 can synthesize it
 Ctrl+ArrowDown       page down compatibility alias
 Ctrl+ArrowUp         page up compatibility alias
 other modified arrows reserved for later word/page movement
@@ -161,8 +166,8 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Alt-S`, a clean `Alt-S`,
-another `z`, a second `Alt-S`, and `Alt-X`, then verifies that
+`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Enter`, `Backspace`, `Alt-S`,
+a clean `Alt-S`, another `z`, a second `Alt-S`, and `Alt-X`, then verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
@@ -171,7 +176,9 @@ row 2, column 2 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
-marks the editor dirty, that Alt-modified `S` clears dirty, that a clean save
+marks the editor dirty, that matrix `Enter` splits the current line and moves
+the cursor to the new line, that matrix `Backspace` at column 0 joins the line
+back to the previous row, that Alt-modified `S` clears dirty, that a clean save
 leaves the editor clean, that post-save `z` makes the editor dirty again, that
 the second save clears dirty again, and that Alt-modified `X` exits the live
 editor.
@@ -185,8 +192,10 @@ For an interactive Debug80 UI check:
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
 6. In the matrix keyboard UI, use the arrow keys for cursor movement.
-   `Alt+ArrowDown` pages down and `Alt+ArrowUp` pages up. Ctrl+Arrow remains a
-   compatibility alias, but it is not the preferred macOS Debug80 test path.
+   `Alt+ArrowDown` pages down. `Ctrl+ArrowUp` is the practical page-up check in
+   the current matrix-level test path because the raw matrix positions for Alt
+   and ArrowUp overlap. Ctrl+Arrow remains a compatibility alias for page
+   movement.
 7. `Alt-S` saves, `Alt-X` quits, and `Alt-R` asks to restore from the hidden
    backup file. Ctrl-S/Ctrl-X/Ctrl-R remain compatibility aliases where the host
    environment does not capture them.
@@ -244,19 +253,42 @@ GLCD. Use this exact smoke test:
    cell. This should redraw the affected row rather than doing the older
    obvious full-screen clear/repaint path.
 
-8. Press `Alt+ArrowDown`, then `Alt+ArrowUp`.
+8. Press `Enter`.
+
+   Expected: the current row splits at the cursor. The text before the cursor
+   remains on the original row, the text after the cursor moves to the next
+   row, and the cursor moves to column 0 on the new row. This operation can
+   redraw the viewport because it shifts later source rows within the current
+   16-record page.
+
+9. Press `Alt-S`.
+
+   Expected: the split page is saved. The status row shows `Saving...`, then
+   the file returns to the source view. Storage may pause for several seconds.
+
+10. Press `Alt+ArrowDown`, then `Ctrl+ArrowUp`.
+
+   Expected: after saving, the editor can leave the page and return to it. The
+   split line should still be visible when page 0 returns, proving the reshaped
+   page survived storage/cache movement.
+
+11. Press `Backspace` while the cursor is at column 0 on the split line.
+
+   Expected: the split line rejoins the previous row, later rows shift back up,
+   and the cursor returns to the previous row at the join point.
+
+12. Press `Alt+ArrowDown`, then `Ctrl+ArrowUp`.
 
    Expected: because the page is now dirty, paging is ignored and the display
    stays on the `R0 LINE ...` page. This prevents accidental loss of unsaved
    page-buffer edits.
 
-9. Press `Alt-S`.
+13. Press `Alt-S`.
 
-   Expected: the status row shows `Saving...`, then the file is saved. There
-   may be a visible pause because storage is still MON3/FAT32-backed and slow.
-   When the save returns, the source row hidden by the transient status message
-   is restored. A second save while the page is already clean should be ignored
-   and should not start another slow SD write.
+   Expected: the joined page is saved. When the save returns, the source row
+   hidden by the transient status message is restored. A second save while the
+   page is already clean should be ignored and should not start another slow SD
+   write.
 
    If manual `Command-S` or `Ctrl-S` on macOS saves but then leaves the editor
    apparently unresponsive, compare it with `npm run debug80:editor-live-smoke`.
@@ -267,7 +299,7 @@ GLCD. Use this exact smoke test:
    synthesized modifier, missed key release during the long SD write, or
    focus/key-repeat state after the host-level chord.
 
-10. Press `Alt+ArrowDown`.
+14. Press `Alt+ArrowDown`.
 
    Expected: after saving, the generated two-page fixture moves to the second
    source page and the visible rows begin with `R1 LINE 00`, `R1 LINE 01`, and
@@ -275,12 +307,12 @@ GLCD. Use this exact smoke test:
    fixture; V1 does not grow the document across source sectors when Enter is
    pressed at the end of a page.
 
-11. Press `Alt+ArrowUp`.
+15. Press `Ctrl+ArrowUp`.
 
    Expected: the editor returns to the first page and shows `R0 LINE ...`
    records again.
 
-12. Press `Alt-X`.
+16. Press `Alt-X`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt. If it is dirty, the status row asks a yes/no question.

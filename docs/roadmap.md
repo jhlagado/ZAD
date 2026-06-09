@@ -5,20 +5,26 @@ foundation, near-term goal order, stop condition, and deferred work. Update this
 file after meaningful phase changes so the roadmap does not live only in
 conversation history.
 
-## Current Milestone: TECM8 Tiled GLCD Renderer V1
+## Current Milestone: Editor Line Editing V2
 
-The previous Debug80-testable editor milestone proved the storage-backed edit,
-save, quit, reopen, and backup path. Real manual testing showed that the current
-MON3-backed display path is not usable enough for continued editor work: every
-text mutation can clear and repaint the full GLCD, producing visible multi-second
-blanking. The next milestone therefore focuses on the display system before
-assembler integration or broader shell work.
+The previous tiled-renderer milestone made the editor usable enough for ordinary
+cursor movement and in-line text edits. The next sizeable increment is to make
+the live Debug80 editor feel more like a real source editor by proving line
+reshaping from the physical matrix keyboard: Enter splits a record into a new
+line, and Backspace at column 0 rejoins that line with the previous record.
 
-The current milestone is complete when a user can run the Debug80 editor session,
-type into the editor, move the cursor, and see ordinary cursor movement and
-single-line text edits update without a full-screen blank/repaint cycle.
+This milestone is complete when a user can run the Debug80 editor session, type
+into the editor, press Enter to split a visible source line, press Backspace at
+the start of the new line to join it again, save the reshaped page, page away
+and back, and see the edited source persist.
 
-The target display model is a TECM8-owned tiled GLCD layer:
+The feature remains deliberately page-local for now. A loaded 512-byte source
+page contains sixteen 32-byte source records. Enter shifts later records down
+only when there is room in the current page; Backspace-at-column-0 shifts later
+records up only when the joined line still fits in 31 text bytes. Cross-sector
+line movement is a later editor/storage milestone.
+
+The display model remains the TECM8-owned tiled GLCD layer:
 
 ```text
 128x64 bitmap hardware
@@ -86,6 +92,29 @@ direction for a future TECM8 GLCD BIOS/display library.
   terminal character drawing routine.
 
 ## Near-Term Goal Order
+
+1. **Live matrix line-edit smoke.**
+   Extend `npm run debug80:editor-live-smoke` so it injects matrix Enter and
+   matrix Backspace through Debug80's `applyMatrixKey` path, then verifies that
+   Enter moves the cursor to the newly split line and Backspace joins it back to
+   the previous line.
+
+   Status: pending.
+
+2. **Manual Debug80 line-edit script.**
+   Update the manual Debug80 script so the user can test line split, line join,
+   save, page away, page back, and reopen persistence from the UI.
+
+   Status: pending.
+
+3. **Phase completion review.**
+   Run local verification including `npm run check`, get a high-effort local
+   subagent review for the code changes, address findings, close subagents,
+   commit, push, monitor any remote CI runs, and then stop at the milestone.
+
+   Status: pending.
+
+## Recently Completed: TECM8 Tiled GLCD Renderer V1
 
 1. **Dirty editor rendering.**
    Change ordinary cursor movement and simple in-line printable edits so they do
@@ -193,10 +222,29 @@ After these criteria are satisfied, stop and reassess whether the next milestone
 should continue display work, return to shell ergonomics, or begin assembler
 integration.
 
+## Editor Line Editing V2 Done Criteria
+
+Status: active.
+
+- The live Debug80 editor path accepts matrix Enter as newline/split-line.
+- Enter splits the current fixed source record at the cursor when there is room
+  in the current 16-record page.
+- The cursor moves to the new line at column 0 after a successful split.
+- Matrix Backspace at column 0 joins the current line into the previous line
+  when the combined record fits in 31 text bytes.
+- The cursor returns to the previous line at the original previous-line length
+  after a successful join.
+- The split/join path marks the page dirty and can be saved through `Alt-S`.
+- Saved split/join edits survive page movement and editor restart.
+- Local verification includes the existing line-editing proof,
+  `debug80:editor-live-smoke`, and `npm run check`.
+- Manual Debug80 testing has a clear script for Enter, Backspace, save, page
+  movement, and reopen persistence.
+
 ## Manual Milestone Test
 
-The phase is complete only when a user can manually inspect the editor in
-Debug80:
+The current editor line-editing phase is complete only when a user can manually
+inspect the editor in Debug80:
 
 1. Run `npm run debug80:editor-image`.
 2. Launch Debug80's `main` target with SD enabled.
@@ -204,7 +252,8 @@ Debug80:
 4. Confirm the GLCD shows the TECM8 editor with `/src/main.asm`.
 5. Confirm the initial screen shows the loaded source rows, beginning with
    `R0 LINE 00`, `R0 LINE 01`, and later rows. This phase does not render a
-   persistent title/header row.
+   persistent title/header row. The prepared page leaves record 15 blank so
+   line insertion has room inside the current 512-byte page.
 6. Confirm the cursor is a non-blinking inverse 6x6 cell near the top-left
    source text area, not a single vertical stroke.
 7. Press matrix `ArrowRight` twice. Expected: the cursor moves two cells to the
@@ -215,23 +264,32 @@ Debug80:
    first line changes from `R0 LINE 00` to `R0Z LINE 00`, the cursor advances
    one cell, and the edit uses the row dirty path rather than the older
    full-screen clear/repaint path.
-10. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`. Expected: because the page is
+10. Press matrix `Enter`. Expected: the current row splits at the cursor. The
+    text before the cursor remains on the original row, the text after the
+    cursor moves to the next row, and the cursor moves to column 0 on that new
+    row. This may redraw the viewport because split-line shifts later rows in
+    the current page.
+11. Press `Alt-S`. Expected: the split page is saved. Storage may pause for
+    several seconds, then the editor returns to the source view.
+12. Press `Alt+ArrowDown`, then `Ctrl+ArrowUp`. Expected: after saving, page
+    movement succeeds and returning to page 0 still shows the split line.
+13. Press matrix `Backspace` while the cursor is at column 0 on the split line.
+    Expected: the split line rejoins the previous row, later rows shift back up,
+    and the cursor returns to the previous row at the join point.
+14. Press `Alt+ArrowDown`, then `Ctrl+ArrowUp`. Expected: because the page is
     dirty, paging is ignored and the editor remains on the first page.
-    After the Debug80 modifier update, repeat this check with `Alt+ArrowDown`
-    and `Alt+ArrowUp`.
-11. Press `Ctrl-S`. Expected: the status row shows `Saving...`, storage may
+15. Press `Alt-S`. Expected: the joined page is saved. Storage may
     pause for several seconds, then the editor returns to the source view.
-12. Press `Ctrl+ArrowDown`. Expected: after saving, the prepared two-page
+16. Press `Alt+ArrowDown`. Expected: after saving, the prepared two-page
     fixture moves to the second page and shows rows beginning with `R1 LINE 00`.
     This phase tests paging through the fixture; it does not require Enter to
     grow the file across sectors.
-13. Press `Ctrl+ArrowUp`. Expected: the first page returns. This return path
+17. Press `Ctrl+ArrowUp`. Expected: the first page returns. This return path
     should use the editor's one-page RAM cache at `3000h`, so it should avoid a
-    second SD read after the immediately preceding page-down operation. After
-    the Debug80 modifier update, repeat the page down/up check with Alt+Arrow.
-14. Press `Ctrl-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
+    second SD read after the immediately preceding page-down operation.
+18. Press `Alt-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
     answer the status prompt.
-15. Restart the editor and confirm the saved text is still present.
+19. Restart the editor and confirm the saved text is still present.
 
 ## Later Milestones
 
