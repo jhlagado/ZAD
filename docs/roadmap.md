@@ -99,20 +99,25 @@ direction for a future TECM8 GLCD BIOS/display library.
    Enter moves the cursor to the newly split line and Backspace joins it back to
    the previous line.
 
-   Status: pending.
+   Status: implemented. The live smoke now checks matrix Enter, page-buffer
+   split contents, save/page-away/page-back persistence, Backspace join
+   contents, and clean save after join.
 
 2. **Manual Debug80 line-edit script.**
    Update the manual Debug80 script so the user can test line split, line join,
    save, page away, page back, and reopen persistence from the UI.
 
-   Status: pending.
+   Status: implemented in `docs/debug80-editor-session.md` and mirrored in the
+   manual milestone test below.
 
 3. **Phase completion review.**
    Run local verification including `npm run check`, get a high-effort local
    subagent review for the code changes, address findings, close subagents,
    commit, push, monitor any remote CI runs, and then stop at the milestone.
 
-   Status: pending.
+   Status: complete for this milestone. Local verification passed, a high-effort
+   subagent review was performed, review findings were addressed, the subagent
+   was closed, and commit `040dbf5` was pushed to `main`.
 
 ## Recently Completed: TECM8 Tiled GLCD Renderer V1
 
@@ -224,7 +229,7 @@ integration.
 
 ## Editor Line Editing V2 Done Criteria
 
-Status: active.
+Status: reached by `npm run debug80:editor-live-smoke` and commit `040dbf5`.
 
 - The live Debug80 editor path accepts matrix Enter as newline/split-line.
 - Enter splits the current fixed source record at the cursor when there is room
