@@ -5,7 +5,7 @@ completed foundation, substantial future phases, milestone definitions, and
 manual testing expectations. Update this file after meaningful phase changes so
 the roadmap does not live only in conversation history.
 
-## Current Goal: Phase 1 - Editor Reliability And Input Polish
+## Current Goal: Phase 15 - Editor Completion Milestone
 
 The next editor goal is to make the current Debug80 editor behavior predictable
 under manual testing. The editor already proves loading, rendering, character
@@ -48,6 +48,11 @@ every major key command.
   dirty.
 - The editor can quit from the key stream; clean pages exit immediately, while
   dirty pages require status-line confirmation before discarding changes.
+- The live Debug80 entry shows a bottom-row shell-ready marker after the editor
+  exits, so manual testing has a visible return point even before a full
+  interactive shell prompt exists.
+- Shell `edit name` can create a missing one-block `.asm` source file in an
+  existing prefix before opening it.
 - Page-boundary movement now gives explicit transient status feedback: `Top`
   at the first page and `End` at the hard page limit.
 - Source-record padding is kept clean after in-page mutations so host export
@@ -439,6 +444,9 @@ Done when:
 
 Goal: prepare to move from Debug80 proof to real TEC-1G.
 
+Status: skipped in the current automation loop. Real hardware testing needs the
+user and cannot be completed by Codex alone.
+
 Work:
 
 - Confirm MON3 service assumptions.
@@ -470,6 +478,9 @@ Done criteria:
 - Export the edited file on the host and verify content.
 - Manual Debug80 test script passes.
 - Automated Debug80 smoke covers core behavior.
+
+Status: current active milestone. Phase 14 is intentionally skipped until a
+human can test real hardware.
 
 ## Likely Next Practical Milestone After Phase 1
 

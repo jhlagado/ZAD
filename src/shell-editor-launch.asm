@@ -36,9 +36,25 @@ TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
 ShellEditorLaunchOpenPath:
         CALL    EditorCursorReset
         INC     HL
+        LD      (ShellEditorLaunchPathPtr),HL
+        CALL    EditorOpenPath
+        JR      NC,ShellEditorLaunchOpened
+        CP      EDITOR_LOAD_ERR_FIND
+        JR      NZ,ShellEditorLaunchOpenError
+        LD      DE,(ShellEditorLaunchPathPtr)
+        CALL    EditorCreateSourceFile
+        RET     C
+        CALL    EditorCursorReset
+        LD      HL,(ShellEditorLaunchPathPtr)
         CALL    EditorOpenPath
         RET     C
+
+ShellEditorLaunchOpened:
         XOR     A
+        RET
+
+ShellEditorLaunchOpenError:
+        SCF
         RET
 
 ; ShellRunEditorSession -
@@ -69,4 +85,7 @@ ShellEditorLaunchTargetErr:
         RET
 
 ShellEditorSessionKeys:
+        .dw     0
+
+ShellEditorLaunchPathPtr:
         .dw     0

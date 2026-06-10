@@ -37,6 +37,7 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /@EditorSaveReadOrGrowAllocationEntry:/);
   assert.match(source, /CALL\s+EditorCreateFindFreeBlock/);
   assert.match(source, /CALL\s+EditorCreateMarkAllocatedBlock/);
+  assert.match(source, /CALL\s+EditorCreateUpdateSuperblock\n\s+RET\s+C\n\s+JP\s+EditorCreateBlankCreatedSource/);
   assert.match(source, /CALL\s+EditorSaveWriteAllocationEntryValue/);
   assert.match(source, /CALL\s+EditorLoadWriteSourceSector/);
   assert.match(source, /CALL\s+EditorSaveExtendCatalogSize/);
@@ -46,6 +47,9 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /LD\s+A,\(EditorSaveRequiredSizeHigh\)\n\s+LD\s+\(HL\),A\n\s+INC\s+HL\n\s+LD\s+A,\(EditorSaveRequiredSizeUpper\)/);
   assert.match(source, /JR\s+NC,EditorLoadAllocationOffsetOk\n\s+INC\s+D/);
   assert.match(source, /EditorLoadPageErr:\n\s+LD\s+A,EDITOR_LOAD_ERR_PAGE\n\s+SCF\n\s+RET/);
+  assert.match(source, /@EditorCreateBlankCreatedSource:[\s\S]*?LD\s+HL,EditorCreateBlankPageBuffer[\s\S]*?CALL\s+EditorSaveSourcePageNoGrow/);
+  assert.match(source, /CP\s+8\n\s+JR\s+NZ,EditorCreateBlankCreatedSourceLoop/);
+  assert.match(source, /EditorCreateBlankPageBuffer:\n\s+\.ds\s+TM8_SECTOR_BYTES/);
 });
 
 test('editor storage loader finds /src/main.asm through TM8 prefix and catalog tables', () => {

@@ -251,7 +251,9 @@ EditorCreatePrefixReady:
         RET     C
         CALL    EditorCreateWriteCatalogEntry
         RET     C
-        JP      EditorCreateUpdateSuperblock
+        CALL    EditorCreateUpdateSuperblock
+        RET     C
+        JP      EditorCreateBlankCreatedSource
 
 EditorLoadOpenErr:
         LD      A,EDITOR_LOAD_ERR_OPEN
@@ -1092,6 +1094,26 @@ EditorCreateFreeCountOk:
         RET
 
 ;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorCreateBlankCreatedSource:
+        XOR     A
+        LD      (EditorCreateBlankPageIndex),A
+
+EditorCreateBlankCreatedSourceLoop:
+        LD      A,(EditorCreateBlankPageIndex)
+        LD      DE,(EditorLoadSourcePathPtr)
+        LD      HL,EditorCreateBlankPageBuffer
+        CALL    EditorSaveSourcePageNoGrow
+        RET     C
+        LD      A,(EditorCreateBlankPageIndex)
+        INC     A
+        LD      (EditorCreateBlankPageIndex),A
+        CP      8
+        JR      NZ,EditorCreateBlankCreatedSourceLoop
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
 ;!      clobbers  A,BC,DE,HL
 @EditorCreateRecomputeSuperblockChecksum:
         LD      HL,DISK_BUFF + 72
@@ -1590,6 +1612,12 @@ EditorCreateAllocSectorsLeft:
 
 EditorCreateAllocSectorHigh:
         .db     0
+
+EditorCreateBlankPageIndex:
+        .db     0
+
+EditorCreateBlankPageBuffer:
+        .ds     TM8_SECTOR_BYTES
 
 EditorSavePreviousBlock:
         .dw     0

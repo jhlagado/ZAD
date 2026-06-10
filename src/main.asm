@@ -60,6 +60,9 @@ MainFailed:
         CALL    EditorCursorReset
         CALL    EditorRunLive
         JP      C,MainFailed
+        LD      HL,MainShellReadyText
+        CALL    EditorKeyShowStatus
+        JP      C,MainFailed
         LD      A,TECM8_MAIN_PASS
         LD      (MainResultMarker),A
         JP      MainDone
@@ -78,6 +81,9 @@ MainFailed:
 
 MainEditCommand:
         .db     "edit",0
+
+MainShellReadyText:
+        .db     "Shell",0
 
 MainEditSaveQuitKeys:
         .db     "AB",19,17,0

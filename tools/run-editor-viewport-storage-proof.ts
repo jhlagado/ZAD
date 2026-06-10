@@ -43,6 +43,7 @@ const FIXED_SYMBOLS: Record<string, number> = {
   EditorNavBackupPageBuffer: 0x3600,
 };
 const TM8_BLOCK_BYTES = 4096;
+const TM8_DATA_START_BLOCK = 10;
 const TM8_ALLOCATION_OFFSET = 4096;
 const TM8_ALLOCATION_END = 0xffff;
 const TM8_NONCONTIGUOUS_SECOND_BLOCK = 130;
@@ -96,6 +97,13 @@ const PROOF_CASES = {
     image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-named-navigation-fat32.img'),
     lines: makeMultiBlockLines(),
     verify: verifyShellEditNamedNavigationProof,
+  },
+  'shell-edit-create-source-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-create-source-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-create-source-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-create-source-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyShellEditCreateSourceProof,
   },
   'editor-file-list-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-file-list-proof.asm'),
@@ -382,7 +390,7 @@ function ensureImage(proofCase: ProofCase): string {
     stdio: 'ignore',
   });
 
-  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } =
+  const { createVolumeImage, importFileIntoVolumeImage, parseVolumeImage, readFileFromVolumeImage } =
     require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
   const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
   const sourceRecords = encodeSourceRecords(proofCase.lines);
@@ -396,6 +404,9 @@ function ensureImage(proofCase: ProofCase): string {
   volume = importFileIntoVolumeImage(volume, '/src/notes.asm', notesRecords);
   if (proofCase === PROOF_CASES['editor-file-list-proof']) {
     volume = importFileIntoVolumeImage(volume, '/src/.main.asm.b', encodeSourceRecords(['BACKUP']));
+  }
+  if (proofCase === PROOF_CASES['shell-edit-create-source-proof']) {
+    volume = seedFirstFreeDataBlock(volume, parseVolumeImage);
   }
   if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {
     volume = makePositiveProofVolume(volume);
@@ -422,6 +433,17 @@ function ensureImage(proofCase: ProofCase): string {
   volume.copy(image, manifest.volume_start_byte_offset);
   writeFileSync(proofCase.image, image);
   return proofCase.image;
+}
+
+function seedFirstFreeDataBlock(volume: Buffer, parseVolumeImage: (volume: Buffer) => { allocation: number[] }): Buffer {
+  const parsed = parseVolumeImage(volume);
+  const block = parsed.allocation.findIndex((entry: number, index: number) => index >= TM8_DATA_START_BLOCK && entry === 0);
+  if (block < TM8_DATA_START_BLOCK) {
+    throw new Error('no free data block available to seed');
+  }
+  const nextVolume = Buffer.from(volume);
+  nextVolume.fill(0xaa, block * TM8_BLOCK_BYTES, (block + 1) * TM8_BLOCK_BYTES);
+  return nextVolume;
 }
 
 function makeConfig(imagePath: string) {
@@ -679,6 +701,39 @@ function verifyShellEditNamedNavigationProof(
   symbols: D8Symbol[],
 ): void {
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19, '/src/notes.asm', 'N0');
+}
+
+function verifyShellEditCreateSourceProof(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  symbols: D8Symbol[],
+): void {
+  verifyShellEditLaunchProof(
+    runtime,
+    platformRuntime,
+    symbols,
+    0x19,
+    '/src/fresh.asm',
+    '',
+    0,
+    [
+      { symbol: 'EditorRowText0', text: '' },
+      { symbol: 'EditorRowText1', text: '' },
+      { symbol: 'EditorRowText7', text: '' },
+      { symbol: 'EditorRowText9', text: '' },
+    ],
+    false,
+  );
+
+  const created = readFileFromProofImage(PROOF_CASES['shell-edit-create-source-proof'], '/src/fresh.asm');
+  if (created.byteLength !== TM8_BLOCK_BYTES) {
+    throw new Error(`created source size ${created.byteLength}, expected ${TM8_BLOCK_BYTES}`);
+  }
+  for (let offset = 0; offset < created.byteLength; offset += 1) {
+    if (created[offset] !== 0) {
+      throw new Error(`created source offset ${offset} is ${resultToString(created[offset])}, expected 0x00`);
+    }
+  }
 }
 
 function verifyEditorFileListProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
@@ -1457,6 +1512,7 @@ function verifyShellEditLaunchProof(
     { symbol: 'EditorRowText7', text: `${expectedPrefix} LINE 07` },
     { symbol: 'EditorRowText9', text: `${expectedPrefix} LINE 09` },
   ],
+  requireRenderedRows = true,
 ): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
   if (runtime.hardware.memory[currentPage] !== expectedPage) {
@@ -1491,10 +1547,12 @@ function verifyShellEditLaunchProof(
     }
   }
 
-  const glcd = getGlcdBytes(platformRuntime);
-  for (let row = 0; row < 10; row += 1) {
-    if (!glcdRowHasPixels(glcd, row)) {
-      throw new Error(`shell edit proof did not render display row: ${row}`);
+  if (requireRenderedRows) {
+    const glcd = getGlcdBytes(platformRuntime);
+    for (let row = 0; row < 10; row += 1) {
+      if (!glcdRowHasPixels(glcd, row)) {
+        throw new Error(`shell edit proof did not render display row: ${row}`);
+      }
     }
   }
 }

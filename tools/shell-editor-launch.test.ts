@@ -19,6 +19,9 @@ test('shell editor launcher exposes a contracted edit launch entry', () => {
   assert.match(source, /CALL\s+RunShellCommandLine/);
   assert.match(source, /LD\s+A,\(ShellLastExecAction\)\n\s+CP\s+SHELL_CMD_EDIT/);
   assert.match(source, /CALL\s+EditorOpenPath/);
+  assert.match(source, /CP\s+EDITOR_LOAD_ERR_FIND\n\s+JR\s+NZ,ShellEditorLaunchOpenError/);
+  assert.match(source, /CALL\s+EditorCreateSourceFile/);
+  assert.match(source, /ShellEditorLaunchPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /CALL\s+EditorCursorReset/);
   assert.doesNotMatch(source, /LD\s+DE,ShellMainPath/);
   assert.doesNotMatch(source, /CALL\s+EditorOpenMain/);
@@ -33,6 +36,8 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(mainSource, /^@ScriptStart:/m);
   assert.match(mainSource, /^@LiveStart:/m);
   assert.match(mainSource, /CALL\s+ShellRunEditorLine\n\s+JP\s+C,MainFailed\n\s+CALL\s+EditorCursorReset\n\s+CALL\s+EditorRunLive/);
+  assert.match(mainSource, /LD\s+HL,MainShellReadyText\n\s+CALL\s+EditorKeyShowStatus/);
+  assert.match(mainSource, /MainShellReadyText:\n\s+\.db\s+"Shell",0/);
   assert.match(runner, /symbolAddress\(symbols, 'ScriptStart'\)/);
   assert.match(runner, /process\.argv\.includes\('--live-smoke'\)/);
   assert.match(runner, /const MON3_SYS_MODE = 0x089d/);
@@ -84,19 +89,24 @@ test('shell edit navigation proof drives shell command into storage-backed edito
   assert.match(runner, /shell-edit-navigation-proof/);
   assert.match(runner, /shell-edit-explicit-navigation-proof/);
   assert.match(runner, /shell-edit-named-navigation-proof/);
+  assert.match(runner, /shell-edit-create-source-proof/);
   assert.match(runner, /verifyShellEditNavigationProof/);
   assert.match(runner, /verifyShellEditExplicitNavigationProof/);
   assert.match(runner, /verifyShellEditNamedNavigationProof/);
+  assert.match(runner, /verifyShellEditCreateSourceProof/);
   assert.match(runner, /\/projects\/demo\/app\.asm/);
   assert.match(runner, /\/root\.asm/);
   assert.match(runner, /\/src\/notes\.asm/);
+  assert.match(runner, /\/src\/fresh\.asm/);
   assert.match(runner, /N0 LINE/);
   assert.match(packageJson, /"proof:display:shell-edit-navigation"/);
   assert.match(packageJson, /"proof:display:shell-edit-explicit-navigation"/);
   assert.match(packageJson, /"proof:display:shell-edit-named-navigation"/);
+  assert.match(packageJson, /"proof:display:shell-edit-create-source"/);
   assert.match(packageJson, /proof:display:shell-edit-navigation/);
   assert.match(packageJson, /proof:display:shell-edit-explicit-navigation/);
   assert.match(packageJson, /proof:display:shell-edit-named-navigation/);
+  assert.match(packageJson, /proof:display:shell-edit-create-source/);
 });
 
 test('shell command loop proves edit asm run sequence', () => {

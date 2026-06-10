@@ -189,7 +189,10 @@ proofs include `project-config-loader.asm`; some command-only proofs stub
 This is the bridge from the shell resolver into the storage-backed editor.
 `ShellRunEditorLine` runs one shell command line and only proceeds if
 the resolved action is `SHELL_CMD_EDIT`. It then reads the edit request payload
-and calls `EditorOpenPath`.
+and calls `EditorOpenPath`. If the open fails with `EDITOR_LOAD_ERR_FIND`, it
+creates a one-block source file in the existing prefix and retries the open.
+Missing prefixes still fail; this path is for normal project cases such as
+`edit fresh` inside `/src`.
 
 `ShellRunEditorSession` adds a proof-oriented editor key stream: run
 the shell edit command, reset the cursor, then pass the key stream to
@@ -696,6 +699,10 @@ second save, and quit commands reach the same dirty-state and translated-key
 results as the scripted editor loop. The generated fixture now carries two
 source pages, with page 0 ending in an empty record so the live smoke can split
 and rejoin a line without crossing a sector boundary.
+
+`proof:display:shell-edit-create-source` covers the missing-source launch case:
+`edit fresh` creates `/src/fresh.asm` as a blank one-block source file and opens
+it through the same storage-backed editor path.
 
 ### Storage Image And Audit Tools
 

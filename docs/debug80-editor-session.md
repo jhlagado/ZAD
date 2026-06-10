@@ -197,6 +197,9 @@ For an interactive Debug80 UI check:
 4. Use MON3's normal `GO` flow to execute address `4000h`.
 5. The generated image contains `VOLUME.TM8` with
    `/tecm8.prj` and `/src/main.asm`.
+   The automated storage proof also covers creating a missing named source via
+   `edit fresh`, which creates `/src/fresh.asm` in the existing `/src` prefix
+   before opening it.
 6. In the matrix keyboard UI, use the arrow keys for cursor movement.
    `Alt+ArrowDown` pages down. `Ctrl+ArrowUp` is the practical page-up check in
    the current matrix-level test path because the raw matrix positions for Alt
@@ -333,7 +336,10 @@ GLCD. Use this exact smoke test:
 16. Press `Alt-X`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
-   discard prompt. If it is dirty, the status row asks a yes/no question.
+   discard prompt and shows `Shell` on the bottom row. This is the current
+   shell-ready return marker; the full interactive shell command prompt is still
+   separate future work. If the page is dirty, the status row asks a yes/no
+   question first.
 
    Ctrl-Q and Ctrl-X remain available as aliases, but Alt-X is the preferred
    Debug80 exit path on macOS because host tools commonly reserve Ctrl and
