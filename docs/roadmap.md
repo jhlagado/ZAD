@@ -41,10 +41,11 @@ every major key command.
   yes/no answers complete the prompt, and the hidden source row is redrawn after
   completion.
 - The editor derives the hidden backup path, creates it when missing, and saves
-  the previous on-disk page there before writing the edited page to the source
-  file.
-- The editor can restore the hidden backup into the current page buffer through
-  a status-line confirmation prompt and marks the restored buffer dirty.
+  previous on-disk resident pages there before writing edited resident pages to
+  the source file.
+- The editor can restore the hidden backup into the resident current/next page
+  window through a status-line confirmation prompt and marks restored sectors
+  dirty.
 - The editor can quit from the key stream; clean pages exit immediately, while
   dirty pages require status-line confirmation before discarding changes.
 - Source-record padding is kept clean after in-page mutations so host export
@@ -215,22 +216,28 @@ Goal: make save behavior safe enough for real use.
 
 Work:
 
-- Keep the current hidden backup convention: `/src/.main.asm.b`.
-- Ensure backup creation handles multi-page files.
-- Ensure failed save does not destroy the old file.
-- Add restore-from-backup UX that is clear and recoverable.
+- Done: keep the current hidden backup convention: `/src/.main.asm.b`.
+- Done: ensure backup creation handles dirty resident current, cached previous,
+  and adjacent next pages.
+- Done: back up a dirty adjacent next page before save writes it.
+- Done: restore the resident current/next page window from backup and mark
+  restored sectors dirty.
+- Deferred: ensure failed save is atomic across all dirty resident pages.
+- Done: keep restore-from-backup UX status-line based and recoverable.
 - Decide whether backup is per file, per page, or whole file.
 
 Important:
 
-For a real editor, backup should probably preserve the previous full file, not
-only the currently edited page.
+The current implementation is a resident-window backup, not a full-file backup.
+For a real editor, backup should probably preserve the previous full file, but
+that requires whole-file copy/truncation behavior that is beyond this phase.
 
 Done when:
 
-- Save either fully succeeds or leaves the previous file recoverable.
-- Restore works for a multi-page file.
-- Manual tests prove failed/edge cases where possible.
+- Save preserves the previous on-disk contents for every dirty resident page it
+  is about to overwrite.
+- Restore works for the resident multi-page window.
+- Automated proofs cover dirty adjacent-page backup and restore behavior.
 
 ## Phase 6: Status Prompt And Command UX
 

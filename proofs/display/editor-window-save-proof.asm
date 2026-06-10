@@ -73,6 +73,25 @@ PROOF_FAIL       .equ     0xE0
         CALL    EditorSaveCurrentPage
         JP      C,ProofFailed
 
+        LD      A,9
+        LD      (CaseMarker),A
+        LD      HL,WindowBadCurrent
+        LD      DE,EditorNavPageBuffer
+        CALL    WindowCopyRecord
+        LD      HL,WindowBadNext
+        LD      DE,EditorNavNextPageBuffer
+        CALL    WindowCopyRecord
+        CALL    EditorLoadCurrentBackupWindow
+        JP      C,ProofFailed
+        LD      A,(EditorNavDirtySectors)
+        LD      (RestoreWindowDirtySectors),A
+        LD      HL,EditorNavPageBuffer
+        LD      DE,RestoreWindowRecord0
+        CALL    WindowCopyRecord
+        LD      HL,EditorNavNextPageBuffer
+        LD      DE,RestoreWindowNextRecord0
+        CALL    WindowCopyRecord
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -111,6 +130,23 @@ WindowRow14:
 WindowRow15:
         .db     4,"PUSH"
         .ds     27
+
+WindowBadCurrent:
+        .db     4,"BAD0"
+        .ds     27
+
+WindowBadNext:
+        .db     4,"BAD1"
+        .ds     27
+
+RestoreWindowDirtySectors:
+        .db     0
+
+RestoreWindowRecord0:
+        .ds     32
+
+RestoreWindowNextRecord0:
+        .ds     32
 
 ResultMarker:
         .db     0

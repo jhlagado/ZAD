@@ -380,17 +380,18 @@ restores the hidden source row afterward. The status overlay shares row 9 with
 the editor prompt path, so slow navigation and save operations present visible
 feedback without adding a second status surface.
 
-`EditorSaveCurrentPage` is the current save coordinator. It first calls
-`EditorBackupCurrentPage`; if that succeeds, it writes dirty resident sectors
-from the active, adjacent, and cached buffers back to their source pages and
-clears dirty. `EditorBackupCurrentPage`
+`EditorSaveCurrentPage` is the current save coordinator. It first backs up the
+active page, any dirty cached previous page, and any dirty resident adjacent
+next page; if those backups succeed, it writes dirty resident sectors from the
+active, adjacent, and cached buffers back to their source pages and clears
+dirty. `EditorBackupCurrentPage`
 derives the hidden backup path from the current source path, loads the current
 on-disk page into `EditorNavBackupPageBuffer`, and writes that old page to the
 backup path. If the backup path is missing, it asks the storage loader to
 create a one-block file first, then retries the backup write. Backup writes use
 the same growing save path as source writes, so a backup can extend across 4K
-allocation boundaries. Full-file backup policy and truncation/freeing behavior
-remain future work.
+allocation boundaries. This is still a resident-window backup policy rather
+than a whole-file copy policy; truncation/freeing behavior remains future work.
 
 `EditorNavDeriveBackupPath` implements the current naming convention. It keeps
 the original prefix, prepends `.` to the local filename, and appends `.b`.
@@ -398,9 +399,11 @@ For example, `/src/main.asm` becomes `/src/.main.asm.b`. It fails with
 `TECM8_EDITOR_NAV_ERR_BACKUP` if the path is malformed or the derived name does
 not fit the fixed path buffer.
 
-`EditorLoadCurrentBackupPage` uses the same derived path convention and loads
-the hidden backup into `EditorNavPageBuffer`. The interaction layer decides
-whether to mark that restored buffer dirty.
+`EditorLoadCurrentBackupWindow` uses the same derived path convention and
+loads the hidden backup into `EditorNavPageBuffer`. When the adjacent next-page
+window is resident, it also reloads `EditorNavNextPageBuffer` from backup and
+marks both restored sectors dirty so a later save writes the restored content
+back to the source file.
 
 ### `src/editor-interaction.asm`
 
@@ -649,10 +652,11 @@ visible GLCD image.
 It now includes `editor-line-editing-proof` and `editor-page-write-proof` cases
 and verifies not just result markers, but also source-record text, zeroed
 padding, cursor positions after split/join operations, dirty/prompt state, and
-persisted TM8 image bytes after save. For the current backup proof slice it
-starts without `/src/.main.asm.b`, then verifies that the Z80 save path creates
-that hidden backup and stores the old on-disk text before the edited source page
-is written.
+persisted TM8 image bytes after save. Backup proof coverage starts without
+`/src/.main.asm.b`, verifies that the Z80 save path creates that hidden backup,
+and checks that resident-window saves preserve the old on-disk text for both
+the active page and dirty adjacent next page before the edited source pages are
+written.
 
 `tools/run-debug80-editor-session.ts` is the milestone runner for the first
 user-testable editor session. Its default path assembles `src/main.asm`,

@@ -1669,7 +1669,7 @@ EditorQuitConfirmed:
         RET
 
 EditorRestoreConfirmed:
-        CALL    EditorLoadCurrentBackupPage
+        CALL    EditorLoadCurrentBackupWindow
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C

@@ -19,7 +19,9 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorRenderPageBuffer',
     'EditorSaveCurrentPage',
     'EditorBackupCurrentPage',
+    'EditorBackupNextPageIfDirty',
     'EditorLoadCurrentBackupPage',
+    'EditorLoadCurrentBackupWindow',
     'EditorClearDirty',
     'EditorNavResetViewport',
     'EditorNavSyncViewport',
@@ -61,6 +63,7 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /@EditorNavResetViewport:[\s\S]*?CALL\s+EditorViewportSetTopRow[\s\S]*?CALL\s+EditorViewportSetColOffset[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /@EditorNavSyncViewport:[\s\S]*?LD\s+A,\(EditorNavCurrentRow\)[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /@EditorSaveCurrentPage:\n\s+LD\s+HL,EditorStatusSavingText\n\s+CALL\s+EditorNavShowStatus\n\s+RET\s+C\n\s+CALL\s+EditorBackupCurrentPage/);
+  assert.match(source, /CALL\s+EditorBackupCachedPageIfDirty\n\s+JR\s+C,EditorSaveCurrentPageRestoreError\n\s+CALL\s+EditorBackupNextPageIfDirty/);
   assert.match(source, /CALL\s+EditorClearDirty\n\s+JP\s+EditorViewportRestoreStatusRow/);
   assert.match(source, /EditorSaveCurrentPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
   assert.match(source, /CALL\s+EditorNavDeriveBackupPath/);
@@ -68,6 +71,10 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /LD\s+HL,EditorStatusLoadingText\n\s+CALL\s+EditorNavShowStatus\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavCurrentPage\)/);
   assert.match(source, /CALL\s+EditorLoadSourcePage\n\s+JR\s+C,EditorLoadCurrentBackupPageRestoreError\n\s+XOR\s+A\n\s+RET/);
   assert.match(source, /EditorLoadCurrentBackupPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
+  assert.match(source, /@EditorLoadCurrentBackupWindow:[\s\S]*?CALL\s+EditorLoadCurrentBackupPage[\s\S]*?LD\s+HL,EditorNavNextPageBuffer[\s\S]*?CALL\s+EditorLoadSourcePage/);
+  assert.match(source, /EditorLoadCurrentBackupWindowNextError:[\s\S]*?CP\s+EDITOR_LOAD_ERR_SIZE[\s\S]*?CALL\s+EditorNavClearNextPageBuffer/);
+  assert.match(source, /EditorBackupCurrentPageError:\n\s+SCF\n\s+RET/);
+  assert.match(source, /EditorLoadCurrentBackupWindowError:\n\s+SCF\n\s+RET/);
   assert.match(source, /LD\s+DE,EditorNavBackupPathBuffer/);
   assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);
@@ -128,8 +135,12 @@ test('editor window save proof covers cached next-window dirty persistence', () 
   assert.match(proof, /CALL\s+EditorPageUp/);
   assert.match(proof, /CALL\s+EditorSplitLine/);
   assert.match(proof, /CALL\s+EditorSaveCurrentPage/);
+  assert.match(proof, /CALL\s+EditorLoadCurrentBackupWindow/);
   assert.match(runner, /verifyEditorWindowSaveProof/);
   assert.match(runner, /record: 16, text: 'PUSH'/);
+  assert.match(runner, /editor window backup record/);
+  assert.match(runner, /RestoreWindowNextRecord0/);
+  assert.match(runner, /restored next record/);
   assert.match(packageJson, /"proof:display:editor-window-save"/);
   assert.match(packageJson, /proof:display:editor-window-save/);
 });

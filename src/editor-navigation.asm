@@ -110,6 +110,8 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         JR      C,EditorSaveCurrentPageRestoreError
         CALL    EditorBackupCachedPageIfDirty
         JR      C,EditorSaveCurrentPageRestoreError
+        CALL    EditorBackupNextPageIfDirty
+        JR      C,EditorSaveCurrentPageRestoreError
         LD      A,(EditorNavDirtySectors)
         AND     1
         JR      Z,EditorSaveCurrentPageMaybeNext
@@ -183,7 +185,7 @@ EditorBackupCurrentPageLoaded:
         CALL    EditorSaveSourcePage
         RET     NC
         CP      EDITOR_LOAD_ERR_FIND
-        RET     NZ
+        JR      NZ,EditorBackupCurrentPageError
         LD      DE,EditorNavBackupPathBuffer
         CALL    EditorCreateSourceFile
         RET     C
@@ -194,9 +196,13 @@ EditorBackupCurrentPageLoaded:
 
 EditorBackupCurrentPageLoadError:
         CP      EDITOR_LOAD_ERR_SIZE
-        RET     NZ
+        JR      NZ,EditorBackupCurrentPageError
         CALL    EditorNavClearBackupPageBuffer
         JR      EditorBackupCurrentPageLoaded
+
+EditorBackupCurrentPageError:
+        SCF
+        RET
 
 ; EditorBackupCachedPageIfDirty -
 ; Preserve the original on-disk copy of a dirty cached previous page before
@@ -233,6 +239,43 @@ EditorBackupCachedPageDone:
         XOR     A
         RET
 
+; EditorBackupNextPageIfDirty -
+; Preserve the original on-disk copy of a dirty adjacent next page before save
+; writes the resident next-page buffer back.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBackupNextPageIfDirty:
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        JR      Z,EditorBackupNextPageDone
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorBackupNextPageDone
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JR      Z,EditorBackupNextPageDone
+        LD      (EditorNavBackupSavedCurrentPage),A
+        INC     A
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorBackupCurrentPage
+        JR      C,EditorBackupNextPageError
+        LD      A,(EditorNavBackupSavedCurrentPage)
+        LD      (EditorNavCurrentPage),A
+        XOR     A
+        RET
+
+EditorBackupNextPageError:
+        LD      (EditorNavBackupError),A
+        LD      A,(EditorNavBackupSavedCurrentPage)
+        LD      (EditorNavCurrentPage),A
+        LD      A,(EditorNavBackupError)
+        SCF
+        RET
+
+EditorBackupNextPageDone:
+        XOR     A
+        RET
+
 ; EditorLoadCurrentBackupPage -
 ; Load the derived hidden backup path into the current page buffer.
 ;!      out       A,carry
@@ -258,6 +301,54 @@ EditorLoadCurrentBackupPageRestoreError:
         PUSH    AF
         CALL    EditorViewportRestoreStatusRow
         POP     AF
+        RET
+
+; EditorLoadCurrentBackupWindow -
+; Restore the current backup page and any resident adjacent next page.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorLoadCurrentBackupWindow:
+        CALL    EditorLoadCurrentBackupPage
+        RET     C
+        LD      A,(EditorNavDirtySectors)
+        OR      1
+        LD      (EditorNavDirtySectors),A
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorLoadCurrentBackupWindowDone
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JR      Z,EditorLoadCurrentBackupWindowDone
+        INC     A
+        LD      DE,EditorNavBackupPathBuffer
+        LD      HL,EditorNavNextPageBuffer
+        CALL    EditorLoadSourcePage
+        JR      C,EditorLoadCurrentBackupWindowNextError
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        XOR     A
+        RET
+
+EditorLoadCurrentBackupWindowNextError:
+        CP      EDITOR_LOAD_ERR_SIZE
+        JR      NZ,EditorLoadCurrentBackupWindowError
+        CALL    EditorNavClearNextPageBuffer
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        XOR     A
+        RET
+
+EditorLoadCurrentBackupWindowDone:
+        CALL    EditorNavRefreshAggregateDirty
+        XOR     A
+        RET
+
+EditorLoadCurrentBackupWindowError:
+        SCF
         RET
 
 ; EditorClearDirty -

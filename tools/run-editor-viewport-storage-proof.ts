@@ -805,15 +805,33 @@ function verifyEditorCrossPageJoinProof(runtime: Runtime, _platformRuntime: Plat
 }
 
 function verifyEditorWindowSaveProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
-  const dirty = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirty')];
-  if (dirty !== 0) {
-    throw new Error(`editor window save dirty ${dirty}, expected 0`);
+  const restoreDirty = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirty')];
+  if (restoreDirty !== 1) {
+    throw new Error(`editor window save restore dirty ${restoreDirty}, expected 1`);
   }
   const dirtySectors = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirtySectors')];
-  if (dirtySectors !== 0) {
-    throw new Error(`editor window save dirty sectors ${dirtySectors}, expected 0`);
+  if (dirtySectors !== 3) {
+    throw new Error(`editor window save restore dirty sectors ${dirtySectors}, expected 3`);
+  }
+  const restoreChecks = [
+    { symbol: 'RestoreWindowDirtySectors', expected: 3 },
+  ];
+  for (const check of restoreChecks) {
+    const value = runtime.hardware.memory[symbolAddress(symbols, check.symbol)];
+    if (value !== check.expected) {
+      throw new Error(`editor window restore ${check.symbol} ${value}, expected ${check.expected}`);
+    }
+  }
+  const restoredCurrent = readSourceRecord(runtime.hardware.memory, symbolAddress(symbols, 'RestoreWindowRecord0'), 0);
+  if (restoredCurrent !== 'P0 LINE 00') {
+    throw new Error(`editor window restored current record "${restoredCurrent}", expected "P0 LINE 00"`);
+  }
+  const restoredNext = readSourceRecord(runtime.hardware.memory, symbolAddress(symbols, 'RestoreWindowNextRecord0'), 0);
+  if (restoredNext !== 'P1 LINE 00') {
+    throw new Error(`editor window restored next record "${restoredNext}", expected "P1 LINE 00"`);
   }
   const stored = readFileFromProofImage(PROOF_CASES['editor-window-save-proof'], '/src/main.asm');
+  const backup = readFileFromProofImage(PROOF_CASES['editor-window-save-proof'], '/src/.main.asm.b');
   const expected = [
     { record: 0, text: 'ZP0 LINE 00' },
     { record: 14, text: 'LE' },
@@ -833,6 +851,16 @@ function verifyEditorWindowSaveProof(runtime: Runtime, _platformRuntime: Platfor
       throw new Error(
         `editor window save persisted record ${check.record} "${actual}", expected "${check.text}"; runtimePage="${runtimePage}" runtimeNext="${runtimeNext}"`,
       );
+    }
+  }
+  const backupExpected = [
+    { record: 0, text: 'P0 LINE 00' },
+    { record: 16, text: 'P1 LINE 00' },
+  ];
+  for (const check of backupExpected) {
+    const actual = readSourceRecord(backup, 0, check.record);
+    if (actual !== check.text) {
+      throw new Error(`editor window backup record ${check.record} "${actual}", expected "${check.text}"`);
     }
   }
 }
