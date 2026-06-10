@@ -265,13 +265,16 @@ This converts source records into a screen descriptor for the display model.
 Source records are fixed 32-byte Pascal strings:
 
 ```text
-byte 0      length, 0-31
+byte 0      low five bits = length, upper three bits = reserved metadata
 byte 1-31   text bytes
 ```
 
-The upper three bits of the length byte are currently reserved and should remain
-clear. They may later become line metadata bits, but the existing code and host
-conversion tools still treat the byte as a plain `0..31` length.
+The implementation still mostly treats byte 0 as a plain `0..31` length, but
+future editor work must change that before adding more line mutation behavior:
+readers should mask with `0x1F`, and writers should preserve bits 5-7 unless
+they are deliberately changing line metadata. The upper bits are intended for
+compact per-line editor/debugger state such as selection, breakpoint, or wrap
+flags.
 
 `EditorViewportRender` takes `HL` pointing at a source-record window,
 copies the first ten records into NUL-terminated row buffers, checks that no
@@ -697,8 +700,9 @@ toward.
 
 Recent editor-design additions also matter for implementation work:
 
-- Source-record length byte bits 5-7 are reserved and must remain clear until
-  a future metadata format is deliberately defined.
+- Source-record length byte bits 5-7 are reserved for editor metadata. Before
+  adding more line editing logic, mask lengths with `0x1F` and preserve those
+  upper bits when rewriting length bytes.
 - The v1 editor should use status-line prompt mode for confirmations rather
   than modal dialog boxes.
 - The v1 save policy should create a one-level hidden backup before replacing
@@ -747,6 +751,9 @@ What is still missing or intentionally skeletal:
 - Dirty page movement is conservative: Ctrl+Arrow and Alt+Arrow paging are
   blocked with `Save first` until the current page is saved or discarded,
   because V1 has a single dirty page buffer.
+- The current 512-byte page buffer is a proof-stage cache. Usable navigation
+  should move to a 2K or 4K RAM edit window so 100-200 line source files do not
+  trigger slow MON3 SD/FAT32 reads during ordinary movement.
 - Stop before starting assembler integration until a new milestone is chosen.
 - Split and join are intentionally limited to the loaded 512-byte page for V1;
   they do not move records across sectors or allocate/free TM8 storage.

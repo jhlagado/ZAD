@@ -221,17 +221,20 @@ byte 1-31   text bytes
 ```
 
 Only the low five bits of byte 0 are needed to store the line length. The upper
-three bits are therefore reserved for possible editor metadata, but they are not
-part of the active format yet. Current source records should keep those bits
-clear, and import/export should continue treating the length byte as `0..31`
-until a future change deliberately defines masked length handling.
+three bits are therefore reserved for editor metadata. Editor code must not
+accidentally destroy or misread those bits. Any routine that reads a line length
+should mask byte 0 with `0x1F` before comparing, copying, inserting, deleting,
+splitting, joining, rendering, or exporting line text. Any routine that rewrites
+byte 0 should preserve the upper three bits unless it is deliberately updating a
+defined metadata flag.
 
-Possible future uses include per-line dirty state, selected/block-marked state,
-continuation/wrap state, breakpoint state, or another compact editor/debugger
-marker. If these bits are adopted, every reader must mask the stored length with
-`0x1F`, every writer must either preserve or intentionally update the metadata
-bits, and host validators/proofs must be updated to reject accidental misuse
-while allowing the defined flags.
+Possible uses include selected/block-marked state, breakpoint state,
+continuation/wrap state, per-line dirty state, or another compact editor/debugger
+marker. Host validators and proofs should distinguish malformed lengths from
+defined metadata: the effective text length is `length_byte & 0x1F`, while bits
+5-7 are metadata policy. Until individual flags are assigned, those bits should
+be preserved by editor mutations and either preserved or explicitly normalized
+by import/export tools according to the command being run.
 
 This provides:
 
@@ -239,6 +242,41 @@ This provides:
 512-byte sector = 16 lines
 4K block        = 128 lines
 ```
+
+## Editor RAM Window And SD Latency
+
+MON3 SD/FAT32 access is slow because the storage path is bit-banged and moves
+through MON3's sector-oriented FAT/file routines. TECM8 cannot assume that a
+sector read/write is cheap enough to do during ordinary cursor movement. The
+single 512-byte source page used by the current proof editor is therefore a
+bootstrap implementation, not the intended editing model.
+
+The editor should grow toward a RAM window that holds multiple contiguous source
+sectors:
+
+```text
+512 bytes  = 16 source lines
+1K         = 32 source lines
+2K         = 64 source lines
+4K         = 128 source lines
+```
+
+For practical `.ASM` files of roughly 100-200 lines, a 2K or 4K edit window
+would make vertical navigation much less dependent on SD reads. The editor can
+still keep explicit save semantics: load a window, edit in RAM, track dirty
+state, and write changed sectors only when the user saves or when the design
+later permits a controlled window flush.
+
+Design direction:
+
+- Prefer preloading adjacent sectors around the visible viewport.
+- Avoid SD reads for ordinary up/down movement inside the cached window.
+- Avoid SD writes except explicit save or a future clearly signposted flush.
+- Keep enough per-sector dirty metadata to write back only changed sectors.
+- Treat cross-sector insert/delete as RAM-window operations first, then storage
+  allocation/write-back operations at save time.
+- If RAM pressure forces a smaller window, make window loads visible with a
+  status message so the user understands the pause.
 
 Line-to-sector math:
 

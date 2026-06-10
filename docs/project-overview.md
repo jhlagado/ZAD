@@ -235,8 +235,11 @@ clear and proof-driven now, but routine boundaries should support future
 banking, overlays, and code shrinking. See
 [Memory and Code Quality Manifest](memory-and-code-quality.md).
 
-The editor should be designed as a sector-window tool, not a terminal
-scrollback tool. With 32-byte source records, a 512-byte sector holds 16 lines
-and a 4K TM8 block holds 128 lines. The GLCD may show only a small viewport, so
-the editor should page source sectors in and redraw from records rather than
-depending on a whole-file buffer. See [Editor Design](editor-design.md).
+The editor should be designed as a RAM-window tool over sector records, not a
+terminal scrollback tool and not a per-sector lazy loader. With 32-byte source
+records, a 512-byte sector holds 16 lines and a 4K TM8 block holds 128 lines.
+The GLCD may show only a small viewport, but MON3 SD/FAT32 reads are slow enough
+that ordinary vertical movement should usually stay inside a preloaded RAM
+window. The current 512-byte proof buffer should grow toward 2K or 4K so common
+100-200 line `.ASM` files can be navigated without touching SD on every page
+step. See [Editor Design](editor-design.md).

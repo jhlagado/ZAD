@@ -106,33 +106,45 @@ Done when:
 
 ## Phase 2: Multi-Page Editing
 
-Goal: move beyond editing one 512-byte page independently.
+Goal: move beyond editing one 512-byte page independently and stop treating SD
+sector reads as an ordinary navigation operation.
 
 Work:
 
+- Make all source-record length handling metadata-safe: read length as
+  `byte0 & 0x1F`, preserve bits 5-7 when rewriting lengths, and add tests/proofs
+  that metadata bits survive insert/delete/split/join/render paths.
 - Allow line insertion at the end of a page to push records into the next page.
 - Allow Backspace at row 0 to join with the previous page.
 - Decide what happens when the file grows and needs a new sector/page.
 - Update the TM8 allocation/write path to extend a file safely.
-- Preserve the current one-page cache, but probably grow toward a small
-  multi-page window.
+- Replace the current one-page cache with a RAM edit window large enough to
+  absorb common navigation without touching SD.
 
 Likely design:
 
-- Keep a 1K or 2K RAM edit window if feasible.
+- Keep a 2K or 4K RAM edit window if feasible.
 - Treat each 512-byte sector as 16 fixed records.
+- A 2K window holds 64 lines; a 4K window holds 128 lines.
+- Preload adjacent sectors around the visible viewport, because the MON3
+  SD/FAT32 path is slow enough that per-sector navigation will feel broken on
+  100-200 line files.
 - On cross-page insert/delete, shift records across page boundaries.
-- Avoid SD writes until explicit save.
+- Avoid SD writes until explicit save, and then write back only dirty sectors.
 
 Done when:
 
 - You can create new lines past the end of the current page.
 - Page up/down shows the reshaped file correctly.
 - Save persists a grown file.
+- Metadata bits in each source-record length byte are preserved unless a
+  deliberately defined editor metadata operation changes them.
+- Moving around a file within the RAM window does not perform SD reads.
 
 ## Phase 3: Better Viewport Navigation
 
-Goal: make files longer than one screen usable.
+Goal: make files longer than one screen usable inside the multi-sector RAM
+window.
 
 Work:
 
@@ -344,7 +356,7 @@ Work:
 - Document editor RAM usage.
 - Keep page buffers above MON3/GLCD volatile areas.
 - Decide whether `3000h-3FFFh` becomes editor workspace.
-- Consider 1K, 2K, and 4K buffer strategies.
+- Prefer 2K or 4K editor windows if RAM permits; treat 1K as a fallback only.
 - Avoid relying on MON3 RAM that GLCD/storage overwrites.
 
 Done when:
