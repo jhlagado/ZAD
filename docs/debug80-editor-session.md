@@ -176,8 +176,8 @@ second `Alt-S`, `Alt-R`, `n`, and `Alt-X`, then verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
-the cursor row stays unchanged. It also verifies that the editor cursor reaches
-row 2, column 2 before save/quit. It also checks that
+the cursor resets to the top row of the new page. It also verifies that the
+editor cursor reaches row 1, column 1 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`

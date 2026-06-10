@@ -21,6 +21,8 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorBackupCurrentPage',
     'EditorLoadCurrentBackupPage',
     'EditorClearDirty',
+    'EditorNavResetViewport',
+    'EditorNavSyncViewport',
     'EditorPageDown',
     'EditorPageUp',
     'EditorNavDeriveBackupPath',
@@ -43,6 +45,8 @@ test('editor navigation module exposes open, render, and page movement entries',
   assert.match(source, /TECM8_EDITOR_NAV_WINDOW_BYTES\s+\.equ\s+1024/);
   assert.match(source, /EditorNavNextPageBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PAGE_BYTES/);
   assert.match(source, /EditorNavDirtySectors:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavViewportTopRow:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavCurrentRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavCachedPageDirty:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavNextPageNumber:\n\s+\.db\s+0/);
 });
@@ -53,6 +57,9 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
   assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+CALL\s+EditorNavLoadNextWindowPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /@EditorRenderPageBuffer:[\s\S]*?CALL\s+EditorNavSyncViewport\n\s+RET\s+C[\s\S]*?CALL\s+EditorViewportRender/);
+  assert.match(source, /@EditorNavResetViewport:[\s\S]*?CALL\s+EditorViewportSetTopRow[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
+  assert.match(source, /@EditorNavSyncViewport:[\s\S]*?LD\s+A,\(EditorNavCurrentRow\)[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /@EditorSaveCurrentPage:\n\s+LD\s+HL,EditorStatusSavingText\n\s+CALL\s+EditorNavShowStatus\n\s+RET\s+C\n\s+CALL\s+EditorBackupCurrentPage/);
   assert.match(source, /CALL\s+EditorClearDirty\n\s+JP\s+EditorViewportRestoreStatusRow/);
   assert.match(source, /EditorSaveCurrentPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);

@@ -469,9 +469,9 @@ async function main(): Promise<void> {
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const pageAfterCtrlDown = runtime.hardware.memory[currentPageAddr];
     const rowAfterCtrlDown = runtime.hardware.memory[cursorRowAddr];
-    if (pageAfterCtrlDown !== 1 || rowAfterCtrlDown !== 1) {
+    if (pageAfterCtrlDown !== 1 || rowAfterCtrlDown !== 0) {
       throw new Error(
-        `live editor after Ctrl+ArrowDown page=${pageAfterCtrlDown} row=${rowAfterCtrlDown}, expected page=1 row=1`,
+        `live editor after Ctrl+ArrowDown page=${pageAfterCtrlDown} row=${rowAfterCtrlDown}, expected page=1 row=0`,
       );
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }); // Ctrl+ArrowUp
@@ -506,8 +506,8 @@ async function main(): Promise<void> {
     const rawPrimary = runtime.hardware.memory[rawPrimaryAddr];
     const rawSecondary = runtime.hardware.memory[rawSecondaryAddr];
     const translatedKey = runtime.hardware.memory[translatedKeyAddr];
-    if (cursorRow !== 2 || cursorCol !== 2) {
-      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=2 col=2`);
+    if (cursorRow !== 1 || cursorCol !== 1) {
+      throw new Error(`live editor cursor row=${cursorRow} col=${cursorCol}, expected row=1 col=1`);
     }
     if (modifierBits !== 0x10 || rawPrimary !== 0x04 || rawSecondary !== 0xff || translatedKey !== 0x04) {
       throw new Error(
@@ -542,18 +542,18 @@ async function main(): Promise<void> {
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const cursorRowAfterEnter = runtime.hardware.memory[cursorRowAddr];
     const cursorColAfterEnter = runtime.hardware.memory[cursorColAddr];
-    if (cursorRowAfterEnter !== 3 || cursorColAfterEnter !== 0) {
+    if (cursorRowAfterEnter !== 1 || cursorColAfterEnter !== 0) {
       const enterModifierBits = runtime.hardware.memory[modifierBitsAddr];
       const enterRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
       const enterRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
       const enterTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
       throw new Error(
-        `live editor cursor after Enter ${cursorRowAfterEnter},${cursorColAfterEnter}; expected 3,0; modifier=0x${enterModifierBits.toString(16)} raw=${enterRawSecondary.toString(16)}/${enterRawPrimary.toString(16)} translated=0x${enterTranslatedKey.toString(16)}`,
+        `live editor cursor after Enter ${cursorRowAfterEnter},${cursorColAfterEnter}; expected 1,0; modifier=0x${enterModifierBits.toString(16)} raw=${enterRawSecondary.toString(16)}/${enterRawPrimary.toString(16)} translated=0x${enterTranslatedKey.toString(16)}`,
       );
     }
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'R0Z', 'after Enter split');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 3, ' LINE 02', 'after Enter split');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 4, 'R0 LINE 03', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, '', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'RZ0 LINE 01', 'after Enter split');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, 'R0 LINE 14', 'after Enter split');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
@@ -581,19 +581,22 @@ async function main(): Promise<void> {
     if (pageAfterSplitSaveUp !== 0) {
       throw new Error(`live editor page after saved split Alt+ArrowUp ${pageAfterSplitSaveUp}, expected 0`);
     }
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'R0Z', 'after saved split page return');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 3, ' LINE 02', 'after saved split page return');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, '', 'after saved split page return');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after saved split page return');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'RZ0 LINE 01', 'after saved split page return');
+    tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown: move to split tail for join
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     tapMatrixKey(platformRuntime, runtime, 1, 0); // Backspace: join with previous line
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const cursorRowAfterJoin = runtime.hardware.memory[cursorRowAddr];
     const cursorColAfterJoin = runtime.hardware.memory[cursorColAddr];
-    if (cursorRowAfterJoin !== 2 || cursorColAfterJoin !== 3) {
+    if (cursorRowAfterJoin !== 0 || cursorColAfterJoin !== 0) {
       throw new Error(
-        `live editor cursor after Backspace join ${cursorRowAfterJoin},${cursorColAfterJoin}; expected 2,3`,
+        `live editor cursor after Backspace join ${cursorRowAfterJoin},${cursorColAfterJoin}; expected 0,0`,
       );
     }
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'R0Z LINE 02', 'after Backspace join');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 3, 'R0 LINE 03', 'after Backspace join');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after Backspace join');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'RZ0 LINE 01', 'after Backspace join');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, '', 'after Backspace join');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // save joined page
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);

@@ -274,9 +274,10 @@ when existing line lengths are rewritten. New or cleared source records normally
 start with metadata bits clear. The upper bits are intended for compact
 per-line editor/debugger state such as selection, breakpoint, or wrap flags.
 
-`EditorViewportRender` takes `HL` pointing at a source-record window,
-copies the first ten records into NUL-terminated row buffers, masks each record
-length to the low five bits, then calls `DisplayRenderScreen`.
+`EditorViewportRender` takes `HL` pointing at a 16-record source page/window,
+starts at `EditorViewportTopRow`, copies ten visible records into
+NUL-terminated row buffers, masks each record length to the low five bits, then
+calls `DisplayRenderScreen`.
 `EditorViewportRenderRecordRow` performs the same record-to-row conversion for
 one visible row and calls `DisplayRenderLine`, which is the dirty-rendering path
 used by ordinary in-line editor mutations.
@@ -347,9 +348,19 @@ The module stores a 64-byte path buffer, a 512-byte live page buffer, a
 `EditorNavDirtySectors` tracks the active/next sector dirty bits, while
 `EditorNavCachedPageDirty` preserves dirty state for the previous-page cache at
 `3000h`, outside the program image below the `4000h` MON3 launch address. This
-is now a small two-sector edit window plus one previous-page cache: common
+is now a small two-sector edit window plus one previous-page cache:
 page-down/page-up movement can stay in RAM, and dirty movement no longer forces
-an immediate save. It now also owns the first backup scratch buffers:
+an immediate save.
+
+`EditorNavViewportTopRow` is the logical source row currently shown at GLCD
+visible row 0. `EditorRenderPageBuffer` calls `EditorNavSyncViewport` before
+rendering so the viewport module and cursor marker agree on the visible row.
+The interaction layer keeps `EditorCursorRow` as the logical record row 0-15
+and `EditorCursorVisibleRow` as the row 0-9 actually drawn on the GLCD.
+Cursor up/down can therefore move through all 16 records of the loaded page
+while scrolling the 10-row viewport when needed.
+
+It now also owns the first backup scratch buffers:
 `EditorNavBackupPathBuffer` for the derived hidden path and
 `EditorNavBackupPageBuffer` for the previous on-disk page. Page moves are
 committed only after loading and rendering succeeds, so failed page-down or
@@ -541,6 +552,9 @@ The display proofs build up the editor stack incrementally:
   behavior for too-small files.
 - `proofs/display/editor-navigation-proof.asm`: opens `/src/main.asm`, pages
   forward and back, and proves page state survives.
+- `proofs/display/editor-viewport-scroll-proof.asm`: moves the logical cursor
+  through all 16 records of one source page, proves the viewport scrolls to top
+  row 6 for rows 6-15, and proves movement alone does not dirty the editor.
 - `proofs/display/shell-edit-navigation-proof.asm`: resolves shell `edit`,
   launches the editor, and pages through source.
 - `proofs/display/shell-edit-explicit-navigation-proof.asm`: launches
@@ -756,6 +770,9 @@ What exists now:
 - Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
   instead of falling through as plain text, and dirty page movement is allowed
   inside the RAM window.
+- Logical cursor movement can traverse all 16 records of a source page. The
+  GLCD viewport scrolls within that page, with `EditorCursorVisibleRow` tracking
+  the physical row used for cursor and marker rendering.
 
 What is still missing or intentionally skeletal:
 

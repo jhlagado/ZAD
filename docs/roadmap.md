@@ -164,11 +164,13 @@ window.
 
 Work:
 
-- Separate logical cursor row from visible screen row.
-- Add vertical scrolling within a 16-record page.
-- Add page movement over source pages.
-- Add top-of-file and end-of-file movement, if a compact binding is available.
-- Add visible indication of current page/line.
+- Done: separate logical cursor row from visible screen row.
+- Done: add vertical scrolling within a 16-record page.
+- Done: keep page movement over source pages working with the viewport state.
+- Deferred: add top-of-file and end-of-file movement once a compact binding is
+  chosen.
+- Done: keep visible cursor/location state available as page, logical row,
+  visible row, and viewport top row.
 
 Design issue:
 
@@ -179,7 +181,9 @@ Done when:
 
 - You can move through all 16 records of a page, not only visible rows.
 - Cursor movement scrolls the viewport when needed.
-- Status shows enough location context to stay oriented.
+- Location context exists in editor state for page, logical row, visible row,
+  and viewport top row; a richer user-facing status string remains part of
+  Phase 6 command/status UX.
 
 ## Phase 4: Horizontal Editing
 

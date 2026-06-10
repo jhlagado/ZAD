@@ -11,12 +11,15 @@ TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
 TECM8_EDITOR_ERR_ROW               .equ    0x02
 
 ; EditorViewportRender -
-; Render the first ten 32-byte source records in the sector/window at HL.
+; Render ten 32-byte source records in the sector/window at HL, starting at
+; EditorViewportTopRow.
 ; Input: HL = source record window
 ;!      in        HL
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorViewportRender:
+        LD      (EditorRecordBasePtr),HL
+        CALL    EditorViewportTopRecordPtr
         LD      (EditorRecordPtr),HL
         LD      HL,EditorRowText0
         LD      (EditorTextPtr),HL
@@ -50,7 +53,7 @@ EditorViewportBuildLoop:
         LD      (EditorViewportRenderRecordRowCount),A
         LD      A,(EditorViewportRenderRecordRowInput)
         CP      TECM8_EDITOR_VISIBLE_ROWS
-        JR      NC,EditorViewportRowError
+        JP      NC,EditorViewportRowError
         LD      (EditorRowIndex),A
         LD      (EditorRecordPtr),HL
         CALL    EditorViewportRowTextPtr
@@ -64,6 +67,35 @@ EditorViewportBuildLoop:
         LD      DE,0 - TECM8_EDITOR_ROW_TEXT_BYTES
         ADD     HL,DE
         CALL    DisplayRenderLine
+        RET
+
+; EditorViewportSetTopRow -
+; Select the first logical source row rendered at visible row 0.
+; Input: A = logical row 0-6
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorViewportSetTopRow:
+        CP      7
+        JR      NC,EditorViewportRowError
+        LD      (EditorViewportTopRow),A
+        XOR     A
+        RET
+
+;!      out       HL,A,carry,zero
+;!      clobbers  A,B,DE,zero,sign,parity,halfCarry
+@EditorViewportTopRecordPtr:
+        LD      HL,(EditorRecordBasePtr)
+        LD      A,(EditorViewportTopRow)
+        OR      A
+        RET     Z
+        LD      B,A
+        LD      DE,TECM8_EDITOR_RECORD_BYTES
+
+EditorViewportTopRecordPtrLoop:
+        ADD     HL,DE
+        DJNZ    EditorViewportTopRecordPtrLoop
+        XOR     A
         RET
 
 ;!      in        A
@@ -248,7 +280,12 @@ EditorViewportRenderRecordRowInput:
         .db     0
 EditorViewportRenderRecordRowCount:
         .db     0
+EditorRecordBasePtr:
+        .dw     0
 EditorRowIndex:
+        .db     0
+
+EditorViewportTopRow:
         .db     0
 
 EditorViewportCurrentRow:

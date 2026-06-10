@@ -28,7 +28,7 @@ TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
 TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
 TECM8_EDITOR_KEY_MOD_ALT                .equ    0x08
 TECM8_EDITOR_KEY_MOD_PAGE               .equ    0x0A
-TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
+TECM8_EDITOR_CURSOR_MAX_ROW             .equ    15
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    19
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
 TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
@@ -52,9 +52,26 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
 @EditorCursorReset:
         XOR     A
         LD      (EditorCursorRow),A
+        LD      (EditorCursorVisibleRow),A
+        LD      (EditorNavCurrentRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
+        CALL    EditorNavResetViewport
+        RET     C
         JP      EditorViewportSetCurrentRow
+
+; EditorCursorResetState -
+; Reset cursor state after a page render has already reset the viewport.
+;!      out       A,zero,sign,parity,halfCarry
+;!      clobbers  A
+@EditorCursorResetState:
+        XOR     A
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorVisibleRow),A
+        LD      (EditorNavCurrentRow),A
+        LD      (EditorCursorCol),A
+        LD      (EditorCursorRendered),A
+        RET
 
 ; EditorRenderCursor -
 ; Overlay the logical cursor when it is inside the visible edit pane.
@@ -77,12 +94,12 @@ EditorCursorRenderCheckVisible:
         CP      TECM8_EDITOR_CURSOR_VISIBLE_COLS
         JR      NC,EditorCursorRenderDone
         LD      C,A
-        LD      A,(EditorCursorRow)
+        LD      A,(EditorCursorVisibleRow)
         CP      TECM8_EDITOR_CURSOR_VISIBLE_ROWS
         JR      NC,EditorCursorRenderDone
         CALL    DisplayRenderCursorCell
         RET     C
-        LD      A,(EditorCursorRow)
+        LD      A,(EditorCursorVisibleRow)
         LD      (EditorCursorRenderedRow),A
         LD      A,(EditorCursorCol)
         LD      (EditorCursorRenderedCol),A
@@ -317,12 +334,14 @@ EditorKeyQuitPrompt:
 EditorKeyPageDown:
         CALL    EditorPageDown
         JR      C,EditorKeyNavigationErr
+        CALL    EditorCursorResetState
         CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
         CALL    EditorPageUp
         JR      C,EditorKeyNavigationErr
+        CALL    EditorCursorResetState
         CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
@@ -355,7 +374,7 @@ EditorKeyCursorDown:
         LD      (EditorCursorPreviousRow),A
         INC     A
         LD      (EditorCursorRow),A
-        CALL    EditorKeyRenderCursorRowMarkers
+        CALL    EditorKeyRenderCursorMove
         RET     C
         JP      EditorKeyLoop
 
@@ -366,7 +385,7 @@ EditorKeyCursorUp:
         LD      (EditorCursorPreviousRow),A
         DEC     A
         LD      (EditorCursorRow),A
-        CALL    EditorKeyRenderCursorRowMarkers
+        CALL    EditorKeyRenderCursorMove
         RET     C
         JP      EditorKeyLoop
 
@@ -1316,6 +1335,8 @@ EditorDeleteDone:
         CALL    EditorMarkDirty
         CALL    EditorHideCursor
         RET     C
+        CALL    EditorEnsureCursorVisible
+        RET     C
         CALL    EditorRenderPageBuffer
         RET     C
         XOR     A
@@ -1327,8 +1348,10 @@ EditorDeleteDone:
         CALL    EditorMarkDirty
         CALL    EditorHideCursor
         RET     C
+        CALL    EditorEnsureCursorVisible
+        RET     C
         CALL    EditorKeyCurrentRecord
-        LD      A,(EditorCursorRow)
+        LD      A,(EditorCursorVisibleRow)
         CALL    EditorViewportRenderRecordRow
         RET     C
         CALL    GlcdTileFlushFull
@@ -1341,22 +1364,133 @@ EditorDeleteDone:
 @EditorKeyRenderCursorRowMarkers:
         CALL    EditorHideCursor
         RET     C
-        LD      A,(EditorCursorRow)
+        CALL    EditorEnsureCursorVisible
+        RET     C
+        LD      A,(EditorCursorVisibleRow)
         CALL    EditorViewportSetCurrentRow
         RET     C
         LD      A,(EditorCursorPreviousRow)
-        CALL    EditorKeyRecordAtRow
+        CALL    EditorLogicalRowVisible
+        JR      C,EditorKeyRenderCursorNewOnly
+        LD      (EditorCursorPreviousVisibleRow),A
         LD      A,(EditorCursorPreviousRow)
+        CALL    EditorKeyRecordAtRow
+        LD      A,(EditorCursorPreviousVisibleRow)
         CALL    EditorViewportRenderRecordRow
         RET     C
+EditorKeyRenderCursorNewOnly:
         LD      A,(EditorCursorRow)
         CALL    EditorKeyCurrentRecord
-        LD      A,(EditorCursorRow)
+        LD      A,(EditorCursorVisibleRow)
         CALL    EditorViewportRenderRecordRow
         RET     C
         CALL    GlcdTileFlushFull
         RET     C
         XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyRenderCursorMove:
+        CALL    EditorEnsureCursorVisible
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
+        JP      EditorKeyRenderCursorRowMarkers
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyRenderViewport:
+        CALL    EditorRenderPageBuffer
+        RET     C
+        JP      EditorInvalidateCursorOverlay
+
+; EditorEnsureCursorVisible -
+; Keep the 16-row logical cursor inside the 10-row GLCD viewport.
+; Returns A=1 when the viewport top changed, A=0 when it did not.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,zero,sign,parity,halfCarry
+@EditorEnsureCursorVisible:
+        LD      A,(EditorCursorRow)
+        LD      B,A
+        LD      A,(EditorNavViewportTopRow)
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      C,EditorEnsureCursorScrollUp
+        LD      A,C
+        ADD     A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      NC,EditorEnsureCursorScrollDown
+        LD      A,B
+        LD      C,A
+        LD      A,(EditorNavViewportTopRow)
+        LD      B,A
+        LD      A,C
+        SUB     B
+        LD      (EditorCursorVisibleRow),A
+        LD      A,C
+        LD      (EditorNavCurrentRow),A
+        XOR     A
+        RET
+
+EditorEnsureCursorScrollUp:
+        LD      A,(EditorCursorRow)
+        LD      (EditorNavViewportTopRow),A
+        LD      (EditorNavCurrentRow),A
+        CALL    EditorNavSyncViewport
+        RET     C
+        XOR     A
+        LD      (EditorCursorVisibleRow),A
+        LD      A,1
+        OR      A
+        RET
+
+EditorEnsureCursorScrollDown:
+        LD      A,(EditorCursorRow)
+        LD      (EditorNavCurrentRow),A
+        SUB     TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
+        LD      (EditorNavViewportTopRow),A
+        CALL    EditorNavSyncViewport
+        RET     C
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
+        LD      (EditorCursorVisibleRow),A
+        LD      A,1
+        OR      A
+        RET
+
+;!      in        A
+;!      out       A,carry,zero
+;!      clobbers  A,BC,zero,sign,parity,halfCarry
+@EditorLogicalRowVisible:
+        LD      B,A
+        LD      A,(EditorNavViewportTopRow)
+        CP      B
+        JR      Z,EditorLogicalRowVisibleTop
+        JR      NC,EditorLogicalRowHidden
+
+EditorLogicalRowVisibleTop:
+        LD      A,B
+        LD      B,A
+        LD      A,(EditorNavViewportTopRow)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        CP      TECM8_EDITOR_CURSOR_VISIBLE_ROWS
+        JR      NC,EditorLogicalRowHidden
+        XOR     A
+        LD      A,B
+        LD      B,A
+        LD      A,(EditorNavViewportTopRow)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        RET
+
+EditorLogicalRowHidden:
+        SCF
         RET
 
 ;!      out       A,carry
@@ -1628,6 +1762,9 @@ EditorLineJoinedLength:
 EditorCursorRow:
         .db     0
 
+EditorCursorVisibleRow:
+        .db     0
+
 EditorCursorCol:
         .db     0
 
@@ -1641,6 +1778,9 @@ EditorCursorRenderedCol:
         .db     0
 
 EditorCursorPreviousRow:
+        .db     0
+
+EditorCursorPreviousVisibleRow:
         .db     0
 
 EditorRestorePromptText:

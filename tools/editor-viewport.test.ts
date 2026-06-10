@@ -14,6 +14,8 @@ test('editor viewport module exposes a source-record render entry point', () => 
 
   assert.match(source, /^@EditorViewportRender:/m);
   assert.match(source, /^@EditorViewportRenderRecordRow:/m);
+  assert.match(source, /^@EditorViewportSetTopRow:/m);
+  assert.match(source, /^@EditorViewportTopRecordPtr:/m);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRender:/);
   assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRenderRecordRow:/);
 
@@ -29,6 +31,9 @@ test('editor viewport module exposes a source-record render entry point', () => 
 
   assert.match(source, /AND\s+TECM8_EDITOR_RECORD_LENGTH_MASK/);
   assert.match(source, /^TECM8_EDITOR_VISIBLE_ROWS\s+\.equ\s+10$/m);
+  assert.match(source, /EditorViewportTopRow:\n\s+\.db\s+0/);
+  assert.match(source, /EditorRecordBasePtr:\n\s+\.dw\s+0/);
+  assert.match(source, /CALL\s+EditorViewportTopRecordPtr/);
   assert.match(source, /^@EditorViewportRenderStatusOverlay:/m);
   assert.match(source, /^@EditorViewportRestoreStatusRow:/m);
   assert.match(source, /^@EditorViewportRowTextPtr:/m);

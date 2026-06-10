@@ -35,6 +35,7 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         LD      (EditorNavCacheValid),A
         LD      (EditorNavNextPageValid),A
         LD      (EditorNavDirtySectors),A
+        CALL    EditorNavResetViewport
         JP      EditorRenderCurrent
 
 ; EditorRenderCurrent -
@@ -57,11 +58,42 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         LD      A,(EditorRenderPageBufferCount)
         INC     A
         LD      (EditorRenderPageBufferCount),A
+        CALL    EditorNavSyncViewport
+        RET     C
         LD      HL,EditorNavPageBuffer
         CALL    EditorViewportRender
         RET     C
         CALL    GlcdTileFlushFull
         RET
+
+; EditorNavResetViewport -
+; Reset the in-page viewport to logical row 0 and mark visible row 0 current.
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorNavResetViewport:
+        XOR     A
+        LD      (EditorNavViewportTopRow),A
+        LD      (EditorNavCurrentRow),A
+        CALL    EditorViewportSetTopRow
+        RET     C
+        XOR     A
+        JP      EditorViewportSetCurrentRow
+
+; EditorNavSyncViewport -
+; Apply the navigation viewport top row and current row to the renderer.
+;!      out       A,carry
+;!      clobbers  A,BC,zero,sign,parity,halfCarry
+@EditorNavSyncViewport:
+        LD      A,(EditorNavViewportTopRow)
+        CALL    EditorViewportSetTopRow
+        RET     C
+        LD      A,(EditorNavCurrentRow)
+        LD      B,A
+        LD      A,(EditorNavViewportTopRow)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        JP      EditorViewportSetCurrentRow
 
 ; EditorSaveCurrentPage -
 ; Save the already-loaded page buffer back to the current source page.
@@ -274,16 +306,28 @@ EditorLoadCurrentBackupPageRestoreError:
 EditorNavCommitPendingPage:
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
+        CALL    EditorNavResetViewport
+        RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
         JP      EditorClearDirty
 
 EditorNavCommitPendingPagePreserveDirty:
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
+        CALL    EditorNavResetViewport
+        RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
         JP      EditorNavLoadNextWindowPage
 
 EditorNavCommitPendingPageFromWindow:
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
+        CALL    EditorNavResetViewport
+        RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
         CALL    EditorNavLoadNextWindowPage
         RET     C
         XOR     A
@@ -309,6 +353,10 @@ EditorNavCommitPendingPageFromWindow:
         RET     C
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
+        CALL    EditorNavResetViewport
+        RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
         JP      EditorClearDirty
 
 ; EditorNavRememberCurrentPage -
@@ -772,6 +820,12 @@ EditorNavNextPageNumber:
         .db     0
 
 EditorNavDirtySectors:
+        .db     0
+
+EditorNavViewportTopRow:
+        .db     0
+
+EditorNavCurrentRow:
         .db     0
 
 EditorNavSwapByte:
