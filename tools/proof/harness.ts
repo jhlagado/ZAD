@@ -143,10 +143,11 @@ async function compileAzm(
 
 function symbolAddress(symbols: D8Symbol[], name: string): number {
   const symbol = symbols.find((entry) => entry.name === name);
-  if (!symbol || typeof symbol.address !== 'number') {
+  const address = symbol?.address ?? symbol?.value;
+  if (typeof address !== 'number') {
     throw new Error(`missing address symbol: ${name}`);
   }
-  return symbol.address;
+  return address;
 }
 
 function optionalSymbolAddress(symbols: D8Symbol[], name: string): number | undefined {

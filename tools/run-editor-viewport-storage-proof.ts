@@ -4,38 +4,44 @@
  * TEC-1G runtime with MON3 ROM and a FAT32-backed VOLUME.TM8 image.
  */
 
-const { execFileSync } = require('node:child_process');
-const { existsSync, readFileSync, writeFileSync } = require('node:fs');
+const { existsSync, writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
-const TECM8_ROOT = resolve(__dirname, '..');
-const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
-const AZM_ROOT = resolve(process.env.AZM_ROOT ?? '/Users/johnhardy/projects/AZM');
-const MON3_ROM_CANDIDATES = [
-  resolve(DEBUG80_ROOT, 'resources/bundles/tec1g/mon3/v1/mon3.bin'),
-  '/Users/johnhardy/projects/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
-  '/Users/johnhardy/projects/2026/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
-];
-const MON3_ROM_PATH = resolve(
-  process.env.MON3_ROM_PATH ??
-    MON3_ROM_CANDIDATES.find((path: string) => existsSync(path)) ??
-    MON3_ROM_CANDIDATES[0],
-);
+import type { D8Symbol, PlatformRuntime, ProofHarness, Runtime } from './proof/harness';
+
+const harness: ProofHarness = require('./proof/harness.ts');
+const {
+  TECM8_ROOT,
+  MON3_ROM_PATH,
+  MON3_INTERFACE,
+  PROOF_PASS,
+  DISPLAY_Y_ORIGIN,
+  compileAzm,
+  symbolAddress,
+  optionalSymbolAddress,
+  loadTec1gRuntime,
+  runUntil,
+  resultToString,
+  readCString,
+  readWord,
+  encodeSourceRecords,
+  readSourceRecord,
+  requireTm8Format,
+  createProofImage,
+  writeVolumeIntoImage,
+  readFileFromImage,
+  getGlcdBytes,
+  glcdRowHasPixels,
+  readCellRows,
+  readGlcdCellRows,
+  readFontRows,
+  assertCellMatchesInvertedFont,
+  assertGlcdCellMatchesInvertedFont,
+} = harness;
 
 const PROOF_SOURCE = resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-proof.asm');
 const LAST_RUN = resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-proof-last-run.json');
 const IMAGE_PATH = resolve(TECM8_ROOT, 'proofs/display/editor-viewport-storage-fat32.img');
-const IMAGE_TOOL = resolve(TECM8_ROOT, 'tools/create-storage-proof-image.ts');
-const INTERFACES = [
-  resolve(TECM8_ROOT, 'src/mon3.asmi'),
-];
-const NODE_TS_ARGS = ['--experimental-strip-types'];
-const APP_START = 0x4000;
-const PROOF_PASS = 0x42;
-const SYS_CTRL = 0xff;
-const SHADOW_OFF = 0x01;
-const MCB = 0x0888;
-const MCB_SD_CARD = 0x80;
 const TM8_BLOCK_BYTES = 4096;
 const TM8_ALLOCATION_OFFSET = 4096;
 const TM8_ALLOCATION_END = 0xffff;
@@ -166,75 +172,10 @@ const PROOF_CASES = {
 type ProofCaseName = keyof typeof PROOF_CASES;
 type ProofCase = (typeof PROOF_CASES)[ProofCaseName];
 
-type Runtime = {
-  cpu: { pc: number; sp: number; halted: boolean };
-  hardware: {
-    memory: Uint8Array;
-    memRead?: (addr: number) => number;
-    memWrite?: (addr: number, value: number) => void;
-    forceMemWrite?: (addr: number, value: number) => void;
-    isMemoryWritable?: (addr: number) => boolean;
-  };
-  step: () => { halted: boolean; pc: number; cycles?: number };
-};
-
-type PlatformRuntime = {
-  recordCycles: (cycles: number) => void;
-  state: { display?: { glcdCtrl?: { glcd?: number[] | Uint8Array } } };
-};
-
-type D8Symbol = {
-  name: string;
-  kind: string;
-  address?: number;
-  value?: number;
-};
-
-type CompileResult = {
-  diagnostics: Array<{ id?: string; message?: string; severity?: string }>;
-  artifacts: Array<{ kind: string; bytes?: Uint8Array; json?: { symbols?: D8Symbol[] } }>;
-};
-
-function requireFromDebug80(modulePath: string): unknown {
-  return require(resolve(DEBUG80_ROOT, modulePath));
-}
-
-async function compileProof(proofCase: ProofCase): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
-  const { compile, defaultFormatWriters } = await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'));
-  const result = await compile(
-    proofCase.source,
-    {
-      emitBin: true,
-      emitD8m: true,
-      outputType: 'bin',
-      sourceRoot: TECM8_ROOT,
-      d8mInputs: { bin: 'build/editor-viewport-storage-proof.bin' },
-      registerCare: 'strict',
-      registerCareProfile: 'mon3',
-      registerCareInterfaces: INTERFACES,
-    },
-    { formats: defaultFormatWriters },
-  ) as CompileResult;
-
-  if (result.diagnostics.length > 0) {
-    throw new Error(`AZM diagnostics:\n${JSON.stringify(result.diagnostics, null, 2)}`);
-  }
-
-  const bin = result.artifacts.find((artifact) => artifact.kind === 'bin');
-  const d8m = result.artifacts.find((artifact) => artifact.kind === 'd8m');
-  if (!bin?.bytes) {
-    throw new Error('AZM did not emit bin artifact');
-  }
-  return { bytes: bin.bytes, symbols: d8m?.json?.symbols ?? [] };
-}
-
-function symbolAddress(symbols: D8Symbol[], name: string): number {
-  const symbol = symbols.find((entry) => entry.name === name);
-  const address = symbol?.address ?? symbol?.value;
-  if (typeof address !== 'number') {
-    throw new Error(`missing address symbol: ${name}`);
-  }
-  return address;
+function compileProof(proofCase: ProofCase): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
+  return compileAzm(proofCase.source, 'editor-viewport-storage-proof', {
+    interfaces: [MON3_INTERFACE],
+  });
 }
 
 function makeMultiBlockLines(): string[] {
@@ -294,21 +235,8 @@ function makeRootLines(): string[] {
   });
 }
 
-function encodeSourceRecords(lines: string[]): Buffer {
-  const records = Buffer.alloc(lines.length * 32);
-  lines.forEach((line, index) => {
-    const bytes = Buffer.from(line, 'ascii');
-    if (bytes.length > 31) {
-      throw new Error(`line too long: ${line}`);
-    }
-    records[index * 32] = bytes.length;
-    bytes.copy(records, index * 32 + 1);
-  });
-  return records;
-}
-
 function makePositiveProofVolume(volume: Buffer): Buffer {
-  const { parseVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  const { parseVolumeImage } = requireTm8Format();
   const parsed = parseVolumeImage(volume);
   const source = parsed.files.find((file: { prefixId: number; name: string }) => file.name === 'main.asm');
   if (!source) {
@@ -344,14 +272,9 @@ function makePositiveProofVolume(volume: Buffer): Buffer {
 }
 
 function ensureImage(proofCase: ProofCase): string {
-  execFileSync(process.execPath, [...NODE_TS_ARGS, IMAGE_TOOL, proofCase.image], {
-    cwd: TECM8_ROOT,
-    stdio: 'ignore',
-  });
+  createProofImage(proofCase.image);
 
-  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } =
-    require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
-  const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
+  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } = requireTm8Format();
   const sourceRecords = encodeSourceRecords(proofCase.lines);
   const appRecords = encodeSourceRecords(makeAppLines());
   const rootRecords = encodeSourceRecords(makeRootLines());
@@ -376,114 +299,8 @@ function ensureImage(proofCase: ProofCase): string {
     throw new Error('generated root source records were not stored exactly');
   }
 
-  const image = Buffer.from(readFileSync(proofCase.image));
-  volume.copy(image, manifest.volume_start_byte_offset);
-  writeFileSync(proofCase.image, image);
+  writeVolumeIntoImage(proofCase.image, volume);
   return proofCase.image;
-}
-
-function makeConfig(imagePath: string) {
-  return {
-    regions: [
-      { start: 0x0000, end: 0x07ff, kind: 'rom' },
-      { start: 0x0800, end: 0x7fff, kind: 'ram' },
-      { start: 0xc000, end: 0xffff, kind: 'rom' },
-    ],
-    romRanges: [
-      { start: 0x0000, end: 0x07ff },
-      { start: 0xc000, end: 0xffff },
-    ],
-    appStart: APP_START,
-    entry: APP_START,
-    updateMs: 100,
-    yieldMs: 0,
-    gimpSignal: false,
-    expansionBankHi: false,
-    matrixMode: false,
-    protectOnReset: false,
-    rtcEnabled: false,
-    sdEnabled: true,
-    sdHighCapacity: true,
-    sdImagePath: imagePath,
-  };
-}
-
-function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; platformRuntime: PlatformRuntime } {
-  const { createTec1gRuntime } = requireFromDebug80('out/platforms/tec1g/runtime.js') as {
-    createTec1gRuntime: Function;
-  };
-  const { createTec1gMemoryHooks } = requireFromDebug80(
-    'out/platforms/tec1g/tec1g-memory.js',
-  ) as { createTec1gMemoryHooks: Function };
-  const { createZ80Runtime } = requireFromDebug80('out/z80/runtime.js') as {
-    createZ80Runtime: Function;
-  };
-
-  const config = makeConfig(imagePath);
-  const tec1gRuntime = createTec1gRuntime(config, () => {});
-  const memory = new Uint8Array(0x10000);
-  const rom = readFileSync(MON3_ROM_PATH);
-  memory.set(rom.subarray(0, 0x4000), 0xc000);
-  memory.set(bytes, APP_START);
-
-  const runtime = createZ80Runtime({ memory, startAddress: APP_START }, APP_START, tec1gRuntime.ioHandlers, {
-    romRanges: config.romRanges,
-  }) as Runtime;
-
-  const hooks = createTec1gMemoryHooks(
-    runtime.hardware.memory,
-    config.romRanges,
-    tec1gRuntime.state.system,
-  );
-  runtime.hardware.memRead = hooks.memRead;
-  runtime.hardware.memWrite = hooks.memWrite;
-  runtime.hardware.forceMemWrite = hooks.forceMemWrite;
-  runtime.hardware.isMemoryWritable = hooks.isMemoryWritable;
-
-  tec1gRuntime.ioHandlers.write?.(SYS_CTRL, SHADOW_OFF);
-  runtime.hardware.memory.set(runtime.hardware.memory.subarray(0xc000, 0xc100), 0x0000);
-  runtime.hardware.forceMemWrite?.(MCB, MCB_SD_CARD);
-  runtime.cpu.sp = 0x7ff0;
-  runtime.cpu.pc = APP_START;
-  return { runtime, platformRuntime: tec1gRuntime };
-}
-
-function runUntil(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: number): number {
-  const maxInstructions = 80_000_000;
-  for (let i = 0; i < maxInstructions; i += 1) {
-    if ((runtime.cpu.pc & 0xffff) === doneAddr) {
-      return i;
-    }
-    const result = runtime.step();
-    platformRuntime.recordCycles(result.cycles ?? 0);
-  }
-  throw new Error(`proof did not reach done at 0x${doneAddr.toString(16)}; pc=0x${runtime.cpu.pc.toString(16)}`);
-}
-
-function resultToString(value: number): string {
-  return `0x${value.toString(16).padStart(2, '0')}`;
-}
-
-function readCString(memory: Uint8Array, address: number): string {
-  const bytes = [];
-  for (let current = address; current < memory.length; current += 1) {
-    const value = memory[current];
-    if (value === 0) {
-      return Buffer.from(bytes).toString('ascii');
-    }
-    bytes.push(value);
-  }
-  throw new Error(`unterminated string at 0x${address.toString(16)}`);
-}
-
-function readWord(memory: Uint8Array, address: number): number {
-  return memory[address] | (memory[(address + 1) & 0xffff] << 8);
-}
-
-function readSourceRecord(memory: Uint8Array, address: number, record: number): string {
-  const start = address + record * 32;
-  const length = memory[start] & 0x1f;
-  return Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
 }
 
 function assertSourceRecordClean(memory: Uint8Array, address: number, record: number, text: string): void {
@@ -502,29 +319,7 @@ function assertSourceRecordClean(memory: Uint8Array, address: number, record: nu
 }
 
 function readFileFromProofImage(proofCase: ProofCase, tm8Path: string): Buffer {
-  const { readFileFromVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
-  const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
-  const image = readFileSync(proofCase.image);
-  const volume = image.subarray(manifest.volume_start_byte_offset, manifest.volume_start_byte_offset + 4 * 1024 * 1024);
-  return readFileFromVolumeImage(Buffer.from(volume), tm8Path) as Buffer;
-}
-
-function getGlcdBytes(platformRuntime: PlatformRuntime): number[] {
-  return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
-}
-
-const DISPLAY_Y_ORIGIN = 2;
-
-function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
-  const firstPixelRow = displayRow * 6 + DISPLAY_Y_ORIGIN;
-  for (let y = firstPixelRow; y < firstPixelRow + 6; y += 1) {
-    const start = y * 16;
-    const end = start + 16;
-    if (glcd.slice(start, end).some((value) => value !== 0)) {
-      return true;
-    }
-  }
-  return false;
+  return readFileFromImage(proofCase.image, tm8Path);
 }
 
 function verifyNoopProof(): void {}
@@ -953,14 +748,9 @@ function verifyEditorAllocationGrowthProof(runtime: Runtime, _platformRuntime: P
   const verifyPage = symbolAddress(symbols, 'EditorVerifyPage');
   assertSourceRecordClean(runtime.hardware.memory, verifyPage, 0, 'GROW P8 00');
 
-  const { parseVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  const { parseVolumeImage } = requireTm8Format();
   const proofCase = PROOF_CASES['editor-allocation-growth-proof'];
-  const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
-  const image = readFileSync(proofCase.image);
-  const volume = Buffer.from(
-    image.subarray(manifest.volume_start_byte_offset, manifest.volume_start_byte_offset + 4 * 1024 * 1024),
-  );
-  const parsed = parseVolumeImage(volume);
+  const parsed = parseVolumeImage(harness.readVolumeFromImage(proofCase.image));
   const source = parsed.files.find((file: { name: string }) => file.name === 'main.asm');
   if (!source) {
     throw new Error('editor allocation growth source file missing after save');
@@ -1201,79 +991,6 @@ function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: Platfor
   assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 7, 3, ' '.charCodeAt(0));
 }
 
-function readCellRows(memory: Uint8Array, row: number, column: number): number[] {
-  const mon3Tgbuf = 0x13c0;
-  const rowBytes = 16;
-  const textX = 6;
-  const cellX = textX + column * 6;
-  const rows = [];
-  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
-    let rowBits = 0;
-    for (let x = cellX; x < cellX + 6; x += 1) {
-      rowBits <<= 1;
-      const address = mon3Tgbuf + y * rowBytes + Math.floor(x / 8);
-      const mask = 0x80 >> (x % 8);
-      if ((memory[address] & mask) !== 0) {
-        rowBits |= 1;
-      }
-    }
-    rows.push(rowBits);
-  }
-  return rows;
-}
-
-function readGlcdCellRows(glcd: number[], row: number, column: number): number[] {
-  const rowBytes = 16;
-  const textX = 6;
-  const cellX = textX + column * 6;
-  const rows = [];
-  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
-    let rowBits = 0;
-    for (let x = cellX; x < cellX + 6; x += 1) {
-      rowBits <<= 1;
-      const offset = y * rowBytes + Math.floor(x / 8);
-      const mask = 0x80 >> (x % 8);
-      if (((glcd[offset] ?? 0) & mask) !== 0) {
-        rowBits |= 1;
-      }
-    }
-    rows.push(rowBits);
-  }
-  return rows;
-}
-
-function readFontRows(memory: Uint8Array, charCode: number): number[] {
-  const fontData = 0xdd9b;
-  const offset = fontData + (charCode - 1) * 6;
-  return Array.from(memory.subarray(offset, offset + 6), (value) => value & 0x3f);
-}
-
-function assertCellMatchesInvertedFont(memory: Uint8Array, row: number, column: number, charCode: number): void {
-  const actual = readCellRows(memory, row, column);
-  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
-  if (actual.join(',') !== expected.join(',')) {
-    throw new Error(
-      `shell edit cursor rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
-    );
-  }
-}
-
-function assertGlcdCellMatchesInvertedFont(
-  memory: Uint8Array,
-  glcd: number[],
-  row: number,
-  column: number,
-  charCode: number,
-): void {
-  const actual = readGlcdCellRows(glcd, row, column);
-  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
-  if (actual.join(',') !== expected.join(',')) {
-    throw new Error(
-      `visible shell edit cursor rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
-    );
-  }
-}
-
 function verifyShellEditLaunchProof(
   runtime: Runtime,
   platformRuntime: PlatformRuntime,
@@ -1345,7 +1062,7 @@ async function main(): Promise<void> {
   const { bytes, symbols } = await compileProof(proofCase);
   const doneAddr = symbolAddress(symbols, 'ProofDone');
   const resultAddr = symbolAddress(symbols, 'ResultMarker');
-  const { runtime, platformRuntime } = loadRuntime(bytes, imagePath);
+  const { runtime, platformRuntime } = loadTec1gRuntime(bytes, { imagePath });
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const result = runtime.hardware.memory[resultAddr];
   if (result !== PROOF_PASS) {
@@ -1367,11 +1084,6 @@ async function main(): Promise<void> {
   };
   writeFileSync(proofCase.lastRun, JSON.stringify(report, null, 2) + '\n', 'ascii');
   console.log(JSON.stringify(report, null, 2));
-}
-
-function optionalSymbolAddress(symbols: D8Symbol[], name: string): number | undefined {
-  const symbol = symbols.find((entry) => entry.name === name);
-  return typeof symbol?.address === 'number' ? symbol.address : undefined;
 }
 
 function describeProofFailure(runtime: Runtime, symbols: D8Symbol[]): string {
