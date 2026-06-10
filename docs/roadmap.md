@@ -1,48 +1,22 @@
 # TECM8 Roadmap
 
-This is the live roadmap for TECM8. It records the current milestone, completed
-foundation, near-term goal order, stop condition, and deferred work. Update this
-file after meaningful phase changes so the roadmap does not live only in
-conversation history.
+This is the live roadmap for TECM8. It records the current editor direction,
+completed foundation, substantial future phases, milestone definitions, and
+manual testing expectations. Update this file after meaningful phase changes so
+the roadmap does not live only in conversation history.
 
-## Current Milestone: Editor Line Editing V2
+## Current Goal: Phase 1 - Editor Reliability And Input Polish
 
-The previous tiled-renderer milestone made the editor usable enough for ordinary
-cursor movement and in-line text edits. The next sizeable increment is to make
-the live Debug80 editor feel more like a real source editor by proving line
-reshaping from the physical matrix keyboard: Enter splits a record into a new
-line, and Backspace at column 0 rejoins that line with the previous record.
+The next editor goal is to make the current Debug80 editor behavior predictable
+under manual testing. The editor already proves loading, rendering, character
+editing, line split/join inside a page, save, backup, restore, and page
+movement. The remaining problem for this phase is confidence: every live matrix
+key and risky editor command should have clear behavior, clear feedback, and
+coverage that makes regressions obvious.
 
-This milestone is complete when a user can run the Debug80 editor session, type
-into the editor, press Enter to split a visible source line, press Backspace at
-the start of the new line to join it again, save the reshaped page, page away
-and back, and see the edited source persist.
-
-The feature remains deliberately page-local for now. A loaded 512-byte source
-page contains sixteen 32-byte source records. Enter shifts later records down
-only when there is room in the current page; Backspace-at-column-0 shifts later
-records up only when the joined line still fits in 31 text bytes. Cross-sector
-line movement is a later editor/storage milestone.
-
-The display model remains the TECM8-owned tiled GLCD layer:
-
-```text
-128x64 bitmap hardware
-6x6 text cells for the current GLCD font rhythm
-4-pixel gutter plus 20 visible text cells
-10 physical text rows, normally all source text in the 6x6 profile
-row 9 can temporarily become a prompt/status overlay
-tile writes replace both black and white pixels for the full cell footprint
-```
-
-The renderer may initially continue to flush through MON3's low-level GLCD
-hardware routines, but editor text drawing, clearing, cursor overlays, and dirty
-update policy should move out of the MON3 terminal library and into TECM8-owned
-code.
-
-This milestone does not require a complete replacement of the MON3 GLCD library.
-It requires enough replacement to make the editor responsive and to establish the
-direction for a future TECM8 GLCD BIOS/display library.
+Phase 1 is complete when a user can follow a manual Debug80 script without
+ambiguous "did that key work?" moments, and the automated Debug80 smoke verifies
+every major key command.
 
 ## Completed Foundation
 
@@ -61,9 +35,8 @@ direction for a future TECM8 GLCD BIOS/display library.
 - The editor can write the current 512-byte page buffer back to the currently
   loaded TM8 source page, with proof coverage that persisted bytes survive in
   the FAT32/TM8 image.
-- The editor tracks whether the loaded page has unsaved edits, marks dirty
-  after in-page mutation, accepts a Ctrl-S save key, and clears dirty after a
-  successful save.
+- The editor tracks unsaved edits, marks dirty after mutation, accepts save
+  commands, and clears dirty after successful save.
 - The editor has a status-line yes/no prompt state: unrelated keys are ignored,
   yes/no answers complete the prompt, and the hidden source row is redrawn after
   completion.
@@ -76,12 +49,11 @@ direction for a future TECM8 GLCD BIOS/display library.
   dirty pages require status-line confirmation before discarding changes.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
-- Sector-edge editing policy is conservative for V1: split on the final row
-  and join before the first row are no-ops rather than cross-sector shifts.
+- Sector-edge editing policy is conservative today: split on the final row and
+  join before the first row are no-ops rather than implicit cross-sector shifts.
 - Design policies exist for reserved source-record length bits, hidden dotfiles,
   one-level editor backups, and status-line confirmation prompts.
-- `src/main.asm` is now a Debug80-runnable TECM8 editor session entry rather
-  than the old seven-segment/LCD starter.
+- `src/main.asm` is a Debug80-runnable TECM8 editor session entry.
 - `npm run debug80:editor-session` generates a prepared FAT32/TM8 image and
   proves the user-facing edit/save/quit/reopen workflow against Debug80.
 - `BiosInputPollKey` exposes translated key codes, modifier flags, and raw
@@ -90,240 +62,342 @@ direction for a future TECM8 GLCD BIOS/display library.
 - A TECM8-owned GLCD tile-cell layer exists for 6x6 text cells. Structured
   screen text rendering now writes through tile primitives rather than MON3's
   terminal character drawing routine.
+- TECM8 Tiled GLCD Renderer V1 was reached: cursor movement and ordinary
+  in-line edits no longer depend on MON3 terminal character drawing.
+- Editor Line Editing V2 was reached by `npm run debug80:editor-live-smoke` and
+  commit `040dbf5`: matrix Enter splits a line, split contents save and survive
+  page movement, matrix Backspace rejoins, and the joined state saves.
 
-## Near-Term Goal Order
+## Target Editor Milestone
 
-1. **Live matrix line-edit smoke.**
-   Extend `npm run debug80:editor-live-smoke` so it injects matrix Enter and
-   matrix Backspace through Debug80's `applyMatrixKey` path, then verifies that
-   Enter moves the cursor to the newly split line and Backspace joins it back to
-   the previous line.
+The editor is complete enough when a user can use Debug80, and later real
+TEC-1G hardware, to edit a practical `.asm` source file inside a TECM8 project,
+save it safely, navigate around it, recover from common mistakes, and return to
+the shell without losing work.
 
-   Status: implemented. The live smoke now checks matrix Enter, page-buffer
-   split contents, save/page-away/page-back persistence, Backspace join
-   contents, and clean save after join.
+The current editor is past the first proof stage. It can load `/src/main.asm`,
+render records, edit characters, split/join lines inside one page, save, backup,
+restore, and page through the prepared fixture. The remaining work is mostly
+about making it usable as a real editor rather than a proof harness.
 
-2. **Manual Debug80 line-edit script.**
-   Update the manual Debug80 script so the user can test line split, line join,
-   save, page away, page back, and reopen persistence from the UI.
+## Phase 1: Editor Reliability And Input Polish
 
-   Status: implemented in `docs/debug80-editor-session.md` and mirrored in the
-   manual milestone test below.
+Goal: make the current editor behavior predictable under manual Debug80 testing.
 
-3. **Phase completion review.**
-   Run local verification including `npm run check`, get a high-effort local
-   subagent review for the code changes, address findings, close subagents,
-   commit, push, monitor any remote CI runs, and then stop at the milestone.
+Work:
 
-   Status: complete for this milestone. Local verification passed, a high-effort
-   subagent review was performed, review findings were addressed, the subagent
-   was closed, and commit `040dbf5` was pushed to `main`.
+- Stabilize all live matrix key paths.
+- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Alt-S`, `Alt-X`, `Alt-R`,
+  and page movement.
+- Add clear status feedback for ignored commands, failed saves, failed loads,
+  and dirty-page restrictions.
+- Decide whether unknown modified printable keys should insert text or be
+  ignored.
+- Add more live smoke coverage for real matrix keys.
 
-## Recently Completed: TECM8 Tiled GLCD Renderer V1
+Done when:
 
-1. **Dirty editor rendering.**
-   Change ordinary cursor movement and simple in-line printable edits so they do
-   not call the full-screen `DisplayRenderScreen` path. Cursor movement should
-   erase and redraw only the cursor overlay. Printable edits should redraw the
-   affected source row from the loaded 512-byte page buffer.
+- A user can follow a manual script without ambiguous "did that key work?"
+  moments.
+- Debug80 smoke verifies every major key command.
 
-   Status: implemented for cursor movement, printable insertion, delete, and
-   backspace within a line. Split/join and page movement still use full viewport
-   render because they can legitimately shift many source rows.
+## Phase 2: Multi-Page Editing
 
-2. **Visible cell-level cursor.**
-   Replace the fragile single vertical stroke with a cursor treatment that stays
-   visible over glyphs such as `E`, `L`, and `N`. It may remain a non-blinking
-   cursor for this phase; blink timing can be a later milestone.
+Goal: move beyond editing one 512-byte page independently.
 
-   Status: implemented as a saved-byte inverse 6x6 cell overlay. The cursor is
-   non-blinking for now.
+Work:
 
-   Deferred low-priority follow-ups:
+- Allow line insertion at the end of a page to push records into the next page.
+- Allow Backspace at row 0 to join with the previous page.
+- Decide what happens when the file grows and needs a new sector/page.
+- Update the TM8 allocation/write path to extend a file safely.
+- Preserve the current one-page cache, but probably grow toward a small
+  multi-page window.
 
-   - Add cursor blink timing in the live editor idle loop once the update cost
-     is acceptable.
-   - Revisit a vertical insertion caret as an optional cursor shape, preferably
-     drawn in the inter-character spacing column and blinked/restored through
-     the same saved-cell or dirty-cell mechanism. The block cursor remains the
-     default until partial GLCD updates are cheap enough.
+Likely design:
 
-3. **No-full-repaint Debug80 smoke coverage.**
-   Add observable proof/smoke coverage that ordinary cursor movement and a
-   simple printable insertion avoid the full-screen render path. Prefer counters
-   or explicit render-path markers over wall-clock timing.
+- Keep a 1K or 2K RAM edit window if feasible.
+- Treat each 512-byte sector as 16 fixed records.
+- On cross-page insert/delete, shift records across page boundaries.
+- Avoid SD writes until explicit save.
 
-   Status: implemented with `proof:display:editor-dirty-render`. The proof
-   resets render counters after initial load, verifies ordinary cursor movement
-   leaves full-screen/page/row render counts at zero, and verifies one printable
-   insertion redraws exactly one source row without invoking full viewport render.
-   This does not yet prove a minimal GLCD hardware flush; that remains part of
-   the future GLCD tile/display-library work.
+Done when:
 
-4. **Manual Debug80 test package.**
-   Ensure `npm run debug80:editor-image` produces the manual image, document the
-   exact MON3 launch path, and list specific matrix-keyboard checks for cursor
-   movement, typing, saving, quitting, and restore prompts.
+- You can create new lines past the end of the current page.
+- Page up/down shows the reshaped file correctly.
+- Save persists a grown file.
 
-   Status: implemented in `docs/debug80-editor-session.md` and mirrored below.
-   The manual path uses MON3 `GO` at `4000h` against the FAT32 image produced
-   by `npm run debug80:editor-image`.
+## Phase 3: Better Viewport Navigation
 
-5. **Phase completion review.**
-   Run local verification including `npm run check`, get a high-effort local
-   subagent review for the code changes, address findings, close subagents,
-   commit, push, monitor any remote CI runs, and then stop.
+Goal: make files longer than one screen usable.
 
-   Status: pending final full-phase verification after this roadmap refresh.
+Work:
 
-## Debug80-Testable GLCD Editor V1 Done Criteria
+- Separate logical cursor row from visible screen row.
+- Add vertical scrolling within a 16-record page.
+- Add page movement over source pages.
+- Add top-of-file and end-of-file movement, if a compact binding is available.
+- Add visible indication of current page/line.
 
-Status: reached by `npm run debug80:editor-session`. The command assembles
-`src/main.asm`, generates a FAT32/TM8 project image, launches the storage-backed
-editor path in Debug80's TEC-1G runtime, saves and reopens `/src/main.asm`, and
-verifies the saved source and hidden backup. See
-`docs/debug80-editor-session.md`.
+Design issue:
 
-- `edit` opens the project main file by default.
-- `edit name` can open a named source file with `.asm` defaulting where
-  appropriate.
-- A loaded source page can be rendered, edited, saved, quit, and reopened.
-- Dirty state is visible and prevents silent loss.
-- Save creates a hidden one-level backup before replacement.
-- Restore from backup works from inside the editor.
-- Status-line prompt mode handles confirmation questions.
-- Fixed-record source files remain valid for `fs export-text`.
-- Local verification includes focused AZM/Debug80 proofs and `npm run check`.
-- There is a documented Debug80 command/session that launches TECM8 into the
-  editor workflow against a prepared project volume.
-- The emulator demonstration proves the user-facing phase result, not just
-  isolated subroutine behavior.
+The GLCD shows 10 rows, but a page has 16 records. The editor needs a viewport
+over the page, not just fixed rows 0-9.
 
-## TECM8 Tiled GLCD Renderer V1 Done Criteria
+Done when:
 
-Status: functionally reached. The editor owns 6x6 tile-cell text rendering,
-uses an inverse-cell cursor, avoids full viewport render for ordinary cursor
-movement and in-line printable edits, and has a documented Debug80 manual test.
-The remaining action for this phase is final full verification/review and then
-stop before choosing a new milestone.
+- You can move through all 16 records of a page, not only visible rows.
+- Cursor movement scrolls the viewport when needed.
+- Status shows enough location context to stay oriented.
 
-- The editor has a TECM8-owned GLCD tile writer for 6x6 cells.
-- Tile writes replace both set and clear pixels for the affected cell.
-- Structured display rendering uses TECM8 tile primitives rather than MON3
-  terminal character output.
-- Cursor-only movement avoids full-screen clear/repaint.
-- Printable character insertion avoids full-screen clear/repaint for ordinary
-  in-line edits.
-- Full-screen repaint remains available for page load, mode switch, and explicit
-  redraw.
-- The cursor is visibly distinct on glyphs with vertical strokes such as `E`,
-  `L`, and `N`.
-- Local verification includes focused display proofs, the Debug80 live editor
-  smoke, and `npm run check`.
-- Manual Debug80 testing shows no obvious blanking on ordinary cursor movement or
-  single-line character insertion.
+## Phase 4: Horizontal Editing
 
-After these criteria are satisfied, stop and reassess whether the next milestone
-should continue display work, return to shell ergonomics, or begin assembler
-integration.
+Goal: support the full 31-character source record.
 
-## Editor Line Editing V2 Done Criteria
+Work:
 
-Status: reached by `npm run debug80:editor-live-smoke` and commit `040dbf5`.
+- Add horizontal scrolling or a horizontal viewport.
+- Decide whether the first 20 visible columns are enough for now.
+- Keep the gutter separate from text.
+- Make cursor position clear when editing columns beyond the visible display.
 
-- The live Debug80 editor path accepts matrix Enter as newline/split-line.
-- Enter splits the current fixed source record at the cursor when there is room
-  in the current 16-record page.
-- The cursor moves to the new line at column 0 after a successful split.
-- Matrix Backspace at column 0 joins the current line into the previous line
-  when the combined record fits in 31 text bytes.
-- The cursor returns to the previous line at the original previous-line length
-  after a successful join.
-- The split/join path marks the page dirty and can be saved through `Alt-S`.
-- Saved split/join edits survive page movement and editor restart.
-- Local verification includes the existing line-editing proof,
-  `debug80:editor-live-smoke`, and `npm run check`.
-- Manual Debug80 testing has a clear script for Enter, Backspace, save, page
-  movement, and reopen persistence.
+Likely compromise:
 
-## Manual Milestone Test
+- Implement horizontal panning only when cursor moves past visible column 19.
+- Status line can show `Ln n Col n`.
 
-The current editor line-editing phase is complete only when a user can manually
-inspect the editor in Debug80:
+Done when:
 
-1. Run `npm run debug80:editor-image`.
-2. Launch Debug80's `main` target with SD enabled.
-3. Let MON3 initialize, then use MON3 `GO` at `4000h`.
-4. Confirm the GLCD shows the TECM8 editor with `/src/main.asm`.
-5. Confirm the initial screen shows the loaded source rows, beginning with
-   `R0 LINE 00`, `R0 LINE 01`, and later rows. This phase does not render a
-   persistent title/header row. The prepared page leaves record 15 blank so
-   line insertion has room inside the current 512-byte page.
-6. Confirm the cursor is a non-blinking inverse 6x6 cell near the top-left
-   source text area, not a single vertical stroke.
-7. Press matrix `ArrowRight` twice. Expected: the cursor moves two cells to the
-   right without a visible full-screen blank/repaint.
-8. Press matrix `ArrowDown`, then `ArrowUp`. Expected: the cursor moves down one
-   source row and back up one source row without a page redraw.
-9. Type `Z`. Expected: because the cursor is now two cells to the right, the
-   first line changes from `R0 LINE 00` to `R0Z LINE 00`, the cursor advances
-   one cell, and the edit uses the row dirty path rather than the older
-   full-screen clear/repaint path.
-10. Press matrix `Enter`. Expected: the current row splits at the cursor. The
-    text before the cursor remains on the original row, the text after the
-    cursor moves to the next row, and the cursor moves to column 0 on that new
-    row. This may redraw the viewport because split-line shifts later rows in
-    the current page.
-11. Press `Alt-S`. Expected: the split page is saved. Storage may pause for
-    several seconds, then the editor returns to the source view.
-12. Press `Alt+ArrowDown`, then `Ctrl+ArrowUp`. Expected: after saving, page
-    movement succeeds and returning to page 0 still shows the split line.
-13. Press matrix `Backspace` while the cursor is at column 0 on the split line.
-    Expected: the split line rejoins the previous row, later rows shift back up,
-    and the cursor returns to the previous row at the join point.
-14. Press `Alt+ArrowDown`, then `Ctrl+ArrowUp`. Expected: because the page is
-    dirty, paging is ignored and the editor remains on the first page.
-15. Press `Alt-S`. Expected: the joined page is saved. Storage may
-    pause for several seconds, then the editor returns to the source view.
-16. Press `Alt+ArrowDown`. Expected: after saving, the prepared two-page
-    fixture moves to the second page and shows rows beginning with `R1 LINE 00`.
-    This phase tests paging through the fixture; it does not require Enter to
-    grow the file across sectors.
-17. Press `Ctrl+ArrowUp`. Expected: the first page returns. This return path
-    should use the editor's one-page RAM cache at `3000h`, so it should avoid a
-    second SD read after the immediately preceding page-down operation.
-18. Press `Alt-X` to quit. `Ctrl-Q` remains available as plain quit; if dirty,
-    answer the status prompt.
-19. Restart the editor and confirm the saved text is still present.
+- You can edit all 31 characters in a record.
+- The cursor never silently moves into invisible text.
 
-## Later Milestones
+## Phase 5: Save, Backup, Restore Hardening
 
-### Real Shell Workspace
+Goal: make save behavior safe enough for real use.
 
-- Replace proof-seeded keyboard streams with real matrix keyboard input.
-- Add or complete the top-level TECM8 command loop.
-- Support `cd`, `pwd`, `ls`, `edit`, `asm`, and `run` as shell commands.
-- Keep project defaults short: `edit`, `asm`, `run`.
+Work:
 
-### Build Tools
+- Keep the current hidden backup convention: `/src/.main.asm.b`.
+- Ensure backup creation handles multi-page files.
+- Ensure failed save does not destroy the old file.
+- Add restore-from-backup UX that is clear and recoverable.
+- Decide whether backup is per file, per page, or whole file.
 
-- Integrate a Z80 assembler path after the editor is useful.
-- Treat `.asm` as the preferred source extension; keep `.z80` as compatibility.
-- Emit derived outputs such as `/build/main.bin` and `/build/main.map`.
-- Report assembler errors in a way the editor can use later.
+Important:
 
-### Run Loop
+For a real editor, backup should probably preserve the previous full file, not
+only the currently edited page.
 
-- Load the derived binary output.
-- Run it from TECM8.
-- Return to the shell where practical.
+Done when:
 
-### Source-Aware Debugger
+- Save either fully succeeds or leaves the previous file recoverable.
+- Restore works for a multi-page file.
+- Manual tests prove failed/edge cases where possible.
 
-- Load compact map data.
-- Display source context by source sector/line.
-- Support break, run, step, register display, and eventually source-level
-  navigation.
+## Phase 6: Status Prompt And Command UX
+
+Goal: make modal editor actions usable without dialog boxes.
+
+Work:
+
+- Refine transient status row behavior.
+- Add prompts or status messages for discard dirty changes, restore backup,
+  save failure, file full/page full, overwrite, and replace.
+- Add timeout or explicit dismiss behavior for informational messages.
+- Decide whether the status row temporarily hides source row 9 or reserves a
+  permanent row.
+
+Likely direction:
+
+Use transient bottom-row prompts. They obscure a row briefly, then restore it.
+
+Done when:
+
+- Every slow or risky operation tells the user what is happening.
+- Prompt mode ignores unrelated keys safely.
+- The source row underneath the prompt is restored cleanly.
+
+## Phase 7: Display Performance
+
+Goal: make the editor feel usable on slow GLCD hardware.
+
+Work:
+
+- Replace full GLCD flushes with dirty row or dirty byte-range flushes.
+- Avoid full-screen blanking except on page load or explicit redraw.
+- Optimize cursor redraw.
+- Add cursor blink only after partial updates are cheap.
+- Measure instruction counts for common operations.
+
+Likely next display work:
+
+- Dirty row flush.
+- Dirty cell flush.
+- Cursor-only flush.
+
+Done when:
+
+- Typing a character updates quickly enough to feel interactive.
+- Cursor movement is visibly cheap.
+- Save/load can still be slow, but editing should not be.
+
+## Phase 8: File Picker And Editor Launch
+
+Goal: make `edit` useful beyond the default main file.
+
+Work:
+
+- `edit` opens project main file.
+- `edit name` opens `/src/name.asm` by convention.
+- `edit /path/file.asm` opens exact path.
+- Decide missing-file behavior: prompt create, create immediately, or error
+  only.
+- Decide whether editing `/tecm8.prj` is supported or whether the editor is
+  restricted to source/text files.
+
+Design decision:
+
+The editor should probably be a text editor, not only an `.asm` editor, but
+`.asm` remains the default extension.
+
+Done when:
+
+- A user can edit multiple files in a project without long paths.
+- Missing files are handled intentionally.
+
+## Phase 9: File Listing And Hidden Files
+
+Goal: make project navigation practical.
+
+Work:
+
+- Implement TEC-side `ls` or enough listing for editor selection.
+- Hide leading-dot files from ordinary listings.
+- Make backups invisible by default.
+- Add optional listing of hidden files later.
+
+Done when:
+
+- `.main.asm.b` does not clutter normal project views.
+- Users can find and edit source files from inside TECM8.
+
+## Phase 10: Integration With Shell
+
+Goal: make the editor part of the Turbo Pascal-like command loop.
+
+Work:
+
+- Shell prompt runs commands.
+- `edit` enters editor.
+- `Alt-X` or quit returns to shell.
+- `asm` assembles project main file.
+- `run` runs derived binary.
+- Preserve simple project defaults from `/tecm8.prj`.
+
+Done when:
+
+- User flow is: boot TECM8, `edit`, save, exit, `asm`, `run`.
+
+## Phase 11: Source Format And Text Import/Export
+
+Goal: ensure source files remain compatible between host tools and TECM8.
+
+Work:
+
+- Preserve 32-byte fixed records.
+- Validate length bytes.
+- Decide whether high bits in length byte must be masked or rejected.
+- Confirm `export-text` handles edited files.
+- Confirm hidden backups do not export by default.
+
+Done when:
+
+- A file edited in TECM8 exports cleanly to host `.asm`.
+- A host-imported `.asm` edits cleanly in TECM8.
+
+## Phase 12: Error Handling
+
+Goal: stop silent failures.
+
+Work:
+
+- Add user-visible error states for disk open failure, read failure, write
+  failure, full file/catalog/allocation, invalid source record, and unsupported
+  file size.
+- Add compact error strings.
+- Preserve enough diagnostic info for Debug80/hardware troubleshooting.
+
+Done when:
+
+- The LCD/GLCD shows useful errors instead of unexplained lockups.
+- Automated tests cover the major failure codes.
+
+## Phase 13: Memory Layout
+
+Goal: make the editor viable on a constrained TEC-1G memory map.
+
+Work:
+
+- Document editor RAM usage.
+- Keep page buffers above MON3/GLCD volatile areas.
+- Decide whether `3000h-3FFFh` becomes editor workspace.
+- Consider 1K, 2K, and 4K buffer strategies.
+- Avoid relying on MON3 RAM that GLCD/storage overwrites.
+
+Done when:
+
+- Editor memory map is explicit.
+- Page buffers, cache, status state, and scratch areas have stable locations.
+
+## Phase 14: Hardware Transition
+
+Goal: prepare to move from Debug80 proof to real TEC-1G.
+
+Work:
+
+- Confirm MON3 service assumptions.
+- Test SD latency and GLCD latency on real hardware.
+- Identify Debug80-specific differences.
+- Produce simple repro scripts for emulator bugs.
+- Keep TECM8 code independent of Debug80-only conveniences.
+
+Done when:
+
+- Same image/program can be launched at `4000h` on Debug80 and hardware.
+- Known differences are documented.
+
+## Phase 15: Editor Completion Milestone
+
+This is the point where the editor is substantially complete.
+
+Done criteria:
+
+- Edit an existing `.asm` file.
+- Create a new source file.
+- Insert and delete characters.
+- Split and join lines across pages.
+- Move through a multi-page file.
+- Save the full file.
+- Restore backup.
+- Quit cleanly.
+- Return to shell.
+- Export the edited file on the host and verify content.
+- Manual Debug80 test script passes.
+- Automated Debug80 smoke covers core behavior.
+
+## Likely Next Practical Milestone After Phase 1
+
+The next sizeable milestone after the reliability phase should be **Multi-Page
+Source Editing V1**.
+
+Definition:
+
+The editor can edit a file longer than one 512-byte page, insert lines that push
+content across page boundaries, save the grown/reshaped file, page away and
+back, and reopen to confirm persistence.
+
+That is the next meaningful leap because it changes the editor from a page
+editor to a file editor.
 
 ## Deferred Design Work
 
@@ -335,8 +409,5 @@ inspect the editor in Debug80:
   or row without an irritating full GLCD transfer.
 - Add an optional vertical insertion caret after cursor compositing is cheap and
   reliable enough not to disappear into glyph strokes.
-- Add multi-sector line insertion/deletion after in-page behavior is stable.
-- Consider a tiny one-level undo or page snapshot only after save/backup is
-  working.
 - Revisit MON3-to-BIOS reductions once editor storage/display requirements are
   better measured.
