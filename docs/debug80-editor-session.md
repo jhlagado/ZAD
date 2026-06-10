@@ -135,8 +135,8 @@ Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
 `z`, a blocked dirty `Alt+ArrowDown`, `Alt-S`, a clean `Alt-S`, another `z`, a
-second `Alt-S`, and `Alt-X` so the modifier-aware path is exercised, not only
-printable ASCII.
+second `Alt-S`, `Alt-R` with a no/cancel answer, and `Alt-X` so the
+modifier-aware path is exercised, not only printable ASCII.
 The Z80 editor keeps Ctrl commands as compatibility aliases, but manual Debug80
 testing on macOS should prefer Option/Alt because Control and Command collide
 with host application and window-manager shortcuts.
@@ -172,7 +172,7 @@ RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
 `Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, a blocked dirty
 `Alt+ArrowDown`, `Enter`, `Backspace`, `Alt-S`, a clean `Alt-S`, another `z`, a
-second `Alt-S`, and `Alt-X`, then verifies that
+second `Alt-S`, `Alt-R`, `n`, and `Alt-X`, then verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
@@ -186,7 +186,8 @@ matrix `Enter` splits the current line and moves the cursor to the new line,
 that matrix `Backspace` at column 0 joins the line back to the previous row,
 that Alt-modified `S` clears dirty, that a clean save leaves the editor clean,
 that post-save `z` makes the editor dirty again, that the second save clears
-dirty again, and that Alt-modified `X` exits the live editor.
+dirty again, that Alt-modified `R` opens the restore prompt, that `n` cancels
+without dirtying the page, and that Alt-modified `X` exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -207,6 +208,10 @@ For an interactive Debug80 UI check:
 8. Unknown modified printable keys, for example `Alt-W`, should show `KEY`
    rather than typing `w`. Page movement while the page is dirty should show
    `Save first` and stay on the current page.
+9. The editor code supports Delete through the editor key API and proof suite,
+   but the current Debug80 TEC-1G matrix path exposes Backspace as the live
+   deletion key. Use Backspace for manual matrix testing until a distinct
+   Delete matrix mapping exists.
 
 ## Phase Milestone Manual Test
 

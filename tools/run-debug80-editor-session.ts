@@ -435,6 +435,8 @@ async function main(): Promise<void> {
     const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
     const currentPageAddr = symbolAddress(symbols, 'EditorNavCurrentPage');
     const pageBufferAddr = symbolAddress(symbols, 'EditorNavPageBuffer');
+    const promptActiveAddr = symbolAddress(symbols, 'EditorPromptActive');
+    const promptResultAddr = symbolAddress(symbols, 'EditorPromptResult');
     const quitRequestedAddr = symbolAddress(symbols, 'EditorQuitRequested');
     const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
@@ -602,6 +604,26 @@ async function main(): Promise<void> {
     if (dirtyAfterSecondSave !== 0) {
       throw new Error(`live editor second save dirty=${dirtyAfterSecondSave}, expected 0`);
     }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 5 }, 200_000, 200_000); // Alt+R
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const promptAfterAltR = runtime.hardware.memory[promptActiveAddr];
+    if (promptAfterAltR !== 1) {
+      const restoreModifierBits = runtime.hardware.memory[modifierBitsAddr];
+      const restoreTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+      throw new Error(
+        `live editor Alt-R prompt active=${promptAfterAltR}, expected 1; modifier=0x${restoreModifierBits.toString(16)} translated=0x${restoreTranslatedKey.toString(16)}`,
+      );
+    }
+    tapMatrixKey(platformRuntime, runtime, 6, 1, 200_000, 200_000); // n: cancel restore prompt
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const promptAfterRestoreNo = runtime.hardware.memory[promptActiveAddr];
+    const restoreNoResult = runtime.hardware.memory[promptResultAddr];
+    const dirtyAfterRestoreNo = runtime.hardware.memory[dirtyAddr];
+    if (promptAfterRestoreNo !== 0 || restoreNoResult !== 2 || dirtyAfterRestoreNo !== 0) {
+      throw new Error(
+        `live editor restore cancel prompt=${promptAfterRestoreNo} result=${restoreNoResult} dirty=${dirtyAfterRestoreNo}, expected prompt=0 result=2 dirty=0`,
+      );
+    }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 3 }, 200_000, 200_000); // Alt+X
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
@@ -646,6 +668,9 @@ async function main(): Promise<void> {
       dirtyAfterPostSaveEdit,
       dirtyAfterJoinSave,
       dirtyAfterSecondSave,
+      promptAfterAltR,
+      promptAfterRestoreNo,
+      dirtyAfterRestoreNo,
       saveModifierBits,
       modifierBits,
       rawPrimary,

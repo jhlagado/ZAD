@@ -69,7 +69,7 @@ every major key command.
   page movement, matrix Backspace rejoins, and the joined state saves.
 - Phase 1 input polish has started: unknown Ctrl/Alt-modified printable keys
   are ignored with `KEY`, dirty page movement reports `Save first`, and the
-  live Debug80 smoke covers dirty page blocking.
+  live Debug80 smoke covers dirty page blocking and restore-prompt cancel.
 
 ## Target Editor Milestone
 

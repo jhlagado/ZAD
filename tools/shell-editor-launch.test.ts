@@ -53,6 +53,9 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 2, 'R0Z LINE 02', 'after Backspace join'\)/);
   assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 15, '', 'after Backspace join'\)/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 6 \}/);
+  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 5 \}/);
+  assert.match(runner, /promptAfterAltR/);
+  assert.match(runner, /dirtyAfterRestoreNo/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 7, col: 3 \}/);
   assert.match(runner, /cursorRowAfterEnter !== 3 \|\| cursorColAfterEnter !== 0/);
   assert.match(runner, /cursorRowAfterJoin !== 2 \|\| cursorColAfterJoin !== 3/);
