@@ -74,6 +74,10 @@ EDITOR_LOAD_ERR_CREATE  .equ    0x39
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorLoadSourcePage:
+        PUSH    AF
+        XOR     A
+        LD      (EditorLoadAllowShort),A
+        POP     AF
         LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
         LD      (EditorLoadSourcePathPtr),DE
@@ -129,9 +133,30 @@ EditorLoadPrefixReady:
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorSaveSourcePage:
+        PUSH    AF
+        LD      A,1
+        LD      (EditorSaveGrowMode),A
+        POP     AF
+        JR      EditorSaveSourcePageCommon
+
+; EditorSaveSourcePageNoGrow -
+; Save one sector without catalog-size growth. Used by fixed-size backup files.
+;!      in        A,DE,HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorSaveSourcePageNoGrow:
+        PUSH    AF
+        XOR     A
+        LD      (EditorSaveGrowMode),A
+        POP     AF
+
+EditorSaveSourcePageCommon:
         LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
         LD      (EditorLoadSourcePathPtr),DE
+        LD      A,1
+        LD      (EditorLoadAllowShort),A
+        LD      A,(EditorLoadSectorIndex)
         CP      128
         JP      NC,EditorLoadPageErr
         AND     7
@@ -146,6 +171,8 @@ EditorLoadPrefixReady:
         ADD     A,A
         INC     A
         LD      (EditorLoadRequiredSizeHigh),A
+        INC     A
+        LD      (EditorSaveRequiredSizeHigh),A
 
         CALL    EditorLoadParseSourcePath
         RET     C
@@ -171,6 +198,13 @@ EditorSavePrefixReady:
         RET     C
         CALL    EditorLoadWriteSourceSector
         RET     C
+        LD      A,(EditorSaveGrowMode)
+        OR      A
+        JR      Z,EditorSaveSourcePageClean
+        CALL    EditorSaveExtendCatalogSize
+        RET     C
+
+EditorSaveSourcePageClean:
         XOR     A
         RET
 
@@ -569,7 +603,12 @@ EditorLoadCatalogEntry:
         POP     HL
         POP     DE
         POP     BC
-        RET     NC
+        JR      C,EditorLoadCatalogEntryMiss
+        LD      (EditorLoadCatalogSectorOffset),DE
+        XOR     A
+        RET
+
+EditorLoadCatalogEntryMiss:
         CP      EDITOR_LOAD_ERR_SIZE
         JP      Z,EditorLoadReturnErr
         CP      EDITOR_LOAD_ERR_BLOCK
@@ -599,6 +638,11 @@ EditorLoadCatalogEntry:
 ;!      clobbers  B,DE,HL
 @EditorLoadMatchCatalogEntry:
         LD      (EditorLoadEntryBase),HL
+        PUSH    HL
+        LD      DE,0 - DISK_BUFF
+        ADD     HL,DE
+        LD      (EditorLoadCatalogEntryOffset),HL
+        POP     HL
         LD      A,(HL)
         CP      TM8_ENTRY_ACTIVE
         JR      NZ,EditorLoadEntryNo
@@ -665,17 +709,20 @@ EditorLoadSizeOk:
         XOR     A
         RET
 
+EditorLoadSizeErr:
+        LD      A,(EditorLoadAllowShort)
+        OR      A
+        JR      NZ,EditorLoadSizeOk
+        LD      A,EDITOR_LOAD_ERR_SIZE
+        SCF
+        RET
+
 EditorLoadEntryNo:
         XOR     A
         SCF
         RET
 
 EditorLoadReturnErr:
-        SCF
-        RET
-
-EditorLoadSizeErr:
-        LD      A,EDITOR_LOAD_ERR_SIZE
         SCF
         RET
 
@@ -1024,16 +1071,15 @@ EditorCreateCatalogNameLoop:
         OR      A
         JR      Z,EditorCreateFreeCountBorrow
         DEC     (HL)
-        CALL    EditorCreateChecksumSubOne
         JR      EditorCreateFreeCountOk
 
 EditorCreateFreeCountBorrow:
         LD      (HL),0xFF
         INC     HL
         DEC     (HL)
-        CALL    EditorCreateChecksumAdd254
 
 EditorCreateFreeCountOk:
+        CALL    EditorCreateRecomputeSuperblockChecksum
         LD      HL,0
         LD      DE,0
         CALL    BiosFileWriteSector
@@ -1041,46 +1087,46 @@ EditorCreateFreeCountOk:
         XOR     A
         RET
 
-;!      out       A,zero
-;!      clobbers  A,HL
-@EditorCreateChecksumSubOne:
-        LD      HL,DISK_BUFF + 72
-        LD      A,(HL)
-        OR      A
-        JR      NZ,EditorCreateChecksumSubDec
-        DEC     (HL)
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,EditorCreateChecksumSubDec
-        DEC     (HL)
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,EditorCreateChecksumSubDec
-        DEC     (HL)
-        INC     HL
-
-EditorCreateChecksumSubDec:
-        DEC     (HL)
-        RET
-
 ;!      out       A,carry,zero
-;!      clobbers  A,HL
-@EditorCreateChecksumAdd254:
+;!      clobbers  A,BC,DE,HL
+@EditorCreateRecomputeSuperblockChecksum:
         LD      HL,DISK_BUFF + 72
-        LD      A,(HL)
-        ADD     A,0xFE
+        XOR     A
         LD      (HL),A
-        RET     NC
         INC     HL
-        INC     (HL)
-        RET     NZ
+        LD      (HL),A
         INC     HL
-        INC     (HL)
-        RET     NZ
+        LD      (HL),A
         INC     HL
-        INC     (HL)
+        LD      (HL),A
+
+        LD      HL,DISK_BUFF
+        LD      BC,TM8_SECTOR_BYTES
+        LD      DE,0
+
+EditorCreateChecksumLoop:
+        LD      A,E
+        ADD     A,(HL)
+        LD      E,A
+        JR      NC,EditorCreateChecksumNoCarry
+        INC     D
+
+EditorCreateChecksumNoCarry:
+        INC     HL
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorCreateChecksumLoop
+
+        LD      HL,DISK_BUFF + 72
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+        INC     HL
+        XOR     A
+        LD      (HL),A
+        INC     HL
+        LD      (HL),A
         RET
 
 ;!      out       A,carry,zero
@@ -1112,6 +1158,75 @@ EditorCreateChecksumSubDec:
         CALL    BiosFileWriteSector
         JP      C,EditorLoadWriteErr
 
+        XOR     A
+        RET
+
+; EditorSaveExtendCatalogSize -
+; Grow the matched source file's catalog byte size to include the just-written
+; sector. This supports growth inside the existing allocated 4K block; extending
+; allocation chains remains a separate storage operation.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@EditorSaveExtendCatalogSize:
+        CALL    EditorLoadFindSource
+        RET     C
+        LD      A,(EditorLoadSectorsLeft)
+        LD      B,A
+        LD      A,TM8_CATALOG_SECTORS
+        SUB     B
+        ADD     A,TM8_CATALOG_SECTOR
+        ADD     A,A
+        LD      D,A
+        LD      E,0
+        LD      (EditorLoadCatalogSectorOffset),DE
+        LD      A,D
+        CP      0x60
+        JP      C,EditorLoadBlockErr
+        LD      HL,0
+        CALL    BiosFileReadSector
+        JP      C,EditorLoadReadErr
+
+        LD      DE,(EditorLoadCatalogEntryOffset)
+        LD      HL,DISK_BUFF + 46
+        ADD     HL,DE
+        INC     HL
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,EditorSaveCatalogSizeOk
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,EditorSaveCatalogSizeOk
+        DEC     HL
+        DEC     HL
+        DEC     HL
+        INC     HL
+        LD      A,(HL)
+        LD      B,A
+        LD      A,(EditorSaveRequiredSizeHigh)
+        CP      B
+        JR      C,EditorSaveCatalogSizeOk
+        JR      Z,EditorSaveCatalogSizeOk
+
+        DEC     HL
+        XOR     A
+        LD      (HL),A
+        INC     HL
+        LD      A,(EditorSaveRequiredSizeHigh)
+        LD      (HL),A
+        INC     HL
+        XOR     A
+        LD      (HL),A
+        INC     HL
+        LD      (HL),A
+
+        LD      DE,(EditorLoadCatalogSectorOffset)
+        LD      HL,0
+        CALL    BiosFileWriteSector
+        JP      C,EditorLoadWriteErr
+
+EditorSaveCatalogSizeOk:
         XOR     A
         RET
 
@@ -1281,6 +1396,15 @@ EditorLoadBlocksLeft:
 EditorLoadRequiredSizeHigh:
         .db     0
 
+EditorSaveRequiredSizeHigh:
+        .db     0
+
+EditorSaveGrowMode:
+        .db     0
+
+EditorLoadAllowShort:
+        .db     0
+
 EditorLoadResolvedBlock:
         .dw     0
 
@@ -1306,6 +1430,12 @@ EditorLoadSectorOffsetHigh:
         .db     0
 
 EditorLoadSectorOffsetUpper:
+        .dw     0
+
+EditorLoadCatalogSectorOffset:
+        .dw     0
+
+EditorLoadCatalogEntryOffset:
         .dw     0
 
 EditorCreateFreeBlock:

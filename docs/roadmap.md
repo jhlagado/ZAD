@@ -122,8 +122,12 @@ Work:
   enough to absorb immediate adjacent navigation without touching SD.
 - Done: avoid SD writes until explicit save, and then write back resident dirty
   sectors.
-- Decide what happens when the file grows and needs a new sector/page.
-- Update the TM8 allocation/write path to extend a file safely.
+- Done: pressing Enter on row 15 can create the first record in the adjacent
+  page when that page is resident and has room.
+- Done: saving a new page inside the file's existing 4K allocation block grows
+  the TM8 catalog byte size safely.
+- Update the TM8 allocation/write path to extend the allocation chain when a
+  file grows beyond its current 4K block chain.
 
 Likely design:
 
@@ -144,10 +148,10 @@ Done when:
 - You can create new lines past the end of the current page.
 - Page up/down shows the reshaped file correctly.
 - Save persists resident dirty sectors that already belong to the TM8 file.
-- Remaining storage work: save must persist a genuinely grown file by updating
-  the catalog size and extending the allocation chain when needed.
-- Remaining editing work: pressing Enter while already on row 15 should create
-  a new first record in the adjacent page rather than no-op.
+- Save persists a grown file when the new sector still fits inside the existing
+  4K allocation block.
+- Remaining storage work: save must extend the allocation chain when the grown
+  file crosses a 4K block boundary.
 - Metadata bits in each source-record length byte are preserved unless a
   deliberately defined editor metadata operation changes them.
 - Moving around a file within the RAM window does not perform SD reads.

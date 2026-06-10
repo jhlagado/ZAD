@@ -755,9 +755,11 @@ What is still missing or intentionally skeletal:
   next sector, and one previous-page cache. A later 2K or 4K window should
   reduce SD reads further for 100-200 line source files.
 - Stop before starting assembler integration until a new milestone is chosen.
-- Split can push row 15 into the adjacent sector, and Backspace at row 0 can
-  join into cached previous row 15. These paths do not yet allocate/free TM8
-  storage when the file needs a new catalog size or allocation-chain extension.
+- Split can push row 15 into the adjacent sector, row-15 Enter can create the
+  first record in the adjacent sector, and Backspace at row 0 can join into
+  cached previous row 15. Saving can grow the catalog byte size when the new
+  sector still fits inside the file's existing 4K allocation block. It does not
+  yet allocate/free TM8 blocks when the file needs an allocation-chain extension.
 - The marker policy is still mostly fixed proof data, and prompt overlays still
   flush more than they should.
 - The Z80 storage readers are narrow readers, not a general reusable TM8

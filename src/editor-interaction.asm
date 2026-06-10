@@ -719,6 +719,7 @@ EditorBackspaceDone:
 @EditorSplitLine:
         LD      A,(EditorCursorRow)
         CP      15
+        JP      Z,EditorSplitFinalRow
         JP      NC,EditorSplitDone
 
         LD      A,15
@@ -784,10 +785,10 @@ EditorSplitShiftDone:
         LD      A,(EditorLineColumn)
         CALL    EditorKeyWriteRecordLength
         LD      A,(EditorLineLength)
-        LD      B,A
+        LD      (EditorLineTailLength),A
         LD      A,(EditorLineColumn)
         LD      C,A
-        LD      A,B
+        LD      A,(EditorLineTailLength)
         SUB     C
         LD      (EditorLineTailLength),A
         LD      HL,(EditorRecordBase)
@@ -834,6 +835,144 @@ EditorSplitCursorDown:
         RET
 
 EditorSplitDone:
+        XOR     A
+        RET
+
+; EditorSplitFinalRow -
+; Split active row 15 into adjacent next-sector row 0, shifting the adjacent
+; sector down first. The next sector must be resident and have a free tail row.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorSplitFinalRow:
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JP      Z,EditorSplitFinalDone
+        LD      HL,EditorNavNextPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        CALL    EditorKeyReadRecordLength
+        OR      A
+        JP      NZ,EditorSplitFinalDone
+
+        CALL    EditorKeyCurrentRecord
+        LD      (EditorRecordBase),HL
+        CALL    EditorKeyReadRecordLength
+        LD      (EditorLineLength),A
+        LD      B,A
+        LD      A,(EditorCursorCol)
+        CP      B
+        JR      C,EditorSplitFinalCursorReady
+        JR      Z,EditorSplitFinalCursorReady
+        LD      A,B
+        LD      (EditorCursorCol),A
+
+EditorSplitFinalCursorReady:
+        LD      (EditorLineColumn),A
+        LD      HL,EditorNavNextPageBuffer + (14 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        LD      (EditorLineSrc),HL
+        LD      HL,EditorNavNextPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        LD      (EditorLineDest),HL
+        LD      A,15
+        LD      (EditorLineRowsLeft),A
+
+EditorSplitFinalNextShiftLoop:
+        LD      A,(EditorLineRowsLeft)
+        OR      A
+        JR      Z,EditorSplitFinalWriteRecords
+        LD      HL,(EditorLineSrc)
+        LD      DE,(EditorLineDest)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      HL,(EditorLineSrc)
+        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineSrc),HL
+        LD      HL,(EditorLineDest)
+        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineRowsLeft)
+        DEC     A
+        LD      (EditorLineRowsLeft),A
+        JR      EditorSplitFinalNextShiftLoop
+
+EditorSplitFinalWriteRecords:
+        LD      HL,(EditorRecordBase)
+        LD      A,(EditorLineColumn)
+        CALL    EditorKeyWriteRecordLength
+        LD      A,(EditorLineLength)
+        LD      B,A
+        LD      A,(EditorLineColumn)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        LD      (EditorLineTailLength),A
+        LD      HL,EditorNavNextPageBuffer
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineTailLength)
+        LD      (HL),A
+        OR      A
+        JR      Z,EditorSplitFinalZeroPadding
+        LD      HL,(EditorRecordBase)
+        INC     HL
+        LD      D,0
+        LD      A,(EditorLineColumn)
+        LD      E,A
+        ADD     HL,DE
+        LD      DE,(EditorLineDest)
+        INC     DE
+        LD      A,(EditorLineTailLength)
+        LD      B,A
+
+EditorSplitFinalTailLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DJNZ    EditorSplitFinalTailLoop
+
+EditorSplitFinalZeroPadding:
+        LD      HL,(EditorRecordBase)
+        LD      A,(EditorLineColumn)
+        CALL    EditorKeyZeroRecordPadding
+        LD      HL,(EditorLineDest)
+        LD      A,(EditorLineTailLength)
+        CALL    EditorKeyZeroRecordPadding
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JR      Z,EditorSplitFinalStay
+        LD      A,(EditorNavDirtySectors)
+        OR      1
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRememberCurrentPage
+        RET     C
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,(EditorNavCurrentPage)
+        INC     A
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorNavSlideNextPageToCurrent
+        CALL    EditorNavLoadNextWindowPage
+        RET     C
+        XOR     A
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorCol),A
+        LD      A,(EditorNavDirtySectors)
+        SRL     A
+        OR      1
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,1
+        RET
+
+EditorSplitFinalStay:
+        XOR     A
+        LD      (EditorCursorCol),A
+        LD      A,1
+        RET
+
+EditorSplitFinalDone:
         XOR     A
         RET
 

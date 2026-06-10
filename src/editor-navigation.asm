@@ -73,6 +73,8 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         RET     C
         CALL    EditorBackupCurrentPage
         JR      C,EditorSaveCurrentPageRestoreError
+        CALL    EditorBackupCachedPageIfDirty
+        JR      C,EditorSaveCurrentPageRestoreError
         LD      A,(EditorNavDirtySectors)
         AND     1
         JR      Z,EditorSaveCurrentPageMaybeNext
@@ -137,11 +139,13 @@ EditorSaveCurrentPageRestoreError:
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavBackupPageBuffer
         CALL    EditorLoadSourcePage
-        RET     C
+        JR      C,EditorBackupCurrentPageLoadError
+
+EditorBackupCurrentPageLoaded:
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavBackupPageBuffer
-        CALL    EditorSaveSourcePage
+        CALL    EditorSaveSourcePageNoGrow
         RET     NC
         CP      EDITOR_LOAD_ERR_FIND
         RET     NZ
@@ -151,7 +155,48 @@ EditorSaveCurrentPageRestoreError:
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavBackupPageBuffer
-        JP      EditorSaveSourcePage
+        JP      EditorSaveSourcePageNoGrow
+
+EditorBackupCurrentPageLoadError:
+        CP      EDITOR_LOAD_ERR_SIZE
+        RET     NZ
+        CALL    EditorNavClearBackupPageBuffer
+        JR      EditorBackupCurrentPageLoaded
+
+; EditorBackupCachedPageIfDirty -
+; Preserve the original on-disk copy of a dirty cached previous page before
+; save writes that cached page back.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBackupCachedPageIfDirty:
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorBackupCachedPageDone
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JR      Z,EditorBackupCachedPageDone
+        LD      A,(EditorNavCurrentPage)
+        LD      (EditorNavBackupSavedCurrentPage),A
+        LD      A,(EditorNavCachedPage)
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorBackupCurrentPage
+        JR      C,EditorBackupCachedPageError
+        LD      A,(EditorNavBackupSavedCurrentPage)
+        LD      (EditorNavCurrentPage),A
+        XOR     A
+        RET
+
+EditorBackupCachedPageError:
+        LD      (EditorNavBackupError),A
+        LD      A,(EditorNavBackupSavedCurrentPage)
+        LD      (EditorNavCurrentPage),A
+        LD      A,(EditorNavBackupError)
+        SCF
+        RET
+
+EditorBackupCachedPageDone:
+        XOR     A
+        RET
 
 ; EditorLoadCurrentBackupPage -
 ; Load the derived hidden backup path into the current page buffer.
@@ -514,6 +559,24 @@ EditorNavNextWindowUnavailable:
         RET
 
 ;!      out       A,carry,zero
+;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+@EditorNavClearBackupPageBuffer:
+        LD      HL,EditorNavBackupPageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+        XOR     A
+
+EditorNavClearBackupPageBufferLoop:
+        XOR     A
+        LD      (HL),A
+        INC     HL
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorNavClearBackupPageBufferLoop
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorNavClearNextPageBuffer:
         LD      HL,EditorNavNextPageBuffer
@@ -712,6 +775,12 @@ EditorNavDirtySectors:
         .db     0
 
 EditorNavSwapByte:
+        .db     0
+
+EditorNavBackupSavedCurrentPage:
+        .db     0
+
+EditorNavBackupError:
         .db     0
 
 EditorNavPathPtr:

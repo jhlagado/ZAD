@@ -112,6 +112,18 @@ function symbolAddress(symbols: D8Symbol[], name: string): number {
   return symbol.address;
 }
 
+function readWord(memory: Uint8Array, address: number): number {
+  return memory[address] | (memory[address + 1] << 8);
+}
+
+function readCString(memory: Uint8Array, address: number): string {
+  const bytes: number[] = [];
+  for (let offset = address; offset < memory.length && memory[offset] !== 0; offset += 1) {
+    bytes.push(memory[offset]);
+  }
+  return Buffer.from(bytes).toString('ascii');
+}
+
 function encodeSourceRecords(lines: string[]): Buffer {
   const records = Buffer.alloc(lines.length * 32);
   lines.forEach((line, index) => {
@@ -702,8 +714,14 @@ async function main(): Promise<void> {
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const resultMarker = runtime.hardware.memory[resultAddr];
   if (resultMarker !== PASS) {
+    const catalogSector = symbolAddress(symbols, 'EditorLoadCatalogSectorOffset');
+    const catalogEntry = symbolAddress(symbols, 'EditorLoadCatalogEntryOffset');
+    const sourcePathPtr = symbolAddress(symbols, 'EditorLoadSourcePathPtr');
+    const catalogSectorValue = readWord(runtime.hardware.memory, catalogSector);
+    const catalogEntryValue = readWord(runtime.hardware.memory, catalogEntry);
+    const sourcePathValue = readWord(runtime.hardware.memory, sourcePathPtr);
     throw new Error(
-      `Debug80 editor session failed result=0x${resultMarker.toString(16)} case=${runtime.hardware.memory[caseAddr]} error=0x${runtime.hardware.memory[errorAddr].toString(16)}`,
+      `Debug80 editor session failed result=0x${resultMarker.toString(16)} case=${runtime.hardware.memory[caseAddr]} error=0x${runtime.hardware.memory[errorAddr].toString(16)} catalogSector=0x${catalogSectorValue.toString(16)} catalogEntry=0x${catalogEntryValue.toString(16)} sourcePath=${JSON.stringify(readCString(runtime.hardware.memory, sourcePathValue))}`,
     );
   }
 

@@ -30,6 +30,9 @@ PROOF_FAIL       .equ     0xE0
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A
+        INC     A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageBuffer + (15 * 32)),A
         LD      HL,EditorNoopSplitKeys
         CALL    EditorRunKeys
         JP      C,ProofFailed
@@ -47,6 +50,11 @@ PROOF_FAIL       .equ     0xE0
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterNoopInsert),A
 
+        XOR     A
+        LD      (EditorNavCurrentPage),A
+        LD      (EditorNavCacheValid),A
+        LD      (EditorNavCachedPageDirty),A
+        LD      (EditorNavDirtySectors),A
         CALL    EditorRenderCurrent
         JP      C,ProofFailed
         CALL    EditorCursorReset

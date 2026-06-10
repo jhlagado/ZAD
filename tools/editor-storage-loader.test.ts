@@ -16,6 +16,7 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /^@EditorLoadMainPage:/m);
   assert.match(source, /^@EditorLoadSourcePage:/m);
   assert.match(source, /^@EditorSaveSourcePage:/m);
+  assert.match(source, /^@EditorSaveSourcePageNoGrow:/m);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainSector:/);
   assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainPage:/);
   assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadSourcePage:/);
@@ -30,6 +31,10 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /CALL\s+EditorLoadResolveSourceBlock/);
   assert.match(source, /CALL\s+EditorLoadReadAllocationEntry/);
   assert.match(source, /CALL\s+EditorLoadWriteSourceSector/);
+  assert.match(source, /CALL\s+EditorSaveExtendCatalogSize/);
+  assert.match(source, /EditorSaveGrowMode:\n\s+\.db\s+0/);
+  assert.match(source, /@EditorSaveExtendCatalogSize:[\s\S]*?INC\s+HL\n\s+INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorSaveCatalogSizeOk/);
+  assert.match(source, /INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorSaveCatalogSizeOk/);
   assert.match(source, /JR\s+NC,EditorLoadAllocationOffsetOk\n\s+INC\s+D/);
   assert.match(source, /EditorLoadPageErr:\n\s+LD\s+A,EDITOR_LOAD_ERR_PAGE\n\s+SCF\n\s+RET/);
 });

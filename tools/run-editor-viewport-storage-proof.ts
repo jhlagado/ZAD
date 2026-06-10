@@ -119,6 +119,13 @@ const PROOF_CASES = {
     lines: makeWindowSaveLines(),
     verify: verifyEditorWindowSaveProof,
   },
+  'editor-row15-growth-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-row15-growth-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-row15-growth-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-row15-growth-fat32.img'),
+    lines: makeSinglePageLines(),
+    verify: verifyEditorRow15GrowthProof,
+  },
   'editor-line-editing-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof-last-run.json'),
@@ -228,6 +235,12 @@ function makeSmallFileLines(): string[] {
     'SMALL 06',
     'SMALL 07',
   ];
+}
+
+function makeSinglePageLines(): string[] {
+  return Array.from({ length: 16 }, (_, index) => {
+    return `R0 LINE ${index.toString().padStart(2, '0')}`;
+  });
 }
 
 function makeWindowSaveLines(): string[] {
@@ -787,6 +800,42 @@ function verifyEditorWindowSaveProof(runtime: Runtime, _platformRuntime: Platfor
   }
 }
 
+function verifyEditorRow15GrowthProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const dirty = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirty')];
+  if (dirty !== 0) {
+    throw new Error(`editor row15 growth dirty ${dirty}, expected 0`);
+  }
+  const currentPage = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavCurrentPage')];
+  if (currentPage !== 1) {
+    throw new Error(`editor row15 growth current page ${currentPage}, expected 1`);
+  }
+  const stored = readFileFromProofImage(PROOF_CASES['editor-row15-growth-proof'], '/src/main.asm');
+  const backup = readFileFromProofImage(PROOF_CASES['editor-row15-growth-proof'], '/src/.main.asm.b');
+  if (stored.length !== 1024) {
+    throw new Error(`editor row15 growth stored length ${stored.length}, expected 1024`);
+  }
+  const backupRecord15 = readSourceRecord(backup, 0, 15);
+  if (backupRecord15 !== 'R0 LINE 15') {
+    throw new Error(`editor row15 growth backup record 15 "${backupRecord15}", expected "R0 LINE 15"`);
+  }
+  const checks = [
+    { record: 15, text: 'R0' },
+    { record: 16, text: ' LINE 15' },
+  ];
+  for (const check of checks) {
+    const actual = readSourceRecord(stored, 0, check.record);
+    if (actual !== check.text) {
+      const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+      const cacheBuffer = symbolAddress(symbols, 'EditorNavCachePageBuffer');
+      const dirtySectors = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirtySectors')];
+      const cacheDirty = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavCachedPageDirty')];
+      throw new Error(
+        `editor row15 growth record ${check.record} "${actual}", expected "${check.text}"; runtimePage15="${readSourceRecord(runtime.hardware.memory, pageBuffer, 15)}" runtimeCache15="${readSourceRecord(runtime.hardware.memory, cacheBuffer, 15)}" dirtySectors=${dirtySectors} cacheDirty=${cacheDirty}`,
+      );
+    }
+  }
+}
+
 function verifyEditorLineEditingProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
   const expectedRecords = [
@@ -1131,18 +1180,25 @@ function describeProofFailure(runtime: Runtime, symbols: D8Symbol[]): string {
     'EditorLoadPrefixLen',
     'EditorLoadNameLen',
     'EditorLoadSrcPrefixId',
+    'EditorNavCurrentPage',
+    'EditorNavCachedPage',
+    'EditorNavCacheValid',
+    'EditorNavCachedPageDirty',
+    'EditorNavDirtySectors',
   ]) {
     const address = optionalSymbolAddress(symbols, name);
     if (address !== undefined) {
       parts.push(`${name}=${resultToString(runtime.hardware.memory[address])}`);
     }
   }
-  for (const name of ['EditorLoadSourcePathPtr', 'EditorLoadPrefixPtr', 'EditorLoadNamePtr']) {
+  for (const name of ['EditorLoadSourcePathPtr', 'EditorLoadPrefixPtr', 'EditorLoadNamePtr', 'EditorLoadCatalogSectorOffset', 'EditorLoadCatalogEntryOffset']) {
     const address = optionalSymbolAddress(symbols, name);
     if (address !== undefined) {
       const pointer = readWord(runtime.hardware.memory, address);
       parts.push(`${name}=0x${pointer.toString(16).padStart(4, '0')}`);
-      parts.push(`${name}Text=${JSON.stringify(readCString(runtime.hardware.memory, pointer))}`);
+      if (name.endsWith('Ptr')) {
+        parts.push(`${name}Text=${JSON.stringify(readCString(runtime.hardware.memory, pointer))}`);
+      }
     }
   }
   return parts.length > 0 ? ` (${parts.join(', ')})` : '';

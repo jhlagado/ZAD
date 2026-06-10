@@ -159,6 +159,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /@EditorKeyReadRecordLength:\n\s+LD\s+A,\(HL\)\n\s+AND\s+TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK/);
   assert.match(source, /@EditorKeyWriteRecordLength:[\s\S]*?AND\s+TECM8_EDITOR_EDIT_RECORD_METADATA_MASK[\s\S]*?OR\s+B\n\s+LD\s+\(HL\),A/);
   assert.match(source, /@EditorSplitPushLastRecordToNextPage:/);
+  assert.match(source, /@EditorSplitFinalRow:/);
+  assert.match(source, /CALL\s+EditorNavRememberCurrentPage/);
+  assert.match(source, /CALL\s+EditorNavSlideNextPageToCurrent/);
   assert.match(source, /EditorNavNextPageBuffer/);
   assert.match(source, /@EditorKeyClearRecord:/);
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
@@ -243,6 +246,21 @@ test('editor dirty render proof covers ordinary movement and printable edit path
   assert.match(runner, /PZ0 LINE 00/);
   assert.match(packageJson, /"proof:display:editor-dirty-render"/);
   assert.match(packageJson, /proof:display:editor-dirty-render/);
+});
+
+test('editor row-15 growth proof is wired into package checks', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-row15-growth-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-row15-growth-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+EditorSplitLine/);
+  assert.match(proof, /CALL\s+EditorSaveCurrentPage/);
+  assert.match(runner, /editor-row15-growth-proof/);
+  assert.match(runner, /verifyEditorRow15GrowthProof/);
+  assert.match(runner, /stored\.length !== 1024/);
+  assert.match(packageJson, /"proof:display:editor-row15-growth"/);
+  assert.match(packageJson, /proof:display:editor-row15-growth/);
 });
 
 test('editor mutation boundary proof covers fixed-record edge cases', () => {
