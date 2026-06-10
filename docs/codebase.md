@@ -109,7 +109,11 @@ the `D8xxh` to `DCxxh` range. `BiosInputPollKey` also wraps the MON3 matrix
 scanner path, returns translated keys with TECM8 modifier bits, exposes the raw
 scan bytes for diagnostics, and normalizes Ctrl+A..Z into the ASCII control
 codes consumed by the editor command loop. Higher-level code should call the
-wrapper names, not hard-code MON3 addresses.
+wrapper names, not hard-code MON3 addresses. `BiosDisplayInit` still enters the
+MON3 terminal path first, then clears and plots the graphics buffer so TECM8
+starts from a known GLCD image. `BiosDisplayClear` now only clears and plots
+the active graphics buffer, which preserves MON3's terminal cursor policy while
+the tile renderer redraws the screen.
 
 `src/mon3.asmi` documents the external MON3 symbols that are not implemented in
 this repository. The TECM8 wrapper routines themselves live in
@@ -418,7 +422,10 @@ arms a status-line restore prompt; a yes answer loads the hidden backup into the
 current page buffer, rerenders it, and marks it dirty so the user can inspect
 before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when clean;
 when dirty, they ask before discarding changes and only exit on yes. There is
-not yet sector-crossing insert/delete.
+not yet sector-crossing insert/delete. The current live Debug80 smoke now
+drives the same path through matrix `Enter`, `Backspace` at column zero,
+save, page-away/page-back persistence checks, a clean-save no-op, post-save
+input, and quit.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -615,9 +622,12 @@ TEC-1G runtime, verifies `/src/main.asm` was saved as fixed source records,
 verifies the hidden backup, and writes
 `demos/debug80/editor-session-glcd.pgm` as a local GLCD capture. Its
 `--live-smoke` path boots the manual `LiveStart` entry, injects matrix-key
-events, and checks that live edit, clean-save no-op, post-save input, second
-save, and quit commands reach the same dirty-state and translated-key results
-as the scripted editor loop.
+events, and checks that live cursor movement, page movement, split-line,
+join-line, save, saved-page round-trip, clean-save no-op, post-save input,
+second save, and quit commands reach the same dirty-state and translated-key
+results as the scripted editor loop. The generated fixture now carries two
+source pages, with page 0 ending in an empty record so the live smoke can split
+and rejoin a line without crossing a sector boundary.
 
 ### Storage Image And Audit Tools
 
@@ -724,6 +734,8 @@ What exists now:
   restored buffer dirty for inspection.
 - The editor can quit from the key stream, with dirty-state confirmation before
   discarding unsaved changes.
+- The live Debug80 editor session now rechecks line split and join behavior
+  through the matrix-key path, including save and page-return persistence.
 
 What is still missing or intentionally skeletal:
 
