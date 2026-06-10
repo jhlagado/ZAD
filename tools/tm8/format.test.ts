@@ -1548,15 +1548,19 @@ test('fs export-text masks source metadata bits and rejects malformed records an
   }
 });
 
-test('raw fs import and export do not convert source text records', () => {
+test('raw fs import and export do not convert source text records or omit hidden files', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const volumePath = join(dir, 'VOLUME.TM8');
     const hostPath = join(dir, 'MAIN.ASM');
+    const backupHostPath = join(dir, 'MAIN.BACKUP');
     const exportPath = join(dir, 'RAW.ASM');
+    const backupExportPath = join(dir, 'RAW.BACKUP');
     const content = Buffer.from('start:\n  ret\n', 'utf8');
+    const backupContent = Buffer.from('previous:\n  nop\n', 'utf8');
     formatVolumeFile(volumePath);
     writeFileSync(hostPath, content);
+    writeFileSync(backupHostPath, backupContent);
 
     execFileSync(
       process.execPath,
@@ -1565,12 +1569,24 @@ test('raw fs import and export do not convert source text records', () => {
     );
     execFileSync(
       process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'import', volumePath, backupHostPath, '/src/.main.asm.b'],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
       ['--experimental-strip-types', 'tools/fs.ts', 'export', volumePath, '/src/main.asm', exportPath],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'export', volumePath, '/src/.main.asm.b', backupExportPath],
       { cwd: process.cwd(), stdio: 'pipe' },
     );
 
     assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/src/main.asm'), content);
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/src/.main.asm.b'), backupContent);
     assert.deepEqual(readFileSync(exportPath), content);
+    assert.deepEqual(readFileSync(backupExportPath), backupContent);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1856,6 +1872,39 @@ test('fs unpack preserves zero-length and multi-block file contents', () => {
   }
 });
 
+test('fs unpack omits hidden backup files by default', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const outputFolder = join(dir, 'workspace');
+    const sourceContent = Buffer.from('start:\n', 'utf8');
+    const backupContent = Buffer.from('old:\n', 'utf8');
+    writeFileSync(
+      volumePath,
+      importFileIntoVolumeImage(
+        importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', sourceContent),
+        '/src/.main.asm.b',
+        backupContent,
+      ),
+    );
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'unpack', volumePath, outputFolder],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.deepEqual(readFileSync(join(outputFolder, 'src', 'main.asm')), sourceContent);
+    assert.throws(
+      () => readFileSync(join(outputFolder, 'src', '.main.asm.b')),
+      /ENOENT/,
+    );
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/src/.main.asm.b'), backupContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('fs unpack rejects host overwrites and malformed volumes', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
@@ -2016,6 +2065,33 @@ test('fs pack preserves zero-length and multi-block file contents', () => {
 
     assert.equal(readFileFromVolumeImage(readFileSync(volumePath), '/empty.bin').byteLength, 0);
     assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/bin/big.bin'), bigContent);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fs pack omits hidden backup files by default', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
+  try {
+    const folder = join(dir, 'workspace');
+    const volumePath = join(dir, 'VOLUME.TM8');
+    const sourceContent = Buffer.from('start:\n', 'utf8');
+    const backupContent = Buffer.from('old:\n', 'utf8');
+    mkdirSync(join(folder, 'src'), { recursive: true });
+    writeFileSync(join(folder, 'src', 'main.asm'), sourceContent);
+    writeFileSync(join(folder, 'src', '.main.asm.b'), backupContent);
+
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'pack', folder, volumePath],
+      { cwd: process.cwd(), stdio: 'pipe' },
+    );
+
+    assert.deepEqual(readFileFromVolumeImage(readFileSync(volumePath), '/src/main.asm'), sourceContent);
+    assert.throws(
+      () => readFileFromVolumeImage(readFileSync(volumePath), '/src/.main.asm.b'),
+      /file not found/,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

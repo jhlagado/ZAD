@@ -381,16 +381,18 @@ Goal: ensure source files remain compatible between host tools and TECM8.
 
 Work:
 
-- Preserve 32-byte fixed records.
-- Validate length bytes.
-- Decide whether high bits in length byte must be masked or rejected.
-- Confirm `export-text` handles edited files.
-- Confirm hidden backups do not export by default.
+- Done: preserve 32-byte fixed records.
+- Done: validate length bytes and record padding on `export-text`.
+- Done: high bits in the source-record length byte are treated as metadata and
+  masked on export.
+- Done: confirm `export-text` handles edited files.
+- Done: default project `pack`/`unpack` omits leading-dot hidden backups such
+  as `/src/.main.asm.b`; explicit raw operations can still name them directly.
 
 Done when:
 
-- A file edited in TECM8 exports cleanly to host `.asm`.
-- A host-imported `.asm` edits cleanly in TECM8.
+- Done: a file edited in TECM8 exports cleanly to host `.asm`.
+- Done: a host-imported `.asm` edits cleanly in TECM8.
 
 ## Phase 12: Error Handling
 
@@ -478,8 +480,6 @@ editor to a file editor.
 
 ## Deferred Design Work
 
-- Hide leading-dot files from ordinary TEC-side `ls`.
-- Decide host `fs pack`/`unpack` defaults for hidden files and backups.
 - Implement cleanup for hidden `.b` backups.
 - Decide whether to use source-record length bits 5-7 for line metadata.
 - Add a low-cost blinking cursor after the renderer can update the cursor cell

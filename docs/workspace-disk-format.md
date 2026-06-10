@@ -174,10 +174,12 @@ behavior. `copy` reads exact stored bytes from a
 validated source volume path and imports them into a validated destination
 volume path, rejecting destination collisions with the same rules as `import`.
 `unpack` parses one TM8 volume, creates a host folder tree from every active
-file prefix, and writes exact stored bytes to new host files while refusing
-overwrites. `pack` walks a host folder tree, converts relative file paths to
-strict TM8 paths, imports exact bytes into a new volume image, and refuses to
-overwrite an existing volume file.
+non-hidden file prefix, and writes exact stored bytes to new host files while
+refusing overwrites. `pack` walks a host folder tree, converts relative
+non-hidden file paths to strict TM8 paths, imports exact bytes into a new volume
+image, and refuses to overwrite an existing volume file. Leading-dot local
+filenames are hidden by default so editor backups such as `/src/.main.asm.b`
+are omitted from ordinary project export/import.
 `project-init` creates root file `/tecm8.prj` and a default main source file
 when it does not already exist. The project config is stored as ASCII
 `key=value` lines rather than JSON:

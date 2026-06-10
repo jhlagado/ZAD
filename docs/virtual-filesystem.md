@@ -291,10 +291,10 @@ a-z 0-9 _ - . /
 ```
 
 Leading-dot local filenames follow the Unix hidden-file convention. They are
-ordinary catalog entries on disk, but ordinary `ls`, project export, and
-project pack/unpack workflows should hide or omit them by default once that
-behavior is implemented. Explicit "show hidden" or "include hidden" options can
-be added later.
+ordinary catalog entries on disk, but ordinary TEC-side `ls`, project export,
+and project `pack`/`unpack` workflows hide or omit them by default. Explicit
+raw host operations such as `fs cat`, `fs export`, `fs import`, and `fs copy`
+can still name hidden files directly.
 
 Hidden files are not only backups. They are reserved for internal or auxiliary
 project state as well, so backup files should carry a role suffix instead of
@@ -418,9 +418,14 @@ fs project-init VOLUME.TM8 /src/main.asm
 fs project-info VOLUME.TM8
 ```
 
-`fs import`, `fs export`, `fs copy`, `fs unpack`, and `fs pack` are implemented
-as raw byte operations. `fs import-text` and `fs export-text` are implemented
-as source conversion commands for 32-byte editor records.
+`fs import`, `fs export`, and `fs copy` are implemented as raw byte operations.
+`fs unpack` and `fs pack` are project-preservation operations and omit
+leading-dot local filenames by default, so editor backups such as
+`/src/.main.asm.b` do not clutter an exported workspace or get packed back into
+a clean project volume. Explicit raw operations can still name hidden files
+directly when recovery or diagnosis needs them. `fs import-text` and
+`fs export-text` are implemented as source conversion commands for 32-byte
+editor records.
 
 `fs project-init` creates root file `/tecm8.prj`, a line-oriented ASCII config
 file for the project main file. TEC-side code can read it without a JSON parser.

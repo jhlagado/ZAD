@@ -399,6 +399,10 @@ function hostPathPartsForVolumeFile(
   return parts;
 }
 
+function isHiddenLocalName(name: string): boolean {
+  return name.startsWith('.');
+}
+
 function assertNoUnpackTreeCollisions(paths: string[][]): void {
   const filePaths = new Set(paths.map((parts) => parts.join('\0')));
   for (const parts of paths) {
@@ -426,10 +430,12 @@ function writeNewHostFile(path: string, content: Buffer): void {
 function unpackVolume(volumePath: string, hostFolder: string): void {
   const image = readFileSync(volumePath);
   const volume = parseVolumeImage(image) as ParsedVolumeForCli;
-  const paths = volume.files.map((file) => ({
-    file,
-    parts: hostPathPartsForVolumeFile(volume, file),
-  }));
+  const paths = volume.files
+    .filter((file) => !isHiddenLocalName(file.name))
+    .map((file) => ({
+      file,
+      parts: hostPathPartsForVolumeFile(volume, file),
+    }));
   assertNoUnpackTreeCollisions(paths.map((entry) => entry.parts));
 
   mkdirSync(hostFolder, { recursive: true });
@@ -458,6 +464,9 @@ function collectHostFiles(folder: string, parts: string[] = []): Array<{ hostPat
   const files: Array<{ hostPath: string; tm8Path: string }> = [];
 
   for (const entry of entries) {
+    if (isHiddenLocalName(entry.name)) {
+      continue;
+    }
     const entryParts = [...parts, entry.name];
     const hostPath = join(folder, ...entryParts);
     if (entry.isSymbolicLink()) {
