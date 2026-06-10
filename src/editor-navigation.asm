@@ -77,6 +77,9 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         CALL    EditorViewportSetTopRow
         RET     C
         XOR     A
+        CALL    EditorViewportSetColOffset
+        RET     C
+        XOR     A
         JP      EditorViewportSetCurrentRow
 
 ; EditorNavSyncViewport -

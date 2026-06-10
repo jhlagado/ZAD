@@ -133,6 +133,13 @@ const PROOF_CASES = {
     lines: makeSinglePageLines(),
     verify: verifyEditorViewportScrollProof,
   },
+  'editor-horizontal-scroll-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-horizontal-scroll-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-horizontal-scroll-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-horizontal-scroll-fat32.img'),
+    lines: makeSinglePageLines(),
+    verify: verifyEditorHorizontalScrollProof,
+  },
   'editor-allocation-growth-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-allocation-growth-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-allocation-growth-proof-last-run.json'),
@@ -626,23 +633,31 @@ function verifyShellEditExplicitNavigationProof(
 
 function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x18, '/projects/demo/app.asm', 'A1', 1, [
-    { symbol: 'EditorRowText0', text: 'A1 LINE 01' },
-    { symbol: 'EditorRowText1', text: 'A1 LINE 02' },
-    { symbol: 'EditorRowText7', text: 'dl?1 LINE 08' },
-    { symbol: 'EditorRowText9', text: 'A1 LINE 10' },
+    { symbol: 'EditorRowText0', text: '1 LINE 01' },
+    { symbol: 'EditorRowText1', text: '1 LINE 02' },
+    { symbol: 'EditorRowText7', text: 'dl? LINE 08' },
+    { symbol: 'EditorRowText9', text: '1 LINE 10' },
   ]);
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
   const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
+  const visibleCol = symbolAddress(symbols, 'EditorCursorVisibleCol');
+  const colOffset = symbolAddress(symbols, 'EditorViewportColOffset');
   if (runtime.hardware.memory[cursorRow] !== 8) {
     throw new Error(`shell edit cursor row ${runtime.hardware.memory[cursorRow]}, expected 8`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 3) {
-    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 3`);
+  if (runtime.hardware.memory[cursorCol] !== 4) {
+    throw new Error(`shell edit cursor col ${runtime.hardware.memory[cursorCol]}, expected 4`);
+  }
+  if (runtime.hardware.memory[visibleCol] !== 3) {
+    throw new Error(`shell edit visible cursor col ${runtime.hardware.memory[visibleCol]}, expected 3`);
+  }
+  if (runtime.hardware.memory[colOffset] !== 1) {
+    throw new Error(`shell edit viewport col offset ${runtime.hardware.memory[colOffset]}, expected 1`);
   }
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
   const mutatedRecord = readSourceRecord(runtime.hardware.memory, pageBuffer, 8);
-  if (mutatedRecord !== 'dl?1 LINE 08') {
-    throw new Error(`shell edit mutated record "${mutatedRecord}", expected "dl?1 LINE 08"`);
+  if (mutatedRecord !== 'Adl? LINE 08') {
+    throw new Error(`shell edit mutated record "${mutatedRecord}", expected "Adl? LINE 08"`);
   }
   const unknownModifiedDirty = runtime.hardware.memory[symbolAddress(symbols, 'UnknownModifiedDirty')];
   if (unknownModifiedDirty !== 0) {
@@ -898,6 +913,42 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
   }
 }
 
+function verifyEditorHorizontalScrollProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const checks = [
+    { symbol: 'CursorColAfterInsert', expected: 30 },
+    { symbol: 'VisibleColAfterInsert', expected: 19 },
+    { symbol: 'ColOffsetAfterInsert', expected: 11 },
+    { symbol: 'DirtyAfterInsert', expected: 1 },
+    { symbol: 'ShortCursorColBeforeBackspace', expected: 30 },
+    { symbol: 'ShortVisibleColBeforeBackspace', expected: 19 },
+    { symbol: 'ShortColOffsetBeforeBackspace', expected: 11 },
+    { symbol: 'ShortCursorColAfterBackspace', expected: 29 },
+    { symbol: 'ShortVisibleColAfterBackspace', expected: 18 },
+    { symbol: 'ShortColOffsetAfterBackspace', expected: 11 },
+    { symbol: 'EditorCursorCol', expected: 29 },
+    { symbol: 'EditorCursorVisibleCol', expected: 18 },
+    { symbol: 'EditorViewportColOffset', expected: 11 },
+  ];
+  for (const check of checks) {
+    const value = runtime.hardware.memory[symbolAddress(symbols, check.symbol)];
+    if (value !== check.expected) {
+      throw new Error(`editor horizontal scroll ${check.symbol} ${value}, expected ${check.expected}`);
+    }
+  }
+
+  const visible = readCString(runtime.hardware.memory, symbolAddress(symbols, 'VisibleRowText0'));
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  const record = readSourceRecord(runtime.hardware.memory, pageBuffer, 0);
+  if (visible !== 'LMNOPQRSTUVWXYZ12345') {
+    throw new Error(
+      `editor horizontal scroll visible row "${visible}", expected "LMNOPQRSTUVWXYZ12345"; record="${record}"`,
+    );
+  }
+  if (record !== 'ABCDE') {
+    throw new Error(`editor horizontal scroll record "${record}", expected short line after no-op backspace`);
+  }
+}
+
 function verifyEditorAllocationGrowthProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const verifyPage = symbolAddress(symbols, 'EditorVerifyPage');
   assertSourceRecordClean(runtime.hardware.memory, verifyPage, 0, 'GROW P8 00');
@@ -1146,8 +1197,8 @@ function readStatusRowTextByte(memory: Uint8Array): number[] {
 
 function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {
   const glcd = getGlcdBytes(platformRuntime);
-  assertCellMatchesInvertedFont(runtime.hardware.memory, 7, 3, '1'.charCodeAt(0));
-  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 7, 3, '1'.charCodeAt(0));
+  assertCellMatchesInvertedFont(runtime.hardware.memory, 7, 3, ' '.charCodeAt(0));
+  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 7, 3, ' '.charCodeAt(0));
 }
 
 function readCellRows(memory: Uint8Array, row: number, column: number): number[] {

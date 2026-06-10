@@ -20,6 +20,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorRenderCursor:/m);
   assert.match(source, /^@EditorHideCursor:/m);
   assert.match(source, /^@EditorEnsureCursorVisible:/m);
+  assert.match(source, /^@EditorEnsureCursorVisibleColumn:/m);
   assert.match(source, /^@EditorKeyRenderViewport:/m);
   assert.match(source, /^@EditorInvalidateCursorOverlay:/m);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
@@ -94,6 +95,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /EditorActionPageDownLower/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
+  assert.match(source, /CALL\s+DisplayRenderCursorCell[\s\S]*?LD\s+A,\(EditorCursorVisibleCol\)\n\s+LD\s+\(EditorCursorRenderedCol\),A/);
   assert.match(source, /@EditorInvalidateCursorOverlay:\n\s+XOR\s+A\n\s+LD\s+\(EditorCursorRendered\),A\n\s+RET/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /CALL\s+EditorViewportRenderRecordRow/);
@@ -103,9 +105,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyDone:\n\s+LD\s+A,\(EditorPromptActive\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorKeyDoneNoCursor/);
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorVisibleRow:\n\s+\.db\s+0/);
+  assert.match(source, /EditorCursorVisibleCol:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorCol:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorRendered:\n\s+\.db\s+0/);
-  assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorVisibleRow\),A\n\s+LD\s+\(EditorNavCurrentRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?CALL\s+EditorNavResetViewport/);
+  assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorVisibleRow\),A\n\s+LD\s+\(EditorCursorVisibleCol\),A\n\s+LD\s+\(EditorNavCurrentRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?CALL\s+EditorNavResetViewport/);
   assert.match(source, /CALL\s+EditorViewportSetCurrentRow/);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /JP\s+EditorKeyRenderCursorRowMarkers/);
@@ -123,7 +126,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyUnknownModifiedPrintable:\n\s+LD\s+HL,EditorStatusUnknownKeyText\n\s+CALL\s+EditorKeyShowStatus/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+15/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
-  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+19/);
+  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+30/);
   assert.match(source, /TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK\s+\.equ\s+0x1F/);
   assert.match(source, /TECM8_EDITOR_EDIT_RECORD_METADATA_MASK\s+\.equ\s+0xE0/);
   assert.match(source, /TECM8_EDITOR_KEY_BACKSPACE\s+\.equ\s+8/);
@@ -159,6 +162,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp[\s\S]*?CALL\s+EditorCursorReset/);
   assert.match(source, /@EditorKeyRenderDirty:[\s\S]*?CALL\s+EditorEnsureCursorVisible[\s\S]*?CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /EditorKeyCursorRight:/);
+  assert.match(source, /EditorKeyCursorLeft:[\s\S]*?CALL\s+EditorKeyRenderCursorColumnMove/);
+  assert.match(source, /EditorKeyCursorRight:[\s\S]*?CALL\s+EditorKeyRenderCursorColumnMove/);
+  assert.match(source, /@EditorEnsureCursorVisibleColumn:[\s\S]*?LD\s+A,\(EditorViewportColOffset\)[\s\S]*?EditorEnsureCursorColumnScrollRight:/);
+  assert.match(source, /@EditorKeyRenderCursorColumnMove:[\s\S]*?CALL\s+EditorEnsureCursorVisibleColumn[\s\S]*?JP\s+NZ,EditorKeyRenderViewport/);
   assert.match(source, /EditorKeyInsertPrintable:/);
   assert.match(source, /CALL\s+EditorInsertChar/);
   assert.match(source, /CALL\s+EditorInsertChar\n\s+RET\s+C\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyLoop/);
@@ -223,9 +230,14 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(runner, /verifyShellEditVisibleCursor/);
   assert.match(runner, /EditorCursorRow/);
   assert.match(runner, /EditorCursorCol/);
+  assert.match(runner, /EditorCursorVisibleCol/);
+  assert.match(runner, /EditorViewportColOffset/);
   assert.match(runner, /expected 8/);
+  assert.match(runner, /expected 4/);
   assert.match(runner, /expected 3/);
-  assert.match(runner, /mutatedRecord !== 'dl\?1 LINE 08'/);
+  assert.match(runner, /expected 1/);
+  assert.match(runner, /dl\? LINE 08/);
+  assert.match(runner, /mutatedRecord !== 'Adl\? LINE 08'/);
   assert.match(runner, /UnknownModifiedDirty/);
   assert.match(runner, /unknown modified dirty/);
   assert.match(runner, /assertCellMatchesInvertedFont/);
@@ -295,6 +307,30 @@ test('editor viewport scroll proof is wired into package checks', () => {
   assert.match(runner, /R0 LINE 15/);
   assert.match(packageJson, /"proof:display:editor-viewport-scroll"/);
   assert.match(packageJson, /proof:display:editor-viewport-scroll/);
+});
+
+test('editor horizontal scroll proof is wired into package checks', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-horizontal-scroll-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-horizontal-scroll-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /LongLineKeys:/);
+  assert.match(proof, /CursorColAfterInsert:/);
+  assert.match(proof, /VisibleColAfterInsert:/);
+  assert.match(proof, /ColOffsetAfterInsert:/);
+  assert.match(proof, /ShortLinePanKeys:/);
+  assert.match(proof, /BackspaceKey:/);
+  assert.match(proof, /ShortCursorColAfterBackspace:/);
+  assert.match(proof, /ShortVisibleColAfterBackspace:/);
+  assert.match(runner, /editor-horizontal-scroll-proof/);
+  assert.match(runner, /verifyEditorHorizontalScrollProof/);
+  assert.match(runner, /CursorColAfterInsert/);
+  assert.match(runner, /ShortCursorColAfterBackspace/);
+  assert.match(runner, /ShortVisibleColAfterBackspace/);
+  assert.match(runner, /LMNOPQRSTUVWXYZ12345/);
+  assert.match(packageJson, /"proof:display:editor-horizontal-scroll"/);
+  assert.match(packageJson, /proof:display:editor-horizontal-scroll/);
 });
 
 test('editor mutation boundary proof covers fixed-record edge cases', () => {

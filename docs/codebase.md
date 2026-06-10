@@ -359,6 +359,11 @@ The interaction layer keeps `EditorCursorRow` as the logical record row 0-15
 and `EditorCursorVisibleRow` as the row 0-9 actually drawn on the GLCD.
 Cursor up/down can therefore move through all 16 records of the loaded page
 while scrolling the 10-row viewport when needed.
+`EditorCursorCol` is the logical source column 0-30, while
+`EditorCursorVisibleCol` is the GLCD text column 0-19. The viewport owns
+`EditorViewportColOffset`, so rows render from the visible 20-character slice
+of a 31-character source record and pan only when the cursor moves beyond the
+visible text columns. The gutter remains outside the horizontal text viewport.
 
 It now also owns the first backup scratch buffers:
 `EditorNavBackupPathBuffer` for the derived hidden path and
@@ -555,6 +560,10 @@ The display proofs build up the editor stack incrementally:
 - `proofs/display/editor-viewport-scroll-proof.asm`: moves the logical cursor
   through all 16 records of one source page, proves the viewport scrolls to top
   row 6 for rows 6-15, and proves movement alone does not dirty the editor.
+- `proofs/display/editor-horizontal-scroll-proof.asm`: fills one source record
+  to 31 characters, proves the logical cursor reaches column 30, proves the
+  visible cursor stays at column 19, and proves the rendered row starts at
+  column offset 11.
 - `proofs/display/shell-edit-navigation-proof.asm`: resolves shell `edit`,
   launches the editor, and pages through source.
 - `proofs/display/shell-edit-explicit-navigation-proof.asm`: launches
@@ -773,6 +782,10 @@ What exists now:
 - Logical cursor movement can traverse all 16 records of a source page. The
   GLCD viewport scrolls within that page, with `EditorCursorVisibleRow` tracking
   the physical row used for cursor and marker rendering.
+- Logical cursor movement and insertion can reach all 31 characters in a source
+  record. The GLCD text viewport pans horizontally, with
+  `EditorCursorVisibleCol` tracking the physical column used for cursor
+  rendering.
 
 What is still missing or intentionally skeletal:
 

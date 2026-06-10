@@ -29,7 +29,7 @@ TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
 TECM8_EDITOR_KEY_MOD_ALT                .equ    0x08
 TECM8_EDITOR_KEY_MOD_PAGE               .equ    0x0A
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    15
-TECM8_EDITOR_CURSOR_MAX_COL             .equ    19
+TECM8_EDITOR_CURSOR_MAX_COL             .equ    30
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
 TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
 TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK    .equ    0x1F
@@ -53,11 +53,16 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
         XOR     A
         LD      (EditorCursorRow),A
         LD      (EditorCursorVisibleRow),A
+        LD      (EditorCursorVisibleCol),A
         LD      (EditorNavCurrentRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
         CALL    EditorNavResetViewport
         RET     C
+        XOR     A
+        CALL    EditorViewportSetColOffset
+        RET     C
+        XOR     A
         JP      EditorViewportSetCurrentRow
 
 ; EditorCursorResetState -
@@ -68,6 +73,7 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
         XOR     A
         LD      (EditorCursorRow),A
         LD      (EditorCursorVisibleRow),A
+        LD      (EditorCursorVisibleCol),A
         LD      (EditorNavCurrentRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
@@ -90,7 +96,7 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
         LD      (EditorCursorRendered),A
 
 EditorCursorRenderCheckVisible:
-        LD      A,(EditorCursorCol)
+        LD      A,(EditorCursorVisibleCol)
         CP      TECM8_EDITOR_CURSOR_VISIBLE_COLS
         JR      NC,EditorCursorRenderDone
         LD      C,A
@@ -101,7 +107,7 @@ EditorCursorRenderCheckVisible:
         RET     C
         LD      A,(EditorCursorVisibleRow)
         LD      (EditorCursorRenderedRow),A
-        LD      A,(EditorCursorCol)
+        LD      A,(EditorCursorVisibleCol)
         LD      (EditorCursorRenderedCol),A
         LD      A,1
         LD      (EditorCursorRendered),A
@@ -365,6 +371,8 @@ EditorKeyCursorLeft:
         JP      Z,EditorKeyLoop
         DEC     A
         LD      (EditorCursorCol),A
+        CALL    EditorKeyRenderCursorColumnMove
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyCursorDown:
@@ -395,6 +403,8 @@ EditorKeyCursorRight:
         JP      Z,EditorKeyLoop
         INC     A
         LD      (EditorCursorCol),A
+        CALL    EditorKeyRenderCursorColumnMove
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyInsertPrintable:
@@ -423,7 +433,12 @@ EditorKeyBackspace:
         CALL    EditorBackspaceChar
         RET     C
         OR      A
-        JP      Z,EditorKeyLoop
+        JR      NZ,EditorKeyBackspaceDirty
+        CALL    EditorKeyRenderCursorColumnMove
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyBackspaceDirty:
         CALL    EditorKeyRenderCurrentLineDirty
         RET     C
         JP      EditorKeyLoop
@@ -1337,6 +1352,8 @@ EditorDeleteDone:
         RET     C
         CALL    EditorEnsureCursorVisible
         RET     C
+        CALL    EditorEnsureCursorVisibleColumn
+        RET     C
         CALL    EditorRenderPageBuffer
         RET     C
         XOR     A
@@ -1350,6 +1367,12 @@ EditorDeleteDone:
         RET     C
         CALL    EditorEnsureCursorVisible
         RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
+        CALL    EditorEnsureCursorVisibleColumn
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
         CALL    EditorKeyCurrentRecord
         LD      A,(EditorCursorVisibleRow)
         CALL    EditorViewportRenderRecordRow
@@ -1396,7 +1419,21 @@ EditorKeyRenderCursorNewOnly:
         RET     C
         OR      A
         JP      NZ,EditorKeyRenderViewport
+        CALL    EditorEnsureCursorVisibleColumn
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
         JP      EditorKeyRenderCursorRowMarkers
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyRenderCursorColumnMove:
+        CALL    EditorEnsureCursorVisibleColumn
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
+        XOR     A
+        RET
 
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -1457,6 +1494,56 @@ EditorEnsureCursorScrollDown:
         RET     C
         LD      A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
         LD      (EditorCursorVisibleRow),A
+        LD      A,1
+        OR      A
+        RET
+
+; EditorEnsureCursorVisibleColumn -
+; Keep the 31-column logical cursor inside the 20-column GLCD text viewport.
+; Returns A=1 when the horizontal viewport changed, A=0 when it did not.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,zero,sign,parity,halfCarry
+@EditorEnsureCursorVisibleColumn:
+        LD      A,(EditorCursorCol)
+        LD      B,A
+        LD      A,(EditorViewportColOffset)
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      C,EditorEnsureCursorColumnScrollLeft
+        LD      A,C
+        ADD     A,TECM8_EDITOR_CURSOR_VISIBLE_COLS
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      NC,EditorEnsureCursorColumnScrollRight
+        LD      A,B
+        LD      C,A
+        LD      A,(EditorViewportColOffset)
+        LD      B,A
+        LD      A,C
+        SUB     B
+        LD      (EditorCursorVisibleCol),A
+        XOR     A
+        RET
+
+EditorEnsureCursorColumnScrollLeft:
+        LD      A,(EditorCursorCol)
+        CALL    EditorViewportSetColOffset
+        RET     C
+        XOR     A
+        LD      (EditorCursorVisibleCol),A
+        LD      A,1
+        OR      A
+        RET
+
+EditorEnsureCursorColumnScrollRight:
+        LD      A,(EditorCursorCol)
+        SUB     TECM8_EDITOR_CURSOR_VISIBLE_COLS - 1
+        CALL    EditorViewportSetColOffset
+        RET     C
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_COLS - 1
+        LD      (EditorCursorVisibleCol),A
         LD      A,1
         OR      A
         RET
@@ -1763,6 +1850,9 @@ EditorCursorRow:
         .db     0
 
 EditorCursorVisibleRow:
+        .db     0
+
+EditorCursorVisibleCol:
         .db     0
 
 EditorCursorCol:

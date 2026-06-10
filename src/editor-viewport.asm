@@ -5,6 +5,7 @@
 
 TECM8_EDITOR_RECORD_BYTES          .equ    32
 TECM8_EDITOR_VISIBLE_ROWS          .equ    10
+TECM8_EDITOR_VISIBLE_COLS          .equ    20
 TECM8_EDITOR_MAX_RECORD_TEXT       .equ    31
 TECM8_EDITOR_RECORD_LENGTH_MASK    .equ    0x1F
 TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
@@ -79,6 +80,19 @@ EditorViewportBuildLoop:
         CP      7
         JR      NC,EditorViewportRowError
         LD      (EditorViewportTopRow),A
+        XOR     A
+        RET
+
+; EditorViewportSetColOffset -
+; Select the first logical source column rendered at visible column 0.
+; Input: A = logical column 0-11
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorViewportSetColOffset:
+        CP      12
+        JR      NC,EditorViewportRowError
+        LD      (EditorViewportColOffset),A
         XOR     A
         RET
 
@@ -216,6 +230,28 @@ EditorViewportRowError:
         LD      A,B
         OR      A
         JR      Z,EditorViewportTerminateRow
+        LD      A,(EditorViewportColOffset)
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      C,EditorViewportTerminateRow
+        JR      Z,EditorViewportTerminateRow
+        SUB     C
+        LD      B,A
+        LD      A,C
+        OR      A
+        JR      Z,EditorViewportCopyCap
+        PUSH    DE
+        LD      D,0
+        LD      E,A
+        ADD     HL,DE
+        POP     DE
+
+EditorViewportCopyCap:
+        LD      A,B
+        CP      TECM8_EDITOR_VISIBLE_COLS + 1
+        JR      C,EditorViewportCopyLoop
+        LD      B,TECM8_EDITOR_VISIBLE_COLS
 
 EditorViewportCopyLoop:
         LD      A,(HL)
@@ -286,6 +322,9 @@ EditorRowIndex:
         .db     0
 
 EditorViewportTopRow:
+        .db     0
+
+EditorViewportColOffset:
         .db     0
 
 EditorViewportCurrentRow:

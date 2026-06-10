@@ -191,10 +191,13 @@ Goal: support the full 31-character source record.
 
 Work:
 
-- Add horizontal scrolling or a horizontal viewport.
-- Decide whether the first 20 visible columns are enough for now.
-- Keep the gutter separate from text.
-- Make cursor position clear when editing columns beyond the visible display.
+- Done: add a horizontal viewport over the 31-character source record.
+- Done: pan only when the logical cursor moves beyond the 20 visible text
+  columns.
+- Done: keep the gutter separate from text; horizontal panning shifts only the
+  source text slice.
+- Done: track logical column, visible column, and viewport column offset so the
+  cursor position is not silent when editing beyond the visible display.
 
 Likely compromise:
 
