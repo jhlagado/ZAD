@@ -755,6 +755,123 @@ EditorNavClearNextPageBufferLoop:
         LD      (EditorPromptTextPtr),HL
         JP      EditorViewportRenderStatusOverlay
 
+; EditorNavShowError -
+; Render a compact status-row error for an editor/storage error code.
+; Input: A = error code
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavShowError:
+        LD      (EditorLastErrorCode),A
+        CALL    EditorNavErrorTextForCode
+        LD      (EditorLastErrorTextPtr),HL
+        JP      EditorNavShowStatus
+
+; EditorNavErrorTextForCode -
+; Map compact editor error codes to short user-visible text.
+; Input: A = error code
+; Output: HL = NUL-terminated message
+;!      in        A
+;!      out       HL,carry,zero
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorNavErrorTextForCode:
+        CP      EDITOR_LOAD_ERR_OPEN
+        JR      Z,EditorNavErrTextOpen
+        CP      EDITOR_LOAD_ERR_SUPER
+        JR      Z,EditorNavErrTextVolume
+        CP      EDITOR_LOAD_ERR_PREFIX
+        JR      Z,EditorNavErrTextPrefix
+        CP      EDITOR_LOAD_ERR_FIND
+        JR      Z,EditorNavErrTextFind
+        CP      EDITOR_LOAD_ERR_SIZE
+        JR      Z,EditorNavErrTextSize
+        CP      EDITOR_LOAD_ERR_READ
+        JR      Z,EditorNavErrTextRead
+        CP      EDITOR_LOAD_ERR_BLOCK
+        JR      Z,EditorNavErrTextAlloc
+        CP      EDITOR_LOAD_ERR_PAGE
+        JR      Z,EditorNavErrTextPage
+        CP      EDITOR_LOAD_ERR_WRITE
+        JR      Z,EditorNavErrTextWrite
+        CP      EDITOR_LOAD_ERR_CREATE
+        JR      Z,EditorNavErrTextFull
+        CP      TECM8_EDITOR_NAV_ERR_PAGE
+        JR      Z,EditorNavErrTextPage
+        CP      TECM8_EDITOR_NAV_ERR_PATH
+        JR      Z,EditorNavErrTextPath
+        CP      TECM8_EDITOR_NAV_ERR_BACKUP
+        JR      Z,EditorNavErrTextBackup
+        CP      TECM8_EDITOR_ERR_ROW
+        JR      Z,EditorNavErrTextView
+        LD      HL,EditorErrUnknownText
+        XOR     A
+        RET
+
+EditorNavErrTextOpen:
+        LD      HL,EditorErrOpenText
+        XOR     A
+        RET
+
+EditorNavErrTextVolume:
+        LD      HL,EditorErrVolumeText
+        XOR     A
+        RET
+
+EditorNavErrTextPrefix:
+        LD      HL,EditorErrPrefixText
+        XOR     A
+        RET
+
+EditorNavErrTextFind:
+        LD      HL,EditorErrFindText
+        XOR     A
+        RET
+
+EditorNavErrTextSize:
+        LD      HL,EditorErrSizeText
+        XOR     A
+        RET
+
+EditorNavErrTextRead:
+        LD      HL,EditorErrReadText
+        XOR     A
+        RET
+
+EditorNavErrTextAlloc:
+        LD      HL,EditorErrAllocText
+        XOR     A
+        RET
+
+EditorNavErrTextPage:
+        LD      HL,EditorErrPageText
+        XOR     A
+        RET
+
+EditorNavErrTextWrite:
+        LD      HL,EditorErrWriteText
+        XOR     A
+        RET
+
+EditorNavErrTextFull:
+        LD      HL,EditorErrFullText
+        XOR     A
+        RET
+
+EditorNavErrTextPath:
+        LD      HL,EditorErrPathText
+        XOR     A
+        RET
+
+EditorNavErrTextBackup:
+        LD      HL,EditorErrBackupText
+        XOR     A
+        RET
+
+EditorNavErrTextView:
+        LD      HL,EditorErrViewText
+        XOR     A
+        RET
+
 EditorNavPageErr:
         LD      A,TECM8_EDITOR_NAV_ERR_PAGE
         SCF
@@ -980,6 +1097,54 @@ EditorStatusTopText:
 
 EditorStatusEndText:
         .db     "End",0
+
+EditorErrOpenText:
+        .db     "ERR OPEN 30",0
+
+EditorErrVolumeText:
+        .db     "ERR VOL 31",0
+
+EditorErrPrefixText:
+        .db     "ERR PREFIX 32",0
+
+EditorErrFindText:
+        .db     "ERR FIND 33",0
+
+EditorErrSizeText:
+        .db     "ERR SIZE 34",0
+
+EditorErrReadText:
+        .db     "ERR READ 35",0
+
+EditorErrAllocText:
+        .db     "ERR ALLOC 36",0
+
+EditorErrPageText:
+        .db     "ERR PAGE 37",0
+
+EditorErrWriteText:
+        .db     "ERR WRITE 38",0
+
+EditorErrFullText:
+        .db     "ERR FULL 39",0
+
+EditorErrPathText:
+        .db     "ERR PATH 51",0
+
+EditorErrBackupText:
+        .db     "ERR BACKUP 52",0
+
+EditorErrViewText:
+        .db     "ERR VIEW 02",0
+
+EditorErrUnknownText:
+        .db     "ERR CODE",0
+
+EditorLastErrorCode:
+        .db     0
+
+EditorLastErrorTextPtr:
+        .dw     0
 
 EditorNavCachePageBuffer       .equ    TECM8_EDITOR_NAV_CACHE_BASE
 

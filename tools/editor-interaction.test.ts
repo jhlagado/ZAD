@@ -146,7 +146,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeySave:/);
   assert.match(source, /EditorKeySave:\n\s+LD\s+A,\(EditorNavDirty\)\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyCleanSave/);
   assert.match(source, /EditorKeyCleanSave:\n\s+LD\s+HL,EditorStatusCleanText\n\s+CALL\s+EditorKeyShowStatus/);
-  assert.match(source, /EditorKeySave:[\s\S]*?CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorSaveCurrentPage/);
+  assert.match(source, /EditorKeySave:[\s\S]*?CALL\s+EditorHideCursor\n\s+JP\s+C,EditorKeyShowErrorAndLoop\n\s+CALL\s+EditorSaveCurrentPage\n\s+JP\s+C,EditorKeyShowErrorAndLoop/);
+  assert.match(source, /EditorKeyShowErrorAndLoop:\n\s+CALL\s+EditorNavShowError\n\s+RET\s+C\n\s+JP\s+EditorKeyLoop/);
   assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown\n\s+JR\s+C,EditorKeyPageDownErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
   assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp\n\s+JR\s+C,EditorKeyPageUpErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
   assert.match(source, /EditorKeyDirtyPageBlocked:\n\s+LD\s+HL,EditorStatusSaveFirstText\n\s+CALL\s+EditorKeyShowStatus/);

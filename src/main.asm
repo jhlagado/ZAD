@@ -43,6 +43,7 @@ MainDone:
 
 MainFailed:
         LD      (MainErrorMarker),A
+        CALL    EditorNavShowError
         LD      A,(MainCaseMarker)
         OR      TECM8_MAIN_FAIL
         LD      (MainResultMarker),A

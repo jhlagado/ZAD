@@ -380,6 +380,16 @@ restores the hidden source row afterward. The status overlay shares row 9 with
 the editor prompt path, so slow navigation and save operations present visible
 feedback without adding a second status surface.
 
+Editor/storage failures now route through `EditorNavShowError`, which maps the
+existing compact error codes to short status-row messages. Examples include
+`ERR OPEN 30`, `ERR VOL 31`, `ERR FIND 33`, `ERR SIZE 34`, `ERR READ 35`,
+`ERR ALLOC 36`, `ERR PAGE 37`, `ERR WRITE 38`, and `ERR FULL 39`. The routine
+also records `EditorLastErrorCode` and `EditorLastErrorTextPtr`, giving Debug80
+and hardware diagnostics a stable place to inspect the last surfaced error.
+The live entry path calls this before falling into its failure loop, and the
+interactive key loop shows save/navigation failures without silently accepting
+the key and leaving the display unexplained.
+
 `EditorSaveCurrentPage` is the current save coordinator. It first backs up the
 active page, any dirty cached previous page, and any dirty resident adjacent
 next page; if those backups succeed, it writes dirty resident sectors from the
@@ -593,6 +603,9 @@ The display proofs build up the editor stack incrementally:
   prompt yes/no state works through the key loop, and the pre-existing hidden
   backup file receives the previous on-disk page before the source page is
   replaced.
+- `proofs/display/editor-error-handling-proof.asm`: tests compact editor
+  error-code to status-text mappings and records the last surfaced error
+  diagnostic state.
 - `proofs/display/editor-allocation-growth-proof.asm`: starts with a source
   file that exactly fills one 4K TM8 allocation block, saves page 8, and
   verifies that `/src/main.asm` grows to 4608 bytes with a newly linked second

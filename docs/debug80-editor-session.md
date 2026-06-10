@@ -303,6 +303,11 @@ GLCD. Use this exact smoke test:
    page is already clean should be ignored and should not start another slow SD
    write.
 
+   If storage fails, the bottom status row should show a compact error instead
+   of leaving an unexplained blank or frozen-looking editor. Common examples are
+   `ERR OPEN 30` for a missing/inaccessible `VOLUME.TM8`, `ERR READ 35`,
+   `ERR WRITE 38`, `ERR FULL 39`, and `ERR SIZE 34`.
+
    If manual `Command-S` or `Ctrl-S` on macOS saves but then leaves the editor
    apparently unresponsive, compare it with `npm run debug80:editor-live-smoke`.
    The smoke test injects the same matrix-level `Alt-S`, then types another `z`, and

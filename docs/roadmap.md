@@ -400,16 +400,21 @@ Goal: stop silent failures.
 
 Work:
 
-- Add user-visible error states for disk open failure, read failure, write
-  failure, full file/catalog/allocation, invalid source record, and unsupported
-  file size.
-- Add compact error strings.
-- Preserve enough diagnostic info for Debug80/hardware troubleshooting.
+- Done: added user-visible error states for disk open failure, read failure,
+  write failure, full file/catalog/allocation, and unsupported file size.
+- Deferred: invalid source-record UI errors remain a later editor/import
+  validation task.
+- Done: added compact status-row error strings such as `ERR OPEN 30`,
+  `ERR READ 35`, `ERR WRITE 38`, `ERR FULL 39`, and `ERR SIZE 34`.
+- Done: preserved `EditorLastErrorCode` and `EditorLastErrorTextPtr` for
+  Debug80/hardware troubleshooting.
 
 Done when:
 
-- The LCD/GLCD shows useful errors instead of unexplained lockups.
-- Automated tests cover the major failure codes.
+- Done: the GLCD status row shows useful errors instead of unexplained lockups
+  on the editor failure path.
+- Done: `editor-error-handling-proof` covers the major compact error-code
+  mappings and an actual invalid-page loader failure.
 
 ## Phase 13: Memory Layout
 

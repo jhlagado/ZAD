@@ -175,6 +175,13 @@ const PROOF_CASES = {
     lines: makeSmallFileLines(),
     verify: verifyEditorPageWriteProof,
   },
+  'editor-error-handling-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-error-handling-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-error-handling-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-error-handling-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyEditorErrorHandlingProof,
+  },
 } as const;
 
 type ProofCaseName = keyof typeof PROOF_CASES;
@@ -1298,6 +1305,40 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   const backupText = backup.subarray(1, 1 + backupLength).toString('ascii');
   if (backupText !== 'SMALL 00') {
     throw new Error(`editor backup persisted record 0 "${backupText}", expected "SMALL 00"`);
+  }
+}
+
+function verifyEditorErrorHandlingProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const expectedPointers = [
+    { stored: 'OpenErrPtr', text: 'EditorErrOpenText', value: 'ERR OPEN 30' },
+    { stored: 'ReadErrPtr', text: 'EditorErrReadText', value: 'ERR READ 35' },
+    { stored: 'WriteErrPtr', text: 'EditorErrWriteText', value: 'ERR WRITE 38' },
+    { stored: 'FullErrPtr', text: 'EditorErrFullText', value: 'ERR FULL 39' },
+    { stored: 'SizeErrPtr', text: 'EditorErrSizeText', value: 'ERR SIZE 34' },
+    { stored: 'BackupErrPtr', text: 'EditorErrBackupText', value: 'ERR BACKUP 52' },
+    { stored: 'PageErrPtr', text: 'EditorErrPageText', value: 'ERR PAGE 37' },
+  ];
+  for (const expected of expectedPointers) {
+    const actualPtr = readWord(runtime.hardware.memory, symbolAddress(symbols, expected.stored));
+    const expectedPtr = symbolAddress(symbols, expected.text);
+    if (actualPtr !== expectedPtr) {
+      throw new Error(`${expected.stored} 0x${actualPtr.toString(16)}, expected ${expected.text} 0x${expectedPtr.toString(16)}`);
+    }
+    const actualText = readCString(runtime.hardware.memory, expectedPtr);
+    if (actualText !== expected.value) {
+      throw new Error(`${expected.text} text "${actualText}", expected "${expected.value}"`);
+    }
+  }
+
+  const lastCode = runtime.hardware.memory[symbolAddress(symbols, 'LastErrCodeAfterPage')];
+  const pageCode = symbolAddress(symbols, 'EDITOR_LOAD_ERR_PAGE');
+  if (lastCode !== pageCode) {
+    throw new Error(`last error code ${resultToString(lastCode)}, expected ${resultToString(pageCode)}`);
+  }
+
+  const prefixText = readCString(runtime.hardware.memory, symbolAddress(symbols, 'EditorErrPrefixText'));
+  if (prefixText !== 'ERR PREFIX 32') {
+    throw new Error(`EditorErrPrefixText text "${prefixText}", expected "ERR PREFIX 32"`);
   }
 }
 

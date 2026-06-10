@@ -302,9 +302,9 @@ EditorKeySave:
         OR      A
         JP      Z,EditorKeyCleanSave
         CALL    EditorHideCursor
-        RET     C
+        JP      C,EditorKeyShowErrorAndLoop
         CALL    EditorSaveCurrentPage
-        RET     C
+        JP      C,EditorKeyShowErrorAndLoop
         JP      EditorKeyLoop
 
 EditorKeyCleanSave:
@@ -384,8 +384,12 @@ EditorKeyNavigationErr:
         JP      Z,EditorKeyLoop
         CP      TECM8_EDITOR_INTERACTION_ERR_EOF
         JP      Z,EditorKeyLoop
-        SCF
-        RET
+        JR      EditorKeyShowErrorAndLoop
+
+EditorKeyShowErrorAndLoop:
+        CALL    EditorNavShowError
+        RET     C
+        JP      EditorKeyLoop
 
 EditorKeyCursorLeft:
         LD      A,(EditorCursorCol)
