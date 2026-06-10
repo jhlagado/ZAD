@@ -33,6 +33,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (MovePageCount),A
         LD      A,(EditorViewportRenderRecordRowCount)
         LD      (MoveRowCount),A
+        LD      A,(EditorViewportRenderRowMarkerCount)
+        LD      (MoveMarkerCount),A
 
         CALL    ResetRenderCounters
         LD      A,3
@@ -46,6 +48,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (InsertPageCount),A
         LD      A,(EditorViewportRenderRecordRowCount)
         LD      (InsertRowCount),A
+        LD      A,(EditorViewportRenderRowMarkerCount)
+        LD      (InsertMarkerCount),A
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -69,6 +73,7 @@ ProofFailedDone:
         LD      (DisplayRenderScreenCount),A
         LD      (EditorRenderPageBufferCount),A
         LD      (EditorViewportRenderRecordRowCount),A
+        LD      (EditorViewportRenderRowMarkerCount),A
         RET
 
 ; Stub LoadProjectConfig for shell-to-editor proof.
@@ -135,9 +140,13 @@ MovePageCount:
         .db     0
 MoveRowCount:
         .db     0
+MoveMarkerCount:
+        .db     0
 InsertScreenCount:
         .db     0
 InsertPageCount:
         .db     0
 InsertRowCount:
+        .db     0
+InsertMarkerCount:
         .db     0

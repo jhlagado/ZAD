@@ -670,16 +670,30 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, _platformRuntime: Platfo
   const expectedCounts = [
     { symbol: 'MoveScreenCount', expected: 0 },
     { symbol: 'MovePageCount', expected: 0 },
-    { symbol: 'MoveRowCount', expected: 4 },
+    { symbol: 'MoveRowCount', expected: 0 },
+    { symbol: 'MoveMarkerCount', expected: 4 },
     { symbol: 'InsertScreenCount', expected: 0 },
     { symbol: 'InsertPageCount', expected: 0 },
     { symbol: 'InsertRowCount', expected: 1 },
+    { symbol: 'InsertMarkerCount', expected: 0 },
   ];
   for (const count of expectedCounts) {
     const value = runtime.hardware.memory[symbolAddress(symbols, count.symbol)];
     if (value !== count.expected) {
       throw new Error(`editor dirty render ${count.symbol} ${value}, expected ${count.expected}`);
     }
+  }
+
+  const screenDescriptor = symbolAddress(symbols, 'EditorScreenDescriptor');
+  const currentMarker = 2;
+  const descriptorStride = 3;
+  const row0Marker = runtime.hardware.memory[screenDescriptor];
+  const row1Marker = runtime.hardware.memory[screenDescriptor + descriptorStride];
+  if (row0Marker !== currentMarker) {
+    throw new Error(`editor dirty render row 0 marker ${row0Marker}, expected current marker ${currentMarker}`);
+  }
+  if (row1Marker !== 0) {
+    throw new Error(`editor dirty render row 1 marker ${row1Marker}, expected no marker`);
   }
 
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');

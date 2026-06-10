@@ -1418,16 +1418,12 @@ EditorDeleteDone:
         CALL    EditorLogicalRowVisible
         JR      C,EditorKeyRenderCursorNewOnly
         LD      (EditorCursorPreviousVisibleRow),A
-        LD      A,(EditorCursorPreviousRow)
-        CALL    EditorKeyRecordAtRow
         LD      A,(EditorCursorPreviousVisibleRow)
-        CALL    EditorViewportRenderRecordRow
+        CALL    EditorViewportRenderRowMarker
         RET     C
 EditorKeyRenderCursorNewOnly:
-        LD      A,(EditorCursorRow)
-        CALL    EditorKeyCurrentRecord
         LD      A,(EditorCursorVisibleRow)
-        CALL    EditorViewportRenderRecordRow
+        CALL    EditorViewportRenderRowMarker
         RET     C
         CALL    GlcdTileFlushFull
         RET     C

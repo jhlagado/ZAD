@@ -70,6 +70,27 @@ EditorViewportBuildLoop:
         CALL    DisplayRenderLine
         RET
 
+; EditorViewportRenderRowMarker -
+; Redraw only the gutter marker for one visible row.
+; Input: A = visible row (0-9)
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorViewportRenderRowMarker:
+        LD      (EditorViewportRenderRowMarkerInput),A
+        LD      A,(EditorViewportRenderRowMarkerCount)
+        INC     A
+        LD      (EditorViewportRenderRowMarkerCount),A
+        LD      A,(EditorViewportRenderRowMarkerInput)
+        CP      TECM8_EDITOR_VISIBLE_ROWS
+        JP      NC,EditorViewportRowError
+        CALL    EditorViewportMarkerForRow
+        CALL    EditorViewportStoreDescriptorMarker
+        RET     C
+        LD      A,(EditorViewportRenderRowMarkerInput)
+        CALL    DisplayRenderGutter
+        RET
+
 ; EditorViewportSetTopRow -
 ; Select the first logical source row rendered at visible row 0.
 ; Input: A = logical row 0-6
@@ -154,6 +175,27 @@ EditorViewportRowTextPtrLoop:
 
 EditorViewportMarkerCurrent:
         LD      C,TECM8_DISPLAY_MARKER_CURRENT
+        XOR     A
+        RET
+
+; Uses EditorViewportRenderRowMarkerInput as the validated row.
+;!      in        C
+;!      out       A,carry
+;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+@EditorViewportStoreDescriptorMarker:
+        LD      HL,EditorScreenDescriptor
+        LD      A,(EditorViewportRenderRowMarkerInput)
+        OR      A
+        JR      Z,EditorViewportDescriptorReady
+        LD      B,A
+        LD      DE,3
+
+EditorViewportDescriptorLoop:
+        ADD     HL,DE
+        DJNZ    EditorViewportDescriptorLoop
+
+EditorViewportDescriptorReady:
+        LD      (HL),C
         XOR     A
         RET
 
@@ -315,6 +357,10 @@ EditorTextPtr:
 EditorViewportRenderRecordRowInput:
         .db     0
 EditorViewportRenderRecordRowCount:
+        .db     0
+EditorViewportRenderRowMarkerInput:
+        .db     0
+EditorViewportRenderRowMarkerCount:
         .db     0
 EditorRecordBasePtr:
         .dw     0
