@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile }: TestSupport = require('./test-support.ts');
 
 test('TECM8 BIOS storage wrappers are real assembly entry points', () => {
   const source = readRepoFile('src/tecm8-bios.asm');

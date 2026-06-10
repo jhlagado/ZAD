@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('editor navigation module exposes open, render, and page movement entries', () => {
   const source = readRepoFile('src/editor-navigation.asm');
@@ -99,7 +95,7 @@ test('editor navigation commits page movement only after successful render', () 
 });
 
 test('editor navigation proof drives page state over storage-backed source', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-navigation-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-navigation-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-navigation-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -112,14 +108,14 @@ test('editor navigation proof drives page state over storage-backed source', () 
   assert.match(runner, /editor-navigation-proof/);
   assert.match(runner, /verifyNavigationProof/);
   assert.match(runner, /EditorNavCacheHitCount/);
-  assert.match(runner, /maxInstructions = 80_000_000/);
+  assert.match(readRepoFile('tools/proof/harness.ts'), /maxInstructions = 80_000_000/);
   assert.match(runner, /P8 LINE 07/);
   assert.match(packageJson, /"proof:display:editor-navigation"/);
   assert.match(packageJson, /proof:display:editor-navigation/);
 });
 
 test('editor window save proof covers cached next-window dirty persistence', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-window-save-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-window-save-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-window-save-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');

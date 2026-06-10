@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('shell editor launcher exposes a contracted edit launch entry', () => {
   const source = readRepoFile('src/shell-editor-launch.asm');
@@ -35,8 +31,10 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(mainSource, /CALL\s+ShellRunEditorLine\n\s+JP\s+C,MainFailed\n\s+CALL\s+EditorCursorReset\n\s+CALL\s+EditorRunLive/);
   assert.match(runner, /symbolAddress\(symbols, 'ScriptStart'\)/);
   assert.match(runner, /process\.argv\.includes\('--live-smoke'\)/);
-  assert.match(runner, /const MON3_SYS_MODE = 0x089d/);
-  assert.match(runner, /forceMemWrite\?\.\(MON3_SYS_MODE, SHADOW_OFF\)/);
+  const harnessSource = readRepoFile('tools/proof/harness.ts');
+  assert.match(harnessSource, /const MON3_SYS_MODE = 0x089d/);
+  assert.match(harnessSource, /forceMemWrite\?\.\(MON3_SYS_MODE, SHADOW_OFF\)/);
+  assert.match(runner, /sysModeShadowOff: true/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 4\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 3\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 6\)/);
@@ -46,16 +44,16 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 7, 5\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 1, 2\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 1, 0\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 0, '', 'after Enter split'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after Enter split'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 2, 'RZ0 LINE 01', 'after Enter split'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 15, 'R0 LINE 14', 'after Enter split'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 0, '', 'after saved split page return'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 2, 'RZ0 LINE 01', 'after saved split page return'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 0, '', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 1, 'R0 LINE 00', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 2, 'RZ0 LINE 01', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 15, 'R0 LINE 14', 'after Enter split'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 0, '', 'after saved split page return'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 2, 'RZ0 LINE 01', 'after saved split page return'\)/);
   assert.match(runner, /tapMatrixKey\(platformRuntime, runtime, 0, 4\); \/\/ ArrowDown: move to split tail for join/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after Backspace join'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 1, 'RZ0 LINE 01', 'after Backspace join'\)/);
-  assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 15, '', 'after Backspace join'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 0, 'R0 LINE 00', 'after Backspace join'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 1, 'RZ0 LINE 01', 'after Backspace join'\)/);
+  assert.match(runner, /assertRuntimeSourceRecord\(runtime, addrs\.pageBuffer, 15, '', 'after Backspace join'\)/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 6 \}/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 5 \}/);
   assert.match(runner, /promptAfterAltR/);
@@ -72,7 +70,7 @@ test('Debug80 main entry separates live launch from scripted verification', () =
 });
 
 test('shell edit navigation proof drives shell command into storage-backed editor', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/shell-edit-navigation-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/shell-edit-navigation-proof.asm'));
   const proof = readRepoFile('proofs/display/shell-edit-navigation-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');

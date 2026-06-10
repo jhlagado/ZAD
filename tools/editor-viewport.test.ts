@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('editor viewport module exposes a source-record render entry point', () => {
   const source = readRepoFile('src/editor-viewport.asm');
@@ -60,7 +56,7 @@ test('editor viewport module exposes a source-record render entry point', () => 
 });
 
 test('editor viewport proof builds records and renders through the display model', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-viewport-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-viewport-proof.asm'));
   const source = readRepoFile('proofs/display/editor-viewport-proof.asm');
 
   assert.match(source, /CALL\s+EditorViewportRender/);
@@ -85,7 +81,7 @@ test('editor viewport proof is wired into package checks with content verificati
 });
 
 test('editor viewport metadata-record proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-viewport-metadata-record-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-viewport-metadata-record-proof.asm'));
   const packageJson = readRepoFile('package.json');
   const source = readRepoFile('proofs/display/editor-viewport-metadata-record-proof.asm');
 

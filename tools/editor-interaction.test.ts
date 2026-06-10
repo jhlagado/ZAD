@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
@@ -189,7 +185,7 @@ test('editor interaction module exposes a key-stream runner', () => {
 });
 
 test('editor cross-page join proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-cross-page-join-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-cross-page-join-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-cross-page-join-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -203,7 +199,7 @@ test('editor cross-page join proof is wired into package checks', () => {
 });
 
 test('shell-launched editor interaction proof is wired into storage proof runner', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/shell-edit-interaction-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/shell-edit-interaction-proof.asm'));
   const proof = readRepoFile('proofs/display/shell-edit-interaction-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -248,7 +244,7 @@ test('shell-launched editor interaction proof is wired into storage proof runner
 });
 
 test('editor dirty render proof covers ordinary movement and printable edit paths', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-dirty-render-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-dirty-render-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-dirty-render-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -273,7 +269,7 @@ test('editor dirty render proof covers ordinary movement and printable edit path
 });
 
 test('editor row-15 growth proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-row15-growth-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-row15-growth-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-row15-growth-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -288,7 +284,7 @@ test('editor row-15 growth proof is wired into package checks', () => {
 });
 
 test('editor viewport scroll proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-viewport-scroll-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-viewport-scroll-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-viewport-scroll-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -310,7 +306,7 @@ test('editor viewport scroll proof is wired into package checks', () => {
 });
 
 test('editor horizontal scroll proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-horizontal-scroll-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-horizontal-scroll-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-horizontal-scroll-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -334,7 +330,7 @@ test('editor horizontal scroll proof is wired into package checks', () => {
 });
 
 test('editor mutation boundary proof covers fixed-record edge cases', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-mutation-boundary-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-mutation-boundary-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-mutation-boundary-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');
@@ -376,7 +372,7 @@ test('editor mutation boundary proof covers fixed-record edge cases', () => {
 });
 
 test('editor line editing proof covers split and join behavior', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-line-editing-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/editor-line-editing-proof.asm'));
   const proof = readRepoFile('proofs/display/editor-line-editing-proof.asm');
   const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
   const packageJson = readRepoFile('package.json');

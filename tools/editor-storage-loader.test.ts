@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('editor storage loader exposes a fixed main-source sector entry point', () => {
   const source = readRepoFile('src/editor-storage-loader.asm');
@@ -117,8 +113,7 @@ test('editor storage loader checks a 32-bit file size for the requested page', (
 });
 
 test('storage-backed editor viewport proof composes loader, viewport, and display update', () => {
-  const proofPath = resolve(root, 'proofs/display/editor-viewport-storage-proof.asm');
-  assert.ok(existsSync(proofPath));
+  assert.ok(repoFileExists('proofs/display/editor-viewport-storage-proof.asm'));
   const source = readRepoFile('proofs/display/editor-viewport-storage-proof.asm');
 
   assert.match(source, /CALL\s+EditorLoadMainPage/);
@@ -195,6 +190,8 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /storage viewport copied/);
   assert.match(runner, /storage viewport loaded record/);
   assert.match(runner, /storage viewport proof did not render display row/);
-  assert.match(runner, /registerCare:\s+'strict'/);
-  assert.match(runner, /src\/mon3\.asmi/);
+  const harnessSource = readRepoFile('tools/proof/harness.ts');
+  assert.match(harnessSource, /registerContracts:\s+'strict'/);
+  assert.match(harnessSource, /src\/mon3\.asmi/);
+  assert.match(runner, /MON3_INTERFACE/);
 });

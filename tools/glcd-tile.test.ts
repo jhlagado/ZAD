@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('GLCD tile layer exposes direct cell primitives and contracts', () => {
   const source = readRepoFile('src/glcd-tile.asm');
@@ -48,7 +44,7 @@ test('GLCD tile layer does not call MON3 terminal glyph policy', () => {
 });
 
 test('GLCD tile proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/glcd-tile-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/glcd-tile-proof.asm'));
   const proof = readRepoFile('proofs/display/glcd-tile-proof.asm');
   const runner = readRepoFile('tools/run-display-proof.ts');
   const packageJson = readRepoFile('package.json');

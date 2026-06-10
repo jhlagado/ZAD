@@ -523,156 +523,72 @@ function moveFile(volumePath: string, sourcePath: string, destinationPath: strin
   );
 }
 
+type CliCommand = {
+  minArgs: number;
+  maxArgs: number;
+  run: (argv: string[]) => void;
+};
+
+const CLI_COMMANDS: Record<string, CliCommand> = {
+  format: { minArgs: 2, maxArgs: 2, run: ([, path]) => formatVolumeFile(path) },
+  info: { minArgs: 2, maxArgs: 2, run: ([, path]) => printInfo(path) },
+  ls: { minArgs: 3, maxArgs: 3, run: ([, path, tm8Path]) => printListing(path, tm8Path) },
+  new: { minArgs: 3, maxArgs: 3, run: ([, path, tm8Path]) => createNewFile(path, tm8Path) },
+  import: {
+    minArgs: 4,
+    maxArgs: 4,
+    run: ([, path, hostPath, tm8Path]) => importFile(path, hostPath, tm8Path),
+  },
+  export: {
+    minArgs: 4,
+    maxArgs: 4,
+    run: ([, path, tm8Path, hostPath]) => exportFile(path, tm8Path, hostPath),
+  },
+  'import-text': {
+    minArgs: 4,
+    maxArgs: 4,
+    run: ([, path, hostPath, tm8Path]) => importTextFile(path, hostPath, tm8Path),
+  },
+  'export-text': {
+    minArgs: 4,
+    maxArgs: 4,
+    run: ([, path, tm8Path, hostPath]) => exportTextFile(path, tm8Path, hostPath),
+  },
+  copy: { minArgs: 3, maxArgs: 3, run: ([, sourceSpec, destinationSpec]) => copyFile(sourceSpec, destinationSpec) },
+  unpack: { minArgs: 3, maxArgs: 3, run: ([, path, folder]) => unpackVolume(path, folder) },
+  pack: { minArgs: 3, maxArgs: 3, run: ([, folder, path]) => packVolume(folder, path) },
+  'project-init': { minArgs: 2, maxArgs: 3, run: ([, path, mainFile]) => initProject(path, mainFile) },
+  'project-info': { minArgs: 2, maxArgs: 2, run: ([, path]) => printProjectInfo(path) },
+  'project-set-main': {
+    minArgs: 3,
+    maxArgs: 3,
+    run: ([, path, tm8Path]) => setProjectMainFile(path, tm8Path),
+  },
+  rm: { minArgs: 3, maxArgs: 3, run: ([, path, tm8Path]) => removeFile(path, tm8Path) },
+  mv: {
+    minArgs: 4,
+    maxArgs: 4,
+    run: ([, path, sourcePath, destinationPath]) => moveFile(path, sourcePath, destinationPath),
+  },
+  cat: { minArgs: 3, maxArgs: 3, run: ([, path, tm8Path]) => printFile(path, tm8Path) },
+};
+
 function main(argv: string[]): void {
-  const [command, path, tm8Path] = argv;
-  if (!command || !path) {
+  const [command] = argv;
+  const cliCommand = command !== undefined ? CLI_COMMANDS[command] : undefined;
+  if (!cliCommand) {
     usage();
   }
-
-  if (command === 'format') {
-    if (argv.length !== 2) {
-      usage();
-    }
-    formatVolumeFile(path);
-    return;
+  const requiredArgs = argv.slice(0, cliCommand.minArgs);
+  if (
+    argv.length < cliCommand.minArgs ||
+    argv.length > cliCommand.maxArgs ||
+    requiredArgs.length < cliCommand.minArgs ||
+    requiredArgs.some((arg) => !arg)
+  ) {
+    usage();
   }
-
-  if (command === 'info') {
-    if (argv.length !== 2) {
-      usage();
-    }
-    printInfo(path);
-    return;
-  }
-
-  if (command === 'ls') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    printListing(path, tm8Path);
-    return;
-  }
-
-  if (command === 'new') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    createNewFile(path, tm8Path);
-    return;
-  }
-
-  if (command === 'import') {
-    const destinationPath = argv[3];
-    if (argv.length !== 4 || !tm8Path || !destinationPath) {
-      usage();
-    }
-    importFile(path, tm8Path, destinationPath);
-    return;
-  }
-
-  if (command === 'export') {
-    const hostPath = argv[3];
-    if (argv.length !== 4 || !tm8Path || !hostPath) {
-      usage();
-    }
-    exportFile(path, tm8Path, hostPath);
-    return;
-  }
-
-  if (command === 'import-text') {
-    const destinationPath = argv[3];
-    if (argv.length !== 4 || !tm8Path || !destinationPath) {
-      usage();
-    }
-    importTextFile(path, tm8Path, destinationPath);
-    return;
-  }
-
-  if (command === 'export-text') {
-    const hostPath = argv[3];
-    if (argv.length !== 4 || !tm8Path || !hostPath) {
-      usage();
-    }
-    exportTextFile(path, tm8Path, hostPath);
-    return;
-  }
-
-  if (command === 'copy') {
-    const destinationSpec = argv[2];
-    if (argv.length !== 3 || !tm8Path || !destinationSpec) {
-      usage();
-    }
-    copyFile(path, tm8Path);
-    return;
-  }
-
-  if (command === 'unpack') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    unpackVolume(path, tm8Path);
-    return;
-  }
-
-  if (command === 'pack') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    packVolume(path, tm8Path);
-    return;
-  }
-
-  if (command === 'project-init') {
-    const mainFile = argv[2];
-    if (argv.length > 3) {
-      usage();
-    }
-    initProject(path, mainFile);
-    return;
-  }
-
-  if (command === 'project-info') {
-    if (argv.length !== 2) {
-      usage();
-    }
-    printProjectInfo(path);
-    return;
-  }
-
-  if (command === 'project-set-main') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    setProjectMainFile(path, tm8Path);
-    return;
-  }
-
-  if (command === 'rm') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    removeFile(path, tm8Path);
-    return;
-  }
-
-  if (command === 'mv') {
-    const destinationPath = argv[3];
-    if (argv.length !== 4 || !tm8Path || !destinationPath) {
-      usage();
-    }
-    moveFile(path, tm8Path, destinationPath);
-    return;
-  }
-
-  if (command === 'cat') {
-    if (argv.length !== 3 || !tm8Path) {
-      usage();
-    }
-    printFile(path, tm8Path);
-    return;
-  }
-
-  usage();
+  cliCommand.run(argv);
 }
 
 try {

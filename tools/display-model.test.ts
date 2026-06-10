@@ -1,13 +1,9 @@
 const { strict: assert } = require('node:assert');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { test } = require('node:test');
 
-const root = resolve(__dirname, '..');
+import type { TestSupport } from './test-support';
 
-function readRepoFile(path: string): string {
-  return readFileSync(resolve(root, path), 'utf8');
-}
+const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts');
 
 test('editor design documents the structured display model constants', () => {
   const docs = readRepoFile('docs/editor-design.md');
@@ -82,7 +78,7 @@ test('structured display model has assembly entry points and contracts', () => {
 });
 
 test('structured GLCD proof calls the display model and renders markers', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/structured-screen-proof.asm')));
+  assert.ok(repoFileExists('proofs/display/structured-screen-proof.asm'));
   const source = readRepoFile('proofs/display/structured-screen-proof.asm');
 
   assert.match(source, /CALL\s+DisplayInit/);
