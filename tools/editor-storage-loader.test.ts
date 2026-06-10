@@ -21,6 +21,7 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainPage:/);
   assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadSourcePage:/);
   assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorSaveSourcePage:/);
+  assert.match(source, /@EditorLoadSourcePage:\n\s+PUSH\s+AF\n\s+XOR\s+A\n\s+LD\s+\(EditorLoadAllowShort\),A\n\s+LD\s+\(EditorSaveGrowMode\),A\n\s+POP\s+AF/);
 
   assert.match(source, /CALL\s+BiosFileOpen/);
   assert.match(source, /CALL\s+BiosFileReadSector/);
@@ -29,12 +30,20 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /CP\s+128\n\s+JP\s+NC,EditorLoadPageErr/);
   assert.match(source, /LD\s+\(EditorLoadBlockSteps\),A/);
   assert.match(source, /CALL\s+EditorLoadResolveSourceBlock/);
-  assert.match(source, /CALL\s+EditorLoadReadAllocationEntry/);
+  assert.match(source, /CALL\s+EditorLoadResolveNextBlock/);
+  assert.match(source, /@EditorLoadResolveNextBlock:/);
+  assert.match(source, /JP\s+NZ,EditorSaveReadOrGrowAllocationEntry/);
+  assert.match(source, /JP\s+EditorLoadReadAllocationEntry/);
+  assert.match(source, /@EditorSaveReadOrGrowAllocationEntry:/);
+  assert.match(source, /CALL\s+EditorCreateFindFreeBlock/);
+  assert.match(source, /CALL\s+EditorCreateMarkAllocatedBlock/);
+  assert.match(source, /CALL\s+EditorSaveWriteAllocationEntryValue/);
   assert.match(source, /CALL\s+EditorLoadWriteSourceSector/);
   assert.match(source, /CALL\s+EditorSaveExtendCatalogSize/);
   assert.match(source, /EditorSaveGrowMode:\n\s+\.db\s+0/);
-  assert.match(source, /@EditorSaveExtendCatalogSize:[\s\S]*?INC\s+HL\n\s+INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorSaveCatalogSizeOk/);
-  assert.match(source, /INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorSaveCatalogSizeOk/);
+  assert.match(source, /@EditorSaveExtendCatalogSize:[\s\S]*?LD\s+A,\(EditorSaveRequiredSizeUpper\)\n\s+CP\s+B/);
+  assert.match(source, /EditorSaveCatalogUpdate:\n\s+LD\s+DE,\(EditorLoadCatalogEntryOffset\)\n\s+LD\s+HL,DISK_BUFF \+ 46\n\s+ADD\s+HL,DE/);
+  assert.match(source, /LD\s+A,\(EditorSaveRequiredSizeHigh\)\n\s+LD\s+\(HL\),A\n\s+INC\s+HL\n\s+LD\s+A,\(EditorSaveRequiredSizeUpper\)/);
   assert.match(source, /JR\s+NC,EditorLoadAllocationOffsetOk\n\s+INC\s+D/);
   assert.match(source, /EditorLoadPageErr:\n\s+LD\s+A,EDITOR_LOAD_ERR_PAGE\n\s+SCF\n\s+RET/);
 });
@@ -169,7 +178,10 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /editor backup persisted record 0/);
   assert.match(runner, /editor-viewport-storage-invalid-page-proof/);
   assert.match(runner, /editor-viewport-storage-small-file-proof/);
+  assert.match(runner, /editor-allocation-growth-proof/);
+  assert.match(runner, /verifyEditorAllocationGrowthProof/);
   assert.match(runner, /makeSmallFileLines/);
+  assert.match(runner, /makeSingleBlockLines/);
   assert.match(runner, /TM8_NONCONTIGUOUS_SECOND_BLOCK\s+=\s+130/);
   assert.match(runner, /makePositiveProofVolume/);
   assert.match(runner, /writeUInt16LE\(TM8_NONCONTIGUOUS_SECOND_BLOCK/);

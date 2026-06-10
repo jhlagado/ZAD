@@ -309,16 +309,20 @@ The save entry follows the same narrow path resolution as the loader. It finds
 the target TM8 file, resolves the requested page to the corresponding
 file-relative sector, reads that sector first to establish MON3's write context,
 copies the caller's 512-byte buffer into `DISK_BUFF`, and then calls
-`BiosFileWriteSector`. `EditorCreateSourceFile` adds the narrow create path
-needed by editor backups: it finds a free data block, marks that allocation
-entry as end-of-chain, writes a catalog entry, and updates the superblock free
-block count/checksum. It assumes the prefix already exists and creates a
-single 4K source file; it is not a general grow, remove, rename, or directory
-creation API.
+`BiosFileWriteSector`. Save can grow the catalog byte size and, when a save
+steps past the end of the current 4K block chain, allocate a new TM8 data block,
+mark it end-of-chain, link it from the previous block, and update the
+superblock free-block count/checksum.
+
+`EditorCreateSourceFile` adds the narrow create path needed by editor backups:
+it finds a free data block, marks that allocation entry as end-of-chain, writes
+a catalog entry, and updates the superblock free block count/checksum. It
+assumes the prefix already exists and creates a single 4K source file; it is not
+a general remove, rename, directory creation, or truncation API.
 
 This is still proof-focused. It reads pages, follows existing block chains,
-writes existing pages, and can create the one-block backup files the editor
-needs. It is not yet a general TM8 filesystem layer.
+writes existing and newly grown pages, and can create the one-block backup
+files the editor needs. It is not yet a general TM8 filesystem layer.
 
 ### `src/editor-navigation.asm`
 
@@ -367,8 +371,10 @@ clears dirty. `EditorBackupCurrentPage`
 derives the hidden backup path from the current source path, loads the current
 on-disk page into `EditorNavBackupPageBuffer`, and writes that old page to the
 backup path. If the backup path is missing, it asks the storage loader to
-create a one-block file first, then retries the backup write. Multi-page backup
-policy and catalog/allocation growth remain outside this module today.
+create a one-block file first, then retries the backup write. Backup writes use
+the same growing save path as source writes, so a backup can extend across 4K
+allocation boundaries. Full-file backup policy and truncation/freeing behavior
+remain future work.
 
 `EditorNavDeriveBackupPath` implements the current naming convention. It keeps
 the original prefix, prepends `.` to the local filename, and appends `.b`.
@@ -552,6 +558,10 @@ The display proofs build up the editor stack incrementally:
   prompt yes/no state works through the key loop, and the pre-existing hidden
   backup file receives the previous on-disk page before the source page is
   replaced.
+- `proofs/display/editor-allocation-growth-proof.asm`: starts with a source
+  file that exactly fills one 4K TM8 allocation block, saves page 8, and
+  verifies that `/src/main.asm` grows to 4608 bytes with a newly linked second
+  data block.
 
 These proofs are the best executable tour of the unfinished editor.
 
@@ -758,8 +768,9 @@ What is still missing or intentionally skeletal:
 - Split can push row 15 into the adjacent sector, row-15 Enter can create the
   first record in the adjacent sector, and Backspace at row 0 can join into
   cached previous row 15. Saving can grow the catalog byte size when the new
-  sector still fits inside the file's existing 4K allocation block. It does not
-  yet allocate/free TM8 blocks when the file needs an allocation-chain extension.
+  sector still fits inside the file's existing 4K allocation block, and can
+  allocate/link a new block when the grown file crosses a 4K boundary. Shrinking
+  and freeing TM8 blocks are still not implemented.
 - The marker policy is still mostly fixed proof data, and prompt overlays still
   flush more than they should.
 - The Z80 storage readers are narrow readers, not a general reusable TM8

@@ -126,8 +126,9 @@ Work:
   page when that page is resident and has room.
 - Done: saving a new page inside the file's existing 4K allocation block grows
   the TM8 catalog byte size safely.
-- Update the TM8 allocation/write path to extend the allocation chain when a
-  file grows beyond its current 4K block chain.
+- Done: saving page 8 of a one-block source file extends the TM8 allocation
+  chain, updates the superblock free-block count/checksum, and grows the
+  catalog byte size to the new sector boundary.
 
 Likely design:
 
@@ -150,8 +151,8 @@ Done when:
 - Save persists resident dirty sectors that already belong to the TM8 file.
 - Save persists a grown file when the new sector still fits inside the existing
   4K allocation block.
-- Remaining storage work: save must extend the allocation chain when the grown
-  file crosses a 4K block boundary.
+- Save persists a grown file when the new sector crosses a 4K allocation-block
+  boundary and requires a new TM8 data block.
 - Metadata bits in each source-record length byte are preserved unless a
   deliberately defined editor metadata operation changes them.
 - Moving around a file within the RAM window does not perform SD reads.
@@ -253,6 +254,12 @@ Goal: make the editor feel usable on slow GLCD hardware.
 
 Work:
 
+- Treat vertical cursor movement as the first display-performance target.
+  Manual Debug80 testing shows left/right movement is already acceptably fast
+  because it mostly updates the cursor overlay, while up/down movement is slow
+  enough to dominate the editing feel. The current row-change path repaints the
+  old and new source rows so the cursor marker can move; Phase 7 should replace
+  that with a pixel/tile-delta update for only the affected cursor/marker bytes.
 - Replace full GLCD flushes with dirty row or dirty byte-range flushes.
 - Avoid full-screen blanking except on page load or explicit redraw.
 - Optimize cursor redraw.
@@ -261,6 +268,7 @@ Work:
 
 Likely next display work:
 
+- Cursor row-transition delta flush for up/down movement.
 - Dirty row flush.
 - Dirty cell flush.
 - Cursor-only flush.
@@ -268,7 +276,8 @@ Likely next display work:
 Done when:
 
 - Typing a character updates quickly enough to feel interactive.
-- Cursor movement is visibly cheap.
+- Horizontal and vertical cursor movement are both visibly cheap; up/down no
+  longer repaints two complete text rows.
 - Save/load can still be slow, but editing should not be.
 
 ## Phase 8: File Picker And Editor Launch

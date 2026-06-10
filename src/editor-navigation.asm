@@ -145,7 +145,7 @@ EditorBackupCurrentPageLoaded:
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavBackupPageBuffer
-        CALL    EditorSaveSourcePageNoGrow
+        CALL    EditorSaveSourcePage
         RET     NC
         CP      EDITOR_LOAD_ERR_FIND
         RET     NZ
@@ -155,7 +155,7 @@ EditorBackupCurrentPageLoaded:
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavBackupPageBuffer
-        JP      EditorSaveSourcePageNoGrow
+        JP      EditorSaveSourcePage
 
 EditorBackupCurrentPageLoadError:
         CP      EDITOR_LOAD_ERR_SIZE

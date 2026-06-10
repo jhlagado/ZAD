@@ -126,6 +126,13 @@ const PROOF_CASES = {
     lines: makeSinglePageLines(),
     verify: verifyEditorRow15GrowthProof,
   },
+  'editor-allocation-growth-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-allocation-growth-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-allocation-growth-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-allocation-growth-fat32.img'),
+    lines: makeSingleBlockLines(),
+    verify: verifyEditorAllocationGrowthProof,
+  },
   'editor-line-editing-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof-last-run.json'),
@@ -240,6 +247,14 @@ function makeSmallFileLines(): string[] {
 function makeSinglePageLines(): string[] {
   return Array.from({ length: 16 }, (_, index) => {
     return `R0 LINE ${index.toString().padStart(2, '0')}`;
+  });
+}
+
+function makeSingleBlockLines(): string[] {
+  return Array.from({ length: 128 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `B${page} LINE ${line.toString().padStart(2, '0')}`;
   });
 }
 
@@ -833,6 +848,90 @@ function verifyEditorRow15GrowthProof(runtime: Runtime, _platformRuntime: Platfo
         `editor row15 growth record ${check.record} "${actual}", expected "${check.text}"; runtimePage15="${readSourceRecord(runtime.hardware.memory, pageBuffer, 15)}" runtimeCache15="${readSourceRecord(runtime.hardware.memory, cacheBuffer, 15)}" dirtySectors=${dirtySectors} cacheDirty=${cacheDirty}`,
       );
     }
+  }
+}
+
+function verifyEditorAllocationGrowthProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const verifyPage = symbolAddress(symbols, 'EditorVerifyPage');
+  assertSourceRecordClean(runtime.hardware.memory, verifyPage, 0, 'GROW P8 00');
+
+  const { parseVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  const proofCase = PROOF_CASES['editor-allocation-growth-proof'];
+  const manifest = JSON.parse(readFileSync(proofCase.image.replace(/\.[^.]*$/, '.json'), 'utf8'));
+  const image = readFileSync(proofCase.image);
+  const volume = Buffer.from(
+    image.subarray(manifest.volume_start_byte_offset, manifest.volume_start_byte_offset + 4 * 1024 * 1024),
+  );
+  const parsed = parseVolumeImage(volume);
+  const source = parsed.files.find((file: { name: string }) => file.name === 'main.asm');
+  if (!source) {
+    throw new Error('editor allocation growth source file missing after save');
+  }
+  const backup = parsed.files.find((file: { name: string }) => file.name === '.main.asm.b');
+  if (!backup) {
+    throw new Error('editor allocation growth backup file missing after save');
+  }
+  if (source.size !== 4608) {
+    throw new Error(`editor allocation growth source size ${source.size}, expected 4608`);
+  }
+  if (backup.size !== 4608) {
+    throw new Error(`editor allocation growth backup size ${backup.size}, expected 4608`);
+  }
+  const expectedFreeBlocks = 1014 - 6;
+  if (parsed.superblock.freeBlockCount !== expectedFreeBlocks) {
+    throw new Error(
+      `editor allocation growth free block count ${parsed.superblock.freeBlockCount}, expected ${expectedFreeBlocks}`,
+    );
+  }
+
+  const secondBlock = parsed.allocation[source.firstBlock];
+  if (secondBlock === TM8_ALLOCATION_END) {
+    throw new Error('editor allocation growth did not link a second allocation block');
+  }
+  if (secondBlock < 10 || secondBlock >= 1024) {
+    throw new Error(`editor allocation growth second block ${secondBlock}, expected data block`);
+  }
+  const secondNext = parsed.allocation[secondBlock];
+  if (secondNext !== TM8_ALLOCATION_END) {
+    throw new Error(`editor allocation growth second block next ${secondNext}, expected allocation end`);
+  }
+  const backupSecondBlock = parsed.allocation[backup.firstBlock];
+  if (backupSecondBlock === TM8_ALLOCATION_END) {
+    throw new Error('editor allocation growth did not link a second backup allocation block');
+  }
+  const backupSecondNext = parsed.allocation[backupSecondBlock];
+  if (backupSecondNext !== TM8_ALLOCATION_END) {
+    throw new Error(`editor allocation growth backup second block next ${backupSecondNext}, expected allocation end`);
+  }
+
+  const stored = readFileFromProofImage(proofCase, '/src/main.asm');
+  if (stored.length !== 4608) {
+    throw new Error(`editor allocation growth stored length ${stored.length}, expected 4608`);
+  }
+  if (readSourceRecord(stored, 0, 0) !== 'B0 LINE 00') {
+    throw new Error(`editor allocation growth record 0 was not preserved`);
+  }
+  if (readSourceRecord(stored, 0, 127) !== 'B7 LINE 15') {
+    throw new Error(`editor allocation growth record 127 was not preserved`);
+  }
+  const grownRecord = readSourceRecord(stored, 0, 128);
+  if (grownRecord !== 'GROW P8 00') {
+    throw new Error(`editor allocation growth persisted record 128 "${grownRecord}", expected "GROW P8 00"`);
+  }
+  const storedBackup = readFileFromProofImage(proofCase, '/src/.main.asm.b');
+  if (storedBackup.length !== 4608) {
+    throw new Error(`editor allocation growth backup length ${storedBackup.length}, expected 4608`);
+  }
+  if (readSourceRecord(storedBackup, 0, 0) !== '') {
+    throw new Error('editor allocation growth backup record 0 should remain blank for previously missing page 8');
+  }
+  const storedApp = readFileFromProofImage(proofCase, '/projects/demo/app.asm');
+  if (readSourceRecord(storedApp, 0, 0) !== 'A0 LINE 00') {
+    throw new Error('editor allocation growth sibling app file was not preserved');
+  }
+  const storedRoot = readFileFromProofImage(proofCase, '/root.asm');
+  if (readSourceRecord(storedRoot, 0, 0) !== 'R0 LINE 00') {
+    throw new Error('editor allocation growth root file was not preserved');
   }
 }
 

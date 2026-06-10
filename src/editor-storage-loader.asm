@@ -77,6 +77,7 @@ EDITOR_LOAD_ERR_CREATE  .equ    0x39
         PUSH    AF
         XOR     A
         LD      (EditorLoadAllowShort),A
+        LD      (EditorSaveGrowMode),A
         POP     AF
         LD      (EditorLoadSectorIndex),A
         LD      (EditorLoadDest),HL
@@ -171,8 +172,11 @@ EditorSaveSourcePageCommon:
         ADD     A,A
         INC     A
         LD      (EditorLoadRequiredSizeHigh),A
-        INC     A
+        ADD     A,1
         LD      (EditorSaveRequiredSizeHigh),A
+        LD      A,0
+        ADC     A,0
+        LD      (EditorSaveRequiredSizeUpper),A
 
         CALL    EditorLoadParseSourcePath
         RET     C
@@ -1163,8 +1167,7 @@ EditorCreateChecksumNoCarry:
 
 ; EditorSaveExtendCatalogSize -
 ; Grow the matched source file's catalog byte size to include the just-written
-; sector. This supports growth inside the existing allocated 4K block; extending
-; allocation chains remains a separate storage operation.
+; sector. This is monotonic and preserves already-large 32-bit catalog sizes.
 ;!      out       A,carry,zero
 ;!      clobbers  A,BC,DE,HL
 @EditorSaveExtendCatalogSize:
@@ -1192,8 +1195,11 @@ EditorCreateChecksumNoCarry:
         INC     HL
         INC     HL
         LD      A,(HL)
-        OR      A
-        JR      NZ,EditorSaveCatalogSizeOk
+        LD      B,A
+        LD      A,(EditorSaveRequiredSizeUpper)
+        CP      B
+        JR      C,EditorSaveCatalogSizeOk
+        JR      NZ,EditorSaveCatalogUpdate
         INC     HL
         LD      A,(HL)
         OR      A
@@ -1209,16 +1215,20 @@ EditorCreateChecksumNoCarry:
         JR      C,EditorSaveCatalogSizeOk
         JR      Z,EditorSaveCatalogSizeOk
 
-        DEC     HL
+EditorSaveCatalogUpdate:
+        LD      DE,(EditorLoadCatalogEntryOffset)
+        LD      HL,DISK_BUFF + 46
+        ADD     HL,DE
         XOR     A
         LD      (HL),A
         INC     HL
         LD      A,(EditorSaveRequiredSizeHigh)
         LD      (HL),A
         INC     HL
-        XOR     A
+        LD      A,(EditorSaveRequiredSizeUpper)
         LD      (HL),A
         INC     HL
+        XOR     A
         LD      (HL),A
 
         LD      DE,(EditorLoadCatalogSectorOffset)
@@ -1244,7 +1254,7 @@ EditorLoadResolveLoop:
         JR      Z,EditorLoadResolveOk
 
         LD      HL,(EditorLoadResolvedBlock)
-        CALL    EditorLoadReadAllocationEntry
+        CALL    EditorLoadResolveNextBlock
         RET     C
         LD      (EditorLoadResolvedBlock),HL
 
@@ -1254,6 +1264,125 @@ EditorLoadResolveLoop:
         JR      EditorLoadResolveLoop
 
 EditorLoadResolveOk:
+        XOR     A
+        RET
+
+;!      in        HL
+;!      out       HL,A,carry,zero
+;!      clobbers  A,BC,DE
+@EditorLoadResolveNextBlock:
+        LD      A,(EditorSaveGrowMode)
+        OR      A
+        JP      NZ,EditorSaveReadOrGrowAllocationEntry
+        JP      EditorLoadReadAllocationEntry
+
+;!      in        HL
+;!      out       HL,A,carry,zero
+;!      clobbers  A,BC,DE
+@EditorSaveReadOrGrowAllocationEntry:
+        LD      (EditorSavePreviousBlock),HL
+        LD      (EditorLoadCurrentBlock),HL
+        LD      A,H
+        CP      4
+        JP      NC,EditorLoadBlockErr
+        ADD     A,A
+        ADD     A,0x10
+        LD      D,A
+        LD      E,0
+        LD      HL,0
+        CALL    BiosFileReadSector
+        JP      C,EditorLoadReadErr
+
+        LD      A,(EditorLoadCurrentBlock)
+        ADD     A,A
+        LD      E,A
+        LD      D,0
+        JR      NC,EditorSaveReadGrowOffsetOk
+        INC     D
+
+EditorSaveReadGrowOffsetOk:
+        LD      HL,DISK_BUFF
+        ADD     HL,DE
+        LD      E,(HL)
+        INC     HL
+        LD      D,(HL)
+
+        LD      A,D
+        CP      0xFF
+        JR      NZ,EditorSaveReadGrowNotEndHigh
+        LD      A,E
+        CP      0xFF
+        JP      Z,EditorSaveGrowAllocateBlock
+
+EditorSaveReadGrowNotEndHigh:
+        LD      A,D
+        CP      4
+        JP      NC,EditorLoadBlockErr
+        OR      A
+        JR      NZ,EditorSaveReadGrowOk
+        LD      A,E
+        CP      TM8_DATA_START_BLOCK
+        JP      C,EditorLoadBlockErr
+
+EditorSaveReadGrowOk:
+        EX      DE,HL
+        XOR     A
+        RET
+
+EditorSaveGrowAllocateBlock:
+        CALL    EditorCreateFindFreeBlock
+        RET     C
+        CALL    EditorCreateMarkAllocatedBlock
+        RET     C
+        CALL    EditorCreateUpdateSuperblock
+        RET     C
+        LD      HL,(EditorSavePreviousBlock)
+        LD      DE,(EditorCreateFreeBlock)
+        CALL    EditorSaveWriteAllocationEntryValue
+        RET     C
+        LD      HL,(EditorCreateFreeBlock)
+        XOR     A
+        RET
+
+;!      in        DE,HL
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@EditorSaveWriteAllocationEntryValue:
+        LD      (EditorLoadCurrentBlock),HL
+        LD      (EditorSaveAllocationValue),DE
+        LD      A,H
+        CP      4
+        JP      NC,EditorLoadBlockErr
+        ADD     A,A
+        ADD     A,0x10
+        LD      D,A
+        LD      E,0
+        LD      (EditorCreateAllocSectorHigh),A
+        LD      HL,0
+        CALL    BiosFileReadSector
+        JP      C,EditorLoadReadErr
+
+        LD      A,(EditorLoadCurrentBlock)
+        ADD     A,A
+        LD      E,A
+        LD      D,0
+        JR      NC,EditorSaveWriteAllocOffsetOk
+        INC     D
+
+EditorSaveWriteAllocOffsetOk:
+        LD      HL,DISK_BUFF
+        ADD     HL,DE
+        LD      DE,(EditorSaveAllocationValue)
+        LD      (HL),E
+        INC     HL
+        LD      (HL),D
+
+        LD      A,(EditorCreateAllocSectorHigh)
+        LD      D,A
+        LD      E,0
+        LD      HL,0
+        CALL    BiosFileWriteSector
+        JP      C,EditorLoadWriteErr
         XOR     A
         RET
 
@@ -1399,6 +1528,9 @@ EditorLoadRequiredSizeHigh:
 EditorSaveRequiredSizeHigh:
         .db     0
 
+EditorSaveRequiredSizeUpper:
+        .db     0
+
 EditorSaveGrowMode:
         .db     0
 
@@ -1458,3 +1590,9 @@ EditorCreateAllocSectorsLeft:
 
 EditorCreateAllocSectorHigh:
         .db     0
+
+EditorSavePreviousBlock:
+        .dw     0
+
+EditorSaveAllocationValue:
+        .dw     0
