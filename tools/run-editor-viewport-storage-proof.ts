@@ -91,6 +91,13 @@ const PROOF_CASES = {
     lines: makeMultiBlockLines(),
     verify: verifyShellEditNamedNavigationProof,
   },
+  'editor-file-list-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-file-list-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-file-list-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-file-list-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyEditorFileListProof,
+  },
   'shell-edit-interaction-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-proof-last-run.json'),
@@ -374,6 +381,9 @@ function ensureImage(proofCase: ProofCase): string {
   volume = importFileIntoVolumeImage(volume, '/projects/demo/app.asm', appRecords);
   volume = importFileIntoVolumeImage(volume, '/root.asm', rootRecords);
   volume = importFileIntoVolumeImage(volume, '/src/notes.asm', notesRecords);
+  if (proofCase === PROOF_CASES['editor-file-list-proof']) {
+    volume = importFileIntoVolumeImage(volume, '/src/.main.asm.b', encodeSourceRecords(['BACKUP']));
+  }
   if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {
     volume = makePositiveProofVolume(volume);
   }
@@ -656,6 +666,35 @@ function verifyShellEditNamedNavigationProof(
   symbols: D8Symbol[],
 ): void {
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19, '/src/notes.asm', 'N0');
+}
+
+function verifyEditorFileListProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  verifyListOutput(runtime, symbols, 'ListOut', 'main.asm\nnotes.asm\n');
+  verifyListOutput(runtime, symbols, 'NestedListOut', 'app.asm\n');
+  verifyListOutput(runtime, symbols, 'RootListOut', 'root.asm\n');
+}
+
+function verifyListOutput(runtime: Runtime, symbols: D8Symbol[], symbol: string, expected: string): void {
+  const address = symbolAddress(symbols, symbol);
+  const bytes: number[] = [];
+  for (let offset = 0; offset < 128; offset += 1) {
+    const value = runtime.hardware.memory[address + offset];
+    if (value === 0) {
+      const text = Buffer.from(bytes).toString('ascii');
+      if (text !== expected) {
+        throw new Error(`${symbol} output ${JSON.stringify(text)}, expected ${JSON.stringify(expected)}`);
+      }
+      if (runtime.hardware.memory[address + offset + 1] !== 0xA5) {
+        throw new Error(`${symbol} terminator was not written at expected output boundary`);
+      }
+      if (text.includes('.main.asm.b')) {
+        throw new Error(`${symbol} exposed hidden backup file`);
+      }
+      return;
+    }
+    bytes.push(value);
+  }
+  throw new Error(`${symbol} output was not NUL-terminated`);
 }
 
 function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {

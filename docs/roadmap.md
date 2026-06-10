@@ -332,9 +332,10 @@ Goal: make project navigation practical.
 
 Work:
 
-- Implement TEC-side `ls` or enough listing for editor selection.
-- Hide leading-dot files from ordinary listings.
-- Make backups invisible by default.
+- Done: implement TEC-side visible-file listing for a TM8 prefix, enough for
+  editor selection.
+- Done: hide leading-dot files from ordinary listings.
+- Done: make backups invisible by default.
 - Add optional listing of hidden files later.
 
 Done when:

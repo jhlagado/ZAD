@@ -569,6 +569,8 @@ The display proofs build up the editor stack incrementally:
   to 31 characters, proves the logical cursor reaches column 30, proves the
   visible cursor stays at column 19, and proves the rendered row starts at
   column offset 11.
+- `proofs/display/editor-file-list-proof.asm`: lists `/src` through TEC-side
+  TM8 catalog code and proves hidden backup files are omitted.
 - `proofs/display/shell-edit-navigation-proof.asm`: resolves shell `edit`,
   launches the editor, and pages through source.
 - `proofs/display/shell-edit-explicit-navigation-proof.asm`: launches
