@@ -6,36 +6,27 @@
  * openFile -> readSector -> writeSector. It does not implement TM8 FS logic.
  */
 
-const { execFileSync } = require('node:child_process');
 const { existsSync, readFileSync, writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
-const TECM8_ROOT = resolve(__dirname, '..');
-const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
-const MON3_ROM_CANDIDATES = [
-  resolve(DEBUG80_ROOT, 'resources/bundles/tec1g/mon3/v1/mon3.bin'),
-  '/Users/johnhardy/projects/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
-  '/Users/johnhardy/projects/2026/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
-];
-const MON3_ROM_PATH = resolve(
-  process.env.MON3_ROM_PATH ??
-    MON3_ROM_CANDIDATES.find((path: string) => existsSync(path)) ??
-    MON3_ROM_CANDIDATES[0],
-);
+import type { PlatformRuntime, ProofHarness, Runtime } from './proof/harness';
+
+const harness: ProofHarness = require('./proof/harness.ts');
+const {
+  TECM8_ROOT,
+  MON3_ROM_PATH,
+  APP_START,
+  createProofImage,
+  imageManifest,
+  loadTec1gRuntime,
+} = harness;
 
 const IMAGE_PATH = resolve(TECM8_ROOT, 'proofs/storage/tm8proof-fat32.img');
-const IMAGE_TOOL = resolve(TECM8_ROOT, 'tools/create-storage-proof-image.ts');
-const NODE_TS_ARGS = ['--experimental-strip-types'];
 
 const MON3_OPEN_FILE_ADDR = 0xf5a1;
 const MON3_READ_SECTOR_ADDR = 0xf5d5;
 const MON3_WRITE_SECTOR_ADDR = 0xf66d;
 const DISK_BUFF = 0x0600;
-const MCB = 0x0888;
-const SYS_CTRL = 0xff;
-const SHADOW_OFF = 0x01;
-const MCB_SD_CARD = 0x80;
-const APP_START = 0x4000;
 const SECTOR_SIZE = 512;
 
 const MARKERS = [
@@ -73,37 +64,6 @@ const TRACE_POINTS: Record<number, string> = {
   0xc656: 'scanKeysWait',
   0xc575: 'display delay loop',
 };
-
-type Runtime = {
-  cpu: {
-    pc: number;
-    sp: number;
-    halted: boolean;
-    a: number;
-    b: number;
-    c: number;
-    d: number;
-    e: number;
-    h: number;
-    l: number;
-  };
-  hardware: {
-    memory: Uint8Array;
-    memRead?: (addr: number) => number;
-    memWrite?: (addr: number, value: number) => void;
-    forceMemWrite?: (addr: number, value: number) => void;
-    isMemoryWritable?: (addr: number) => boolean;
-  };
-  step: () => { halted: boolean; pc: number; cycles?: number };
-};
-
-type PlatformRuntime = {
-  recordCycles: (cycles: number) => void;
-};
-
-function requireFromDebug80(modulePath: string): unknown {
-  return require(resolve(DEBUG80_ROOT, modulePath));
-}
 
 function low(value: number): number {
   return value & 0xff;
@@ -184,78 +144,13 @@ function buildProofProgram(): { bytes: Uint8Array; doneAddr: number } {
 }
 
 function ensureImage(): void {
-  execFileSync(process.execPath, [...NODE_TS_ARGS, IMAGE_TOOL], {
-    cwd: TECM8_ROOT,
-    stdio: 'inherit',
-  });
-}
-
-function makeConfig() {
-  return {
-    regions: [
-      { start: 0x0000, end: 0x07ff, kind: 'rom' },
-      { start: 0x0800, end: 0x7fff, kind: 'ram' },
-      { start: 0xc000, end: 0xffff, kind: 'rom' },
-    ],
-    romRanges: [
-      { start: 0x0000, end: 0x07ff },
-      { start: 0xc000, end: 0xffff },
-    ],
-    appStart: APP_START,
-    entry: APP_START,
-    updateMs: 100,
-    yieldMs: 0,
-    gimpSignal: false,
-    expansionBankHi: false,
-    matrixMode: false,
-    protectOnReset: false,
-    rtcEnabled: false,
-    sdEnabled: true,
-    sdHighCapacity: true,
-    sdImagePath: IMAGE_PATH,
-  };
+  createProofImage(IMAGE_PATH);
 }
 
 function loadRuntime(): { runtime: Runtime; platformRuntime: PlatformRuntime; doneAddr: number } {
-  const { createTec1gRuntime } = requireFromDebug80('out/platforms/tec1g/runtime.js') as {
-    createTec1gRuntime: Function;
-  };
-  const { createTec1gMemoryHooks } = requireFromDebug80(
-    'out/platforms/tec1g/tec1g-memory.js',
-  ) as { createTec1gMemoryHooks: Function };
-  const { createZ80Runtime } = requireFromDebug80('out/z80/runtime.js') as {
-    createZ80Runtime: Function;
-  };
-
-  const config = makeConfig();
-  const tec1gRuntime = createTec1gRuntime(config, () => {});
-  const memory = new Uint8Array(0x10000);
-  const rom = readFileSync(MON3_ROM_PATH);
   const proofProgram = buildProofProgram();
-  memory.set(rom.subarray(0, 0x4000), 0xc000);
-  memory.set(proofProgram.bytes, APP_START);
-
-  const runtime = createZ80Runtime({ memory, startAddress: APP_START }, APP_START, tec1gRuntime.ioHandlers, {
-    romRanges: config.romRanges,
-  }) as Runtime;
-
-  const hooks = createTec1gMemoryHooks(
-    runtime.hardware.memory,
-    config.romRanges,
-    tec1gRuntime.state.system,
-  );
-  runtime.hardware.memRead = hooks.memRead;
-  runtime.hardware.memWrite = hooks.memWrite;
-  runtime.hardware.forceMemWrite = hooks.forceMemWrite;
-  runtime.hardware.isMemoryWritable = hooks.isMemoryWritable;
-
-  // Minimal MON3 startup state needed for RST calls plus disk buffer RAM.
-  tec1gRuntime.ioHandlers.write?.(SYS_CTRL, SHADOW_OFF);
-  runtime.hardware.memory.set(runtime.hardware.memory.subarray(0xc000, 0xc100), 0x0000);
-  runtime.hardware.forceMemWrite?.(MCB, MCB_SD_CARD);
-  runtime.cpu.sp = 0x7ff0;
-  runtime.cpu.pc = APP_START;
-  return { runtime, platformRuntime: tec1gRuntime, doneAddr: proofProgram.doneAddr };
+  const { runtime, platformRuntime } = loadTec1gRuntime(proofProgram.bytes, { imagePath: IMAGE_PATH });
+  return { runtime, platformRuntime, doneAddr: proofProgram.doneAddr };
 }
 
 function runProof(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: number): number {
@@ -310,8 +205,7 @@ function runProof(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: 
 }
 
 function verifyMarkers(): Array<{ sector: number; offset: number; marker: string }> {
-  const manifestPath = IMAGE_PATH.replace(/\.[^.]*$/, '.json');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const manifest = imageManifest(IMAGE_PATH);
   const image = readFileSync(IMAGE_PATH);
   return MARKERS.map((marker) => {
     const offset = manifest.volume_start_byte_offset + marker.sector * SECTOR_SIZE;
