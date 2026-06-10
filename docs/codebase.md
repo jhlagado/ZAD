@@ -630,14 +630,18 @@ Debug80:
 - `tools/run-storage-proof.ts`
 - `tools/run-debug80-editor-session.ts`
 
-The storage-backed runners also create FAT32 images, load MON3 ROM, configure
-the TEC-1G runtime, disable shadow ROM where needed, seed SD card state, and
-inspect proof-visible symbols, GLCD pixels, source-record buffers, and result
-markers.
+`tools/proof/harness.ts` is the shared proof harness. It owns Debug80/AZM/MON3
+ROM path resolution, the runtime types, AZM compilation, TEC-1G and bare-Z80
+runtime construction (shadow ROM off, MON3 low-vector copy, SD card seeding),
+run-until loops, memory/string/source-record readers, FAT32/TM8 proof-image
+helpers, and GLCD cell decoding. Individual runners keep only their fixtures,
+proof-case tables, and verification logic; new runners should extend the
+harness rather than re-implementing this plumbing.
 
-The proof runners run AZM register-contract checking in strict mode. They pass
-`src/mon3.asmi` for MON3 ROM calls and rely on the `;!` comments in included
-TECM8 source for routines implemented in this repository.
+The harness runs AZM register-contract checking in strict mode through the
+current `registerContracts` options. Runners pass `src/mon3.asmi` for MON3 ROM
+calls and rely on the `;!` comments in included TECM8 source for routines
+implemented in this repository.
 
 `tools/run-display-proof.ts` is the shared GLCD proof runner for
 `glcd-smoke-proof`, `glcd-tile-proof`, `structured-screen-proof`, and the
@@ -687,7 +691,9 @@ current:
 - `tools/mon3-glcd-split.ts`
 
 They support the future BIOS decomposition work by measuring which MON3
-services should be kept, rewritten, relocated, or removed.
+services should be kept, rewritten, relocated, or removed. Their shared
+bundle-root resolution, debug-map reading, and `--check`/`--output`/
+`--bundle-root` CLI live in `tools/mon3/support.ts`.
 
 ### Tests
 
@@ -702,6 +708,11 @@ coverage:
 - static checks that assembly modules expose expected entry points
 - static checks that local entry points carry `;!` contract comments
 - proof wiring checks that package scripts invoke the right proof runners
+
+The structural tests read repository files through `tools/test-support.ts`.
+Assertions stay local and explicit by policy; when a pinned contract moves
+between files, the assertion moves with it. The repository quality gates and
+this policy are recorded in `docs/code-quality-audit.md`.
 
 ## Documentation Map
 

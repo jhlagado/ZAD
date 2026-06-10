@@ -42,6 +42,14 @@ function readDebugMap(bundleRoot: string): any {
   return JSON.parse(readText(resolve(bundleRoot, 'mon3.d8.json')));
 }
 
+function readOptionValue(argv: string[], index: number, option: string): string {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`${option} requires a value`);
+  }
+  return value;
+}
+
 function parseMon3CliArgs(argv: string[], defaultOutputDocsPath: string): Mon3CliArgs {
   let check = false;
   let outputPath = resolve(repoRoot(), defaultOutputDocsPath);
@@ -52,11 +60,11 @@ function parseMon3CliArgs(argv: string[], defaultOutputDocsPath: string): Mon3Cl
     if (arg === '--check') {
       check = true;
     } else if (arg === '--output') {
+      outputPath = resolve(readOptionValue(argv, index, arg));
       index += 1;
-      outputPath = resolve(argv[index]);
     } else if (arg === '--bundle-root') {
+      bundleRoot = resolve(readOptionValue(argv, index, arg));
       index += 1;
-      bundleRoot = resolve(argv[index]);
     } else {
       throw new Error(`unknown argument: ${arg}`);
     }
@@ -97,6 +105,5 @@ const mon3SupportExports = {
 };
 
 export type Mon3Support = typeof mon3SupportExports;
-export type { Mon3ReportOptions };
 
 module.exports = mon3SupportExports;

@@ -35,6 +35,7 @@ Start with the documentation:
 - [TECM8 AZM Style Guide](docs/azm-style-guide.md)
 - [Editor Design](docs/editor-design.md)
 - [Memory and Code Quality Manifest](docs/memory-and-code-quality.md)
+- [Code Quality Audit](docs/code-quality-audit.md)
 - [TECM8 BIOS Direction](docs/tecm8-bios.md)
 - [TECM8 BIOS API Draft](docs/tecm8-bios-api.md)
 - [Debugging Roadmap](docs/debugging-roadmap.md)
@@ -45,3 +46,7 @@ Useful local checks:
 npm install
 npm run check
 ```
+
+`npm run check` includes the Fallow dead-code gate (`npm run quality`).
+`npm run quality:health` and `npm run quality:dupes` are advisory locators;
+see the [Code Quality Audit](docs/code-quality-audit.md) for the gate policy.

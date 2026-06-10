@@ -415,28 +415,7 @@ function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
   return false;
 }
 
-function readCellRows(memory: Uint8Array, row: number, column: number): number[] {
-  const mon3Tgbuf = 0x13c0;
-  const rowBytes = 16;
-  const textX = 6;
-  const cellX = textX + column * 6;
-  const rows = [];
-  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
-    let rowBits = 0;
-    for (let x = cellX; x < cellX + 6; x += 1) {
-      rowBits <<= 1;
-      const address = mon3Tgbuf + y * rowBytes + Math.floor(x / 8);
-      const mask = 0x80 >> (x % 8);
-      if ((memory[address] & mask) !== 0) {
-        rowBits |= 1;
-      }
-    }
-    rows.push(rowBits);
-  }
-  return rows;
-}
-
-function readGlcdCellRows(glcd: number[], row: number, column: number): number[] {
+function readSixPixelRows(readByte: (offset: number) => number, row: number, column: number): number[] {
   const rowBytes = 16;
   const textX = 6;
   const cellX = textX + column * 6;
@@ -447,13 +426,22 @@ function readGlcdCellRows(glcd: number[], row: number, column: number): number[]
       rowBits <<= 1;
       const offset = y * rowBytes + Math.floor(x / 8);
       const mask = 0x80 >> (x % 8);
-      if (((glcd[offset] ?? 0) & mask) !== 0) {
+      if ((readByte(offset) & mask) !== 0) {
         rowBits |= 1;
       }
     }
     rows.push(rowBits);
   }
   return rows;
+}
+
+function readCellRows(memory: Uint8Array, row: number, column: number): number[] {
+  const mon3Tgbuf = 0x13c0;
+  return readSixPixelRows((offset) => memory[mon3Tgbuf + offset] ?? 0, row, column);
+}
+
+function readGlcdCellRows(glcd: number[], row: number, column: number): number[] {
+  return readSixPixelRows((offset) => glcd[offset] ?? 0, row, column);
 }
 
 function readFontRows(memory: Uint8Array, charCode: number): number[] {
@@ -465,11 +453,7 @@ function readFontRows(memory: Uint8Array, charCode: number): number[] {
 function assertCellMatchesInvertedFont(memory: Uint8Array, row: number, column: number, charCode: number): void {
   const actual = readCellRows(memory, row, column);
   const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
-  if (actual.join(',') !== expected.join(',')) {
-    throw new Error(
-      `GLCD cursor proof rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
-    );
-  }
+  assertRowsEqual('GLCD cursor proof', charCode, actual, expected);
 }
 
 function assertGlcdCellMatchesInvertedFont(
@@ -481,9 +465,13 @@ function assertGlcdCellMatchesInvertedFont(
 ): void {
   const actual = readGlcdCellRows(glcd, row, column);
   const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+  assertRowsEqual('visible GLCD cursor proof', charCode, actual, expected);
+}
+
+function assertRowsEqual(label: string, charCode: number, actual: number[], expected: number[]): void {
   if (actual.join(',') !== expected.join(',')) {
     throw new Error(
-      `visible GLCD cursor proof rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
+      `${label} rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
     );
   }
 }
