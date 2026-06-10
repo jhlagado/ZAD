@@ -36,6 +36,12 @@ const SYS_CTRL = 0xff;
 const SHADOW_OFF = 0x01;
 const MCB = 0x0888;
 const MCB_SD_CARD = 0x80;
+const FIXED_SYMBOLS: Record<string, number> = {
+  EditorNavCachePageBuffer: 0x3000,
+  EditorNavPageBuffer: 0x3200,
+  EditorNavNextPageBuffer: 0x3400,
+  EditorNavBackupPageBuffer: 0x3600,
+};
 const TM8_BLOCK_BYTES = 4096;
 const TM8_ALLOCATION_OFFSET = 4096;
 const TM8_ALLOCATION_END = 0xffff;
@@ -251,7 +257,7 @@ async function compileProof(proofCase: ProofCase): Promise<{ bytes: Uint8Array; 
 
 function symbolAddress(symbols: D8Symbol[], name: string): number {
   const symbol = symbols.find((entry) => entry.name === name);
-  const address = symbol?.address ?? symbol?.value;
+  const address = symbol?.address ?? symbol?.value ?? FIXED_SYMBOLS[name];
   if (typeof address !== 'number') {
     throw new Error(`missing address symbol: ${name}`);
   }

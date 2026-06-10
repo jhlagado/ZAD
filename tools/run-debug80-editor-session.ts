@@ -36,6 +36,12 @@ const MCB = 0x0888;
 const MCB_SD_CARD = 0x80;
 const MON3_SYS_MODE = 0x089d;
 const TM8_VOLUME_BYTES = 4 * 1024 * 1024;
+const FIXED_SYMBOLS: Record<string, number> = {
+  EditorNavCachePageBuffer: 0x3000,
+  EditorNavPageBuffer: 0x3200,
+  EditorNavNextPageBuffer: 0x3400,
+  EditorNavBackupPageBuffer: 0x3600,
+};
 
 type Runtime = {
   cpu: { pc: number; sp: number; halted: boolean };
@@ -106,10 +112,11 @@ async function compileMain(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }
 
 function symbolAddress(symbols: D8Symbol[], name: string): number {
   const symbol = symbols.find((entry) => entry.name === name);
-  if (!symbol || typeof symbol.address !== 'number') {
+  const address = symbol?.address ?? symbol?.value ?? FIXED_SYMBOLS[name];
+  if (typeof address !== 'number') {
     throw new Error(`missing address symbol: ${name}`);
   }
-  return symbol.address;
+  return address;
 }
 
 function readWord(memory: Uint8Array, address: number): number {

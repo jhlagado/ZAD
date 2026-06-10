@@ -422,16 +422,18 @@ Goal: make the editor viable on a constrained TEC-1G memory map.
 
 Work:
 
-- Document editor RAM usage.
-- Keep page buffers above MON3/GLCD volatile areas.
-- Decide whether `3000h-3FFFh` becomes editor workspace.
-- Prefer 2K or 4K editor windows if RAM permits; treat 1K as a fallback only.
-- Avoid relying on MON3 RAM that GLCD/storage overwrites.
+- Done: documented editor RAM usage in `docs/editor-memory-layout.md`.
+- Done: kept source page buffers above MON3/GLCD volatile areas.
+- Done: assigned `3000h-3FFFh` as the current editor workspace.
+- Done: fixed a 2K resident source-sector workspace at `3000h-37FFh`; `3800h`
+  to `3FFFh` is reserved for future growth.
+- Done: avoided relying on MON3 RAM that GLCD/storage overwrites.
 
 Done when:
 
-- Editor memory map is explicit.
-- Page buffers, cache, status state, and scratch areas have stable locations.
+- Done: editor memory map is explicit.
+- Done: page buffers, cache, status state, and scratch areas have stable
+  locations.
 
 ## Phase 14: Hardware Transition
 

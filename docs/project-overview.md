@@ -242,4 +242,6 @@ The GLCD may show only a small viewport, but MON3 SD/FAT32 reads are slow enough
 that ordinary vertical movement should usually stay inside a preloaded RAM
 window. The current 512-byte proof buffer should grow toward 2K or 4K so common
 100-200 line `.ASM` files can be navigated without touching SD on every page
-step. See [Editor Design](editor-design.md).
+step. The current editor reserves `3000h-37FFh` for fixed source-sector
+buffers, with `3800h-3FFFh` held for future workspace growth. See
+[Editor Design](editor-design.md) and [Editor Memory Layout](editor-memory-layout.md).

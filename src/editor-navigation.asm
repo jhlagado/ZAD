@@ -8,7 +8,12 @@ TECM8_EDITOR_NAV_ERR_BACKUP     .equ    0x52
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 TECM8_EDITOR_NAV_PAGE_BYTES     .equ    512
 TECM8_EDITOR_NAV_WINDOW_BYTES   .equ    1024
+TECM8_EDITOR_NAV_WORKSPACE_BASE .equ    0x3000
 TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
+TECM8_EDITOR_NAV_PAGE_BASE      .equ    0x3200
+TECM8_EDITOR_NAV_NEXT_BASE      .equ    0x3400
+TECM8_EDITOR_NAV_BACKUP_BASE    .equ    0x3600
+TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
 
 ; EditorOpenMain -
 ; Reset navigation to page 0 and render /src/main.asm.
@@ -1060,8 +1065,6 @@ EditorNavPathBuffer:
 EditorNavBackupPathBuffer:
         .ds     TECM8_EDITOR_NAV_PATH_LEN
 
-EditorNavBackupPageBuffer:
-        .ds     512
 EditorRenderPageBufferCount:
         .db     0
 
@@ -1148,8 +1151,8 @@ EditorLastErrorTextPtr:
 
 EditorNavCachePageBuffer       .equ    TECM8_EDITOR_NAV_CACHE_BASE
 
-EditorNavPageBuffer:
-        .ds     TECM8_EDITOR_NAV_PAGE_BYTES
+EditorNavPageBuffer            .equ    TECM8_EDITOR_NAV_PAGE_BASE
 
-EditorNavNextPageBuffer:
-        .ds     TECM8_EDITOR_NAV_PAGE_BYTES
+EditorNavNextPageBuffer        .equ    TECM8_EDITOR_NAV_NEXT_BASE
+
+EditorNavBackupPageBuffer      .equ    TECM8_EDITOR_NAV_BACKUP_BASE

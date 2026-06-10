@@ -343,14 +343,17 @@ Public entries:
 - `EditorPageUp`
 - `EditorNavDeriveBackupPath`
 
-The module stores a 64-byte path buffer, a 512-byte live page buffer, a
-512-byte adjacent next-page buffer, and legacy aggregate `EditorNavDirty`.
-`EditorNavDirtySectors` tracks the active/next sector dirty bits, while
-`EditorNavCachedPageDirty` preserves dirty state for the previous-page cache at
-`3000h`, outside the program image below the `4000h` MON3 launch address. This
-is now a small two-sector edit window plus one previous-page cache:
-page-down/page-up movement can stay in RAM, and dirty movement no longer forces
-an immediate save.
+The module stores a 64-byte path buffer and legacy aggregate `EditorNavDirty`.
+The source-sector buffers now live in a fixed workspace at `3000h-37FFh`:
+previous-page cache at `3000h`, active page at `3200h`, adjacent next page at
+`3400h`, and backup/save scratch at `3600h`. This keeps the 2K resident source
+workspace below the `4000h` MON3 launch address and away from MON3's lower
+GLCD/storage volatile RAM. `EditorNavDirtySectors` tracks the active/next
+sector dirty bits, while `EditorNavCachedPageDirty` preserves dirty state for
+the previous-page cache. This is now a small two-sector edit window plus one
+previous-page cache: page-down/page-up movement can stay in RAM, and dirty
+movement no longer forces an immediate save. See
+[Editor Memory Layout](editor-memory-layout.md).
 
 `EditorNavViewportTopRow` is the logical source row currently shown at GLCD
 visible row 0. `EditorRenderPageBuffer` calls `EditorNavSyncViewport` before

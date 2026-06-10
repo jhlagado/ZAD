@@ -196,6 +196,12 @@ The current 24K realistic RAM target is not a hard formal allocation yet. It is
 a design pressure: code and data should be shaped so future allocation planning
 does not require a full rewrite.
 
+The current editor source workspace is explicitly assigned to `3000h-37FFh`,
+below the `4000h` launch address and above MON3's low display/storage workspace.
+It holds the previous-page cache, active page, adjacent next page, and backup
+scratch sectors. `3800h-3FFFh` remains reserved for future editor workspace.
+See [Editor Memory Layout](editor-memory-layout.md).
+
 ## Code Compactness
 
 The project is still in a greenfield stage. Clear, testable, contract-driven
