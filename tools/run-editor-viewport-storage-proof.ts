@@ -587,6 +587,10 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   if (mutatedRecord !== 'dl?1 LINE 07') {
     throw new Error(`shell edit mutated record "${mutatedRecord}", expected "dl?1 LINE 07"`);
   }
+  const unknownModifiedDirty = runtime.hardware.memory[symbolAddress(symbols, 'UnknownModifiedDirty')];
+  if (unknownModifiedDirty !== 0) {
+    throw new Error(`shell edit unknown modified dirty ${unknownModifiedDirty}, expected 0`);
+  }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
 }
 

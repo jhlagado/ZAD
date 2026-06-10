@@ -479,6 +479,15 @@ EditorStatusLoadingText:
 EditorStatusSavingText:
         .db     "Saving...",0
 
+EditorStatusCleanText:
+        .db     "Clean",0
+
+EditorStatusSaveFirstText:
+        .db     "Save first",0
+
+EditorStatusUnknownKeyText:
+        .db     "KEY",0
+
 EditorNavCachePageBuffer       .equ    TECM8_EDITOR_NAV_CACHE_BASE
 
 EditorNavPageBuffer:

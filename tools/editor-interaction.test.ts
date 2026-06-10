@@ -31,6 +31,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorPromptAskYesNo:/m);
   assert.match(source, /^@EditorPromptDispatch:/m);
   assert.match(source, /^@EditorModifiedCommandFromKey:/m);
+  assert.match(source, /^@EditorShouldIgnoreModifiedPrintable:/m);
+  assert.match(source, /^@EditorKeyShowStatus:/m);
   assert.match(source, /TECM8_EDITOR_KEY_QUIT\s+\.equ\s+17/);
   assert.match(source, /TECM8_EDITOR_KEY_RESTORE\s+\.equ\s+18/);
   assert.match(source, /TECM8_EDITOR_KEY_SAVE\s+\.equ\s+19/);
@@ -108,6 +110,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CP\s+"q"\n\s+JR\s+Z,EditorModifiedCommandQuit/);
   assert.match(source, /CP\s+"Q"\n\s+JR\s+Z,EditorModifiedCommandQuit/);
   assert.match(source, /EditorDispatchModifiedCommand:[\s\S]*?CP\s+TECM8_EDITOR_KEY_SAVE\n\s+JP\s+Z,EditorKeySave/);
+  assert.match(source, /CALL\s+EditorShouldIgnoreModifiedPrintable\n\s+RET\s+C\n\s+OR\s+A\n\s+JP\s+NZ,EditorKeyUnknownModifiedPrintable/);
+  assert.match(source, /@EditorShouldIgnoreModifiedPrintable:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_PAGE[\s\S]*?LD\s+A,1\n\s+OR\s+A\n\s+RET/);
+  assert.match(source, /EditorKeyUnknownModifiedPrintable:\n\s+LD\s+HL,EditorStatusUnknownKeyText\n\s+CALL\s+EditorKeyShowStatus/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+19/);
@@ -125,10 +130,13 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyRestorePrompt:/);
   assert.match(source, /EditorQuitRequested:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeySave:/);
-  assert.match(source, /EditorKeySave:\n\s+LD\s+A,\(EditorNavDirty\)\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyLoop/);
+  assert.match(source, /EditorKeySave:\n\s+LD\s+A,\(EditorNavDirty\)\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyCleanSave/);
+  assert.match(source, /EditorKeyCleanSave:\n\s+LD\s+HL,EditorStatusCleanText\n\s+CALL\s+EditorKeyShowStatus/);
   assert.match(source, /EditorKeySave:[\s\S]*?CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorSaveCurrentPage/);
   assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown\n\s+JR\s+C,EditorKeyNavigationErr\n\s+CALL\s+EditorInvalidateCursorOverlay/);
   assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp\n\s+JR\s+C,EditorKeyNavigationErr\n\s+CALL\s+EditorInvalidateCursorOverlay/);
+  assert.match(source, /EditorKeyDirtyPageBlocked:\n\s+LD\s+HL,EditorStatusSaveFirstText\n\s+CALL\s+EditorKeyShowStatus/);
+  assert.match(source, /@EditorKeyShowStatus:\n\s+LD\s+\(EditorStatusTextPtr\),HL\n\s+CALL\s+EditorHideCursor/);
   assert.match(source, /EditorKeyMaybeInsertMode:/);
   assert.match(source, /EditorKeyCursorLeft:/);
   assert.match(source, /EditorKeyCursorDown:/);
@@ -158,6 +166,8 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(proof, /CALL\s+ShellRunEditorSession/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
   assert.match(proof, /CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /LD\s+A,"W"\n\s+LD\s+B,TECM8_EDITOR_KEY_MOD_ALT\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /UnknownModifiedDirty:\n\s+\.db\s+0/);
   assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_DOWN\n\s+LD\s+B,TECM8_EDITOR_KEY_MOD_ALT\n\s+CALL\s+EditorRunModifiedKey/);
   assert.doesNotMatch(proof, /TECM8_EDITOR_PROOF_KEY_PAGE_/);
   assert.match(proof, /NoKeys:\n\s+\.db\s+0/);
@@ -178,6 +188,8 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(runner, /expected 7/);
   assert.match(runner, /expected 3/);
   assert.match(runner, /mutatedRecord !== 'dl\?1 LINE 07'/);
+  assert.match(runner, /UnknownModifiedDirty/);
+  assert.match(runner, /unknown modified dirty/);
   assert.match(runner, /assertCellMatchesInvertedFont/);
   assert.match(runner, /assertGlcdCellMatchesInvertedFont/);
   assert.doesNotMatch(runner, /previous cursor/);

@@ -506,6 +506,15 @@ async function main(): Promise<void> {
     if (dirtyAfterEdit !== 1) {
       throw new Error(`live editor dirty after z ${dirtyAfterEdit}, expected 1`);
     }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 4 }, 200_000, 200_000); // dirty Alt+ArrowDown blocked
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pageAfterDirtyPageDown = runtime.hardware.memory[currentPageAddr];
+    const dirtyAfterDirtyPageDown = runtime.hardware.memory[dirtyAddr];
+    if (pageAfterDirtyPageDown !== 0 || dirtyAfterDirtyPageDown !== 1) {
+      throw new Error(
+        `live editor dirty Alt+ArrowDown page=${pageAfterDirtyPageDown} dirty=${dirtyAfterDirtyPageDown}, expected page=0 dirty=1`,
+      );
+    }
     tapMatrixKey(platformRuntime, runtime, 1, 2); // Enter: split line
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const cursorRowAfterEnter = runtime.hardware.memory[cursorRowAddr];
@@ -625,6 +634,7 @@ async function main(): Promise<void> {
       rowAfterCtrlDown,
       pageAfterCtrlUp,
       dirtyAfterEdit,
+      pageAfterDirtyPageDown,
       cursorRowAfterEnter,
       cursorColAfterEnter,
       cursorRowAfterJoin,

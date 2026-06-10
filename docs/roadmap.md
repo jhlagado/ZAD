@@ -67,6 +67,9 @@ every major key command.
 - Editor Line Editing V2 was reached by `npm run debug80:editor-live-smoke` and
   commit `040dbf5`: matrix Enter splits a line, split contents save and survive
   page movement, matrix Backspace rejoins, and the joined state saves.
+- Phase 1 input polish has started: unknown Ctrl/Alt-modified printable keys
+  are ignored with `KEY`, dirty page movement reports `Save first`, and the
+  live Debug80 smoke covers dirty page blocking.
 
 ## Target Editor Milestone
 

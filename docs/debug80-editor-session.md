@@ -134,13 +134,17 @@ other modified arrows reserved for later word/page movement
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
-`z`, `Alt-S`, a clean `Alt-S`, another `z`, a second `Alt-S`, and `Alt-X`
-so the modifier-aware path is exercised, not only printable ASCII.
+`z`, a blocked dirty `Alt+ArrowDown`, `Alt-S`, a clean `Alt-S`, another `z`, a
+second `Alt-S`, and `Alt-X` so the modifier-aware path is exercised, not only
+printable ASCII.
 The Z80 editor keeps Ctrl commands as compatibility aliases, but manual Debug80
 testing on macOS should prefer Option/Alt because Control and Command collide
 with host application and window-manager shortcuts.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
+Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
+instead of inserting the unmodified letter. This prevents failed modifier
+chords such as `Alt-W` from corrupting the source text.
 
 The GLCD capture is written as a portable graymap image:
 
@@ -166,8 +170,9 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, `Enter`, `Backspace`, `Alt-S`,
-a clean `Alt-S`, another `z`, a second `Alt-S`, and `Alt-X`, then verifies that
+`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, a blocked dirty
+`Alt+ArrowDown`, `Enter`, `Backspace`, `Alt-S`, a clean `Alt-S`, another `z`, a
+second `Alt-S`, and `Alt-X`, then verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
@@ -176,12 +181,12 @@ row 2, column 2 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
-marks the editor dirty, that matrix `Enter` splits the current line and moves
-the cursor to the new line, that matrix `Backspace` at column 0 joins the line
-back to the previous row, that Alt-modified `S` clears dirty, that a clean save
-leaves the editor clean, that post-save `z` makes the editor dirty again, that
-the second save clears dirty again, and that Alt-modified `X` exits the live
-editor.
+marks the editor dirty, that dirty page movement is blocked until save, that
+matrix `Enter` splits the current line and moves the cursor to the new line,
+that matrix `Backspace` at column 0 joins the line back to the previous row,
+that Alt-modified `S` clears dirty, that a clean save leaves the editor clean,
+that post-save `z` makes the editor dirty again, that the second save clears
+dirty again, and that Alt-modified `X` exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -199,6 +204,9 @@ For an interactive Debug80 UI check:
 7. `Alt-S` saves, `Alt-X` quits, and `Alt-R` asks to restore from the hidden
    backup file. Ctrl-S/Ctrl-X/Ctrl-R remain compatibility aliases where the host
    environment does not capture them.
+8. Unknown modified printable keys, for example `Alt-W`, should show `KEY`
+   rather than typing `w`. Page movement while the page is dirty should show
+   `Save first` and stay on the current page.
 
 ## Phase Milestone Manual Test
 

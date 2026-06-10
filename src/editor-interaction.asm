@@ -202,6 +202,11 @@ EditorKeyLoop:
         JP      Z,EditorKeyBackspace
         CP      TECM8_EDITOR_KEY_DELETE
         JP      Z,EditorKeyDelete
+        CALL    EditorShouldIgnoreModifiedPrintable
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyUnknownModifiedPrintable
+        LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_PRINTABLE_MIN
         JP      C,EditorKeyLoop
         CP      TECM8_EDITOR_KEY_PRINTABLE_MAX + 1
@@ -217,6 +222,11 @@ EditorKeyMaybeInsertMode:
         JP      Z,EditorKeyBackspace
         CP      TECM8_EDITOR_KEY_DELETE
         JP      Z,EditorKeyDelete
+        CALL    EditorShouldIgnoreModifiedPrintable
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyUnknownModifiedPrintable
+        LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_PRINTABLE_MIN
         JP      C,EditorKeyLoop
         CP      TECM8_EDITOR_KEY_PRINTABLE_MAX + 1
@@ -265,10 +275,16 @@ EditorDispatchModifiedCommand:
 EditorKeySave:
         LD      A,(EditorNavDirty)
         OR      A
-        JP      Z,EditorKeyLoop
+        JP      Z,EditorKeyCleanSave
         CALL    EditorHideCursor
         RET     C
         CALL    EditorSaveCurrentPage
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyCleanSave:
+        LD      HL,EditorStatusCleanText
+        CALL    EditorKeyShowStatus
         RET     C
         JP      EditorKeyLoop
 
@@ -299,7 +315,7 @@ EditorKeyQuitPrompt:
 EditorKeyPageDown:
         LD      A,(EditorNavDirty)
         OR      A
-        JP      NZ,EditorKeyLoop
+        JP      NZ,EditorKeyDirtyPageBlocked
         CALL    EditorPageDown
         JR      C,EditorKeyNavigationErr
         CALL    EditorInvalidateCursorOverlay
@@ -308,10 +324,16 @@ EditorKeyPageDown:
 EditorKeyPageUp:
         LD      A,(EditorNavDirty)
         OR      A
-        JP      NZ,EditorKeyLoop
+        JP      NZ,EditorKeyDirtyPageBlocked
         CALL    EditorPageUp
         JR      C,EditorKeyNavigationErr
         CALL    EditorInvalidateCursorOverlay
+        JP      EditorKeyLoop
+
+EditorKeyDirtyPageBlocked:
+        LD      HL,EditorStatusSaveFirstText
+        CALL    EditorKeyShowStatus
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyNavigationErr:
@@ -408,6 +430,22 @@ EditorKeyDelete:
         CALL    EditorKeyRenderCurrentLineDirty
         RET     C
         JP      EditorKeyLoop
+
+EditorKeyUnknownModifiedPrintable:
+        LD      HL,EditorStatusUnknownKeyText
+        CALL    EditorKeyShowStatus
+        RET     C
+        JP      EditorKeyLoop
+
+;!      in        HL
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyShowStatus:
+        LD      (EditorStatusTextPtr),HL
+        CALL    EditorHideCursor
+        RET     C
+        LD      HL,(EditorStatusTextPtr)
+        JP      EditorNavShowStatus
 
 EditorKeyDone:
         LD      A,(EditorPromptActive)
@@ -566,6 +604,28 @@ EditorModifiedCommandQuit:
 
 EditorModifiedCommandRestore:
         LD      A,TECM8_EDITOR_KEY_RESTORE
+        RET
+
+; EditorShouldIgnoreModifiedPrintable -
+; Return A=1 when a Ctrl/Alt-modified printable key did not match a known
+; command. This prevents a failed host modifier chord from inserting text.
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorShouldIgnoreModifiedPrintable:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_PAGE
+        JR      Z,EditorShouldIgnoreModifiedPrintableNo
+        LD      A,(EditorPendingChar)
+        CP      TECM8_EDITOR_KEY_PRINTABLE_MIN
+        JR      C,EditorShouldIgnoreModifiedPrintableNo
+        CP      TECM8_EDITOR_KEY_PRINTABLE_MAX + 1
+        JR      NC,EditorShouldIgnoreModifiedPrintableNo
+        LD      A,1
+        OR      A
+        RET
+
+EditorShouldIgnoreModifiedPrintableNo:
+        XOR     A
         RET
 
 ; EditorInsertChar -
@@ -1180,6 +1240,9 @@ EditorQuitRequested:
         .db     0
 
 EditorRecordBase:
+        .dw     0
+
+EditorStatusTextPtr:
         .dw     0
 
 EditorLineSrc:

@@ -736,14 +736,17 @@ What exists now:
   discarding unsaved changes.
 - The live Debug80 editor session now rechecks line split and join behavior
   through the matrix-key path, including save and page-return persistence.
+- Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
+  instead of falling through as plain text, and dirty page movement reports
+  `Save first` rather than appearing inert.
 
 What is still missing or intentionally skeletal:
 
 - `asm` and `run` resolve request blocks but do not launch real tools.
 - The editor has no search or sector-crossing edit behavior yet.
 - Dirty page movement is conservative: Ctrl+Arrow and Alt+Arrow paging are
-  ignored until the current page is saved or discarded, because V1 has a single
-  dirty page buffer.
+  blocked with `Save first` until the current page is saved or discarded,
+  because V1 has a single dirty page buffer.
 - Stop before starting assembler integration until a new milestone is chosen.
 - Split and join are intentionally limited to the loaded 512-byte page for V1;
   they do not move records across sectors or allocate/free TM8 storage.

@@ -23,24 +23,33 @@ PROOF_FAIL       .equ     0xE0
 
         LD      A,2
         LD      (CaseMarker),A
+        LD      A,"W"
+        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JR      C,ProofFailed
+        LD      A,(EditorNavDirty)
+        LD      (UnknownModifiedDirty),A
+
+        LD      A,3
+        LD      (CaseMarker),A
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,TECM8_EDITOR_KEY_MOD_ALT
         CALL    EditorRunModifiedKey
         JR      C,ProofFailed
 
-        LD      A,3
+        LD      A,4
         LD      (CaseMarker),A
         LD      HL,EditorKeys
         CALL    EditorRunKeys
         JR      C,ProofFailed
 
-        LD      A,4
+        LD      A,5
         LD      (CaseMarker),A
         LD      HL,EditorKeyLeft
         CALL    EditorRunKeys
         JR      C,ProofFailed
 
-        LD      A,5
+        LD      A,6
         LD      (CaseMarker),A
         LD      HL,EditorKeyRight
         CALL    EditorRunKeys
@@ -162,4 +171,7 @@ CaseMarker:
         .db     0
 
 ErrorMarker:
+        .db     0
+
+UnknownModifiedDirty:
         .db     0
