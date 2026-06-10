@@ -146,8 +146,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeySave:\n\s+LD\s+A,\(EditorNavDirty\)\n\s+OR\s+A\n\s+JP\s+Z,EditorKeyCleanSave/);
   assert.match(source, /EditorKeyCleanSave:\n\s+LD\s+HL,EditorStatusCleanText\n\s+CALL\s+EditorKeyShowStatus/);
   assert.match(source, /EditorKeySave:[\s\S]*?CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorSaveCurrentPage/);
-  assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown\n\s+JR\s+C,EditorKeyNavigationErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
-  assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp\n\s+JR\s+C,EditorKeyNavigationErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
+  assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown\n\s+JR\s+C,EditorKeyPageDownErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
+  assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp\n\s+JR\s+C,EditorKeyPageUpErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
   assert.match(source, /EditorKeyDirtyPageBlocked:\n\s+LD\s+HL,EditorStatusSaveFirstText\n\s+CALL\s+EditorKeyShowStatus/);
   assert.match(source, /@EditorKeyShowStatus:\n\s+LD\s+\(EditorStatusTextPtr\),HL\n\s+CALL\s+EditorHideCursor/);
   assert.match(source, /EditorKeyMaybeInsertMode:/);
@@ -156,6 +156,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyCursorUp:/);
   assert.match(source, /EditorKeyCursorDown:[\s\S]*?CALL\s+EditorKeyRenderCursorMove/);
   assert.match(source, /EditorKeyCursorUp:[\s\S]*?CALL\s+EditorKeyRenderCursorMove/);
+  assert.match(source, /EditorKeyPageDownErr:[\s\S]*?LD\s+HL,EditorStatusEndText[\s\S]*?CALL\s+EditorKeyShowStatus/);
+  assert.match(source, /EditorKeyPageUpErr:[\s\S]*?LD\s+HL,EditorStatusTopText[\s\S]*?CALL\s+EditorKeyShowStatus/);
   assert.match(source, /@EditorEnsureCursorVisible:[\s\S]*?LD\s+A,\(EditorNavViewportTopRow\)[\s\S]*?EditorEnsureCursorScrollDown:/);
   assert.match(source, /@EditorKeyRenderCursorMove:[\s\S]*?CALL\s+EditorEnsureCursorVisible[\s\S]*?JP\s+NZ,EditorKeyRenderViewport/);
   assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown[\s\S]*?CALL\s+EditorCursorReset/);

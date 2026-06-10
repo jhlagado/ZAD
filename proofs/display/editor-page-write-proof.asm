@@ -18,6 +18,28 @@ PROOF_FAIL       .equ     0xE0
         CALL    EditorOpenMain
         JP      C,ProofFailed
 
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      HL,(EditorPromptTextPtr)
+        LD      (TopStatusPtrAfterPageUp),HL
+
+        LD      A,127
+        LD      (EditorNavCurrentPage),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      HL,(EditorPromptTextPtr)
+        LD      (EndStatusPtrAfterPageDown),HL
+        XOR     A
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorRenderCurrent
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+
         LD      A,8
         LD      (EditorCursorCol),A
         LD      HL,EditorNoopDeleteKeys
@@ -250,6 +272,12 @@ EditorPromptProofText:
 
 DirtyAfterNoopDelete:
         .db     0
+
+TopStatusPtrAfterPageUp:
+        .dw     0
+
+EndStatusPtrAfterPageDown:
+        .dw     0
 
 DirtyAfterNoopSplit:
         .db     0

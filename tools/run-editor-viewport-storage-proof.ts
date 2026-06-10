@@ -1125,6 +1125,16 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
       throw new Error(`editor page write ${symbol} ${value}, expected 0`);
     }
   }
+  const topStatus = readWord(runtime.hardware.memory, symbolAddress(symbols, 'TopStatusPtrAfterPageUp'));
+  const topText = symbolAddress(symbols, 'EditorStatusTopText');
+  if (topStatus !== topText) {
+    throw new Error(`editor page write top status ptr 0x${topStatus.toString(16)}, expected 0x${topText.toString(16)}`);
+  }
+  const endStatus = readWord(runtime.hardware.memory, symbolAddress(symbols, 'EndStatusPtrAfterPageDown'));
+  const endText = symbolAddress(symbols, 'EditorStatusEndText');
+  if (endStatus !== endText) {
+    throw new Error(`editor page write end status ptr 0x${endStatus.toString(16)}, expected 0x${endText.toString(16)}`);
+  }
   const dirtyAfterEdit = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterEdit')];
   const dirtyAfterSave = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterSave')];
   if (dirtyAfterEdit !== 1) {

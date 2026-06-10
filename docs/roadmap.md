@@ -48,6 +48,8 @@ every major key command.
   dirty.
 - The editor can quit from the key stream; clean pages exit immediately, while
   dirty pages require status-line confirmation before discarding changes.
+- Page-boundary movement now gives explicit transient status feedback: `Top`
+  at the first page and `End` at the hard page limit.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
 - Sector-edge editing has proof coverage for split pushing into the adjacent
@@ -245,12 +247,16 @@ Goal: make modal editor actions usable without dialog boxes.
 
 Work:
 
-- Refine transient status row behavior.
-- Add prompts or status messages for discard dirty changes, restore backup,
-  save failure, file full/page full, overwrite, and replace.
+- Done: refine transient status row behavior enough that boundary messages use
+  the same overlay/restore path as prompts and slow storage messages.
+- Done: add prompts or status messages for discard dirty changes, restore
+  backup, ignored modified keys, clean save, save-before-page-move, and
+  top/end page boundaries.
+- Deferred: add user-facing status messages for save failure, load failure,
+  file full/page full, overwrite, and replace.
 - Add timeout or explicit dismiss behavior for informational messages.
-- Decide whether the status row temporarily hides source row 9 or reserves a
-  permanent row.
+- Done: keep the status row transient; it temporarily hides source row 9 and
+  restores it afterward.
 
 Likely direction:
 
@@ -261,6 +267,8 @@ Done when:
 - Every slow or risky operation tells the user what is happening.
 - Prompt mode ignores unrelated keys safely.
 - The source row underneath the prompt is restored cleanly.
+- Page-boundary commands provide explicit `Top`/`End` feedback instead of
+  silently doing nothing.
 
 ## Phase 7: Display Performance
 

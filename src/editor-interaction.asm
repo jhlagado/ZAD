@@ -339,16 +339,38 @@ EditorKeyQuitPrompt:
 
 EditorKeyPageDown:
         CALL    EditorPageDown
-        JR      C,EditorKeyNavigationErr
+        JR      C,EditorKeyPageDownErr
         CALL    EditorCursorResetState
         CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
         CALL    EditorPageUp
-        JR      C,EditorKeyNavigationErr
+        JR      C,EditorKeyPageUpErr
         CALL    EditorCursorResetState
         CALL    EditorInvalidateCursorOverlay
+        JP      EditorKeyLoop
+
+EditorKeyPageDownErr:
+        CP      TECM8_EDITOR_NAV_ERR_PAGE
+        JR      Z,EditorKeyPageDownEnd
+        JR      EditorKeyNavigationErr
+
+EditorKeyPageDownEnd:
+        LD      HL,EditorStatusEndText
+        CALL    EditorKeyShowStatus
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyPageUpErr:
+        CP      TECM8_EDITOR_NAV_ERR_PAGE
+        JR      Z,EditorKeyPageUpTop
+        JR      EditorKeyNavigationErr
+
+EditorKeyPageUpTop:
+        LD      HL,EditorStatusTopText
+        CALL    EditorKeyShowStatus
+        RET     C
         JP      EditorKeyLoop
 
 EditorKeyDirtyPageBlocked:

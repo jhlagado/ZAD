@@ -975,6 +975,12 @@ EditorStatusSaveFirstText:
 EditorStatusUnknownKeyText:
         .db     "KEY",0
 
+EditorStatusTopText:
+        .db     "Top",0
+
+EditorStatusEndText:
+        .db     "End",0
+
 EditorNavCachePageBuffer       .equ    TECM8_EDITOR_NAV_CACHE_BASE
 
 EditorNavPageBuffer:
