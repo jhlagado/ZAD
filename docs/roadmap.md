@@ -5,18 +5,12 @@ completed foundation, substantial future phases, milestone definitions, and
 manual testing expectations. Update this file after meaningful phase changes so
 the roadmap does not live only in conversation history.
 
-## Current Goal: Phase 15 - Editor Completion Milestone
+## Current Goal: Post-Milestone Manual Validation
 
-The next editor goal is to make the current Debug80 editor behavior predictable
-under manual testing. The editor already proves loading, rendering, character
-editing, line split/join inside a page, save, backup, restore, and page
-movement. The remaining problem for this phase is confidence: every live matrix
-key and risky editor command should have clear behavior, clear feedback, and
-coverage that makes regressions obvious.
-
-Phase 1 is complete when a user can follow a manual Debug80 script without
-ambiguous "did that key work?" moments, and the automated Debug80 smoke verifies
-every major key command.
+The Debug80-testable editor milestone has been reached in the local automated
+proof harness. The remaining validation is human-facing: run the manual Debug80
+script in the UI, then defer Phase 14 real-hardware checks until a TEC-1G is
+available.
 
 ## Completed Foundation
 
@@ -79,6 +73,12 @@ every major key command.
   Ctrl/Alt-modified printable keys are ignored with `KEY`, dirty page movement
   works inside the RAM window, and the live Debug80 smoke covers restore-prompt
   cancel.
+- Phase 15 Debug80 automation is complete at commit `5bcfe80`: the editor can
+  create a missing source file, edit and save source pages, move through the
+  prepared multi-page fixture, restore backup state, quit cleanly, and show the
+  shell-ready marker after exit. `debug80:editor-session`,
+  `debug80:editor-live-smoke`, and the storage-backed proof suite cover the
+  executable milestone behavior.
 
 ## Target Editor Milestone
 
@@ -479,8 +479,9 @@ Done criteria:
 - Manual Debug80 test script passes.
 - Automated Debug80 smoke covers core behavior.
 
-Status: current active milestone. Phase 14 is intentionally skipped until a
-human can test real hardware.
+Status: automated Debug80 milestone complete at commit `5bcfe80`. The manual
+Debug80 script remains the human acceptance check, and Phase 14 is intentionally
+skipped until a human can test real hardware.
 
 ## Likely Next Practical Milestone After Phase 1
 
