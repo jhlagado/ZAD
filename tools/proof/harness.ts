@@ -541,13 +541,6 @@ const harnessExports = {
 };
 
 export type ProofHarness = typeof harnessExports;
-export type {
-  Runtime,
-  PlatformRuntime,
-  D8Symbol,
-  CompileResult,
-  LoadedRuntime,
-  Tec1gRuntimeOptions,
-};
+export type { Runtime, PlatformRuntime, D8Symbol };
 
 module.exports = harnessExports;

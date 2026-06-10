@@ -1,5 +1,13 @@
-const { readFileSync, writeFileSync } = require('node:fs');
-const { resolve } = require('node:path');
+const { writeFileSync } = require('node:fs');
+
+import type { Mon3Support } from './mon3/support';
+
+const {
+  defaultMon3BundleRoot,
+  readText,
+  readDebugMap,
+  runMon3MarkdownCli,
+}: Mon3Support = require('./mon3/support.ts');
 
 type GlcdSplitOptions = {
   bundleRoot?: string;
@@ -173,25 +181,6 @@ const KEY_LABELS = [
   'FONT_DATA',
 ];
 
-function defaultMon3BundleRoot(): string {
-  return resolve(
-    process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80',
-    'resources/bundles/tec1g/mon3/v1',
-  );
-}
-
-function repoRoot(): string {
-  return resolve(__dirname, '..');
-}
-
-function readText(path: string): string {
-  return readFileSync(path, 'utf8');
-}
-
-function readDebugMap(bundleRoot: string): DebugMap {
-  return JSON.parse(readText(resolve(bundleRoot, 'mon3.d8.json')));
-}
-
 function labels(debugMap: DebugMap): DebugMapSymbol[] {
   return debugMap.symbols
     .filter((symbol) => symbol.kind === 'label')
@@ -247,7 +236,7 @@ function rangeFor(allLabels: DebugMapSymbol[], startName: string, endName: strin
 
 function analyzeMon3GlcdSplit(options: GlcdSplitOptions = {}): GlcdSplit {
   const bundleRoot = options.bundleRoot ?? defaultMon3BundleRoot();
-  const debugMap = readDebugMap(bundleRoot);
+  const debugMap: DebugMap = readDebugMap(bundleRoot);
   const allLabels = labels(debugMap);
   const allConstants = constants(debugMap);
 
@@ -422,17 +411,10 @@ function hex(value: number, width: number): string {
 }
 
 if (require.main === module) {
-  const args = process.argv.slice(2);
-  const outputIndex = args.indexOf('--output');
-  const bundleRootIndex = args.indexOf('--bundle-root');
-  const outputPath = resolve(outputIndex === -1 ? 'docs/mon3-glcd-split.md' : args[outputIndex + 1]);
-  const bundleRoot = bundleRootIndex === -1 ? defaultMon3BundleRoot() : resolve(args[bundleRootIndex + 1]);
-
-  if (args.includes('--check')) {
-    checkMon3GlcdSplitMarkdown({ bundleRoot, outputPath });
-  } else {
-    writeMon3GlcdSplitMarkdown({ bundleRoot, outputPath });
-  }
+  runMon3MarkdownCli(process.argv.slice(2), 'docs/mon3-glcd-split.md', {
+    write: writeMon3GlcdSplitMarkdown,
+    check: checkMon3GlcdSplitMarkdown,
+  });
 }
 
 module.exports = {

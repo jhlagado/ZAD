@@ -1,5 +1,14 @@
-const { readFileSync, writeFileSync } = require('node:fs');
+const { writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
+
+import type { Mon3Support } from './mon3/support';
+
+const {
+  defaultMon3BundleRoot,
+  readText,
+  readDebugMap,
+  runMon3MarkdownCli,
+}: Mon3Support = require('./mon3/support.ts');
 
 type Mon3InventoryOptions = {
   bundleRoot?: string;
@@ -208,25 +217,6 @@ function remove(notes: string): ClassificationRule {
   return { classification: 'candidate-remove', notes };
 }
 
-function defaultMon3BundleRoot(): string {
-  return resolve(
-    process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80',
-    'resources/bundles/tec1g/mon3/v1',
-  );
-}
-
-function repoRoot(): string {
-  return resolve(__dirname, '..');
-}
-
-function readText(path: string): string {
-  return readFileSync(path, 'utf8');
-}
-
-function readDebugMap(bundleRoot: string): DebugMap {
-  return JSON.parse(readText(resolve(bundleRoot, 'mon3.d8.json')));
-}
-
 function parseApiTable(source: string, table: TableDefinition): string[] {
   const lines = source.split(/\r?\n/);
   const start = lines.findIndex((line) => line.trim() === `${table.tableSymbol}:`);
@@ -275,7 +265,7 @@ function classify(service: string): ClassificationRule {
 function buildMon3ServiceInventory(options: Mon3InventoryOptions = {}): Mon3ServiceInventory {
   const bundleRoot = options.bundleRoot ?? defaultMon3BundleRoot();
   const source = readText(resolve(bundleRoot, 'mon3.z80'));
-  const debugMap = readDebugMap(bundleRoot);
+  const debugMap: DebugMap = readDebugMap(bundleRoot);
 
   return {
     generatedFrom: bundleRoot,
@@ -374,49 +364,11 @@ function checkMon3ServiceInventoryMarkdown(options: WriteInventoryOptions): void
   }
 }
 
-function parseCliArgs(argv: string[]): { check: boolean; outputPath: string; bundleRoot: string } {
-  let check = false;
-  let outputPath = resolve(repoRoot(), 'docs/mon3-service-inventory.md');
-  let bundleRoot = defaultMon3BundleRoot();
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--check') {
-      check = true;
-    } else if (arg === '--output') {
-      index += 1;
-      outputPath = resolve(argv[index]);
-    } else if (arg === '--bundle-root') {
-      index += 1;
-      bundleRoot = resolve(argv[index]);
-    } else {
-      throw new Error(`unknown argument: ${arg}`);
-    }
-  }
-
-  return { check, outputPath, bundleRoot };
-}
-
-function main(): void {
-  const args = parseCliArgs(process.argv.slice(2));
-  const options = {
-    bundleRoot: args.bundleRoot,
-    outputPath: args.outputPath,
-  };
-  if (args.check) {
-    checkMon3ServiceInventoryMarkdown(options);
-  } else {
-    writeMon3ServiceInventoryMarkdown(options);
-  }
-}
-
 if (require.main === module) {
-  try {
-    main();
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+  runMon3MarkdownCli(process.argv.slice(2), 'docs/mon3-service-inventory.md', {
+    write: writeMon3ServiceInventoryMarkdown,
+    check: checkMon3ServiceInventoryMarkdown,
+  });
 }
 
 module.exports = {

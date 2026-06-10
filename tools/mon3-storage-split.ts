@@ -1,5 +1,13 @@
-const { readFileSync, writeFileSync } = require('node:fs');
-const { resolve } = require('node:path');
+const { writeFileSync } = require('node:fs');
+
+import type { Mon3Support } from './mon3/support';
+
+const {
+  defaultMon3BundleRoot,
+  readText,
+  readDebugMap,
+  runMon3MarkdownCli,
+}: Mon3Support = require('./mon3/support.ts');
 
 type StorageSplitOptions = {
   bundleRoot?: string;
@@ -156,25 +164,6 @@ const SD_ONLY_KEY_LABELS = [
   'initSD',
 ];
 
-function defaultMon3BundleRoot(): string {
-  return resolve(
-    process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80',
-    'resources/bundles/tec1g/mon3/v1',
-  );
-}
-
-function repoRoot(): string {
-  return resolve(__dirname, '..');
-}
-
-function readText(path: string): string {
-  return readFileSync(path, 'utf8');
-}
-
-function readDebugMap(bundleRoot: string): DebugMap {
-  return JSON.parse(readText(resolve(bundleRoot, 'mon3.d8.json')));
-}
-
 function storageSymbols(debugMap: DebugMap): DebugMapSymbol[] {
   return debugMap.symbols
     .filter((symbol) => symbol.kind === 'label' && symbol.file === STORAGE_SOURCE)
@@ -206,7 +195,7 @@ function rangeFor(storageLabels: DebugMapSymbol[], allLabels: DebugMapSymbol[], 
 
 function analyzeMon3StorageSplit(options: StorageSplitOptions = {}): StorageSplit {
   const bundleRoot = options.bundleRoot ?? defaultMon3BundleRoot();
-  const debugMap = readDebugMap(bundleRoot);
+  const debugMap: DebugMap = readDebugMap(bundleRoot);
   const symbols = storageSymbols(debugMap);
   const allLabels = debugMap.symbols
     .filter((symbol) => symbol.kind === 'label')
@@ -344,49 +333,11 @@ function hex(value: number, width: number): string {
   return value.toString(16).toUpperCase().padStart(width, '0');
 }
 
-function parseCliArgs(argv: string[]): { check: boolean; outputPath: string; bundleRoot: string } {
-  let check = false;
-  let outputPath = resolve(repoRoot(), 'docs/mon3-storage-split.md');
-  let bundleRoot = defaultMon3BundleRoot();
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === '--check') {
-      check = true;
-    } else if (arg === '--output') {
-      index += 1;
-      outputPath = resolve(argv[index]);
-    } else if (arg === '--bundle-root') {
-      index += 1;
-      bundleRoot = resolve(argv[index]);
-    } else {
-      throw new Error(`unknown argument: ${arg}`);
-    }
-  }
-
-  return { check, outputPath, bundleRoot };
-}
-
-function main(): void {
-  const args = parseCliArgs(process.argv.slice(2));
-  const options = {
-    bundleRoot: args.bundleRoot,
-    outputPath: args.outputPath,
-  };
-  if (args.check) {
-    checkMon3StorageSplitMarkdown(options);
-  } else {
-    writeMon3StorageSplitMarkdown(options);
-  }
-}
-
 if (require.main === module) {
-  try {
-    main();
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+  runMon3MarkdownCli(process.argv.slice(2), 'docs/mon3-storage-split.md', {
+    write: writeMon3StorageSplitMarkdown,
+    check: checkMon3StorageSplitMarkdown,
+  });
 }
 
 module.exports = {
