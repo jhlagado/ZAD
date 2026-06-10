@@ -84,6 +84,13 @@ const PROOF_CASES = {
     lines: makeMultiBlockLines(),
     verify: verifyShellEditExplicitNavigationProof,
   },
+  'shell-edit-named-navigation-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-named-navigation-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-named-navigation-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/shell-edit-named-navigation-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyShellEditNamedNavigationProof,
+  },
   'shell-edit-interaction-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/shell-edit-interaction-proof-last-run.json'),
@@ -294,6 +301,12 @@ function makeRootLines(): string[] {
   });
 }
 
+function makeNotesLines(): string[] {
+  return Array.from({ length: 16 }, (_, index) => {
+    return `N0 LINE ${index.toString().padStart(2, '0')}`;
+  });
+}
+
 function encodeSourceRecords(lines: string[]): Buffer {
   const records = Buffer.alloc(lines.length * 32);
   lines.forEach((line, index) => {
@@ -355,10 +368,12 @@ function ensureImage(proofCase: ProofCase): string {
   const sourceRecords = encodeSourceRecords(proofCase.lines);
   const appRecords = encodeSourceRecords(makeAppLines());
   const rootRecords = encodeSourceRecords(makeRootLines());
+  const notesRecords = encodeSourceRecords(makeNotesLines());
   let volume = createVolumeImage() as Buffer;
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
   volume = importFileIntoVolumeImage(volume, '/projects/demo/app.asm', appRecords);
   volume = importFileIntoVolumeImage(volume, '/root.asm', rootRecords);
+  volume = importFileIntoVolumeImage(volume, '/src/notes.asm', notesRecords);
   if (proofCase === PROOF_CASES['editor-viewport-storage-proof']) {
     volume = makePositiveProofVolume(volume);
   }
@@ -374,6 +389,10 @@ function ensureImage(proofCase: ProofCase): string {
   const storedRoot = readFileFromVolumeImage(volume, '/root.asm') as Buffer;
   if (!storedRoot.equals(rootRecords)) {
     throw new Error('generated root source records were not stored exactly');
+  }
+  const storedNotes = readFileFromVolumeImage(volume, '/src/notes.asm') as Buffer;
+  if (!storedNotes.equals(notesRecords)) {
+    throw new Error('generated notes source records were not stored exactly');
   }
 
   const image = Buffer.from(readFileSync(proofCase.image));
@@ -629,6 +648,14 @@ function verifyShellEditExplicitNavigationProof(
   symbols: D8Symbol[],
 ): void {
   verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19, '/root.asm', 'R0');
+}
+
+function verifyShellEditNamedNavigationProof(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  symbols: D8Symbol[],
+): void {
+  verifyShellEditLaunchProof(runtime, platformRuntime, symbols, 0x19, '/src/notes.asm', 'N0');
 }
 
 function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
@@ -1017,7 +1044,7 @@ function verifyEditorAllocationGrowthProof(runtime: Runtime, _platformRuntime: P
   if (backup.size !== 4608) {
     throw new Error(`editor allocation growth backup size ${backup.size}, expected 4608`);
   }
-  const expectedFreeBlocks = 1014 - 6;
+  const expectedFreeBlocks = 1014 - 7;
   if (parsed.superblock.freeBlockCount !== expectedFreeBlocks) {
     throw new Error(
       `editor allocation growth free block count ${parsed.superblock.freeBlockCount}, expected ${expectedFreeBlocks}`,
@@ -1072,6 +1099,10 @@ function verifyEditorAllocationGrowthProof(runtime: Runtime, _platformRuntime: P
   const storedRoot = readFileFromProofImage(proofCase, '/root.asm');
   if (readSourceRecord(storedRoot, 0, 0) !== 'R0 LINE 00') {
     throw new Error('editor allocation growth root file was not preserved');
+  }
+  const storedNotes = readFileFromProofImage(proofCase, '/src/notes.asm');
+  if (readSourceRecord(storedNotes, 0, 0) !== 'N0 LINE 00') {
+    throw new Error('editor allocation growth named source file was not preserved');
   }
 }
 

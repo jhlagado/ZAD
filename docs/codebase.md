@@ -573,6 +573,8 @@ The display proofs build up the editor stack incrementally:
   launches the editor, and pages through source.
 - `proofs/display/shell-edit-explicit-navigation-proof.asm`: launches
   `edit /root.asm` without relying on project config.
+- `proofs/display/shell-edit-named-navigation-proof.asm`: launches
+  `edit notes` and proves the shell resolves it to `/src/notes.asm`.
 - `proofs/display/shell-edit-interaction-proof.asm`: runs shell-launched editor
   interaction through cursor movement, paging, and mutation.
 - `proofs/display/editor-mutation-boundary-proof.asm`: tests in-page insert,

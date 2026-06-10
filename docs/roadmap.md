@@ -311,8 +311,8 @@ Work:
 - `edit` opens project main file.
 - `edit name` opens `/src/name.asm` by convention.
 - `edit /path/file.asm` opens exact path.
-- Decide missing-file behavior: prompt create, create immediately, or error
-  only.
+- Done: missing files are an explicit open error for now. Prompted creation is
+  deferred until the editor has file-listing and prompt flows suitable for it.
 - Decide whether editing `/tecm8.prj` is supported or whether the editor is
   restricted to source/text files.
 

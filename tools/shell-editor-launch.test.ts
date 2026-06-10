@@ -83,12 +83,18 @@ test('shell edit navigation proof drives shell command into storage-backed edito
   assert.match(proof, /\.include\s+"..\/..\/src\/shell-editor-launch\.asm"/);
   assert.match(runner, /shell-edit-navigation-proof/);
   assert.match(runner, /shell-edit-explicit-navigation-proof/);
+  assert.match(runner, /shell-edit-named-navigation-proof/);
   assert.match(runner, /verifyShellEditNavigationProof/);
   assert.match(runner, /verifyShellEditExplicitNavigationProof/);
+  assert.match(runner, /verifyShellEditNamedNavigationProof/);
   assert.match(runner, /\/projects\/demo\/app\.asm/);
   assert.match(runner, /\/root\.asm/);
+  assert.match(runner, /\/src\/notes\.asm/);
+  assert.match(runner, /N0 LINE/);
   assert.match(packageJson, /"proof:display:shell-edit-navigation"/);
   assert.match(packageJson, /"proof:display:shell-edit-explicit-navigation"/);
+  assert.match(packageJson, /"proof:display:shell-edit-named-navigation"/);
   assert.match(packageJson, /proof:display:shell-edit-navigation/);
   assert.match(packageJson, /proof:display:shell-edit-explicit-navigation/);
+  assert.match(packageJson, /proof:display:shell-edit-named-navigation/);
 });
