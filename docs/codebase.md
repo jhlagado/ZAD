@@ -537,6 +537,9 @@ These prove the split between parser and loader.
 for `edit`, `asm`, and `run`. It stubs `LoadProjectConfig`, then verifies
 default project paths, explicit source paths, derived build output paths,
 dispatch blocks, executor stubs, prompt state, line input, and error behavior.
+It also proves the current shell-loop boundary by running `edit`, `asm`, and
+`run` from one initialized prompt session and checking the recorded action
+sequence.
 
 ### Display And Editor Proofs
 

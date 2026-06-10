@@ -424,6 +424,31 @@ PATH_OUT_LEN      .equ     64
         CALL    AssertDefaultCommandReloadsAfterFailure
         JP      C,ProofFailed
 
+        LD      A,55
+        LD      (CaseMarker),A
+        CALL    AssertShellProgramCommandLoop
+        JP      C,ProofFailed
+
+        LD      A,56
+        LD      (CaseMarker),A
+        CALL    AssertShellProgramCyclesInitErr
+        JP      C,ProofFailed
+
+        LD      A,57
+        LD      (CaseMarker),A
+        CALL    AssertShellProgramCyclesPromptErr
+        JP      C,ProofFailed
+
+        LD      A,58
+        LD      (CaseMarker),A
+        CALL    AssertShellProgramCyclesZero
+        JP      C,ProofFailed
+
+        LD      A,59
+        LD      (CaseMarker),A
+        CALL    AssertShellExecLogSaturates
+        JP      C,ProofFailed
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
         HALT
@@ -1258,6 +1283,205 @@ AssertDefaultCommandReloadsAfterFailureBad:
         SCF
         RET
 
+; AssertShellProgramCommandLoop —
+; Run edit, asm, and run through one initialized shell session.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramCommandLoop:
+        XOR     A
+        LD      (ProjectLoadMode),A
+        LD      (ProjectLoadCount),A
+        LD      HL,KeyEditAsmRun
+        LD      (ShellKeySeedPtr),HL
+        LD      B,3
+        CALL    RunShellProgramCycles
+        JR      C,AssertShellProgramCommandLoopBad
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellProgramState)
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellPromptStatus)
+        CP      SHELL_PROMPT_OK
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellPromptError)
+        OR      A
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ProjectLoadCount)
+        CP      1
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellExecCount)
+        CP      3
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellExecActionLog)
+        CP      SHELL_CMD_EDIT
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellExecActionLog + 1)
+        CP      SHELL_CMD_ASM
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellExecActionLog + 2)
+        CP      SHELL_CMD_RUN
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      A,(ShellLastExecAction)
+        CP      SHELL_CMD_RUN
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        LD      HL,(ShellKeySeedPtr)
+        LD      DE,KeyEditAsmRunEnd
+        OR      A
+        SBC     HL,DE
+        JR      NZ,AssertShellProgramCommandLoopBad
+
+        XOR     A
+        RET
+
+AssertShellProgramCommandLoopBad:
+        SCF
+        RET
+
+; AssertShellProgramCyclesInitErr —
+; A project-config failure at shell startup is visible to the bounded loop.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramCyclesInitErr:
+        LD      A,1
+        LD      (ProjectLoadMode),A
+        XOR     A
+        LD      (ProjectLoadCount),A
+        LD      HL,KeyEditAsmRun
+        LD      (ShellKeySeedPtr),HL
+        LD      B,3
+        CALL    RunShellProgramCycles
+        JR      NC,AssertShellProgramCyclesInitBad
+        CP      SHELL_ERR_PROJECT
+        JR      NZ,AssertShellProgramCyclesInitBad
+        LD      A,(ProjectLoadCount)
+        CP      1
+        JR      NZ,AssertShellProgramCyclesInitBad
+        LD      A,(ShellProjectStatus)
+        CP      SHELL_PROJECT_ERROR
+        RET     Z
+
+AssertShellProgramCyclesInitBad:
+        SCF
+        RET
+
+; AssertShellProgramCyclesPromptErr —
+; The bounded loop stops on a prompt-level command error.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramCyclesPromptErr:
+        XOR     A
+        LD      (ProjectLoadMode),A
+        LD      (ProjectLoadCount),A
+        LD      HL,KeyEditBadRun
+        LD      (ShellKeySeedPtr),HL
+        LD      B,3
+        CALL    RunShellProgramCycles
+        JR      NC,AssertShellProgramCyclesPromptBad
+        CP      SHELL_ERR_UNKNOWN
+        JR      NZ,AssertShellProgramCyclesPromptBad
+        LD      A,(ShellProgramState)
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramCyclesPromptBad
+        LD      A,(ShellPromptStatus)
+        CP      SHELL_PROMPT_ERROR
+        JR      NZ,AssertShellProgramCyclesPromptBad
+        LD      A,(ShellExecCount)
+        CP      1
+        JR      NZ,AssertShellProgramCyclesPromptBad
+        LD      A,(ShellExecActionLog)
+        CP      SHELL_CMD_EDIT
+        JR      NZ,AssertShellProgramCyclesPromptBad
+        LD      HL,(ShellKeySeedPtr)
+        LD      DE,KeyEditBadRunAfterBad
+        OR      A
+        SBC     HL,DE
+        JR      NZ,AssertShellProgramCyclesPromptBad
+        XOR     A
+        RET
+
+AssertShellProgramCyclesPromptBad:
+        SCF
+        RET
+
+; AssertShellProgramCyclesZero —
+; Zero requested cycles initializes and returns ready without consuming input.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellProgramCyclesZero:
+        XOR     A
+        LD      (ProjectLoadMode),A
+        LD      (ProjectLoadCount),A
+        LD      HL,KeyEditAsmRun
+        LD      (ShellKeySeedPtr),HL
+        LD      B,0
+        CALL    RunShellProgramCycles
+        JR      C,AssertShellProgramCyclesZeroBad
+        CP      SHELL_PROGRAM_READY
+        JR      NZ,AssertShellProgramCyclesZeroBad
+        LD      A,(ProjectLoadCount)
+        CP      1
+        JR      NZ,AssertShellProgramCyclesZeroBad
+        LD      A,(ShellExecCount)
+        OR      A
+        JR      NZ,AssertShellProgramCyclesZeroBad
+        LD      HL,(ShellKeySeedPtr)
+        LD      DE,KeyEditAsmRun
+        OR      A
+        SBC     HL,DE
+        JR      NZ,AssertShellProgramCyclesZeroBad
+        XOR     A
+        RET
+
+AssertShellProgramCyclesZeroBad:
+        SCF
+        RET
+
+; AssertShellExecLogSaturates —
+; More executor calls than the action log can hold do not grow the count past
+; the bounded log capacity.
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@AssertShellExecLogSaturates:
+        XOR     A
+        LD      (ShellExecCount),A
+        LD      A,SHELL_EXEC_LOG_LEN + 2
+        LD      (ExpectedMode),A
+
+AssertShellExecLogSaturatesLoop:
+        LD      A,SHELL_CMD_RUN
+        CALL    ShellRecordExecAction
+        LD      A,(ExpectedMode)
+        DEC     A
+        LD      (ExpectedMode),A
+        JR      NZ,AssertShellExecLogSaturatesLoop
+
+        LD      A,(ShellExecCount)
+        CP      SHELL_EXEC_LOG_LEN
+        JR      NZ,AssertShellExecLogSaturatesBad
+        LD      A,(ShellExecActionLog)
+        CP      SHELL_CMD_RUN
+        JR      NZ,AssertShellExecLogSaturatesBad
+        LD      A,(ShellExecActionLog + SHELL_EXEC_LOG_LEN - 1)
+        CP      SHELL_CMD_RUN
+        JR      NZ,AssertShellExecLogSaturatesBad
+        XOR     A
+        RET
+
+AssertShellExecLogSaturatesBad:
+        SCF
+        RET
+
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
 ; Input: HL = source path, DE = expected map path
@@ -1388,6 +1612,18 @@ KeyEditText:
 
 KeyEditBackspace:
         .db     "edix",0x08,"t",0x0D
+
+KeyEditAsmRun:
+        .db     "edit",0x0D
+        .db     "asm",0x0D
+        .db     "run",0x0D
+KeyEditAsmRunEnd:
+
+KeyEditBadRun:
+        .db     "edit",0x0D
+        .db     "list",0x0D
+KeyEditBadRunAfterBad:
+        .db     "run",0x0D
 
 CmdEditText:
         .db     "edit"

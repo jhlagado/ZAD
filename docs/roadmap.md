@@ -349,16 +349,31 @@ Goal: make the editor part of the Turbo Pascal-like command loop.
 
 Work:
 
-- Shell prompt runs commands.
-- `edit` enters editor.
+- Done: shell prompt can run a bounded sequence of commands in one initialized
+  shell session.
+- Done: the one-shot shell editor launcher runs `edit` and enters the editor.
+- Done: the bounded command loop dispatches `edit`, `asm`, and `run` in order
+  through executor stubs.
 - `Alt-X` or quit returns to shell.
-- `asm` assembles project main file.
-- `run` runs derived binary.
-- Preserve simple project defaults from `/tecm8.prj`.
+- Done: `asm` resolves the project main file and derived `/build/<stem>.bin`
+  plus `/build/<stem>.map` request paths; actual assembler execution remains a
+  later tool/runtime increment.
+- Done: `run` resolves the derived binary path; actual binary launch remains a
+  later runtime increment.
+- Done: preserve simple project defaults from `/tecm8.prj`.
+
+Current proof boundary:
+
+The one-shot shell editor launcher opens the editor. The bounded shell command
+loop now proves `edit`, `asm`, and `run` dispatch in order from one prompt
+session. The bounded loop's executor entries are still stubs, so the live user
+flow is not yet a real edit-assemble-run cycle.
 
 Done when:
 
 - User flow is: boot TECM8, `edit`, save, exit, `asm`, `run`.
+- Until the assembler and runner exist, Phase 10 is considered complete at the
+  command-loop and dispatch boundary, not at real assembly/execution.
 
 ## Phase 11: Source Format And Text Import/Export
 

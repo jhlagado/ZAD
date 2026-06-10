@@ -29,6 +29,7 @@ SHELL_PROMPT_ERROR  .equ     1
 
 SHELL_PROGRAM_READY .equ     0
 SHELL_PROGRAM_INPUT .equ     1
+SHELL_EXEC_LOG_LEN   .equ     8
 
 SHELL_PROJECT_EMPTY .equ     0
 SHELL_PROJECT_READY .equ     1
@@ -66,13 +67,59 @@ ShellProgramPromptReady:
         LD      (ShellPromptStatus),A
         LD      (ShellPromptError),A
         LD      (ShellLastExecAction),A
+        LD      (ShellExecCount),A
         LD      (ShellLastExecRequestPtr),A
         LD      (ShellLastExecRequestPtr + 1),A
         LD      (ShellProjectStatus),A
         LD      (ShellProjectError),A
         CALL    ShellReloadProjectConfig
         RET     NC
-        XOR     A
+        RET
+
+; RunShellProgramCycles —
+; Run a bounded number of prompt cycles after one program initialization. This
+; is the current shell-loop primitive for proofs and the future live shell.
+; Input:
+;   B = number of command lines to read and run
+; Output:
+;   carry clear, A=SHELL_PROGRAM_READY
+;   carry set, A=shell error from the failing prompt cycle
+;!      in        B
+;!      out       A,carry,zero
+;!      clobbers  BC,DE,HL
+@RunShellProgramCycles:
+        LD      A,B
+        LD      (ShellProgramCyclesLeft),A
+        CALL    InitShellProgramState
+        RET     C
+        LD      A,(ShellProgramCyclesLeft)
+        OR      A
+        JR      Z,ShellProgramPromptReady
+
+ShellProgramCycleLoop:
+        LD      A,SHELL_PROGRAM_INPUT
+        LD      (ShellProgramState),A
+        CALL    ReadShellInputLine
+        CALL    RunShellPromptCycle
+        JR      C,ShellProgramCycleErr
+        CP      SHELL_PROMPT_ERROR
+        JR      Z,ShellProgramPromptStatusErr
+
+        LD      A,(ShellProgramCyclesLeft)
+        DEC     A
+        LD      (ShellProgramCyclesLeft),A
+        JR      NZ,ShellProgramCycleLoop
+        JR      ShellProgramPromptReady
+
+ShellProgramPromptStatusErr:
+        LD      A,(ShellPromptError)
+
+ShellProgramCycleErr:
+        LD      B,A
+        LD      A,SHELL_PROGRAM_READY
+        LD      (ShellProgramState),A
+        LD      A,B
+        SCF
         RET
 
 ; ReadShellInputLine —
@@ -282,7 +329,7 @@ ShellNormalizeEnd:
 ;   carry set, A=SHELL_ERR_UNKNOWN for an unsupported dispatch action
 ;!      in        HL
 ;!      out       A,carry,zero
-;!      clobbers  DE,HL
+;!      clobbers  B,C,DE,HL
 @ExecuteShellDispatch:
         LD      A,(HL)
         INC     HL
@@ -309,32 +356,60 @@ ShellExecuteRun:
 ; Stub editor entry point. HL points at edit payload: mode byte, then path.
 ;!      in        HL
 ;!      out       A,carry,zero
+;!      clobbers  B,C,HL
 @ShellExecEditor:
         LD      (ShellLastExecRequestPtr),HL
         LD      A,SHELL_CMD_EDIT
-        LD      (ShellLastExecAction),A
-        OR      A
-        RET
+        JP      ShellRecordExecAction
 
 ; ShellExecAssembler —
 ; Stub assembler entry point. HL points at asm payload: source, output, map.
 ;!      in        HL
 ;!      out       A,carry,zero
+;!      clobbers  B,C,HL
 @ShellExecAssembler:
         LD      (ShellLastExecRequestPtr),HL
         LD      A,SHELL_CMD_ASM
-        LD      (ShellLastExecAction),A
-        OR      A
-        RET
+        JP      ShellRecordExecAction
 
 ; ShellExecRunner —
 ; Stub runner entry point. HL points at run payload: mode byte, then path.
 ;!      in        HL
 ;!      out       A,carry,zero
+;!      clobbers  B,C,HL
 @ShellExecRunner:
         LD      (ShellLastExecRequestPtr),HL
         LD      A,SHELL_CMD_RUN
+        JP      ShellRecordExecAction
+
+; ShellRecordExecAction —
+; Record the latest executor action and append it to a bounded action log.
+; Input: A = SHELL_CMD_* action
+; Output: A = input action, carry clear
+;!      in        A
+;!      out       A,carry,zero
+;!      clobbers  B,C,HL
+@ShellRecordExecAction:
         LD      (ShellLastExecAction),A
+        LD      B,A
+        LD      A,(ShellExecCount)
+        CP      SHELL_EXEC_LOG_LEN
+        JR      NC,ShellRecordExecDone
+        LD      C,A
+        INC     A
+        LD      (ShellExecCount),A
+        LD      HL,ShellExecActionLog
+        LD      A,C
+        ADD     A,L
+        LD      L,A
+        JR      NC,ShellRecordExecStore
+        INC     H
+
+ShellRecordExecStore:
+        LD      (HL),B
+
+ShellRecordExecDone:
+        LD      A,B
         OR      A
         RET
 
@@ -1253,11 +1328,20 @@ ShellPromptError:
 ShellProgramState:
         .db     0
 
+ShellProgramCyclesLeft:
+        .db     0
+
 ShellLineBuffer:
         .ds     SHELL_LINE_BUF_LEN
 
 ShellKeySeedPtr:
         .dw     0
+
+ShellExecCount:
+        .db     0
+
+ShellExecActionLog:
+        .ds     SHELL_EXEC_LOG_LEN
 
 ShellEditMode:
         .db     0

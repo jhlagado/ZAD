@@ -98,3 +98,25 @@ test('shell edit navigation proof drives shell command into storage-backed edito
   assert.match(packageJson, /proof:display:shell-edit-explicit-navigation/);
   assert.match(packageJson, /proof:display:shell-edit-named-navigation/);
 });
+
+test('shell command loop proves edit asm run sequence', () => {
+  const source = readRepoFile('src/shell-commands.asm');
+  const proof = readRepoFile('proofs/shell-commands/shell-commands-proof.asm');
+
+  assert.match(source, /^@RunShellProgramCycles:/m);
+  assert.match(source, /^@ShellRecordExecAction:/m);
+  assert.match(source, /SHELL_EXEC_LOG_LEN\s+\.equ\s+8/);
+  assert.match(source, /ShellExecActionLog:\n\s+\.ds\s+SHELL_EXEC_LOG_LEN/);
+  assert.match(source, /CALL\s+RunShellPromptCycle/);
+  assert.match(source, /CP\s+SHELL_PROMPT_ERROR/);
+  assert.match(proof, /AssertShellProgramCommandLoop/);
+  assert.match(proof, /AssertShellProgramCyclesInitErr/);
+  assert.match(proof, /AssertShellProgramCyclesPromptErr/);
+  assert.match(proof, /AssertShellProgramCyclesZero/);
+  assert.match(proof, /AssertShellExecLogSaturates/);
+  assert.match(proof, /KeyEditAsmRun:/);
+  assert.match(proof, /KeyEditBadRun:/);
+  assert.match(proof, /CP\s+SHELL_CMD_EDIT/);
+  assert.match(proof, /CP\s+SHELL_CMD_ASM/);
+  assert.match(proof, /CP\s+SHELL_CMD_RUN/);
+});
