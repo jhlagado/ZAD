@@ -105,6 +105,20 @@ const PROOF_CASES = {
     lines: makeSmallFileLines(),
     verify: verifyEditorMutationBoundaryProof,
   },
+  'editor-cross-page-join-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-cross-page-join-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-cross-page-join-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-cross-page-join-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyEditorCrossPageJoinProof,
+  },
+  'editor-window-save-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-window-save-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-window-save-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-window-save-fat32.img'),
+    lines: makeWindowSaveLines(),
+    verify: verifyEditorWindowSaveProof,
+  },
   'editor-line-editing-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-line-editing-proof-last-run.json'),
@@ -214,6 +228,14 @@ function makeSmallFileLines(): string[] {
     'SMALL 06',
     'SMALL 07',
   ];
+}
+
+function makeWindowSaveLines(): string[] {
+  return Array.from({ length: 24 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `P${page} LINE ${line.toString().padStart(2, '0')}`;
+  });
 }
 
 function makeAppLines(): string[] {
@@ -418,13 +440,13 @@ function readWord(memory: Uint8Array, address: number): number {
 
 function readSourceRecord(memory: Uint8Array, address: number, record: number): string {
   const start = address + record * 32;
-  const length = memory[start];
+  const length = memory[start] & 0x1f;
   return Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
 }
 
 function assertSourceRecordClean(memory: Uint8Array, address: number, record: number, text: string): void {
   const start = address + record * 32;
-  const length = memory[start];
+  const length = memory[start] & 0x1f;
   const actual = Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
   if (actual !== text) {
     throw new Error(`source record ${record} "${actual}", expected "${text}"`);
@@ -507,9 +529,9 @@ function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime,
 
 function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const currentPage = symbolAddress(symbols, 'EditorNavCurrentPage');
-  if (runtime.hardware.memory[currentPage] !== 7) {
+  if (runtime.hardware.memory[currentPage] !== 8) {
     throw new Error(
-      `editor navigation current page ${runtime.hardware.memory[currentPage]}, expected 7 after dirty paging no-op`,
+      `editor navigation current page ${runtime.hardware.memory[currentPage]}, expected 8 after dirty RAM-window page movement`,
     );
   }
   const dirty = symbolAddress(symbols, 'EditorNavDirty');
@@ -522,10 +544,10 @@ function verifyNavigationProof(runtime: Runtime, platformRuntime: PlatformRuntim
   }
 
   const expectedRows = [
-    { symbol: 'EditorRowText0', text: 'P7 LINE 00' },
-    { symbol: 'EditorRowText1', text: 'P7 LINE 01' },
-    { symbol: 'EditorRowText7', text: 'P7 LINE 07' },
-    { symbol: 'EditorRowText9', text: 'P7 LINE 09' },
+    { symbol: 'EditorRowText0', text: 'P8 LINE 00' },
+    { symbol: 'EditorRowText1', text: 'P8 LINE 01' },
+    { symbol: 'EditorRowText7', text: 'P8 LINE 07' },
+    { symbol: 'EditorRowText9', text: 'P8 LINE 09' },
   ];
   for (const row of expectedRows) {
     const actual = readCString(runtime.hardware.memory, symbolAddress(symbols, row.symbol));
@@ -626,6 +648,8 @@ function verifyEditorMutationBoundaryProof(runtime: Runtime, _platformRuntime: P
     { record: 3, text: 'ABDE' },
     { record: 4, text: 'XYZ!' },
     { record: 5, text: 'dl' },
+    { record: 14, text: 'LE' },
+    { record: 15, text: 'FT' },
   ];
   for (const expected of expectedRecords) {
     const actual = readSourceRecord(runtime.hardware.memory, pageBuffer, expected.record);
@@ -646,6 +670,7 @@ function verifyEditorMutationBoundaryProof(runtime: Runtime, _platformRuntime: P
     { symbol: 'BoundaryCursorCase7', row: 3, col: 2 },
     { symbol: 'BoundaryCursorCase8', row: 4, col: 4 },
     { symbol: 'BoundaryCursorCase9', row: 5, col: 2 },
+    { symbol: 'BoundaryCursorCase10', row: 15, col: 0 },
   ];
   for (const expected of expectedCursors) {
     const address = symbolAddress(symbols, expected.symbol);
@@ -660,11 +685,105 @@ function verifyEditorMutationBoundaryProof(runtime: Runtime, _platformRuntime: P
 
   const cursorRow = symbolAddress(symbols, 'EditorCursorRow');
   const cursorCol = symbolAddress(symbols, 'EditorCursorCol');
-  if (runtime.hardware.memory[cursorRow] !== 5) {
-    throw new Error(`editor mutation boundary cursor row ${runtime.hardware.memory[cursorRow]}, expected 5`);
+  if (runtime.hardware.memory[cursorRow] !== 15) {
+    throw new Error(`editor mutation boundary cursor row ${runtime.hardware.memory[cursorRow]}, expected 15`);
   }
-  if (runtime.hardware.memory[cursorCol] !== 2) {
-    throw new Error(`editor mutation boundary cursor col ${runtime.hardware.memory[cursorCol]}, expected 2`);
+  if (runtime.hardware.memory[cursorCol] !== 0) {
+    throw new Error(`editor mutation boundary cursor col ${runtime.hardware.memory[cursorCol]}, expected 0`);
+  }
+
+  const nextPageBuffer = symbolAddress(symbols, 'EditorNavNextPageBuffer');
+  const pushed = readSourceRecord(runtime.hardware.memory, nextPageBuffer, 0);
+  if (pushed !== 'PUSH') {
+    throw new Error(`editor mutation boundary next sector record 0 "${pushed}", expected "PUSH"`);
+  }
+  const dirtySectors = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirtySectors')];
+  if ((dirtySectors & 3) !== 3) {
+    throw new Error(`editor mutation boundary dirty sectors ${dirtySectors}, expected bits 0 and 1 set`);
+  }
+
+  const expectedLengthBytes = [
+    { record: 1, expected: 0x7f },
+    { record: 2, expected: 0xe5 },
+    { record: 3, expected: 0xa4 },
+    { record: 4, expected: 0x64 },
+    { record: 5, expected: 0x82 },
+  ];
+  for (const check of expectedLengthBytes) {
+    const value = runtime.hardware.memory[pageBuffer + check.record * 32];
+    if (value !== check.expected) {
+      throw new Error(
+        `editor mutation boundary record ${check.record} length byte 0x${value.toString(16)}, expected 0x${check.expected.toString(16)}`,
+      );
+    }
+  }
+}
+
+function verifyEditorCrossPageJoinProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+  const nextPageBuffer = symbolAddress(symbols, 'EditorNavNextPageBuffer');
+
+  assertSourceRecordClean(runtime.hardware.memory, pageBuffer, 15, 'PREVCUR');
+  assertSourceRecordClean(runtime.hardware.memory, nextPageBuffer, 0, 'NEXT');
+  assertSourceRecordClean(runtime.hardware.memory, nextPageBuffer, 15, '');
+
+  const currentPage = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavCurrentPage')];
+  if (currentPage !== 0) {
+    throw new Error(`editor cross-page join current page ${currentPage}, expected 0`);
+  }
+  const cursorRow = runtime.hardware.memory[symbolAddress(symbols, 'EditorCursorRow')];
+  const cursorCol = runtime.hardware.memory[symbolAddress(symbols, 'EditorCursorCol')];
+  if (cursorRow !== 15 || cursorCol !== 4) {
+    throw new Error(`editor cross-page join cursor ${cursorRow},${cursorCol}; expected 15,4`);
+  }
+  const dirtySectors = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirtySectors')];
+  if ((dirtySectors & 3) !== 3) {
+    throw new Error(`editor cross-page join dirty sectors ${dirtySectors}, expected bits 0 and 1 set`);
+  }
+  const aggregateDirty = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirty')];
+  if (aggregateDirty !== 1) {
+    throw new Error(`editor cross-page join aggregate dirty ${aggregateDirty}, expected 1`);
+  }
+  const cacheValid = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavCacheValid')];
+  if (cacheValid !== 0) {
+    throw new Error(`editor cross-page join cache valid ${cacheValid}, expected 0`);
+  }
+  const nextValid = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavNextPageValid')];
+  if (nextValid !== 1) {
+    throw new Error(`editor cross-page join next-page valid ${nextValid}, expected 1`);
+  }
+}
+
+function verifyEditorWindowSaveProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const dirty = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirty')];
+  if (dirty !== 0) {
+    throw new Error(`editor window save dirty ${dirty}, expected 0`);
+  }
+  const dirtySectors = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirtySectors')];
+  if (dirtySectors !== 0) {
+    throw new Error(`editor window save dirty sectors ${dirtySectors}, expected 0`);
+  }
+  const stored = readFileFromProofImage(PROOF_CASES['editor-window-save-proof'], '/src/main.asm');
+  const expected = [
+    { record: 0, text: 'ZP0 LINE 00' },
+    { record: 14, text: 'LE' },
+    { record: 15, text: 'FT' },
+    { record: 16, text: 'PUSH' },
+    { record: 17, text: 'P1 LINE 00' },
+  ];
+  for (const check of expected) {
+    const actual = readSourceRecord(stored, 0, check.record);
+    if (actual !== check.text) {
+      const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
+      const nextPageBuffer = symbolAddress(symbols, 'EditorNavNextPageBuffer');
+      const runtimePage = readSourceRecord(runtime.hardware.memory, pageBuffer, check.record % 16);
+      const runtimeNext = check.record >= 16
+        ? readSourceRecord(runtime.hardware.memory, nextPageBuffer, check.record - 16)
+        : '';
+      throw new Error(
+        `editor window save persisted record ${check.record} "${actual}", expected "${check.text}"; runtimePage="${runtimePage}" runtimeNext="${runtimeNext}"`,
+      );
+    }
   }
 }
 
@@ -794,7 +913,7 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   }
 
   const stored = readFileFromProofImage(PROOF_CASES['editor-page-write-proof'], '/src/main.asm');
-  const length = stored[0];
+  const length = stored[0] & 0x1f;
   const text = stored.subarray(1, 1 + length).toString('ascii');
   if (text !== 'OKSMALL 00') {
     throw new Error(`editor page write persisted record 0 "${text}", expected "OKSMALL 00"`);

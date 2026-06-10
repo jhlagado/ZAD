@@ -269,16 +269,14 @@ byte 0      low five bits = length, upper three bits = reserved metadata
 byte 1-31   text bytes
 ```
 
-The implementation still mostly treats byte 0 as a plain `0..31` length, but
-future editor work must change that before adding more line mutation behavior:
-readers should mask with `0x1F`, and writers should preserve bits 5-7 unless
-they are deliberately changing line metadata. The upper bits are intended for
-compact per-line editor/debugger state such as selection, breakpoint, or wrap
-flags.
+The implementation reads the visible length with `0x1F` and preserves bits 5-7
+when existing line lengths are rewritten. New or cleared source records normally
+start with metadata bits clear. The upper bits are intended for compact
+per-line editor/debugger state such as selection, breakpoint, or wrap flags.
 
 `EditorViewportRender` takes `HL` pointing at a source-record window,
-copies the first ten records into NUL-terminated row buffers, checks that no
-record length exceeds 31, then calls `DisplayRenderScreen`.
+copies the first ten records into NUL-terminated row buffers, masks each record
+length to the low five bits, then calls `DisplayRenderScreen`.
 `EditorViewportRenderRecordRow` performs the same record-to-row conversion for
 one visible row and calls `DisplayRenderLine`, which is the dirty-rendering path
 used by ordinary in-line editor mutations.
@@ -340,18 +338,20 @@ Public entries:
 - `EditorPageUp`
 - `EditorNavDeriveBackupPath`
 
-The module stores a 64-byte path buffer, a 512-byte live page buffer, and
-`EditorNavDirty`. It also keeps one clean neighbour page cached at `3000h`,
-outside the program image below the `4000h` MON3 launch address. That cache is
-deliberately above the GLCD-heavy lower RAM region and gives common
-down-then-up or up-then-down navigation a RAM-only return path instead of a
-second SD read. It now also owns the first backup scratch buffers:
+The module stores a 64-byte path buffer, a 512-byte live page buffer, a
+512-byte adjacent next-page buffer, and legacy aggregate `EditorNavDirty`.
+`EditorNavDirtySectors` tracks the active/next sector dirty bits, while
+`EditorNavCachedPageDirty` preserves dirty state for the previous-page cache at
+`3000h`, outside the program image below the `4000h` MON3 launch address. This
+is now a small two-sector edit window plus one previous-page cache: common
+page-down/page-up movement can stay in RAM, and dirty movement no longer forces
+an immediate save. It now also owns the first backup scratch buffers:
 `EditorNavBackupPathBuffer` for the derived hidden path and
 `EditorNavBackupPageBuffer` for the previous on-disk page. Page moves are
 committed only after loading and rendering succeeds, so failed page-down or
-page-up attempts do not corrupt current-page state. Cache hits render the
-already-loaded page buffer directly and skip the transient loading status.
-Successful load/page movement and save clear the dirty flag.
+page-up attempts do not corrupt current-page state. Cache/window hits render
+the already-loaded page buffer directly and skip the transient loading status.
+Successful load and save clear the relevant dirty state.
 
 Storage-backed loads, backup restore, and save now also route through
 `EditorNavShowStatus`, which renders transient `Loading...` or `Saving...`
@@ -361,13 +361,14 @@ the editor prompt path, so slow navigation and save operations present visible
 feedback without adding a second status surface.
 
 `EditorSaveCurrentPage` is the current save coordinator. It first calls
-`EditorBackupCurrentPage`; if that succeeds, it writes `EditorNavPageBuffer`
-back to the current path/page and clears dirty. `EditorBackupCurrentPage`
+`EditorBackupCurrentPage`; if that succeeds, it writes dirty resident sectors
+from the active, adjacent, and cached buffers back to their source pages and
+clears dirty. `EditorBackupCurrentPage`
 derives the hidden backup path from the current source path, loads the current
 on-disk page into `EditorNavBackupPageBuffer`, and writes that old page to the
 backup path. If the backup path is missing, it asks the storage loader to
 create a one-block file first, then retries the backup write. Multi-page backup
-policy remains outside this module today.
+policy and catalog/allocation growth remain outside this module today.
 
 `EditorNavDeriveBackupPath` implements the current naming convention. It keeps
 the original prefix, prepends `.` to the local filename, and appends `.b`.
@@ -468,13 +469,15 @@ The module also owns the early status-line prompt state:
 - Unknown keys leave the prompt active; `Y`/`y`, `N`/`n`, or ESC complete it.
 
 `EditorSplitLine` shifts records down within the current 16-record page
-and splits the current record at the cursor. It is a no-op on the final page row
-or when the final record is already in use. `EditorJoinPreviousLine`
-is called by backspace at column zero; it joins the current record into the
-previous record only when the combined text still fits in 31 bytes, then shifts
-following records up and clears the last record. Both operations are in-page
-only today. The V1 sector-edge policy is deliberately conservative: final-row
-split and first-row join are no-ops rather than implicit cross-sector shifts.
+and splits the current record at the cursor. When the current sector is full and
+the adjacent next-sector buffer has room, it pushes row 15 into next-sector row
+0 before splitting. `EditorJoinPreviousLine` is called by backspace at column
+zero; it joins the current record into the previous record only when the
+combined text still fits in 31 bytes, then shifts following records up and
+clears the last record. At row 0, it can join into cached previous-page row 15
+and make that previous page active. These sector-edge paths operate only on
+resident RAM buffers today; allocating or freeing TM8 storage remains future
+work.
 
 ## Proof Programs
 
@@ -522,8 +525,8 @@ The display proofs build up the editor stack incrementally:
   screen with chrome rows, source rows, and gutter markers.
 - `proofs/display/editor-viewport-proof.asm`: converts eight source records
   into display rows.
-- `proofs/display/editor-viewport-bad-record-proof.asm`: verifies malformed
-  record length rejection.
+- `proofs/display/editor-viewport-metadata-record-proof.asm`: verifies that
+  source-record metadata bits are ignored by viewport length reads.
 - `proofs/display/editor-viewport-storage-proof.asm`: loads source pages from
   TM8 storage and renders them.
 - `proofs/display/editor-viewport-storage-invalid-page-proof.asm`: verifies
@@ -741,22 +744,20 @@ What exists now:
 - The live Debug80 editor session now rechecks line split and join behavior
   through the matrix-key path, including save and page-return persistence.
 - Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
-  instead of falling through as plain text, and dirty page movement reports
-  `Save first` rather than appearing inert.
+  instead of falling through as plain text, and dirty page movement is allowed
+  inside the RAM window.
 
 What is still missing or intentionally skeletal:
 
 - `asm` and `run` resolve request blocks but do not launch real tools.
-- The editor has no search or sector-crossing edit behavior yet.
-- Dirty page movement is conservative: Ctrl+Arrow and Alt+Arrow paging are
-  blocked with `Save first` until the current page is saved or discarded,
-  because V1 has a single dirty page buffer.
-- The current 512-byte page buffer is a proof-stage cache. Usable navigation
-  should move to a 2K or 4K RAM edit window so 100-200 line source files do not
-  trigger slow MON3 SD/FAT32 reads during ordinary movement.
+- The editor has no search behavior yet.
+- The current RAM edit window is deliberately small: active sector, adjacent
+  next sector, and one previous-page cache. A later 2K or 4K window should
+  reduce SD reads further for 100-200 line source files.
 - Stop before starting assembler integration until a new milestone is chosen.
-- Split and join are intentionally limited to the loaded 512-byte page for V1;
-  they do not move records across sectors or allocate/free TM8 storage.
+- Split can push row 15 into the adjacent sector, and Backspace at row 0 can
+  join into cached previous row 15. These paths do not yet allocate/free TM8
+  storage when the file needs a new catalog size or allocation-chain extension.
 - The marker policy is still mostly fixed proof data, and prompt overlays still
   flush more than they should.
 - The Z80 storage readers are narrow readers, not a general reusable TM8

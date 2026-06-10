@@ -371,13 +371,13 @@ function readTm8File(tm8Path: string): Buffer {
 
 function readSourceRecord(records: Buffer, record: number): string {
   const start = record * 32;
-  const length = records[start];
+  const length = records[start] & 0x1f;
   return records.subarray(start + 1, start + 1 + length).toString('ascii');
 }
 
 function readRuntimeSourceRecord(memory: Uint8Array, address: number, record: number): string {
   const start = address + record * 32;
-  const length = memory[start];
+  const length = memory[start] & 0x1f;
   return Buffer.from(memory.subarray(start + 1, start + 1 + length)).toString('ascii');
 }
 
@@ -508,13 +508,22 @@ async function main(): Promise<void> {
     if (dirtyAfterEdit !== 1) {
       throw new Error(`live editor dirty after z ${dirtyAfterEdit}, expected 1`);
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 4 }, 200_000, 200_000); // dirty Alt+ArrowDown blocked
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 4 }, 200_000, 200_000); // dirty Alt+ArrowDown within RAM window
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const pageAfterDirtyPageDown = runtime.hardware.memory[currentPageAddr];
     const dirtyAfterDirtyPageDown = runtime.hardware.memory[dirtyAddr];
-    if (pageAfterDirtyPageDown !== 0 || dirtyAfterDirtyPageDown !== 1) {
+    if (pageAfterDirtyPageDown !== 1 || dirtyAfterDirtyPageDown !== 1) {
       throw new Error(
-        `live editor dirty Alt+ArrowDown page=${pageAfterDirtyPageDown} dirty=${dirtyAfterDirtyPageDown}, expected page=0 dirty=1`,
+        `live editor dirty Alt+ArrowDown page=${pageAfterDirtyPageDown} dirty=${dirtyAfterDirtyPageDown}, expected page=1 dirty=1`,
+      );
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }, 200_000, 200_000); // dirty Ctrl+ArrowUp back to edited page
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
+    const pageAfterDirtyPageUp = runtime.hardware.memory[currentPageAddr];
+    const dirtyAfterDirtyPageUp = runtime.hardware.memory[dirtyAddr];
+    if (pageAfterDirtyPageUp !== 0 || dirtyAfterDirtyPageUp !== 1) {
+      throw new Error(
+        `live editor dirty Alt+ArrowUp page=${pageAfterDirtyPageUp} dirty=${dirtyAfterDirtyPageUp}, expected page=0 dirty=1`,
       );
     }
     tapMatrixKey(platformRuntime, runtime, 1, 2); // Enter: split line

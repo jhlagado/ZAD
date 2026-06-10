@@ -146,10 +146,7 @@ function decodeSourceTextRecords(records: Buffer): Buffer {
 
   const lines: string[] = [];
   for (let offset = 0; offset < records.byteLength; offset += 32) {
-    const length = records[offset];
-    if (length > 31) {
-      throw new Error(`malformed source record ${offset / 32 + 1}: length ${length} exceeds 31`);
-    }
+    const length = records[offset] & 0x1f;
     for (let padding = offset + 1 + length; padding < offset + 32; padding += 1) {
       if (records[padding] !== 0) {
         throw new Error(`malformed source record ${offset / 32 + 1}: non-zero padding byte`);

@@ -115,6 +115,31 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,BoundaryCursorCase9
         CALL    BoundarySaveCursor
 
+        LD      A,10
+        LD      (CaseMarker),A
+        CALL    EditorNavClearNextPageBuffer
+        JP      C,ProofFailed
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        LD      HL,BoundaryRecord8
+        LD      DE,EditorNavPageBuffer + (14 * 32)
+        CALL    BoundaryCopyRecord
+        LD      HL,BoundaryRecord9
+        LD      DE,EditorNavPageBuffer + (15 * 32)
+        CALL    BoundaryCopyRecord
+        LD      A,14
+        LD      (EditorCursorRow),A
+        LD      A,2
+        LD      (EditorCursorCol),A
+        CALL    EditorSplitLine
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        CALL    EditorMarkDirty
+        JP      C,ProofFailed
+        LD      HL,BoundaryCursorCase10
+        CALL    BoundarySaveCursor
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -225,18 +250,18 @@ BoundaryRecord0:
         .db     0
         .ds     31
 BoundaryRecord1:
-        .db     31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"
+        .db     0x7F,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"
 BoundaryRecord2:
-        .db     5,"ABCDE"
+        .db     0xE5,"ABCDE"
         .ds     26
 BoundaryRecord3:
-        .db     5,"ABCDE"
+        .db     0xA5,"ABCDE"
         .ds     26
 BoundaryRecord4:
-        .db     3,"XYZ"
+        .db     0x63,"XYZ"
         .ds     28
 BoundaryRecord5:
-        .db     0
+        .db     0x80
         .ds     31
 BoundaryRecord6:
         .db     0
@@ -244,6 +269,12 @@ BoundaryRecord6:
 BoundaryRecord7:
         .db     0
         .ds     31
+BoundaryRecord8:
+        .db     4,"LEFT"
+        .ds     27
+BoundaryRecord9:
+        .db     4,"PUSH"
+        .ds     27
 
 BoundaryCursorCase1:
         .ds     2
@@ -262,6 +293,8 @@ BoundaryCursorCase7:
 BoundaryCursorCase8:
         .ds     2
 BoundaryCursorCase9:
+        .ds     2
+BoundaryCursorCase10:
         .ds     2
 
 ResultMarker:

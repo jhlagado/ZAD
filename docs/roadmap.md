@@ -49,8 +49,8 @@ every major key command.
   dirty pages require status-line confirmation before discarding changes.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
-- Sector-edge editing policy is conservative today: split on the final row and
-  join before the first row are no-ops rather than implicit cross-sector shifts.
+- Sector-edge editing has proof coverage for split pushing into the adjacent
+  next sector and Backspace joining into the cached previous sector.
 - Design policies exist for reserved source-record length bits, hidden dotfiles,
   one-level editor backups, and status-line confirmation prompts.
 - `src/main.asm` is a Debug80-runnable TECM8 editor session entry.
@@ -67,9 +67,10 @@ every major key command.
 - Editor Line Editing V2 was reached by `npm run debug80:editor-live-smoke` and
   commit `040dbf5`: matrix Enter splits a line, split contents save and survive
   page movement, matrix Backspace rejoins, and the joined state saves.
-- Phase 1 input polish has started: unknown Ctrl/Alt-modified printable keys
-  are ignored with `KEY`, dirty page movement reports `Save first`, and the
-  live Debug80 smoke covers dirty page blocking and restore-prompt cancel.
+- Phase 1 input polish is complete enough for the current milestone: unknown
+  Ctrl/Alt-modified printable keys are ignored with `KEY`, dirty page movement
+  works inside the RAM window, and the live Debug80 smoke covers restore-prompt
+  cancel.
 
 ## Target Editor Milestone
 
@@ -93,7 +94,7 @@ Work:
 - Confirm `Enter`, `Backspace`, `Delete`, arrows, `Alt-S`, `Alt-X`, `Alt-R`,
   and page movement.
 - Add clear status feedback for ignored commands, failed saves, failed loads,
-  and dirty-page restrictions.
+  and RAM-window/page-boundary limits.
 - Decide whether unknown modified printable keys should insert text or be
   ignored.
 - Add more live smoke coverage for real matrix keys.
@@ -111,32 +112,42 @@ sector reads as an ordinary navigation operation.
 
 Work:
 
-- Make all source-record length handling metadata-safe: read length as
+- Done: make all source-record length handling metadata-safe: read length as
   `byte0 & 0x1F`, preserve bits 5-7 when rewriting lengths, and add tests/proofs
   that metadata bits survive insert/delete/split/join/render paths.
-- Allow line insertion at the end of a page to push records into the next page.
-- Allow Backspace at row 0 to join with the previous page.
+- Done: allow a split near the end of a full page to push row 15 into the next
+  page when the adjacent sector is resident and has space.
+- Done: allow Backspace at row 0 to join with the cached previous page.
+- Done: replace the current one-page cache with a small RAM edit window large
+  enough to absorb immediate adjacent navigation without touching SD.
+- Done: avoid SD writes until explicit save, and then write back resident dirty
+  sectors.
 - Decide what happens when the file grows and needs a new sector/page.
 - Update the TM8 allocation/write path to extend a file safely.
-- Replace the current one-page cache with a RAM edit window large enough to
-  absorb common navigation without touching SD.
 
 Likely design:
 
-- Keep a 2K or 4K RAM edit window if feasible.
+- Current implementation keeps an active sector, adjacent next sector, and one
+  previous-page cache. A 2K or 4K RAM edit window remains the likely later
+  target if memory pressure allows it.
 - Treat each 512-byte sector as 16 fixed records.
 - A 2K window holds 64 lines; a 4K window holds 128 lines.
 - Preload adjacent sectors around the visible viewport, because the MON3
   SD/FAT32 path is slow enough that per-sector navigation will feel broken on
   100-200 line files.
 - On cross-page insert/delete, shift records across page boundaries.
-- Avoid SD writes until explicit save, and then write back only dirty sectors.
+- Avoid SD writes until explicit save, and then write back only resident dirty
+  sectors.
 
 Done when:
 
 - You can create new lines past the end of the current page.
 - Page up/down shows the reshaped file correctly.
-- Save persists a grown file.
+- Save persists resident dirty sectors that already belong to the TM8 file.
+- Remaining storage work: save must persist a genuinely grown file by updating
+  the catalog size and extending the allocation chain when needed.
+- Remaining editing work: pressing Enter while already on row 15 should create
+  a new first record in the adjacent page rather than no-op.
 - Metadata bits in each source-record length byte are preserved unless a
   deliberately defined editor metadata operation changes them.
 - Moving around a file within the RAM window does not perform SD reads.

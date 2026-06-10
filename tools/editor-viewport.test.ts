@@ -21,12 +21,13 @@ test('editor viewport module exposes a source-record render entry point', () => 
     'TECM8_EDITOR_RECORD_BYTES',
     'TECM8_EDITOR_VISIBLE_ROWS',
     'TECM8_EDITOR_MAX_RECORD_TEXT',
+    'TECM8_EDITOR_RECORD_LENGTH_MASK',
     'TECM8_EDITOR_ROW_TEXT_BYTES',
   ]) {
     assert.match(source, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
 
-  assert.match(source, /CP\s+TECM8_EDITOR_MAX_RECORD_TEXT \+ 1/);
+  assert.match(source, /AND\s+TECM8_EDITOR_RECORD_LENGTH_MASK/);
   assert.match(source, /^TECM8_EDITOR_VISIBLE_ROWS\s+\.equ\s+10$/m);
   assert.match(source, /^@EditorViewportRenderStatusOverlay:/m);
   assert.match(source, /^@EditorViewportRestoreStatusRow:/m);
@@ -66,7 +67,7 @@ test('editor viewport proof is wired into package checks with content verificati
   assert.match(packageJson, /"proof:display:editor-viewport"/);
   assert.match(packageJson, /proof:display:editor-viewport/);
   assert.match(runner, /verifyEditorViewport/);
-  assert.match(runner, /requiresVisiblePixels = proofName !== 'editor-viewport-bad-record-proof'/);
+  assert.doesNotMatch(runner, /requiresVisiblePixels/);
   assert.match(runner, /EditorRowText0/);
   assert.match(runner, /EditorRowText9/);
   assert.match(runner, /editor viewport proof copied/);
@@ -74,15 +75,14 @@ test('editor viewport proof is wired into package checks with content verificati
   assert.match(runner, /editor viewport proof unexpected stale gutter bits/);
 });
 
-test('editor viewport malformed-record proof is wired into package checks', () => {
-  assert.ok(existsSync(resolve(root, 'proofs/display/editor-viewport-bad-record-proof.asm')));
+test('editor viewport metadata-record proof is wired into package checks', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-viewport-metadata-record-proof.asm')));
   const packageJson = readRepoFile('package.json');
-  const source = readRepoFile('proofs/display/editor-viewport-bad-record-proof.asm');
+  const source = readRepoFile('proofs/display/editor-viewport-metadata-record-proof.asm');
 
-  assert.match(packageJson, /"proof:display:editor-viewport:bad-record"/);
-  assert.match(packageJson, /proof:display:editor-viewport:bad-record/);
+  assert.match(packageJson, /"proof:display:editor-viewport:metadata-record"/);
+  assert.match(packageJson, /proof:display:editor-viewport:metadata-record/);
   assert.match(source, /CALL\s+EditorViewportRender/);
-  assert.match(source, /JR\s+NC,ProofFailed/);
-  assert.match(source, /CP\s+TECM8_EDITOR_ERR_RECORD_LENGTH/);
-  assert.match(source, /\.db\s+32/);
+  assert.match(source, /\.db\s+0xA8,"META ROW"/);
+  assert.match(source, /\.db\s+0xFF,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
 });

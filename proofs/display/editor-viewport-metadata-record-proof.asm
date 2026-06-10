@@ -1,6 +1,7 @@
-; Editor viewport malformed-record proof.
+; Editor viewport metadata-record proof.
 ;
-; Verifies that a source record length >= 32 is rejected before display update.
+; Verifies that source record length byte bits 5-7 are treated as metadata and
+; the visible text length is read from bits 0-4.
 
         .org    0x4000
 
@@ -13,11 +14,12 @@ PROOF_FAIL       .equ     0xE0
         CALL    DisplayInit
         JR      C,ProofFailed
 
-        LD      HL,BadEditorSourceRecords
+        LD      HL,MetadataEditorSourceRecords
         CALL    EditorViewportRender
-        JR      NC,ProofFailed
-        CP      TECM8_EDITOR_ERR_RECORD_LENGTH
-        JR      NZ,ProofFailed
+        JR      C,ProofFailed
+
+        CALL    GlcdTileFlushFull
+        JR      C,ProofFailed
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -37,9 +39,13 @@ ProofFailedDone:
         .include "../../src/editor-viewport.asm"
         .include "../../src/tecm8-bios.asm"
 
-BadEditorSourceRecords:
-        .db     32
+MetadataEditorSourceRecords:
+        .db     0xA8,"META ROW"
+        .ds     23
+        .db     0x40
         .ds     31
+        .db     0xFF,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"
+        .ds     32 * 7
 
 ResultMarker:
         .db     0

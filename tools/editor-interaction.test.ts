@@ -26,6 +26,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorDeleteChar:/m);
   assert.match(source, /^@EditorSplitLine:/m);
   assert.match(source, /^@EditorJoinPreviousLine:/m);
+  assert.match(source, /^@EditorJoinPreviousPageLine:/m);
+  assert.match(source, /^@EditorKeyReadRecordLength:/m);
+  assert.match(source, /^@EditorKeyWriteRecordLength:/m);
   assert.match(source, /^@EditorMarkDirty:/m);
   assert.match(source, /^@EditorKeyRenderCurrentLineDirty:/m);
   assert.match(source, /^@EditorPromptAskYesNo:/m);
@@ -116,6 +119,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+19/);
+  assert.match(source, /TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK\s+\.equ\s+0x1F/);
+  assert.match(source, /TECM8_EDITOR_EDIT_RECORD_METADATA_MASK\s+\.equ\s+0xE0/);
   assert.match(source, /TECM8_EDITOR_KEY_BACKSPACE\s+\.equ\s+8/);
   assert.match(source, /TECM8_EDITOR_KEY_INSERT_MODE\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_KEY_NEWLINE\s+\.equ\s+13/);
@@ -151,10 +156,28 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorSplitLine/);
   assert.match(source, /JP\s+Z,EditorJoinPreviousLine/);
   assert.match(source, /@EditorKeyZeroRecordPadding:/);
+  assert.match(source, /@EditorKeyReadRecordLength:\n\s+LD\s+A,\(HL\)\n\s+AND\s+TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK/);
+  assert.match(source, /@EditorKeyWriteRecordLength:[\s\S]*?AND\s+TECM8_EDITOR_EDIT_RECORD_METADATA_MASK[\s\S]*?OR\s+B\n\s+LD\s+\(HL\),A/);
+  assert.match(source, /@EditorSplitPushLastRecordToNextPage:/);
+  assert.match(source, /EditorNavNextPageBuffer/);
   assert.match(source, /@EditorKeyClearRecord:/);
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
+});
+
+test('editor cross-page join proof is wired into package checks', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-cross-page-join-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-cross-page-join-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+EditorBackspaceChar/);
+  assert.match(proof, /EditorNavCachePageBuffer \+ \(15 \* 32\)/);
+  assert.match(runner, /verifyEditorCrossPageJoinProof/);
+  assert.match(runner, /PREVCUR/);
+  assert.match(packageJson, /"proof:display:editor-cross-page-join"/);
+  assert.match(packageJson, /proof:display:editor-cross-page-join/);
 });
 
 test('shell-launched editor interaction proof is wired into storage proof runner', () => {
@@ -233,7 +256,9 @@ test('editor mutation boundary proof covers fixed-record edge cases', () => {
   assert.match(proof, /CALL\s+EditorInsertChar/);
   assert.match(proof, /CALL\s+EditorRunKeys/);
   assert.match(proof, /BoundaryRecord0:\n\s+\.db\s+0/);
-  assert.match(proof, /BoundaryRecord1:\n\s+\.db\s+31,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
+  assert.match(proof, /BoundaryRecord1:\n\s+\.db\s+0x7F,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
+  assert.match(proof, /BoundaryRecord3:\n\s+\.db\s+0xA5,"ABCDE"/);
+  assert.match(proof, /BoundaryRecord5:\n\s+\.db\s+0x80/);
   assert.match(proof, /BoundaryReservedKeys:\n\s+\.db\s+9,"dl",0/);
   assert.match(proof, /BoundaryCursorCase1:/);
   assert.match(proof, /BoundaryCursorCase9:/);
@@ -246,12 +271,18 @@ test('editor mutation boundary proof covers fixed-record edge cases', () => {
   assert.match(runner, /text: 'ABDE'/);
   assert.match(runner, /text: 'XYZ!'/);
   assert.match(runner, /text: 'dl'/);
+  assert.match(runner, /expectedLengthBytes/);
+  assert.match(runner, /0xa4/);
+  assert.match(runner, /0x82/);
   assert.match(runner, /BoundaryCursorCase1', row: 0, col: 0/);
   assert.match(runner, /BoundaryCursorCase4', row: 1, col: 0/);
   assert.match(runner, /BoundaryCursorCase6', row: 2, col: 5/);
   assert.match(runner, /BoundaryCursorCase8', row: 4, col: 4/);
   assert.match(runner, /BoundaryCursorCase9', row: 5, col: 2/);
-  assert.match(runner, /expected 2/);
+  assert.match(runner, /BoundaryCursorCase10', row: 15, col: 0/);
+  assert.match(runner, /text: 'LE'/);
+  assert.match(runner, /text: 'FT'/);
+  assert.match(runner, /expected "PUSH"/);
   assert.match(packageJson, /"proof:display:editor-mutation-boundary"/);
   assert.match(packageJson, /proof:display:editor-mutation-boundary/);
 });

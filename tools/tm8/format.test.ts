@@ -1473,11 +1473,11 @@ test('fs import-text rejects unsupported source text and bad TM8 paths', () => {
   }
 });
 
-test('fs export-text rejects malformed records and host overwrites', () => {
+test('fs export-text masks source metadata bits and rejects malformed records and host overwrites', () => {
   const dir = mkdtempSync(join(tmpdir(), 'tm8-cli-'));
   try {
     const volumePath = join(dir, 'VOLUME.TM8');
-    const malformedLengthPath = join(dir, 'BADLEN.TM8');
+    const metadataLengthPath = join(dir, 'METALEN.TM8');
     const malformedPaddingPath = join(dir, 'BADPAD.TM8');
     const malformedSizePath = join(dir, 'BADSIZE.TM8');
     const malformedUtf8Path = join(dir, 'BADUTF8.TM8');
@@ -1485,29 +1485,27 @@ test('fs export-text rejects malformed records and host overwrites', () => {
     const goodRecord = Buffer.alloc(32);
     goodRecord[0] = 5;
     goodRecord.set(Buffer.from('start', 'utf8'), 1);
-    const badLength = Buffer.from(goodRecord);
-    badLength[0] = 32;
+    const metadataLength = Buffer.from(goodRecord);
+    metadataLength[0] = 0xe5;
     const badPadding = Buffer.from(goodRecord);
     badPadding[31] = 1;
     const badUtf8 = Buffer.alloc(32);
     badUtf8[0] = 1;
     badUtf8[1] = 0xff;
     writeFileSync(volumePath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', goodRecord));
-    writeFileSync(malformedLengthPath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', badLength));
+    writeFileSync(metadataLengthPath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', metadataLength));
     writeFileSync(malformedPaddingPath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', badPadding));
     writeFileSync(malformedSizePath, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', Buffer.alloc(31)));
     writeFileSync(malformedUtf8Path, importFileIntoVolumeImage(createVolumeImage(), '/src/main.asm', badUtf8));
     writeFileSync(existingPath, Buffer.from('keep\n', 'utf8'));
 
-    assert.throws(
-      () =>
-        execFileSync(
-          process.execPath,
-          ['--experimental-strip-types', 'tools/fs.ts', 'export-text', malformedLengthPath, '/src/main.asm', join(dir, 'badlen.asm')],
-          { cwd: process.cwd(), stdio: 'pipe' },
-        ),
-      /length 32 exceeds 31/,
+    const metadataOutPath = join(dir, 'metalen.asm');
+    execFileSync(
+      process.execPath,
+      ['--experimental-strip-types', 'tools/fs.ts', 'export-text', metadataLengthPath, '/src/main.asm', metadataOutPath],
+      { cwd: process.cwd(), stdio: 'pipe' },
     );
+    assert.deepEqual(readFileSync(metadataOutPath), Buffer.from('start\n', 'utf8'));
     assert.throws(
       () =>
         execFileSync(

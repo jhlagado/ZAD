@@ -512,12 +512,11 @@ async function main(): Promise<void> {
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const result = runtime.hardware.memory[resultAddr];
   const visiblePixels = hasVisibleGlcdPixels(platformRuntime);
-  const requiresVisiblePixels = proofName !== 'editor-viewport-bad-record-proof';
 
   if (result !== PROOF_PASS) {
     throw new Error(`display proof failed: marker=${resultToString(result)}`);
   }
-  if (requiresVisiblePixels && !visiblePixels) {
+  if (!visiblePixels) {
     throw new Error('display proof did not update Debug80 GLCD pixels');
   }
   if (proofName === 'structured-screen-proof') {

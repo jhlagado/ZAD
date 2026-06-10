@@ -7,6 +7,7 @@ TECM8_EDITOR_NAV_ERR_PATH       .equ    0x51
 TECM8_EDITOR_NAV_ERR_BACKUP     .equ    0x52
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 TECM8_EDITOR_NAV_PAGE_BYTES     .equ    512
+TECM8_EDITOR_NAV_WINDOW_BYTES   .equ    1024
 TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
 
 ; EditorOpenMain -
@@ -32,6 +33,8 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         XOR     A
         LD      (EditorNavCurrentPage),A
         LD      (EditorNavCacheValid),A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavDirtySectors),A
         JP      EditorRenderCurrent
 
 ; EditorRenderCurrent -
@@ -41,6 +44,8 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
 @EditorRenderCurrent:
         LD      A,(EditorNavCurrentPage)
         CALL    EditorNavRenderPage
+        RET     C
+        CALL    EditorNavLoadNextWindowPage
         RET     C
         JP      EditorClearDirty
 
@@ -68,11 +73,47 @@ TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
         RET     C
         CALL    EditorBackupCurrentPage
         JR      C,EditorSaveCurrentPageRestoreError
+        LD      A,(EditorNavDirtySectors)
+        AND     1
+        JR      Z,EditorSaveCurrentPageMaybeNext
         LD      A,(EditorNavCurrentPage)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
         CALL    EditorSaveSourcePage
         JR      C,EditorSaveCurrentPageRestoreError
+
+EditorSaveCurrentPageMaybeNext:
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        JR      Z,EditorSaveCurrentPageDone
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorSaveCurrentPageDone
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JR      Z,EditorSaveCurrentPageDone
+        INC     A
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavNextPageBuffer
+        CALL    EditorSaveSourcePage
+        JR      C,EditorSaveCurrentPageRestoreError
+
+EditorSaveCurrentPageDone:
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorSaveCurrentPageClean
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JR      Z,EditorSaveCurrentPageClean
+        LD      A,(EditorNavCachedPage)
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavCachePageBuffer
+        CALL    EditorSaveSourcePage
+        JR      C,EditorSaveCurrentPageRestoreError
+        XOR     A
+        LD      (EditorNavCachedPageDirty),A
+
+EditorSaveCurrentPageClean:
         CALL    EditorClearDirty
         JP      EditorViewportRestoreStatusRow
 
@@ -146,6 +187,21 @@ EditorLoadCurrentBackupPageRestoreError:
 @EditorClearDirty:
         XOR     A
         LD      (EditorNavDirty),A
+        LD      (EditorNavDirtySectors),A
+        RET
+
+; EditorMarkCurrentSectorDirty -
+; Mark the active source sector dirty. Cross-sector mutations can OR in the
+; adjacent-sector bit directly when they modify EditorNavNextPageBuffer.
+;!      out       A,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorMarkCurrentSectorDirty:
+        LD      A,1
+        LD      (EditorNavDirty),A
+        LD      HL,EditorNavDirtySectors
+        OR      (HL)
+        LD      (HL),A
+        XOR     A
         RET
 
 ; EditorPageDown -
@@ -158,10 +214,14 @@ EditorLoadCurrentBackupPageRestoreError:
         JP      Z,EditorNavPageErr
         INC     A
         LD      (EditorNavPendingPage),A
+        CALL    EditorNavRenderNextWindowPage
+        RET     C
+        OR      A
+        JR      NZ,EditorNavCommitPendingPageFromWindow
         CALL    EditorNavRenderCachedPendingPage
         RET     C
         OR      A
-        JR      NZ,EditorNavCommitPendingPage
+        JR      NZ,EditorNavCommitPendingPagePreserveDirty
         CALL    EditorNavRememberCurrentPage
         LD      A,(EditorNavPendingPage)
         CALL    EditorNavRenderPage
@@ -170,6 +230,19 @@ EditorNavCommitPendingPage:
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
         JP      EditorClearDirty
+
+EditorNavCommitPendingPagePreserveDirty:
+        LD      A,(EditorNavPendingPage)
+        LD      (EditorNavCurrentPage),A
+        JP      EditorNavLoadNextWindowPage
+
+EditorNavCommitPendingPageFromWindow:
+        LD      A,(EditorNavPendingPage)
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorNavLoadNextWindowPage
+        RET     C
+        XOR     A
+        RET
 
 ; EditorPageUp -
 ; Move back one page, render it, and commit the page only if rendering succeeds.
@@ -184,7 +257,7 @@ EditorNavCommitPendingPage:
         CALL    EditorNavRenderCachedPendingPage
         RET     C
         OR      A
-        JR      NZ,EditorNavCommitPendingPage
+        JR      NZ,EditorNavCommitPendingPagePreserveDirty
         CALL    EditorNavRememberCurrentPage
         LD      A,(EditorNavPendingPage)
         CALL    EditorNavRenderPage
@@ -207,6 +280,16 @@ EditorNavCommitPendingPage:
         LDIR
         LD      A,(EditorNavCurrentPage)
         LD      (EditorNavCachedPage),A
+        LD      A,(EditorNavDirtySectors)
+        AND     1
+        JR      NZ,EditorNavRememberCurrentDirtyReady
+        LD      A,(EditorNavDirty)
+        OR      A
+        JR      Z,EditorNavRememberCurrentDirtyReady
+        LD      A,1
+
+EditorNavRememberCurrentDirtyReady:
+        LD      (EditorNavCachedPageDirty),A
         LD      A,1
         LD      (EditorNavCacheValid),A
         XOR     A
@@ -226,6 +309,25 @@ EditorNavCommitPendingPage:
         CP      (HL)
         JR      NZ,EditorNavCachedPageMiss
         CALL    EditorNavSwapCachePage
+        LD      A,(EditorNavDirtySectors)
+        AND     1
+        LD      (EditorNavSwapByte),A
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorNavCachedCleanToCurrent
+        LD      A,(EditorNavDirtySectors)
+        OR      1
+        JR      EditorNavCachedCurrentDirtyReady
+
+EditorNavCachedCleanToCurrent:
+        LD      A,(EditorNavDirtySectors)
+        AND     0xFE
+
+EditorNavCachedCurrentDirtyReady:
+        LD      (EditorNavDirtySectors),A
+        LD      A,(EditorNavSwapByte)
+        LD      (EditorNavCachedPageDirty),A
+        CALL    EditorNavRefreshAggregateDirty
         LD      A,(EditorNavCurrentPage)
         LD      (EditorNavCachedPage),A
         LD      A,(EditorNavCacheHitCount)
@@ -237,6 +339,39 @@ EditorNavCommitPendingPage:
         RET
 
 EditorNavCachedPageMiss:
+        XOR     A
+        RET
+
+; EditorNavRenderNextWindowPage -
+; Slide the preloaded adjacent sector into the active page when paging down by
+; one sector. Returns NC,A=1 on window hit, NC,A=0 on miss, or C on render
+; failure.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavRenderNextWindowPage:
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        RET     Z
+        LD      A,(EditorNavPendingPage)
+        LD      HL,EditorNavCurrentPage
+        DEC     A
+        CP      (HL)
+        JR      NZ,EditorNavNextWindowPageMiss
+        CALL    EditorNavRememberCurrentPage
+        CALL    EditorNavSlideNextPageToCurrent
+        LD      A,(EditorNavWindowHitCount)
+        INC     A
+        LD      (EditorNavWindowHitCount),A
+        LD      A,(EditorNavDirtySectors)
+        SRL     A
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        CALL    EditorRenderPageBuffer
+        RET     C
+        LD      A,1
+        RET
+
+EditorNavNextWindowPageMiss:
         XOR     A
         RET
 
@@ -265,6 +400,40 @@ EditorNavSwapCachePageLoop:
         XOR     A
         RET
 
+; EditorNavRefreshAggregateDirty -
+; Keep the legacy EditorNavDirty flag compatible with the per-sector dirty bits.
+;!      out       A,carry,zero
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorNavRefreshAggregateDirty:
+        LD      A,(EditorNavDirtySectors)
+        OR      A
+        JR      NZ,EditorNavRefreshAggregateSet
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorNavRefreshAggregateClean
+
+EditorNavRefreshAggregateSet:
+        LD      A,1
+        LD      (EditorNavDirty),A
+        XOR     A
+        RET
+
+EditorNavRefreshAggregateClean:
+        LD      (EditorNavDirty),A
+        RET
+
+; EditorNavSlideNextPageToCurrent -
+; Copy the adjacent sector into the active sector buffer.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavSlideNextPageToCurrent:
+        LD      HL,EditorNavNextPageBuffer
+        LD      DE,EditorNavPageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+        LDIR
+        XOR     A
+        RET
+
 ;!      in        A
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -284,6 +453,92 @@ EditorNavRenderPageRestoreError:
         PUSH    AF
         CALL    EditorViewportRestoreStatusRow
         POP     AF
+        RET
+
+; EditorNavLoadNextWindowPage -
+; Preload the next source sector into the adjacent window buffer. A short file
+; is represented as a blank sector so edits can grow into it before save.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavLoadNextWindowPage:
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JR      Z,EditorNavNextWindowUnavailable
+        INC     A
+        LD      (EditorNavNextPageNumber),A
+        LD      B,A
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JR      Z,EditorNavLoadNextWindowFromDisk
+        LD      A,(EditorNavCachedPage)
+        CP      B
+        JR      NZ,EditorNavLoadNextWindowFromDisk
+        CALL    EditorNavCopyCachedPageToNext
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorNavLoadNextWindowCachedClean
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+
+EditorNavLoadNextWindowCachedClean:
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        XOR     A
+        RET
+
+EditorNavLoadNextWindowFromDisk:
+        LD      A,(EditorNavNextPageNumber)
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavNextPageBuffer
+        CALL    EditorLoadSourcePage
+        JR      C,EditorNavLoadNextWindowError
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        XOR     A
+        RET
+
+EditorNavLoadNextWindowError:
+        CP      EDITOR_LOAD_ERR_SIZE
+        RET     NZ
+        CALL    EditorNavClearNextPageBuffer
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        XOR     A
+        RET
+
+EditorNavNextWindowUnavailable:
+        XOR     A
+        LD      (EditorNavNextPageValid),A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavClearNextPageBuffer:
+        LD      HL,EditorNavNextPageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+        XOR     A
+
+EditorNavClearNextPageBufferLoop:
+        XOR     A
+        LD      (HL),A
+        INC     HL
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorNavClearNextPageBufferLoop
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorNavCopyCachedPageToNext:
+        LD      HL,EditorNavCachePageBuffer
+        LD      DE,EditorNavNextPageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+        LDIR
+        XOR     A
         RET
 
 ; EditorNavShowStatus -
@@ -441,6 +696,21 @@ EditorNavCacheHitCount:
 EditorNavCacheStoreCount:
         .db     0
 
+EditorNavCachedPageDirty:
+        .db     0
+
+EditorNavWindowHitCount:
+        .db     0
+
+EditorNavNextPageValid:
+        .db     0
+
+EditorNavNextPageNumber:
+        .db     0
+
+EditorNavDirtySectors:
+        .db     0
+
 EditorNavSwapByte:
         .db     0
 
@@ -491,4 +761,7 @@ EditorStatusUnknownKeyText:
 EditorNavCachePageBuffer       .equ    TECM8_EDITOR_NAV_CACHE_BASE
 
 EditorNavPageBuffer:
+        .ds     TECM8_EDITOR_NAV_PAGE_BYTES
+
+EditorNavNextPageBuffer:
         .ds     TECM8_EDITOR_NAV_PAGE_BYTES

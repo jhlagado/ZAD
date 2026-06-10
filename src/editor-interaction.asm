@@ -32,6 +32,8 @@ TECM8_EDITOR_CURSOR_MAX_ROW             .equ    9
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    19
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
 TECM8_EDITOR_CURSOR_VISIBLE_COLS        .equ    20
+TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK    .equ    0x1F
+TECM8_EDITOR_EDIT_RECORD_METADATA_MASK  .equ    0xE0
 TECM8_EDITOR_INTERACTION_ERR_EOF        .equ    0x34
 TECM8_EDITOR_EDIT_RECORD_BYTES          .equ    32
 TECM8_EDITOR_EDIT_RECORD_TEXT_MAX       .equ    31
@@ -313,18 +315,12 @@ EditorKeyQuitPrompt:
         JP      EditorKeyLoop
 
 EditorKeyPageDown:
-        LD      A,(EditorNavDirty)
-        OR      A
-        JP      NZ,EditorKeyDirtyPageBlocked
         CALL    EditorPageDown
         JR      C,EditorKeyNavigationErr
         CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
-        LD      A,(EditorNavDirty)
-        OR      A
-        JP      NZ,EditorKeyDirtyPageBlocked
         CALL    EditorPageUp
         JR      C,EditorKeyNavigationErr
         CALL    EditorInvalidateCursorOverlay
@@ -637,9 +633,10 @@ EditorShouldIgnoreModifiedPrintableNo:
 @EditorInsertChar:
         LD      (EditorPendingChar),A
         CALL    EditorKeyCurrentRecord
-        LD      A,(HL)
+        CALL    EditorKeyReadRecordLength
         CP      TECM8_EDITOR_EDIT_RECORD_TEXT_MAX
         JR      NC,EditorInsertDone
+        LD      (EditorLineLength),A
         LD      B,A
         LD      A,(EditorCursorCol)
         CP      B
@@ -684,7 +681,9 @@ EditorInsertWriteChar:
         LD      A,(EditorPendingChar)
         LD      (HL),A
         LD      HL,(EditorRecordBase)
-        INC     (HL)
+        LD      A,(EditorLineLength)
+        INC     A
+        CALL    EditorKeyWriteRecordLength
         CALL    EditorKeyAdvanceCursor
         LD      A,1
         RET
@@ -724,13 +723,18 @@ EditorBackspaceDone:
 
         LD      A,15
         CALL    EditorKeyRecordAtRow
-        LD      A,(HL)
+        CALL    EditorKeyReadRecordLength
         OR      A
-        JP      NZ,EditorSplitDone
+        JR      Z,EditorSplitTailAvailable
+        CALL    EditorSplitPushLastRecordToNextPage
+        OR      A
+        JP      Z,EditorSplitDone
+
+EditorSplitTailAvailable:
 
         CALL    EditorKeyCurrentRecord
         LD      (EditorRecordBase),HL
-        LD      A,(HL)
+        CALL    EditorKeyReadRecordLength
         LD      (EditorLineLength),A
         LD      B,A
         LD      A,(EditorCursorCol)
@@ -778,7 +782,7 @@ EditorSplitShiftLoop:
 EditorSplitShiftDone:
         LD      HL,(EditorRecordBase)
         LD      A,(EditorLineColumn)
-        LD      (HL),A
+        CALL    EditorKeyWriteRecordLength
         LD      A,(EditorLineLength)
         LD      B,A
         LD      A,(EditorLineColumn)
@@ -833,6 +837,67 @@ EditorSplitDone:
         XOR     A
         RET
 
+; EditorSplitPushLastRecordToNextPage -
+; Move current sector row 15 into next sector row 0, shifting the next sector
+; down one record. Returns A=1 on success, A=0 when the next sector cannot
+; accept the pushed record.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorSplitPushLastRecordToNextPage:
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorSplitPushNextDone
+        LD      HL,EditorNavNextPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        CALL    EditorKeyReadRecordLength
+        OR      A
+        JR      NZ,EditorSplitPushNextDone
+
+        LD      HL,EditorNavNextPageBuffer + (14 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        LD      (EditorLineSrc),HL
+        LD      HL,EditorNavNextPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        LD      (EditorLineDest),HL
+        LD      A,15
+        LD      (EditorLineRowsLeft),A
+
+EditorSplitPushNextShiftLoop:
+        LD      A,(EditorLineRowsLeft)
+        OR      A
+        JR      Z,EditorSplitPushCopyLast
+        LD      HL,(EditorLineSrc)
+        LD      DE,(EditorLineDest)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      HL,(EditorLineSrc)
+        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineSrc),HL
+        LD      HL,(EditorLineDest)
+        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineRowsLeft)
+        DEC     A
+        LD      (EditorLineRowsLeft),A
+        JR      EditorSplitPushNextShiftLoop
+
+EditorSplitPushCopyLast:
+        LD      HL,EditorNavPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        LD      DE,EditorNavNextPageBuffer
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      HL,EditorNavPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        CALL    EditorKeyClearRecord
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,1
+        RET
+
+EditorSplitPushNextDone:
+        XOR     A
+        RET
+
 ; EditorJoinPreviousLine -
 ; Join the current record into the previous one when the cursor is at column 0.
 ; The join is a no-op on row 0 or when the combined text would exceed 31 bytes.
@@ -845,17 +910,17 @@ EditorSplitDone:
         JP      NZ,EditorJoinDone
         LD      A,(EditorCursorRow)
         OR      A
-        JP      Z,EditorJoinDone
+        JP      Z,EditorJoinPreviousPageLine
         LD      (EditorLineCurrentRow),A
         CALL    EditorKeyCurrentRecord
         LD      (EditorLineCurrentBase),HL
-        LD      A,(HL)
+        CALL    EditorKeyReadRecordLength
         LD      (EditorLineCurrentLength),A
         LD      A,(EditorCursorRow)
         DEC     A
         CALL    EditorKeyRecordAtRow
         LD      (EditorLinePrevBase),HL
-        LD      A,(HL)
+        CALL    EditorKeyReadRecordLength
         LD      (EditorLinePrevLength),A
         LD      B,A
         LD      A,(EditorLineCurrentLength)
@@ -865,7 +930,7 @@ EditorSplitDone:
         LD      (EditorLineJoinedLength),A
         LD      HL,(EditorLinePrevBase)
         LD      A,(EditorLineJoinedLength)
-        LD      (HL),A
+        CALL    EditorKeyWriteRecordLength
         INC     HL
         LD      D,0
         LD      A,(EditorLinePrevLength)
@@ -939,6 +1004,125 @@ EditorJoinDone:
         XOR     A
         RET
 
+; EditorJoinPreviousPageLine -
+; Join current row 0 into cached previous-page row 15, then make the previous
+; page active. Returns A=1 on success, A=0 when the cached previous page cannot
+; accept the join.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorJoinPreviousPageLine:
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JP      Z,EditorJoinDone
+        LD      A,(EditorNavCurrentPage)
+        OR      A
+        JP      Z,EditorJoinDone
+        DEC     A
+        LD      HL,EditorNavCachedPage
+        CP      (HL)
+        JP      NZ,EditorJoinDone
+
+        LD      HL,EditorNavPageBuffer
+        LD      (EditorLineCurrentBase),HL
+        CALL    EditorKeyReadRecordLength
+        LD      (EditorLineCurrentLength),A
+        LD      HL,EditorNavCachePageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        LD      (EditorLinePrevBase),HL
+        CALL    EditorKeyReadRecordLength
+        LD      (EditorLinePrevLength),A
+        LD      B,A
+        LD      A,(EditorLineCurrentLength)
+        ADD     A,B
+        CP      TECM8_EDITOR_EDIT_RECORD_TEXT_MAX + 1
+        JP      NC,EditorJoinDone
+        LD      (EditorLineJoinedLength),A
+
+        LD      HL,(EditorLinePrevBase)
+        LD      A,(EditorLineJoinedLength)
+        CALL    EditorKeyWriteRecordLength
+        INC     HL
+        LD      D,0
+        LD      A,(EditorLinePrevLength)
+        LD      E,A
+        ADD     HL,DE
+        LD      DE,(EditorLineCurrentBase)
+        INC     DE
+        LD      A,(EditorLineCurrentLength)
+        LD      B,A
+        OR      A
+        JR      Z,EditorJoinPreviousPageZeroPadding
+
+EditorJoinPreviousPageCopyLoop:
+        LD      A,(DE)
+        LD      (HL),A
+        INC     DE
+        INC     HL
+        DJNZ    EditorJoinPreviousPageCopyLoop
+
+EditorJoinPreviousPageZeroPadding:
+        LD      HL,(EditorLinePrevBase)
+        LD      A,(EditorLineJoinedLength)
+        CALL    EditorKeyZeroRecordPadding
+
+        LD      HL,EditorNavPageBuffer + TECM8_EDITOR_EDIT_RECORD_BYTES
+        LD      (EditorLineSrc),HL
+        LD      HL,EditorNavPageBuffer
+        LD      (EditorLineDest),HL
+        LD      A,15
+        LD      (EditorLineRowsLeft),A
+
+EditorJoinPreviousPageShiftLoop:
+        LD      A,(EditorLineRowsLeft)
+        OR      A
+        JR      Z,EditorJoinPreviousPageClearLast
+        LD      HL,(EditorLineSrc)
+        LD      DE,(EditorLineDest)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      HL,(EditorLineSrc)
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineSrc),HL
+        LD      HL,(EditorLineDest)
+        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
+        ADD     HL,DE
+        LD      (EditorLineDest),HL
+        LD      A,(EditorLineRowsLeft)
+        DEC     A
+        LD      (EditorLineRowsLeft),A
+        JR      EditorJoinPreviousPageShiftLoop
+
+EditorJoinPreviousPageClearLast:
+        LD      HL,EditorNavPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
+        CALL    EditorKeyClearRecord
+
+        LD      HL,EditorNavPageBuffer
+        LD      DE,EditorNavNextPageBuffer
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES * 16
+        LDIR
+        LD      HL,EditorNavCachePageBuffer
+        LD      DE,EditorNavPageBuffer
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES * 16
+        LDIR
+
+        LD      A,(EditorNavCurrentPage)
+        DEC     A
+        LD      (EditorNavCurrentPage),A
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        XOR     A
+        LD      (EditorNavCacheValid),A
+        LD      (EditorNavCachedPageDirty),A
+        LD      A,3
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,15
+        LD      (EditorCursorRow),A
+        LD      A,(EditorLinePrevLength)
+        LD      (EditorCursorCol),A
+        LD      A,1
+        RET
+
 ; EditorDeleteChar -
 ; Delete the character at the cursor in the current source record.
 ; Returns A=1 when the buffer changed, A=0 when delete was a no-op.
@@ -946,7 +1130,8 @@ EditorJoinDone:
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorDeleteChar:
         CALL    EditorKeyCurrentRecord
-        LD      A,(HL)
+        CALL    EditorKeyReadRecordLength
+        LD      (EditorLineLength),A
         LD      B,A
         LD      A,(EditorCursorCol)
         CP      B
@@ -976,7 +1161,9 @@ EditorDeleteShiftLoop:
 
 EditorDeleteShorten:
         LD      HL,(EditorRecordBase)
-        DEC     (HL)
+        LD      A,(EditorLineLength)
+        DEC     A
+        CALL    EditorKeyWriteRecordLength
         LD      A,1
         RET
 
@@ -1036,10 +1223,7 @@ EditorDeleteDone:
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorMarkDirty:
-        LD      A,1
-        LD      (EditorNavDirty),A
-        XOR     A
-        RET
+        JP      EditorMarkCurrentSectorDirty
 
 ; EditorPromptAskYesNo -
 ; Activate a status-line yes/no prompt using the NUL-terminated text at HL.
@@ -1185,6 +1369,27 @@ EditorKeyZeroRecordPaddingLoop:
         DJNZ    EditorKeyZeroRecordPaddingLoop
 
 EditorKeyZeroRecordPaddingDone:
+        XOR     A
+        RET
+
+;!      in        HL
+;!      out       A,carry,zero
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorKeyReadRecordLength:
+        LD      A,(HL)
+        AND     TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK
+        RET
+
+;!      in        A,HL
+;!      out       A,carry,zero
+;!      clobbers  A,B,zero,sign,parity,halfCarry
+@EditorKeyWriteRecordLength:
+        AND     TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK
+        LD      B,A
+        LD      A,(HL)
+        AND     TECM8_EDITOR_EDIT_RECORD_METADATA_MASK
+        OR      B
+        LD      (HL),A
         XOR     A
         RET
 

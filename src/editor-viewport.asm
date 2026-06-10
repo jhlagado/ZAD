@@ -6,8 +6,8 @@
 TECM8_EDITOR_RECORD_BYTES          .equ    32
 TECM8_EDITOR_VISIBLE_ROWS          .equ    10
 TECM8_EDITOR_MAX_RECORD_TEXT       .equ    31
+TECM8_EDITOR_RECORD_LENGTH_MASK    .equ    0x1F
 TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
-TECM8_EDITOR_ERR_RECORD_LENGTH     .equ    0x01
 TECM8_EDITOR_ERR_ROW               .equ    0x02
 
 ; EditorViewportRender -
@@ -176,8 +176,7 @@ EditorViewportRowError:
 @EditorViewportCopyRecord:
         LD      HL,(EditorRecordPtr)
         LD      A,(HL)
-        CP      TECM8_EDITOR_MAX_RECORD_TEXT + 1
-        JR      NC,EditorViewportRecordLengthError
+        AND     TECM8_EDITOR_RECORD_LENGTH_MASK
         LD      B,A
         INC     HL
         LD      (EditorRecordPtr),HL
@@ -205,11 +204,6 @@ EditorViewportTerminateRow:
         ADD     HL,DE
         LD      (EditorTextPtr),HL
         XOR     A
-        RET
-
-EditorViewportRecordLengthError:
-        LD      A,TECM8_EDITOR_ERR_RECORD_LENGTH
-        SCF
         RET
 
 EditorScreenDescriptor:
