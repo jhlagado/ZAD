@@ -103,7 +103,7 @@ test('write mode updates the generated GLCD split report exactly', () => {
 });
 
 test('generated MON3 GLCD split report is checked in and current', () => {
-  const docsPath = resolve(repoRoot, 'docs/mon3-glcd-split.md');
+  const docsPath = resolve(repoRoot, 'docs/mon3/glcd-split.md');
   const split = analyzeMon3GlcdSplit({ bundleRoot: defaultMon3BundleRoot() });
 
   assert.equal(readFileSync(docsPath, 'utf8'), renderMon3GlcdSplitMarkdown(split));

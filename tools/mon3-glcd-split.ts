@@ -425,7 +425,7 @@ if (require.main === module) {
   const args = process.argv.slice(2);
   const outputIndex = args.indexOf('--output');
   const bundleRootIndex = args.indexOf('--bundle-root');
-  const outputPath = resolve(outputIndex === -1 ? 'docs/mon3-glcd-split.md' : args[outputIndex + 1]);
+  const outputPath = resolve(outputIndex === -1 ? 'docs/mon3/glcd-split.md' : args[outputIndex + 1]);
   const bundleRoot = bundleRootIndex === -1 ? defaultMon3BundleRoot() : resolve(args[bundleRootIndex + 1]);
 
   if (args.includes('--check')) {

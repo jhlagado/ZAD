@@ -138,7 +138,7 @@ services TECM8 should wrap, and only later considers shaving monitor/PATA
 components from a modified ROM to free resident space for TECM8 support around
 banked tools. The callable service surface is tracked in
 [TECM8 BIOS API Draft](tecm8-bios-api.md), while ROM-saving analysis lives in
-[MON3 Decomposition Plan](mon3-decomposition.md).
+[MON3 Decomposition Plan](mon3/decomposition.md).
 
 ## Resident Versus Overlay Code
 

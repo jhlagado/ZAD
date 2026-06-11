@@ -41,8 +41,11 @@ Start here:
 - [Editor Design](editor-design.md)
 - [Debug80 Editor Session](debug80-editor-session.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
-- [MON3 Decomposition Plan](mon3-decomposition.md)
-- [MON3 Service Inventory](mon3-service-inventory.md)
-- [MON3 Storage Split Report](mon3-storage-split.md)
-- [MON3 GLCD Split Report](mon3-glcd-split.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
+
+MON3 analysis is intentionally separated from the main TECM8 editor docs:
+
+- [MON3 Decomposition Plan](mon3/decomposition.md)
+- [MON3 Service Inventory](mon3/service-inventory.md)
+- [MON3 Storage Split Report](mon3/storage-split.md)
+- [MON3 GLCD Split Report](mon3/glcd-split.md)

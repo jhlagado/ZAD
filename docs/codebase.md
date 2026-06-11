@@ -759,10 +759,10 @@ toward.
   overlay code, and compactness principles.
 - `docs/azm-style-guide.md`: assembly style and routine contract conventions.
 - `docs/tecm8-bios-api.md`: current BIOS wrapper/API draft.
-- `docs/mon3-decomposition.md`: plan for classifying MON3 code.
-- `docs/mon3-service-inventory.md`: generated MON3 service classification.
-- `docs/mon3-storage-split.md`: generated MON3 storage code analysis.
-- `docs/mon3-glcd-split.md`: generated MON3 GLCD code and RAM analysis.
+- `docs/mon3/decomposition.md`: plan for classifying MON3 code.
+- `docs/mon3/service-inventory.md`: generated MON3 service classification.
+- `docs/mon3/storage-split.md`: generated MON3 storage code analysis.
+- `docs/mon3/glcd-split.md`: generated MON3 GLCD code and RAM analysis.
 - `docs/codebase.md`: this tour.
 
 Recent editor-design additions also matter for implementation work:

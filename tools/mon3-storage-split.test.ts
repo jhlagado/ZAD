@@ -97,7 +97,7 @@ test('write mode updates the generated storage split report exactly', () => {
 });
 
 test('generated MON3 storage split report is checked in and current', () => {
-  const docsPath = resolve(repoRoot, 'docs/mon3-storage-split.md');
+  const docsPath = resolve(repoRoot, 'docs/mon3/storage-split.md');
   const split = analyzeMon3StorageSplit({ bundleRoot: defaultMon3BundleRoot() });
 
   assert.equal(readFileSync(docsPath, 'utf8'), renderMon3StorageSplitMarkdown(split));

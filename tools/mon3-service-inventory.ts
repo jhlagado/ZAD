@@ -376,7 +376,7 @@ function checkMon3ServiceInventoryMarkdown(options: WriteInventoryOptions): void
 
 function parseCliArgs(argv: string[]): { check: boolean; outputPath: string; bundleRoot: string } {
   let check = false;
-  let outputPath = resolve(repoRoot(), 'docs/mon3-service-inventory.md');
+  let outputPath = resolve(repoRoot(), 'docs/mon3/service-inventory.md');
   let bundleRoot = defaultMon3BundleRoot();
 
   for (let index = 0; index < argv.length; index += 1) {

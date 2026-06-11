@@ -34,7 +34,8 @@ Start with the documentation:
 - [Editor Design](docs/editor-design.md)
 - [Memory and Code Quality Manifest](docs/memory-and-code-quality.md)
 - [TECM8 BIOS API Draft](docs/tecm8-bios-api.md)
-- [MON3 Decomposition Plan](docs/mon3-decomposition.md)
+
+MON3 analysis and ROM-reduction notes live under [docs/mon3](docs/mon3/).
 
 Useful local checks:
 

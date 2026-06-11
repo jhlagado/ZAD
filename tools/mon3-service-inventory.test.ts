@@ -99,7 +99,7 @@ test('write mode updates the generated docs inventory exactly', () => {
 });
 
 test('generated MON3 service inventory is checked in and current', () => {
-  const docsPath = resolve(repoRoot, 'docs/mon3-service-inventory.md');
+  const docsPath = resolve(repoRoot, 'docs/mon3/service-inventory.md');
   const inventory = buildMon3ServiceInventory({
     bundleRoot: defaultMon3BundleRoot(),
   });

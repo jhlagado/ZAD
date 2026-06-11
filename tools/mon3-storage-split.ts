@@ -346,7 +346,7 @@ function hex(value: number, width: number): string {
 
 function parseCliArgs(argv: string[]): { check: boolean; outputPath: string; bundleRoot: string } {
   let check = false;
-  let outputPath = resolve(repoRoot(), 'docs/mon3-storage-split.md');
+  let outputPath = resolve(repoRoot(), 'docs/mon3/storage-split.md');
   let bundleRoot = defaultMon3BundleRoot();
 
   for (let index = 0; index < argv.length; index += 1) {
