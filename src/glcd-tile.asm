@@ -197,7 +197,7 @@ GlcdTileTextRunDone:
 @GlcdTileClearTextRow:
         LD      A,B
         CP      TECM8_GLCD_TILE_ROWS
-        JR      NC,GlcdTileRangeError
+        JP      NC,GlcdTileRangeError
         LD      (GlcdTileTextRow),A
         XOR     A
         LD      (GlcdTileTextColumn),A
@@ -225,6 +225,29 @@ GlcdTileClearTextRowDone:
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileFlushFull:
+        LD      A,(GlcdTileFlushFullCount)
+        INC     A
+        LD      (GlcdTileFlushFullCount),A
+        LD      HL,TECM8_GLCD_TILE_TGBUF
+        LD      (TECM8_GLCD_TILE_VPORT),HL
+        CALL    BiosDisplayUpdate
+        RET
+
+; GlcdTileFlushRow -
+; Push one dirty text row. This currently delegates to the MON3 full-viewport
+; updater, but keeps row-scoped callers off the full-flush API so a later GLCD
+; backend can replace this with a true row transfer.
+; Input: A = row (0-9)
+;!      in        A
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileFlushRow:
+        CP      TECM8_GLCD_TILE_ROWS
+        JR      NC,GlcdTileRangeError
+        LD      (GlcdTileFlushRowLast),A
+        LD      A,(GlcdTileFlushRowCount)
+        INC     A
+        LD      (GlcdTileFlushRowCount),A
         LD      HL,TECM8_GLCD_TILE_TGBUF
         LD      (TECM8_GLCD_TILE_VPORT),HL
         CALL    BiosDisplayUpdate
@@ -329,3 +352,9 @@ GlcdTileGlyphPtr:
         .dw     0
 GlcdTileTextPtr:
         .dw     0
+GlcdTileFlushFullCount:
+        .db     0
+GlcdTileFlushRowCount:
+        .db     0
+GlcdTileFlushRowLast:
+        .db     0

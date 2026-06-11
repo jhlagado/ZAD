@@ -12,21 +12,21 @@ PROOF_FAIL       .equ     0xE0
 ;!      clobbers  A,BC,DE,HL
 @Start:
         CALL    DisplayInit
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,1
         LD      (CaseMarker),A
         LD      HL,CmdEdit
         LD      DE,NoKeys
         CALL    ShellRunEditorSession
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         CALL    ResetRenderCounters
         LD      A,2
         LD      (CaseMarker),A
         LD      HL,MovementKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(DisplayRenderScreenCount)
         LD      (MoveScreenCount),A
         LD      A,(EditorRenderPageBufferCount)
@@ -35,13 +35,17 @@ PROOF_FAIL       .equ     0xE0
         LD      (MoveRowCount),A
         LD      A,(EditorViewportRenderRowMarkerCount)
         LD      (MoveMarkerCount),A
+        LD      A,(GlcdTileFlushFullCount)
+        LD      (MoveFullFlushCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (MoveRowFlushCount),A
 
         CALL    ResetRenderCounters
         LD      A,3
         LD      (CaseMarker),A
         LD      HL,InsertKeys
         CALL    EditorRunKeys
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(DisplayRenderScreenCount)
         LD      (InsertScreenCount),A
         LD      A,(EditorRenderPageBufferCount)
@@ -50,6 +54,10 @@ PROOF_FAIL       .equ     0xE0
         LD      (InsertRowCount),A
         LD      A,(EditorViewportRenderRowMarkerCount)
         LD      (InsertMarkerCount),A
+        LD      A,(GlcdTileFlushFullCount)
+        LD      (InsertFullFlushCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (InsertRowFlushCount),A
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -74,6 +82,8 @@ ProofFailedDone:
         LD      (EditorRenderPageBufferCount),A
         LD      (EditorViewportRenderRecordRowCount),A
         LD      (EditorViewportRenderRowMarkerCount),A
+        LD      (GlcdTileFlushFullCount),A
+        LD      (GlcdTileFlushRowCount),A
         RET
 
 ; Stub LoadProjectConfig for shell-to-editor proof.
@@ -142,6 +152,10 @@ MoveRowCount:
         .db     0
 MoveMarkerCount:
         .db     0
+MoveFullFlushCount:
+        .db     0
+MoveRowFlushCount:
+        .db     0
 InsertScreenCount:
         .db     0
 InsertPageCount:
@@ -149,4 +163,8 @@ InsertPageCount:
 InsertRowCount:
         .db     0
 InsertMarkerCount:
+        .db     0
+InsertFullFlushCount:
+        .db     0
+InsertRowFlushCount:
         .db     0

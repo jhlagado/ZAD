@@ -288,7 +288,8 @@ DisplayCursorSkipSecondWrite:
 DisplayCursorNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorWriteLoop
-        CALL    GlcdTileFlushFull
+        LD      A,(DisplayCursorCellRow)
+        CALL    GlcdTileFlushRow
         RET
 
 DisplayCursorNoop:
@@ -404,7 +405,8 @@ DisplayCursorEraseSkipSecond:
 DisplayCursorEraseNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorEraseWriteLoop
-        CALL    GlcdTileFlushFull
+        LD      A,(DisplayCursorCellRow)
+        CALL    GlcdTileFlushRow
         RET
 
 DisplayCursorEraseNoop:

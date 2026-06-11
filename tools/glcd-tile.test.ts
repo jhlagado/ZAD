@@ -18,6 +18,7 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
     'GlcdTileDrawTextRun',
     'GlcdTileClearTextRow',
     'GlcdTileFlushFull',
+    'GlcdTileFlushRow',
     'GlcdTilePrepareCell',
   ]) {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
@@ -36,6 +37,9 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
   assert.match(source, /GlcdTileClearMaskTable:/);
   assert.match(source, /LD\s+HL,TECM8_GLCD_TILE_TGBUF\n\s+LD\s+\(TECM8_GLCD_TILE_VPORT\),HL\n\s+CALL\s+BiosDisplayUpdate/);
   assert.match(source, /CALL\s+BiosDisplayUpdate/);
+  assert.match(source, /GlcdTileFlushFullCount:\n\s+\.db\s+0/);
+  assert.match(source, /GlcdTileFlushRowCount:\n\s+\.db\s+0/);
+  assert.match(source, /GlcdTileFlushRowLast:\n\s+\.db\s+0/);
 });
 
 test('GLCD tile layer does not call MON3 terminal glyph policy', () => {

@@ -240,7 +240,8 @@ EditorViewportRowError:
         LD      C,TECM8_DISPLAY_MARKER_NONE
         CALL    DisplayRenderLine
         RET     C
-        CALL    GlcdTileFlushFull
+        LD      A,TECM8_DISPLAY_STATUS_ROW
+        CALL    GlcdTileFlushRow
         RET
 
 ; EditorViewportRestoreStatusRow -
@@ -254,7 +255,8 @@ EditorViewportRowError:
         LD      A,TECM8_DISPLAY_STATUS_ROW
         CALL    DisplayRenderLine
         RET     C
-        CALL    GlcdTileFlushFull
+        LD      A,TECM8_DISPLAY_STATUS_ROW
+        CALL    GlcdTileFlushRow
         RET
 
 ; EditorViewportCopyRecord -

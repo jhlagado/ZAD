@@ -295,9 +295,15 @@ Work:
   before drawing the tile layout. Each rendered row clears its own text cells and
   overwrites the gutter, so short lines replacing long lines do not leave stale
   glyph pixels.
-- Replace full GLCD flushes with dirty row or dirty byte-range flushes. Start
-  with row-granular flushing, because it is easier to prove and fits the current
-  6-pixel text-row model.
+- Done: introduced row-scoped GLCD flush scheduling. Cursor overlays, status
+  overlays, current-line redraws, and vertical current-row marker changes now
+  call `GlcdTileFlushRow` instead of the full-flush API. The current
+  `GlcdTileFlushRow` still delegates to MON3's full `plotToLCD` backend, so
+  this completes the editor scheduling boundary but not the later hardware
+  row-transfer optimization.
+- Replace MON3-backed row flushes with true dirty row or dirty byte-range GLCD
+  transfers. Start with row-granular flushing, because it is easier to prove and
+  fits the current 6-pixel text-row model.
 - Add a small display work queue or dirty mask:
   - full viewport dirty for page loads, restore, and explicit redraw
   - dirty row for vertical cursor movement, line edits, status prompt restore
@@ -324,7 +330,7 @@ Work:
 Incremental implementation order:
 
 1. Keep full tile repaint, but remove unnecessary clear-first behavior.
-2. Introduce dirty row scheduling while still flushing through MON3.
+2. Done: introduce dirty row scheduling while still flushing through MON3.
 3. Replace full MON3 `plotToLCD` flushes with a TECM8-owned row/byte-range GLCD
    flush backend.
 4. Interleave keyboard polling between bounded GLCD flush slices.

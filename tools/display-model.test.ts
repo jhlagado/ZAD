@@ -71,7 +71,7 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /@DisplayEraseCursorCell:/);
   assert.match(source, /CP\s+TECM8_DISPLAY_EDIT_ROWS/);
   assert.match(source, /CP\s+TECM8_DISPLAY_MAX_TEXT_CHARS/);
-  assert.match(source, /CALL\s+GlcdTileFlushFull/);
+  assert.match(source, /CALL\s+GlcdTileFlushRow/);
   assert.match(source, /DisplayCursorSavedBytes:/);
   assert.match(source, /DisplayRenderScreenCount:/);
   assert.match(source, /LD\s+\(DisplayCursorOriginalByte\),A/);
