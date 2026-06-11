@@ -39,6 +39,7 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         LD      (EditorNavCurrentPage),A
         LD      (EditorNavCacheValid),A
         LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
         LD      (EditorNavDirtySectors),A
         CALL    EditorNavResetViewport
         JP      EditorRenderCurrent
@@ -141,6 +142,8 @@ EditorSaveCurrentPageMaybeNext:
         LD      HL,EditorNavNextPageBuffer
         CALL    EditorSaveSourcePage
         JR      C,EditorSaveCurrentPageRestoreError
+        XOR     A
+        LD      (EditorNavNextPageSynthetic),A
 
 EditorSaveCurrentPageDone:
         LD      A,(EditorNavCachedPageDirty)
@@ -549,6 +552,14 @@ EditorNavCachedPageMiss:
         DEC     A
         CP      (HL)
         JR      NZ,EditorNavNextWindowPageMiss
+        LD      A,(EditorNavNextPageSynthetic)
+        OR      A
+        JR      Z,EditorNavNextWindowPageReady
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        JP      Z,EditorNavPageErr
+
+EditorNavNextWindowPageReady:
         CALL    EditorNavRememberCurrentPage
         CALL    EditorNavSlideNextPageToCurrent
         LD      A,(EditorNavWindowHitCount)
@@ -645,6 +656,7 @@ EditorNavRenderPageRestoreError:
         PUSH    AF
         CALL    EditorViewportRestoreStatusRow
         POP     AF
+        SCF
         RET
 
 ; EditorNavLoadNextWindowPage -
@@ -675,6 +687,8 @@ EditorNavRenderPageRestoreError:
         CALL    EditorNavRefreshAggregateDirty
 
 EditorNavLoadNextWindowCachedClean:
+        XOR     A
+        LD      (EditorNavNextPageSynthetic),A
         LD      A,1
         LD      (EditorNavNextPageValid),A
         XOR     A
@@ -686,6 +700,8 @@ EditorNavLoadNextWindowFromDisk:
         LD      HL,EditorNavNextPageBuffer
         CALL    EditorLoadSourcePage
         JR      C,EditorNavLoadNextWindowError
+        XOR     A
+        LD      (EditorNavNextPageSynthetic),A
         LD      A,1
         LD      (EditorNavNextPageValid),A
         XOR     A
@@ -696,6 +712,8 @@ EditorNavLoadNextWindowError:
         RET     NZ
         CALL    EditorNavClearNextPageBuffer
         LD      A,1
+        LD      (EditorNavNextPageSynthetic),A
+        LD      A,1
         LD      (EditorNavNextPageValid),A
         XOR     A
         RET
@@ -703,6 +721,7 @@ EditorNavLoadNextWindowError:
 EditorNavNextWindowUnavailable:
         XOR     A
         LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
         RET
 
 ;!      out       A,carry,zero
@@ -1030,6 +1049,9 @@ EditorNavWindowHitCount:
         .db     0
 
 EditorNavNextPageValid:
+        .db     0
+
+EditorNavNextPageSynthetic:
         .db     0
 
 EditorNavNextPageNumber:

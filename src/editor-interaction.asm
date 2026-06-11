@@ -354,6 +354,8 @@ EditorKeyPageUp:
 EditorKeyPageDownErr:
         CP      TECM8_EDITOR_NAV_ERR_PAGE
         JR      Z,EditorKeyPageDownEnd
+        CP      EDITOR_LOAD_ERR_SIZE
+        JR      Z,EditorKeyPageDownEnd
         JR      EditorKeyNavigationErr
 
 EditorKeyPageDownEnd:

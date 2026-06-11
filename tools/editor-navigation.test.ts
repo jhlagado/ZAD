@@ -96,7 +96,7 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /CALL\s+EditorNavRenderNextWindowPage/);
   assert.match(source, /EditorNavCommitPendingPagePreserveDirty:/);
   assert.match(source, /@EditorNavRenderPage:\n\s+LD\s+\(EditorNavRenderPageInput\),A\n\s+LD\s+HL,EditorStatusLoadingText\n\s+CALL\s+EditorNavShowStatus/);
-  assert.match(source, /EditorNavRenderPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+RET/);
+  assert.match(source, /EditorNavRenderPageRestoreError:\n\s+PUSH\s+AF\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+POP\s+AF\n\s+SCF\n\s+RET/);
   assert.match(source, /EditorNavPathPtr:\n\s+\.dw\s+0/);
   assert.match(source, /EditorNavPathBuffer:\n\s+\.ds\s+TECM8_EDITOR_NAV_PATH_LEN/);
   assert.match(source, /CALL\s+EditorNavCopyPath/);

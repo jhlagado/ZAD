@@ -495,6 +495,9 @@ async function main(): Promise<void> {
     const rowText9Addr = symbolAddress(symbols, 'EditorRowText9');
     const promptActiveAddr = symbolAddress(symbols, 'EditorPromptActive');
     const promptResultAddr = symbolAddress(symbols, 'EditorPromptResult');
+    const nextPageValidAddr = symbolAddress(symbols, 'EditorNavNextPageValid');
+    const nextPageSyntheticAddr = symbolAddress(symbols, 'EditorNavNextPageSynthetic');
+    const dirtySectorsAddr = symbolAddress(symbols, 'EditorNavDirtySectors');
     const quitRequestedAddr = symbolAddress(symbols, 'EditorQuitRequested');
     const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
@@ -525,6 +528,24 @@ async function main(): Promise<void> {
     assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after Ctrl+ArrowDown');
     assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 09', 'rendered row 9 after Ctrl+ArrowDown');
     assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after Ctrl+ArrowDown');
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }); // Ctrl+ArrowDown at EOF
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pageAfterSecondCtrlDown = runtime.hardware.memory[currentPageAddr];
+    if (pageAfterSecondCtrlDown !== 1) {
+      throw new Error(`live editor after second Ctrl+ArrowDown page=${pageAfterSecondCtrlDown}, expected to remain on page 1`);
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after second Ctrl+ArrowDown');
+    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after second Ctrl+ArrowDown');
+    assertGlcdDisplayRows(platformRuntime, [0, 1], 'after second Ctrl+ArrowDown');
+    if (
+      runtime.hardware.memory[nextPageValidAddr] !== 1 ||
+      runtime.hardware.memory[nextPageSyntheticAddr] !== 1 ||
+      runtime.hardware.memory[dirtySectorsAddr] !== 0
+    ) {
+      throw new Error(
+        `live editor second Ctrl+ArrowDown synthetic state valid=${runtime.hardware.memory[nextPageValidAddr]} synthetic=${runtime.hardware.memory[nextPageSyntheticAddr]} dirtySectors=0x${runtime.hardware.memory[dirtySectorsAddr].toString(16)}, expected valid synthetic clean EOF page`,
+      );
+    }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }); // Ctrl+ArrowUp
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const pageAfterCtrlUp = runtime.hardware.memory[currentPageAddr];
