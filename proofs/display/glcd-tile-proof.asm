@@ -12,64 +12,123 @@ PROOF_FAIL       .equ     0xE0
 ;!      clobbers  A,BC,DE,HL
 @Start:
         CALL    BiosDisplayInit
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         CALL    BiosDisplayClear
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,'A'
         LD      B,1
         LD      C,0
         CALL    GlcdTileDrawCell
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,'B'
         LD      B,1
         LD      C,0
         CALL    GlcdTileDrawCell
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,'B'
         LD      B,1
         LD      C,1
         CALL    GlcdTileDrawCell
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      B,1
         LD      C,0
         CALL    GlcdTileClearCell
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      HL,TileText
         LD      B,2
         LD      C,0
         CALL    GlcdTileDrawTextRun
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         CALL    GlcdTileFlushFull
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(GlcdTileFlushFullCount)
         CP      1
-        JR      NZ,ProofFailed
+        JP      NZ,ProofFailed
 
         XOR     A
         LD      (GlcdTileFlushFullCount),A
         LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileStepCount),A
 
         LD      A,'C'
         LD      B,1
         LD      C,1
         CALL    GlcdTileDrawCell
-        JR      C,ProofFailed
+        JP      C,ProofFailed
 
         LD      A,1
         CALL    GlcdTileFlushRow
-        JR      C,ProofFailed
+        JP      C,ProofFailed
         LD      A,(GlcdTileFlushFullCount)
         OR      A
-        JR      NZ,ProofFailed
+        JP      NZ,ProofFailed
         LD      A,(GlcdTileFlushRowByteCount)
         CP      96
-        JR      NZ,ProofFailed
+        JP      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileStepCount),A
+
+        LD      A,'D'
+        LD      B,1
+        LD      C,1
+        CALL    GlcdTileDrawCell
+        JP      C,ProofFailed
+
+        LD      A,1
+        CALL    GlcdTileQueueRow
+        JP      C,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      16
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileStepCount)
+        CP      1
+        JP      NZ,ProofFailed
+
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      96
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileStepCount)
+        CP      6
+        JP      NZ,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileStepCount)
+        CP      6
+        JP      NZ,ProofFailed
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A

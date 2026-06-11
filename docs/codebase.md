@@ -253,6 +253,8 @@ Public entries:
 - `GlcdTileDrawTextRun`
 - `GlcdTileFlushFull`
 - `GlcdTileFlushRow`
+- `GlcdTileQueueRow`
+- `GlcdTileStep`
 - `GlcdTilePrepareCell`
 
 `GlcdTilePrepareCell` validates the `20 x 10` cell bounds and maps a row and
@@ -264,6 +266,13 @@ bitmap state after full viewport renders. `GlcdTileFlushRow` bypasses MON3
 `plotToLCD` and transfers only one six-pixel text row, so cursor movement,
 status overlays, and row-local edits avoid the old full-screen blank/repaint
 path.
+
+The row-transfer path now also has a cooperative surface. `GlcdTileQueueRow`
+sets up one dirty text row, and `GlcdTileStep` transfers one physical GLCD row
+per call. `GlcdTileFlushRow` is kept as the synchronous compatibility wrapper:
+it queues the row and drains all six steps before returning. The live editor
+idle loop calls `GlcdTileStep`, which gives later non-blocking display paths a
+place to advance GLCD work between matrix keyboard polls.
 
 This module is the current boundary between TECM8 display policy and MON3 GLCD
 transport. Higher-level display code can stay in row and column coordinates

@@ -247,6 +247,24 @@ GlcdTileClearTextRowDone:
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileFlushRow:
+        CALL    GlcdTileQueueRow
+        RET     C
+
+GlcdTileFlushRowDrainLoop:
+        CALL    GlcdTileStep
+        RET     C
+        OR      A
+        JR      NZ,GlcdTileFlushRowDrainLoop
+        XOR     A
+        RET
+
+; GlcdTileQueueRow -
+; Queue one dirty 6-pixel text row for bounded GLCD transfer steps.
+; Input: A = row (0-9)
+;!      in        A
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileQueueRow:
         CP      TECM8_GLCD_TILE_ROWS
         JP      NC,GlcdTileRangeError
         LD      (GlcdTileFlushRowLast),A
@@ -279,16 +297,43 @@ GlcdTileFlushRowPtrReady:
         LD      (GlcdTileFlushPhysicalY),A
         LD      A,TECM8_GLCD_TILE_HEIGHT
         LD      (GlcdTileFlushRowsRemaining),A
+        LD      A,1
+        LD      (GlcdTileFlushPending),A
+        XOR     A
+        RET
 
-GlcdTileFlushPhysicalRowLoop:
+; GlcdTileStep -
+; Transfer at most one physical GLCD row from the queued row flush.
+; Output: A = 1 when more queued work remains, 0 when idle/done.
+;!      out       A,carry,zero
+;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileStep:
+        LD      A,(GlcdTileFlushPending)
+        OR      A
+        JR      NZ,GlcdTileStepPending
+        XOR     A
+        RET
+
+GlcdTileStepPending:
         CALL    GlcdTileFlushPhysicalRow
+        RET     C
+        LD      A,(GlcdTileStepCount)
+        INC     A
+        LD      (GlcdTileStepCount),A
         LD      A,(GlcdTileFlushPhysicalY)
         INC     A
         LD      (GlcdTileFlushPhysicalY),A
         LD      A,(GlcdTileFlushRowsRemaining)
         DEC     A
         LD      (GlcdTileFlushRowsRemaining),A
-        JR      NZ,GlcdTileFlushPhysicalRowLoop
+        JR      Z,GlcdTileStepDone
+        LD      A,1
+        OR      A
+        RET
+
+GlcdTileStepDone:
+        XOR     A
+        LD      (GlcdTileFlushPending),A
         XOR     A
         RET
 
@@ -459,6 +504,10 @@ GlcdTileFlushRowCount:
 GlcdTileFlushRowLast:
         .db     0
 GlcdTileFlushRowByteCount:
+        .db     0
+GlcdTileStepCount:
+        .db     0
+GlcdTileFlushPending:
         .db     0
 GlcdTileFlushPhysicalY:
         .db     0

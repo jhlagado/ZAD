@@ -494,7 +494,7 @@ function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): voi
   if (!cellHasPixels(runtime.hardware.memory, 2, 0) || !cellHasPixels(runtime.hardware.memory, 2, 1)) {
     throw new Error('GLCD tile proof did not draw a text run');
   }
-  assertCellMatchesFont(runtime.hardware.memory, 1, 1, 'C'.charCodeAt(0));
+  assertCellMatchesFont(runtime.hardware.memory, 1, 1, 'D'.charCodeAt(0));
   assertCellMatchesFont(runtime.hardware.memory, 2, 0, 'O'.charCodeAt(0));
   assertCellMatchesFont(runtime.hardware.memory, 2, 1, 'K'.charCodeAt(0));
 
@@ -502,7 +502,7 @@ function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): voi
   if (!glcdRowHasPixels(glcd, 1) || !glcdRowHasPixels(glcd, 2)) {
     throw new Error('GLCD tile proof did not flush tile rows to the visible GLCD');
   }
-  assertGlcdCellMatchesFont(runtime.hardware.memory, glcd, 1, 1, 'C'.charCodeAt(0));
+  assertGlcdCellMatchesFont(runtime.hardware.memory, glcd, 1, 1, 'D'.charCodeAt(0));
 }
 
 function readCString(memory: Uint8Array, address: number): string {

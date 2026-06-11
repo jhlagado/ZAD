@@ -544,6 +544,8 @@ EditorLiveLoop:
         JP      EditorLiveLoop
 
 EditorLiveIdle:
+        CALL    GlcdTileStep
+        RET     C
         LD      B,TECM8_EDITOR_LIVE_IDLE_SPINS
 
 EditorLiveIdleLoop:

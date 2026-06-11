@@ -303,6 +303,13 @@ Work:
   graphic row and banked horizontal address directly, and writes the 96 bytes
   that make up one 6-pixel editor text row. Full viewport renders still use
   `GlcdTileFlushFull` and MON3 `plotToLCD`.
+- Done: added the first cooperative display step primitive. `GlcdTileQueueRow`
+  prepares one dirty editor row, and `GlcdTileStep` transfers one physical
+  16-byte GLCD row per call, returning whether more display work remains.
+  `GlcdTileFlushRow` remains a synchronous compatibility wrapper that queues and
+  drains all six steps. The live editor idle path now calls `GlcdTileStep`, so
+  later non-blocking render paths have a place to advance pending display work
+  between keyboard polls.
 - Replace row-granular flushing with dirty byte-range or dirty cell-range GLCD
   transfers once row flushing is proven manually. Row flushing is intentionally
   the first hardware transfer step because it is easier to prove and fits the
@@ -336,7 +343,7 @@ Incremental implementation order:
 2. Done: introduce dirty row scheduling while still flushing through MON3.
 3. Done: replace MON3-backed row flushes with a TECM8-owned row-range GLCD
    flush backend.
-4. Interleave keyboard polling between bounded GLCD flush slices.
+4. Done: introduce `GlcdTileStep` and call it from live editor idle.
 5. Add dirty cell ranges for horizontal movement and normal character edits.
 6. Add cursor blink once cursor updates are cheap.
 
