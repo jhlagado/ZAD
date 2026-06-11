@@ -7,6 +7,7 @@ const { readRepoFile, repoFileExists }: TestSupport = require('./test-support.ts
 
 test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
+  const buffer = readRepoFile('src/editor-buffer.asm');
 
   assert.match(source, /^@EditorRunKeys:/m);
   assert.match(source, /^@EditorRunModifiedKey:/m);
@@ -21,14 +22,15 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorInvalidateCursorOverlay:/m);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /^@EditorActionFromKey:/m);
-  assert.match(source, /^@EditorInsertChar:/m);
-  assert.match(source, /^@EditorBackspaceChar:/m);
-  assert.match(source, /^@EditorDeleteChar:/m);
-  assert.match(source, /^@EditorSplitLine:/m);
-  assert.match(source, /^@EditorJoinPreviousLine:/m);
-  assert.match(source, /^@EditorJoinPreviousPageLine:/m);
-  assert.match(source, /^@EditorKeyReadRecordLength:/m);
-  assert.match(source, /^@EditorKeyWriteRecordLength:/m);
+  assert.match(source, /\.include\s+"editor-buffer\.asm"/);
+  assert.match(buffer, /^@EditorInsertChar:/m);
+  assert.match(buffer, /^@EditorBackspaceChar:/m);
+  assert.match(buffer, /^@EditorDeleteChar:/m);
+  assert.match(buffer, /^@EditorSplitLine:/m);
+  assert.match(buffer, /^@EditorJoinPreviousLine:/m);
+  assert.match(buffer, /^@EditorJoinPreviousPageLine:/m);
+  assert.match(buffer, /^@EditorKeyReadRecordLength:/m);
+  assert.match(buffer, /^@EditorKeyWriteRecordLength:/m);
   assert.match(source, /^@EditorMarkDirty:/m);
   assert.match(source, /^@EditorKeyRenderCurrentLineDirty:/m);
   assert.match(source, /^@EditorPromptAskYesNo:/m);
@@ -63,7 +65,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
   assert.match(source, /;!\s+in\s+A,B\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunModifiedKey:/);
   assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,zero,sign,parity,halfCarry\n@EditorActionFromKey:/);
-  assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorInsertChar:/);
+  assert.match(buffer, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorInsertChar:/);
   assert.match(source, /CALL\s+EditorPageDown/);
   assert.match(source, /CALL\s+EditorPageUp/);
   assert.match(source, /CALL\s+EditorSaveCurrentPage/);
@@ -169,17 +171,17 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorBackspaceChar/);
   assert.match(source, /CALL\s+EditorDeleteChar/);
   assert.match(source, /CALL\s+EditorSplitLine/);
-  assert.match(source, /JP\s+Z,EditorJoinPreviousLine/);
-  assert.match(source, /@EditorKeyZeroRecordPadding:/);
-  assert.match(source, /@EditorKeyReadRecordLength:\n\s+LD\s+A,\(HL\)\n\s+AND\s+TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK/);
-  assert.match(source, /@EditorKeyWriteRecordLength:[\s\S]*?AND\s+TECM8_EDITOR_EDIT_RECORD_METADATA_MASK[\s\S]*?OR\s+B\n\s+LD\s+\(HL\),A/);
-  assert.match(source, /@EditorSplitPushLastRecordToNextPage:/);
-  assert.match(source, /@EditorSplitFinalRow:/);
-  assert.match(source, /CALL\s+EditorNavRememberCurrentPage/);
-  assert.match(source, /CALL\s+EditorNavSlideNextPageToCurrent/);
-  assert.match(source, /EditorNavNextPageBuffer/);
-  assert.match(source, /@EditorKeyClearRecord:/);
-  assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
+  assert.match(buffer, /JP\s+Z,EditorJoinPreviousLine/);
+  assert.match(buffer, /@EditorKeyZeroRecordPadding:/);
+  assert.match(buffer, /@EditorKeyReadRecordLength:\n\s+LD\s+A,\(HL\)\n\s+AND\s+TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK/);
+  assert.match(buffer, /@EditorKeyWriteRecordLength:[\s\S]*?AND\s+TECM8_EDITOR_EDIT_RECORD_METADATA_MASK[\s\S]*?OR\s+B\n\s+LD\s+\(HL\),A/);
+  assert.match(buffer, /@EditorSplitPushLastRecordToNextPage:/);
+  assert.match(buffer, /@EditorSplitFinalRow:/);
+  assert.match(buffer, /CALL\s+EditorNavRememberCurrentPage/);
+  assert.match(buffer, /CALL\s+EditorNavSlideNextPageToCurrent/);
+  assert.match(buffer, /EditorNavNextPageBuffer/);
+  assert.match(buffer, /@EditorKeyClearRecord:/);
+  assert.match(buffer, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
 });

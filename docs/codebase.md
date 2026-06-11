@@ -52,8 +52,8 @@ For the fastest orientation, read these files first:
 9. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
 10. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
-    `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
-    editor path.
+    `src/editor-viewport.asm`, `src/editor-buffer.asm`, and
+    `src/editor-interaction.asm`: the current editor path.
 11. `proofs/display/glcd-tile-proof.asm` and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer and the current line editing behavior.
@@ -402,6 +402,33 @@ not fit the fixed path buffer.
 the hidden backup into `EditorNavPageBuffer`. The interaction layer decides
 whether to mark that restored buffer dirty.
 
+### `src/editor-buffer.asm`
+
+This owns fixed 32-byte source-record mutation for the editor. It is included
+from `src/editor-interaction.asm` so existing proof files keep the same single
+editor include while the responsibilities are separated. Public mutation
+entrypoints are:
+
+- `EditorInsertChar`
+- `EditorBackspaceChar`
+- `EditorDeleteChar`
+- `EditorSplitLine`
+- `EditorJoinPreviousLine`
+- `EditorJoinPreviousPageLine`
+
+The buffer layer mutates `EditorNavPageBuffer`, `EditorNavNextPageBuffer`, and
+the previous-page cache in memory. It respects the 31-character stored line
+length, keeps padding clear so host source export can validate fixed records,
+and treats record length as metadata-safe: readers mask with `0x1F`, while
+writers preserve bits 5-7 unless a future metadata operation deliberately
+changes them. Cross-page split and join code lives here because it is a buffer
+operation even when it also updates the editor navigation cache state.
+
+The mutation primitives return a small change result in `A`: `1` means the
+buffer changed, `0` means the operation was a no-op, and carry still reports
+errors. The interaction loop uses that result so no-op delete, split, insert,
+and join paths do not dirty a clean buffer.
+
 ### `src/editor-interaction.asm`
 
 This is the early editor interaction loop. It supports both a NUL-terminated
@@ -424,39 +451,33 @@ proof key stream and the live matrix-key path that polls MON3 through
 - backspace at column zero joins with the previous record when the result fits
 - delete removes the character at the cursor
 
-The public interface now exposes the primitive edit operations as separate
-entry points, the proof key-stream runner, and the live polling loop:
+The public interface exposes the proof key-stream runner, the live polling
+loop, cursor render helpers, prompt/status handling, and the command dispatch
+that calls the buffer primitives:
 
 - `EditorRunLive`
-- `EditorInsertChar`
-- `EditorBackspaceChar`
-- `EditorDeleteChar`
-- `EditorSplitLine`
-- `EditorJoinPreviousLine`
+- `EditorRunKeys`
+- `EditorRunModifiedKey`
+- `EditorCursorReset`
+- `EditorRenderCursor`
+- `EditorHideCursor`
+- `EditorKeyShowStatus`
 
-The editing operations mutate `EditorNavPageBuffer` in memory and then rerender
-the current page buffer. The implementation respects 32-byte source records and
-the 31-character maximum stored line length. It keeps record padding clear so
-host source export can continue validating the fixed-record format. Mutating
-operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
-and clears the flag only after the backup and page write-back succeeds. Alt-S
-uses the same save path and is the preferred Debug80/macOS manual-test binding.
-Before that save path runs, `EditorHideCursor` removes the inverse-cell overlay
-so the transient `Saving...` redraw and the restored edit row do not inherit
-stale cursor pixels. A clean save is ignored before any storage call. Ctrl-R
-arms a status-line restore prompt; a yes answer loads the hidden backup into the
-current page buffer, rerenders it, and marks it dirty so the user can inspect
-before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when clean;
-when dirty, they ask before discarding changes and only exit on yes. There is
-not yet sector-crossing insert/delete. The current live Debug80 smoke now
-drives the same path through matrix `Enter`, `Backspace` at column zero,
-save, page-away/page-back persistence checks, a clean-save no-op, post-save
-input, and quit.
-
-The mutation primitives return a small change result in `A`: `1` means the
-buffer changed, `0` means the operation was a no-op, and carry still reports
-errors. The key loop uses that result so no-op delete, split, insert, and join
-paths do not dirty a clean buffer.
+Mutating commands mark `EditorNavDirty` only after the buffer primitive reports
+a real change. Ctrl-S routes through `EditorSaveCurrentPage` and clears the flag
+only after the backup and page write-back succeeds. Alt-S uses the same save
+path and is the preferred Debug80/macOS manual-test binding. Before that save
+path runs, `EditorHideCursor` removes the inverse-cell overlay so the transient
+`Saving...` redraw and the restored edit row do not inherit stale cursor pixels.
+A clean save is ignored before any storage call. Ctrl-R arms a status-line
+restore prompt; a yes answer loads the hidden backup into the current page
+buffer, rerenders it, and marks it dirty so the user can inspect before saving.
+Ctrl-Q and Ctrl-X exit the key stream immediately when clean; when dirty, they
+ask before discarding changes and only exit on yes. There is not yet
+sector-crossing insert/delete. The current live Debug80 smoke now drives the
+same path through matrix `Enter`, `Backspace` at column zero, save,
+page-away/page-back persistence checks, a clean-save no-op, post-save input,
+and quit.
 
 Horizontal cursor movement only redraws the cursor overlay. Vertical cursor
 movement also redraws the old and new source rows so the current-row gutter
