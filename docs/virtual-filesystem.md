@@ -142,7 +142,37 @@ checksum
 ```
 
 The format is kept simple enough for both Z80 code and host tools to parse.
-See [Workspace Disk Format](workspace-disk-format.md) for exact byte offsets.
+
+Version 1 stores defined superblock fields in the first 512 bytes and leaves
+the rest of the 4K superblock block zero-filled:
+
+```text
+offset  size  field
+0       8     magic, ASCII "TECM8VOL"
+8       2     format version, uint16le, currently 1
+10      2     sector bytes, uint16le
+12      2     block bytes, uint16le
+14      2     total blocks, uint16le
+16      4     volume bytes, uint32le
+20      2     allocation table start block, uint16le
+22      2     allocation table block count, uint16le
+24      2     prefix table start block, uint16le
+26      2     prefix table block count, uint16le
+28      2     prefix entry size, uint16le
+30      2     prefix entry count, uint16le
+32      2     catalog start block, uint16le
+34      2     catalog block count, uint16le
+36      2     catalog entry size, uint16le
+38      2     catalog entry count, uint16le
+40      2     first data block, uint16le
+42      2     free block count, uint16le
+44      28    reserved, zero-filled
+72      4     superblock checksum, uint32le
+76      436   reserved, zero-filled
+```
+
+The checksum is the unsigned 32-bit sum of bytes 0-511 with the checksum field
+at offset 72 treated as zero.
 
 ## Allocation Table
 

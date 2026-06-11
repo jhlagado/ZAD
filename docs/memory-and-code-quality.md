@@ -133,10 +133,12 @@ hardware drivers.
 Further expansion memory may exist later, but the first design should prove
 useful inside the classic machine model before depending on it.
 
-See [TECM8 BIOS Direction](tecm8-bios.md) for the proposed long-term split:
-start with MON3 compatibility, identify hardware services TECM8 should wrap,
-and only later consider shaving monitor/PATA components from a modified ROM to
-free resident space for TECM8 support around banked tools.
+The long-term split starts with MON3 compatibility, identifies hardware
+services TECM8 should wrap, and only later considers shaving monitor/PATA
+components from a modified ROM to free resident space for TECM8 support around
+banked tools. The callable service surface is tracked in
+[TECM8 BIOS API Draft](tecm8-bios-api.md), while ROM-saving analysis lives in
+[MON3 Decomposition Plan](mon3-decomposition.md).
 
 ## Resident Versus Overlay Code
 
@@ -200,7 +202,6 @@ The current editor source workspace is explicitly assigned to `3000h-37FFh`,
 below the `4000h` launch address and above MON3's low display/storage workspace.
 It holds the previous-page cache, active page, adjacent next page, and backup
 scratch sectors. `3800h-3FFFh` remains reserved for future editor workspace.
-See [Editor Memory Layout](editor-memory-layout.md).
 
 ## Code Compactness
 

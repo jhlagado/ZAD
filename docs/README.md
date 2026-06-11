@@ -33,22 +33,16 @@ npm run quality
 
 Start here:
 
-- [Project Overview](project-overview.md)
 - [Live Roadmap](roadmap.md)
 - [Codebase Tour](codebase.md)
-- [Storage Proof](storage-proof.md)
 - [Virtual Filesystem](virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](shell-command-contract.md)
 - [TECM8 AZM Style Guide](azm-style-guide.md)
-- [AZM Register-Care Feedback Loop](azm-register-care-feedback.md)
 - [Editor Design](editor-design.md)
-- [Project Sizing Case Studies](project-sizing.md)
+- [Debug80 Editor Session](debug80-editor-session.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
-- [TECM8 BIOS Direction](tecm8-bios.md)
 - [MON3 Decomposition Plan](mon3-decomposition.md)
 - [MON3 Service Inventory](mon3-service-inventory.md)
 - [MON3 Storage Split Report](mon3-storage-split.md)
 - [MON3 GLCD Split Report](mon3-glcd-split.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
-- [Debugging Roadmap](debugging-roadmap.md)
-- [Implementation Plan](implementation-plan.md)

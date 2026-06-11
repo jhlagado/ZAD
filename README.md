@@ -26,18 +26,15 @@ The root `/tecm8.prj` file stores the project main file as simple ASCII
 
 Start with the documentation:
 
-- [Project Overview](docs/project-overview.md)
 - [Live Roadmap](docs/roadmap.md)
-- [Implementation Plan](docs/implementation-plan.md)
-- [Workspace Disk Format](docs/workspace-disk-format.md)
+- [Codebase Tour](docs/codebase.md)
 - [Virtual Filesystem](docs/virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](docs/shell-command-contract.md)
 - [TECM8 AZM Style Guide](docs/azm-style-guide.md)
 - [Editor Design](docs/editor-design.md)
 - [Memory and Code Quality Manifest](docs/memory-and-code-quality.md)
-- [TECM8 BIOS Direction](docs/tecm8-bios.md)
 - [TECM8 BIOS API Draft](docs/tecm8-bios-api.md)
-- [Debugging Roadmap](docs/debugging-roadmap.md)
+- [MON3 Decomposition Plan](docs/mon3-decomposition.md)
 
 Useful local checks:
 

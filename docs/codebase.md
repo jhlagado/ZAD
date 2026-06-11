@@ -39,22 +39,23 @@ BIOS wrappers -> call MON3 storage and GLCD services
 
 For the fastest orientation, read these files first:
 
-1. `docs/project-overview.md`: product goal, storage model, and project
-   workflow.
-2. `docs/workspace-disk-format.md`: exact `VOLUME.TM8` byte layout.
-3. `docs/shell-command-contract.md`: how `edit`, `asm`, and `run` resolve.
-4. `docs/editor-design.md`: 32-byte source records and GLCD viewport model.
-5. `docs/tecm8-bios-api.md`: the BIOS wrapper vocabulary used by Z80 code.
-6. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
-7. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
-8. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
+1. `docs/roadmap.md`: live phase tracker and next milestone.
+2. `docs/codebase.md`: this tour of the current implementation.
+3. `docs/virtual-filesystem.md`: exact `VOLUME.TM8` byte layout, source record
+   model, hidden-file policy, and host preservation tools.
+4. `docs/shell-command-contract.md`: how `edit`, `asm`, and `run` resolve.
+5. `docs/editor-design.md`: 32-byte source records and GLCD viewport model.
+6. `docs/tecm8-bios-api.md`: the BIOS wrapper vocabulary used by Z80 code.
+7. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
+8. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
+9. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-9. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+10. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
-10. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+11. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
     editor path.
-11. `proofs/display/glcd-tile-proof.asm` and
+12. `proofs/display/glcd-tile-proof.asm` and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer and the current line editing behavior.
 
@@ -355,8 +356,8 @@ GLCD/storage volatile RAM. `EditorNavDirtySectors` tracks the active/next
 sector dirty bits, while `EditorNavCachedPageDirty` preserves dirty state for
 the previous-page cache. This is now a small two-sector edit window plus one
 previous-page cache: page-down/page-up movement can stay in RAM, and dirty
-movement no longer forces an immediate save. See
-[Editor Memory Layout](editor-memory-layout.md).
+movement no longer forces an immediate save. The RAM policy is tracked in
+[Memory and Code Quality Manifest](memory-and-code-quality.md).
 
 `EditorNavViewportTopRow` is the logical source row currently shown at GLCD
 visible row 0. `EditorRenderPageBuffer` calls `EditorNavSyncViewport` before
@@ -629,7 +630,7 @@ does not represent the TEC-side runtime.
 This is the authoritative host implementation of the v1 TM8 volume format. It
 can create, parse, validate, list, create files, import bytes, read bytes,
 remove files, move files, and allocate/free block chains. It encodes the fixed
-layout documented in `docs/workspace-disk-format.md`.
+layout documented in `docs/virtual-filesystem.md`.
 
 Z80 loaders do not call this file, but their constants and assumptions should
 match it.
@@ -749,24 +750,14 @@ The docs are not just background; they are the contracts the code is working
 toward.
 
 - `docs/README.md`: top-level documentation index.
-- `docs/project-overview.md`: product direction and user experience.
 - `docs/roadmap.md`: live milestone tracker and next-goal sequence.
-- `docs/implementation-plan.md`: phased roadmap.
-- `docs/workspace-disk-format.md`: exact TM8 disk layout.
-- `docs/virtual-filesystem.md`: prefix table, catalog, and virtual directory
-  model.
-- `docs/storage-proof.md`: MON3/FAT32 storage proof status.
+- `docs/virtual-filesystem.md`: exact TM8 disk layout, prefix table, catalog,
+  virtual directory model, and host preservation commands.
 - `docs/shell-command-contract.md`: TEC-side `edit`/`asm`/`run` behavior.
 - `docs/editor-design.md`: GLCD editor model and source records.
-- `docs/project-sizing.md`: why 4 MiB volumes, 4 KiB blocks, 256 files, and
-  128 prefixes are enough for current targets.
-- `docs/debugging-roadmap.md`: later source-aware debugger direction.
 - `docs/memory-and-code-quality.md`: memory map, RAM pressure, resident versus
   overlay code, and compactness principles.
 - `docs/azm-style-guide.md`: assembly style and routine contract conventions.
-- `docs/azm-register-care-feedback.md`: notes on improving register-care
-  discipline.
-- `docs/tecm8-bios.md`: BIOS direction and what to keep from MON3.
 - `docs/tecm8-bios-api.md`: current BIOS wrapper/API draft.
 - `docs/mon3-decomposition.md`: plan for classifying MON3 code.
 - `docs/mon3-service-inventory.md`: generated MON3 service classification.

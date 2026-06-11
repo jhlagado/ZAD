@@ -470,7 +470,7 @@ Goal: make the editor viable on a constrained TEC-1G memory map.
 
 Work:
 
-- Done: documented editor RAM usage in `docs/editor-memory-layout.md`.
+- Done: documented editor RAM usage in `docs/memory-and-code-quality.md`.
 - Done: kept source page buffers above MON3/GLCD volatile areas.
 - Done: assigned `3000h-3FFFh` as the current editor workspace.
 - Done: fixed a 2K resident source-sector workspace at `3000h-37FFh`; `3800h`
