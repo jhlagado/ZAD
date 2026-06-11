@@ -46,8 +46,6 @@ MON3_TGBUF                          .equ    0x13C0
         INC     A
         LD      (DisplayRenderScreenCount),A
         LD      (DisplayCursor),HL
-        CALL    BiosDisplayClear
-        RET     C
 
         LD      A,TECM8_DISPLAY_EDIT_ROWS
         LD      (DisplayRemaining),A
