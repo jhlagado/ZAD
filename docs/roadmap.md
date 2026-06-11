@@ -281,30 +281,73 @@ Goal: make the editor feel usable on slow GLCD hardware.
 
 Work:
 
+- Treat display updating as a cooperative task. Matrix keyboard scanning has no
+  interrupt, so long GLCD transfers must not monopolize the CPU. The editor loop
+  should eventually poll input first, handle a key if present, then perform only
+  a bounded slice of pending display work before polling input again.
 - Treat vertical cursor movement as the first display-performance target.
   Manual Debug80 testing shows left/right movement is already acceptably fast
   because it mostly updates the cursor overlay, while up/down movement is slow
   enough to dominate the editing feel. The current row-change path repaints the
   old and new source rows so the cursor marker can move; Phase 7 should replace
   that with a pixel/tile-delta update for only the affected cursor/marker bytes.
-- Replace full GLCD flushes with dirty row or dirty byte-range flushes.
-- Avoid full-screen blanking except on page load or explicit redraw.
-- Optimize cursor redraw.
-- Add cursor blink only after partial updates are cheap.
+- Done: ordinary full viewport repaint no longer calls `BiosDisplayClear`
+  before drawing the tile layout. Each rendered row clears its own text cells and
+  overwrites the gutter, so short lines replacing long lines do not leave stale
+  glyph pixels.
+- Replace full GLCD flushes with dirty row or dirty byte-range flushes. Start
+  with row-granular flushing, because it is easier to prove and fits the current
+  6-pixel text-row model.
+- Add a small display work queue or dirty mask:
+  - full viewport dirty for page loads, restore, and explicit redraw
+  - dirty row for vertical cursor movement, line edits, status prompt restore
+  - dirty cell range for simple character insert/delete
+  - cursor dirty for cursor blink/overlay updates
+- Add a `DisplayStep`-style primitive that performs one bounded GLCD update
+  slice and returns whether more display work remains.
+- Refactor the live editor loop toward:
+
+  ```text
+  poll keyboard
+  if key pending: handle key and schedule display work
+  else: perform one display update slice
+  repeat
+  ```
+
+- Coalesce display work when keys arrive faster than the GLCD can update. The
+  latest editor state should win; stale intermediate cursor paints should not
+  build up as a backlog.
+- Optimize cursor redraw before implementing cursor blink. A blinking cursor
+  should update only the affected cursor cell/bytes, never the whole GLCD.
 - Measure instruction counts for common operations.
 
-Likely next display work:
+Incremental implementation order:
 
-- Cursor row-transition delta flush for up/down movement.
-- Dirty row flush.
-- Dirty cell flush.
-- Cursor-only flush.
+1. Keep full tile repaint, but remove unnecessary clear-first behavior.
+2. Introduce dirty row scheduling while still flushing through MON3.
+3. Replace full MON3 `plotToLCD` flushes with a TECM8-owned row/byte-range GLCD
+   flush backend.
+4. Interleave keyboard polling between bounded GLCD flush slices.
+5. Add dirty cell ranges for horizontal movement and normal character edits.
+6. Add cursor blink once cursor updates are cheap.
+
+Proofs:
+
+- Dirty row render.
+- Dirty cell render.
+- Cursor move without full render.
+- Insert/delete without full render.
+- Cooperative display-step proof: a pending display update can be advanced in
+  bounded slices without losing a queued/polled key event.
 
 Done when:
 
 - Typing a character updates quickly enough to feel interactive.
 - Horizontal and vertical cursor movement are both visibly cheap; up/down no
   longer repaints two complete text rows.
+- A long repaint can be interrupted between bounded GLCD slices by keyboard
+  polling, so matrix-key input does not depend on users holding keys for the
+  duration of a full-screen update.
 - Save/load can still be slow, but editing should not be.
 
 ## Phase 8: File Picker And Editor Launch

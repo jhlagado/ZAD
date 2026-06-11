@@ -413,8 +413,45 @@ function assertRuntimeSourceRecord(
   }
 }
 
+function assertRuntimeCString(
+  runtime: Runtime,
+  address: number,
+  expected: string,
+  label: string,
+): void {
+  const actual = readCString(runtime.hardware.memory, address);
+  if (actual !== expected) {
+    throw new Error(`${label} "${actual}", expected "${expected}"`);
+  }
+}
+
 function glcdBytes(platformRuntime: PlatformRuntime): number[] {
   return Array.from(platformRuntime.state.display?.glcdCtrl?.glcd ?? []);
+}
+
+function glcdDisplayRowHasPixels(glcd: number[], displayRow: number): boolean {
+  const rowTop = 2 + displayRow * 6;
+  for (let y = rowTop; y < rowTop + 6; y += 1) {
+    const start = y * 16;
+    const end = start + 16;
+    if (glcd.slice(start, end).some((value) => value !== 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function assertGlcdDisplayRows(
+  platformRuntime: PlatformRuntime,
+  rows: number[],
+  label: string,
+): void {
+  const glcd = glcdBytes(platformRuntime);
+  for (const row of rows) {
+    if (!glcdDisplayRowHasPixels(glcd, row)) {
+      throw new Error(`${label} did not render GLCD display row ${row}`);
+    }
+  }
 }
 
 function writeGlcdCapture(glcd: number[]): void {
@@ -454,6 +491,8 @@ async function main(): Promise<void> {
     const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
     const currentPageAddr = symbolAddress(symbols, 'EditorNavCurrentPage');
     const pageBufferAddr = symbolAddress(symbols, 'EditorNavPageBuffer');
+    const rowText0Addr = symbolAddress(symbols, 'EditorRowText0');
+    const rowText9Addr = symbolAddress(symbols, 'EditorRowText9');
     const promptActiveAddr = symbolAddress(symbols, 'EditorPromptActive');
     const promptResultAddr = symbolAddress(symbols, 'EditorPromptResult');
     const quitRequestedAddr = symbolAddress(symbols, 'EditorQuitRequested');
@@ -481,12 +520,22 @@ async function main(): Promise<void> {
         `live editor after Ctrl+ArrowDown page=${pageAfterCtrlDown} row=${rowAfterCtrlDown}, expected page=1 row=0`,
       );
     }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after Ctrl+ArrowDown');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 9, 'R1 LINE 09', 'after Ctrl+ArrowDown');
+    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after Ctrl+ArrowDown');
+    assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 09', 'rendered row 9 after Ctrl+ArrowDown');
+    assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after Ctrl+ArrowDown');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }); // Ctrl+ArrowUp
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const pageAfterCtrlUp = runtime.hardware.memory[currentPageAddr];
     if (pageAfterCtrlUp !== 0) {
       throw new Error(`live editor page after Ctrl+ArrowUp ${pageAfterCtrlUp}, expected 0`);
     }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after Ctrl+ArrowUp');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 9, 'R0 LINE 09', 'after Ctrl+ArrowUp');
+    assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 00', 'rendered row 0 after Ctrl+ArrowUp');
+    assertRuntimeCString(runtime, rowText9Addr, 'R0 LINE 09', 'rendered row 9 after Ctrl+ArrowUp');
+    assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after Ctrl+ArrowUp');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 6 }); // Alt+ArrowRight
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const altModifierBits = runtime.hardware.memory[modifierBitsAddr];
@@ -536,6 +585,11 @@ async function main(): Promise<void> {
         `live editor dirty Alt+ArrowDown page=${pageAfterDirtyPageDown} dirty=${dirtyAfterDirtyPageDown}, expected page=1 dirty=1`,
       );
     }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after dirty Alt+ArrowDown');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 9, 'R1 LINE 09', 'after dirty Alt+ArrowDown');
+    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after dirty Alt+ArrowDown');
+    assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 09', 'rendered row 9 after dirty Alt+ArrowDown');
+    assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after dirty Alt+ArrowDown');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }, 200_000, 200_000); // dirty Ctrl+ArrowUp back to edited page
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     const pageAfterDirtyPageUp = runtime.hardware.memory[currentPageAddr];
@@ -545,6 +599,11 @@ async function main(): Promise<void> {
         `live editor dirty Alt+ArrowUp page=${pageAfterDirtyPageUp} dirty=${dirtyAfterDirtyPageUp}, expected page=0 dirty=1`,
       );
     }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after dirty Ctrl+ArrowUp');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 9, 'R0 LINE 09', 'after dirty Ctrl+ArrowUp');
+    assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 00', 'rendered row 0 after dirty Ctrl+ArrowUp');
+    assertRuntimeCString(runtime, rowText9Addr, 'R0 LINE 09', 'rendered row 9 after dirty Ctrl+ArrowUp');
+    assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after dirty Ctrl+ArrowUp');
     tapMatrixKey(platformRuntime, runtime, 1, 2); // Enter: split line
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const cursorRowAfterEnter = runtime.hardware.memory[cursorRowAddr];
