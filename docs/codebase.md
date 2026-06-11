@@ -646,7 +646,11 @@ This is the CLI wrapper around `tools/tm8/format.ts`. Current commands include:
 - `project-init`, `project-info`, and `project-set-main` for `/tecm8.prj`
 
 This tool creates the volumes and source records that the storage-backed Z80
-proofs consume.
+proofs consume. `unpack` and `pack` are project-preservation flows, so they
+omit leading-dot local filenames by default and keep editor backups such as
+`/src/.main.asm.b` out of ordinary exported or repacked workspaces. Raw
+`import`, `export`, and `copy` remain byte-exact host operations and can still
+address those hidden TM8 paths directly.
 
 ### Proof Runners
 
@@ -780,9 +784,9 @@ Recent editor-design additions also matter for implementation work:
 - The v1 save policy should create a one-level hidden backup before replacing
   an existing file. The derived backup of `/src/main.asm` is
   `/src/.main.asm.b`.
-- Leading-dot local filenames are ordinary TM8 catalog entries, but future
-  ordinary listings and project export/pack flows should hide or omit them by
-  default.
+- Leading-dot local filenames are ordinary TM8 catalog entries, but ordinary
+  TEC-side listings and project export/pack flows now hide or omit them by
+  default while raw host byte operations still expose them directly.
 
 ## Current State And Gaps
 
