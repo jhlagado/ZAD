@@ -47,6 +47,29 @@ PROOF_FAIL       .equ     0xE0
 
         CALL    GlcdTileFlushFull
         JR      C,ProofFailed
+        LD      A,(GlcdTileFlushFullCount)
+        CP      1
+        JR      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushFullCount),A
+        LD      (GlcdTileFlushRowByteCount),A
+
+        LD      A,'C'
+        LD      B,1
+        LD      C,1
+        CALL    GlcdTileDrawCell
+        JR      C,ProofFailed
+
+        LD      A,1
+        CALL    GlcdTileFlushRow
+        JR      C,ProofFailed
+        LD      A,(GlcdTileFlushFullCount)
+        OR      A
+        JR      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      96
+        JR      NZ,ProofFailed
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A

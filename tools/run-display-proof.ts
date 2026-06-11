@@ -468,6 +468,22 @@ function assertGlcdCellMatchesInvertedFont(
   }
 }
 
+function assertGlcdCellMatchesFont(
+  memory: Uint8Array,
+  glcd: number[],
+  row: number,
+  column: number,
+  charCode: number,
+): void {
+  const actual = readGlcdCellRows(glcd, row, column);
+  const expected = readFontRows(memory, charCode);
+  if (actual.join(',') !== expected.join(',')) {
+    throw new Error(
+      `visible GLCD tile proof rendered ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected font rows [${expected.join(',')}]`,
+    );
+  }
+}
+
 function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): void {
   if (cellHasPixels(runtime.hardware.memory, 1, 0)) {
     throw new Error('GLCD tile proof left stale pixels in a cleared cell');
@@ -478,7 +494,7 @@ function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): voi
   if (!cellHasPixels(runtime.hardware.memory, 2, 0) || !cellHasPixels(runtime.hardware.memory, 2, 1)) {
     throw new Error('GLCD tile proof did not draw a text run');
   }
-  assertCellMatchesFont(runtime.hardware.memory, 1, 1, 'B'.charCodeAt(0));
+  assertCellMatchesFont(runtime.hardware.memory, 1, 1, 'C'.charCodeAt(0));
   assertCellMatchesFont(runtime.hardware.memory, 2, 0, 'O'.charCodeAt(0));
   assertCellMatchesFont(runtime.hardware.memory, 2, 1, 'K'.charCodeAt(0));
 
@@ -486,6 +502,7 @@ function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): voi
   if (!glcdRowHasPixels(glcd, 1) || !glcdRowHasPixels(glcd, 2)) {
     throw new Error('GLCD tile proof did not flush tile rows to the visible GLCD');
   }
+  assertGlcdCellMatchesFont(runtime.hardware.memory, glcd, 1, 1, 'C'.charCodeAt(0));
 }
 
 function readCString(memory: Uint8Array, address: number): string {

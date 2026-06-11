@@ -27,6 +27,8 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,EditorSourceRecords
         CALL    EditorViewportRender
         JR      C,ProofFailed
+        CALL    GlcdTileFlushFull
+        JR      C,ProofFailed
 
         LD      HL,ProofStatusText
         LD      (EditorPromptTextPtr),HL

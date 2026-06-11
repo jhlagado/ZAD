@@ -261,11 +261,9 @@ GLCD. Use this exact smoke test:
 
    Expected: the cursor moves down one source row and back up one source row.
    The current-row gutter marker should follow it. This should not blank and
-   repaint the whole source viewport as a page load. The current row-scoped
-   path schedules only the affected rows. For now, `GlcdTileFlushRow` still
-   delegates to MON3's full `plotToLCD`; a later GLCD backend must replace that
-   with a true row-range transfer before the hardware update cost fully matches
-   the row-scoped scheduling model.
+   repaint the whole source viewport as a page load. The row-scoped path now
+   transfers only the six physical GLCD rows that make up the affected editor
+   text row.
 
 7. Type `Z`.
 

@@ -237,12 +237,14 @@ state to justify them.
 
 This is the direct GLCD tile-cell layer under the structured renderer. It
 writes TECM8-owned 6x6 character cells straight into MON3's `TGBUF` bitmap,
-uses the ROM font data at `0xDD9B`, and only relies on the BIOS layer to
-initialize, clear, and flush the display. It does not call MON3's terminal
-glyph drawing path, so TECM8 owns cell overwrite, clear, and text-run behavior
-directly. Current entry points include `GlcdTileClearCell`,
-`GlcdTileDrawCell`, `GlcdTileDrawTextRun`, `GlcdTileClearTextRow`, and
-`GlcdTileFlushFull`.
+uses the ROM font data at `0xDD9B`, and relies on the BIOS layer for display
+initialization and full-screen flushes. It does not call MON3's terminal glyph
+drawing path, so TECM8 owns cell overwrite, clear, and text-run behavior
+directly. Row flushes are now TECM8-owned ST7920 transfers: one editor text row
+writes the six physical GLCD rows, 16 bytes per physical row, through ports
+`0x07` and `0x87`. Current entry points include `GlcdTileClearCell`,
+`GlcdTileDrawCell`, `GlcdTileDrawTextRun`, `GlcdTileClearTextRow`,
+`GlcdTileFlushFull`, and `GlcdTileFlushRow`.
 
 Public entries:
 
@@ -250,6 +252,7 @@ Public entries:
 - `GlcdTileDrawCell`
 - `GlcdTileDrawTextRun`
 - `GlcdTileFlushFull`
+- `GlcdTileFlushRow`
 - `GlcdTilePrepareCell`
 
 `GlcdTilePrepareCell` validates the `20 x 10` cell bounds and maps a row and
@@ -257,7 +260,10 @@ column to the first backing-bitmap byte plus bit offset. The draw and clear
 paths then walk six rows of six pixels with local set and clear mask tables.
 `GlcdTileFlushFull` writes `TGBUF` to the active viewport pointer and calls
 `BiosDisplayUpdate`, which keeps the visible GLCD in sync with the TECM8-owned
-bitmap state.
+bitmap state after full viewport renders. `GlcdTileFlushRow` bypasses MON3
+`plotToLCD` and transfers only one six-pixel text row, so cursor movement,
+status overlays, and row-local edits avoid the old full-screen blank/repaint
+path.
 
 This module is the current boundary between TECM8 display policy and MON3 GLCD
 transport. Higher-level display code can stay in row and column coordinates
@@ -570,7 +576,7 @@ The display proofs build up the editor stack incrementally:
   flushing.
 - `proofs/display/structured-screen-proof.asm`: renders a fixed structured
   screen with chrome rows, source rows, and gutter markers.
-- `proofs/display/editor-viewport-proof.asm`: converts eight source records
+- `proofs/display/editor-viewport-proof.asm`: converts ten source records
   into display rows.
 - `proofs/display/editor-viewport-metadata-record-proof.asm`: verifies that
   source-record metadata bits are ignored by viewport length reads.

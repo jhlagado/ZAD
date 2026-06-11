@@ -297,13 +297,16 @@ Work:
   glyph pixels.
 - Done: introduced row-scoped GLCD flush scheduling. Cursor overlays, status
   overlays, current-line redraws, and vertical current-row marker changes now
-  call `GlcdTileFlushRow` instead of the full-flush API. The current
-  `GlcdTileFlushRow` still delegates to MON3's full `plotToLCD` backend, so
-  this completes the editor scheduling boundary but not the later hardware
-  row-transfer optimization.
-- Replace MON3-backed row flushes with true dirty row or dirty byte-range GLCD
-  transfers. Start with row-granular flushing, because it is easier to prove and
-  fits the current 6-pixel text-row model.
+  call `GlcdTileFlushRow` instead of the full-flush API.
+- Done: replaced the MON3-backed row flush with a TECM8-owned row-range GLCD
+  backend. `GlcdTileFlushRow` now selects ST7920 graphics mode, sets the
+  graphic row and banked horizontal address directly, and writes the 96 bytes
+  that make up one 6-pixel editor text row. Full viewport renders still use
+  `GlcdTileFlushFull` and MON3 `plotToLCD`.
+- Replace row-granular flushing with dirty byte-range or dirty cell-range GLCD
+  transfers once row flushing is proven manually. Row flushing is intentionally
+  the first hardware transfer step because it is easier to prove and fits the
+  current 6-pixel text-row model.
 - Add a small display work queue or dirty mask:
   - full viewport dirty for page loads, restore, and explicit redraw
   - dirty row for vertical cursor movement, line edits, status prompt restore
@@ -331,7 +334,7 @@ Incremental implementation order:
 
 1. Keep full tile repaint, but remove unnecessary clear-first behavior.
 2. Done: introduce dirty row scheduling while still flushing through MON3.
-3. Replace full MON3 `plotToLCD` flushes with a TECM8-owned row/byte-range GLCD
+3. Done: replace MON3-backed row flushes with a TECM8-owned row-range GLCD
    flush backend.
 4. Interleave keyboard polling between bounded GLCD flush slices.
 5. Add dirty cell ranges for horizontal movement and normal character edits.

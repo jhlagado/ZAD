@@ -1,7 +1,8 @@
 ; TECM8 GLCD tile-cell primitives.
 ;
 ; This layer writes 6x6 text cells directly into MON3's TGBUF bitmap. It may
-; still flush through MON3, but it does not call MON3's terminal/glyph policy.
+; still use MON3 for full-screen flushes, but it does not call MON3's terminal
+; glyph policy.
 
 TECM8_GLCD_TILE_COLUMNS             .equ    20
 TECM8_GLCD_TILE_ROWS                .equ    10
@@ -14,6 +15,12 @@ TECM8_GLCD_TILE_ROW_STRIDE          .equ    TECM8_GLCD_TILE_HEIGHT * TECM8_GLCD_
 TECM8_GLCD_TILE_TGBUF               .equ    0x13C0
 TECM8_GLCD_TILE_VPORT               .equ    0x0E13
 TECM8_GLCD_TILE_FONT_DATA           .equ    0xDD9B
+TECM8_GLCD_TILE_PORT_CMD            .equ    0x07
+TECM8_GLCD_TILE_PORT_DATA           .equ    0x87
+TECM8_GLCD_TILE_SET_ADDR            .equ    0x80
+TECM8_GLCD_TILE_LOWER_BANK          .equ    0x08
+TECM8_GLCD_TILE_ROW_BANK            .equ    32
+TECM8_GLCD_TILE_DELAY_COUNT         .equ    0x0010
 TECM8_GLCD_TILE_ERR_RANGE           .equ    0x01
 
 ; GlcdTileClearCell -
@@ -234,23 +241,55 @@ GlcdTileClearTextRowDone:
         RET
 
 ; GlcdTileFlushRow -
-; Push one dirty text row. This currently delegates to the MON3 full-viewport
-; updater, but keeps row-scoped callers off the full-flush API so a later GLCD
-; backend can replace this with a true row transfer.
+; Push one dirty 6-pixel text row directly to the ST7920 graphic buffer.
 ; Input: A = row (0-9)
 ;!      in        A
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileFlushRow:
         CP      TECM8_GLCD_TILE_ROWS
-        JR      NC,GlcdTileRangeError
+        JP      NC,GlcdTileRangeError
         LD      (GlcdTileFlushRowLast),A
         LD      A,(GlcdTileFlushRowCount)
         INC     A
         LD      (GlcdTileFlushRowCount),A
-        LD      HL,TECM8_GLCD_TILE_TGBUF
-        LD      (TECM8_GLCD_TILE_VPORT),HL
-        CALL    BiosDisplayUpdate
+
+        CALL    BiosDisplaySetBitmapMode
+        RET     C
+
+        LD      HL,TECM8_GLCD_TILE_TGBUF + (TECM8_GLCD_TILE_Y_ORIGIN * TECM8_GLCD_TILE_ROW_BYTES)
+        LD      A,(GlcdTileFlushRowLast)
+        LD      DE,TECM8_GLCD_TILE_ROW_STRIDE
+        OR      A
+        JR      Z,GlcdTileFlushRowPtrReady
+
+GlcdTileFlushRowPtrLoop:
+        ADD     HL,DE
+        DEC     A
+        JR      NZ,GlcdTileFlushRowPtrLoop
+
+GlcdTileFlushRowPtrReady:
+        LD      (GlcdTileFlushRowPtr),HL
+        LD      A,(GlcdTileFlushRowLast)
+        LD      C,A
+        ADD     A,A
+        ADD     A,C
+        ADD     A,A
+        ADD     A,TECM8_GLCD_TILE_Y_ORIGIN
+        LD      (GlcdTileFlushPhysicalY),A
+        LD      A,TECM8_GLCD_TILE_HEIGHT
+        LD      (GlcdTileFlushRowsRemaining),A
+
+GlcdTileFlushPhysicalRowLoop:
+        CALL    GlcdTileFlushPhysicalRow
+        LD      A,(GlcdTileFlushPhysicalY)
+        INC     A
+        LD      (GlcdTileFlushPhysicalY),A
+        LD      A,(GlcdTileFlushRowsRemaining)
+        DEC     A
+        LD      (GlcdTileFlushRowsRemaining),A
+        JR      NZ,GlcdTileFlushPhysicalRowLoop
+        XOR     A
         RET
 
 ; GlcdTilePrepareCell -
@@ -261,11 +300,11 @@ GlcdTileClearTextRowDone:
 @GlcdTilePrepareCell:
         LD      A,B
         CP      TECM8_GLCD_TILE_ROWS
-        JR      NC,GlcdTileRangeError
+        JP      NC,GlcdTileRangeError
         LD      (GlcdTileCellRow),A
         LD      A,C
         CP      TECM8_GLCD_TILE_COLUMNS
-        JR      NC,GlcdTileRangeError
+        JP      NC,GlcdTileRangeError
         LD      (GlcdTileCellColumn),A
 
         LD      HL,TECM8_GLCD_TILE_TGBUF + (TECM8_GLCD_TILE_Y_ORIGIN * TECM8_GLCD_TILE_ROW_BYTES)
@@ -320,6 +359,67 @@ GlcdTileCellPtrReady:
         XOR     A
         RET
 
+; GlcdTileFlushPhysicalRow -
+; Push the 16 backing bytes for the selected physical GLCD row.
+;!      out       carry
+;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileFlushPhysicalRow:
+        CALL    GlcdTileSetGraphicAddress
+        LD      HL,(GlcdTileFlushRowPtr)
+        LD      B,TECM8_GLCD_TILE_ROW_BYTES
+
+GlcdTileFlushByteLoop:
+        LD      A,(HL)
+        OUT     (TECM8_GLCD_TILE_PORT_DATA),A
+        CALL    GlcdTileFlushDelay
+        INC     HL
+        LD      A,(GlcdTileFlushRowByteCount)
+        INC     A
+        LD      (GlcdTileFlushRowByteCount),A
+        DJNZ    GlcdTileFlushByteLoop
+        LD      (GlcdTileFlushRowPtr),HL
+        XOR     A
+        RET
+
+; GlcdTileSetGraphicAddress -
+; Set ST7920 graphic row and banked horizontal address for one physical row.
+;!      out       carry
+;!      clobbers  A,B,DE,carry,zero,sign,parity,halfCarry
+@GlcdTileSetGraphicAddress:
+        LD      A,(GlcdTileFlushPhysicalY)
+        CP      TECM8_GLCD_TILE_ROW_BANK
+        JR      C,GlcdTileSetGraphicAddressUpper
+        SUB     TECM8_GLCD_TILE_ROW_BANK
+        LD      B,TECM8_GLCD_TILE_SET_ADDR | TECM8_GLCD_TILE_LOWER_BANK
+        JR      GlcdTileSetGraphicAddressRowReady
+
+GlcdTileSetGraphicAddressUpper:
+        LD      B,TECM8_GLCD_TILE_SET_ADDR
+
+GlcdTileSetGraphicAddressRowReady:
+        OR      TECM8_GLCD_TILE_SET_ADDR
+        OUT     (TECM8_GLCD_TILE_PORT_CMD),A
+        CALL    GlcdTileFlushDelay
+        LD      A,B
+        OUT     (TECM8_GLCD_TILE_PORT_CMD),A
+        CALL    GlcdTileFlushDelay
+        XOR     A
+        RET
+
+; GlcdTileFlushDelay -
+; Local copy of MON3's small GLCD write delay, kept near the direct port path.
+;!      out       A,zero
+;!      clobbers  A,DE,carry,zero,sign,parity,halfCarry
+@GlcdTileFlushDelay:
+        LD      DE,TECM8_GLCD_TILE_DELAY_COUNT
+
+GlcdTileFlushDelayLoop:
+        DEC     DE
+        LD      A,D
+        OR      E
+        JR      NZ,GlcdTileFlushDelayLoop
+        RET
+
 GlcdTileRangeError:
         LD      A,TECM8_GLCD_TILE_ERR_RANGE
         SCF
@@ -358,3 +458,11 @@ GlcdTileFlushRowCount:
         .db     0
 GlcdTileFlushRowLast:
         .db     0
+GlcdTileFlushRowByteCount:
+        .db     0
+GlcdTileFlushPhysicalY:
+        .db     0
+GlcdTileFlushRowsRemaining:
+        .db     0
+GlcdTileFlushRowPtr:
+        .dw     0
