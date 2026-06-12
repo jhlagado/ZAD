@@ -530,13 +530,15 @@ gutter markers and then transfers only the left gutter byte pair for each
 affected row.
 
 The cursor is an inverse 6x6 cell overlay with a cooperative blink state.
-`EditorCursorBlinkReset` arms the idle countdown after key handling renders the
-cursor. The live idle path first runs one `GlcdTileStep`; only when that reports
-no remaining queued display work does it call `EditorCursorBlinkStep`. When the
-countdown expires, blink hides or restores the cursor through the same dirty
-cell byte-range path used by ordinary cursor movement. The proof-visible
-`EditorCursorBlinkToggleCount` lets emulator proofs assert that blink toggles
-do not use row or full-screen flushes.
+`EditorCursorBlinkReset` arms a 16-bit idle countdown after key handling
+renders the cursor. The live idle path first runs one `GlcdTileStep`; only when
+that reports no remaining queued display work does it call
+`EditorCursorBlinkStep`. When the countdown expires, blink hides or restores
+the cursor through the same dirty cell byte-range path used by ordinary cursor
+movement. The countdown is intentionally long enough to avoid the cursor
+blending into a grey high-speed flicker in Debug80. The proof-visible
+`EditorCursorBlinkToggleCount` lets emulator proofs assert that blink toggles do
+not use row or full-screen flushes.
 
 `EditorRunLive` renders the cursor, polls one TECM8 key event at a time from
 `BiosInputPollKey`, and dispatches that key through `EditorRunModifiedKey` so

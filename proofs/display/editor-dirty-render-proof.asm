@@ -126,6 +126,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (CaseMarker),A
         LD      A,1
         LD      (EditorCursorBlinkCounter),A
+        XOR     A
+        LD      (EditorCursorBlinkCounterHi),A
         CALL    EditorCursorBlinkStep
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending
@@ -150,6 +152,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (CaseMarker),A
         LD      A,1
         LD      (EditorCursorBlinkCounter),A
+        XOR     A
+        LD      (EditorCursorBlinkCounterHi),A
         CALL    EditorCursorBlinkStep
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending

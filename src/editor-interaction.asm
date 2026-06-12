@@ -44,7 +44,7 @@ TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
 TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 TECM8_EDITOR_PROMPT_ACTION_QUIT         .equ    2
 TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
-TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x20
+TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0400
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
@@ -59,6 +59,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x20
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
         LD      (EditorCursorBlinkCounter),A
+        LD      (EditorCursorBlinkCounterHi),A
         CALL    EditorNavResetViewport
         RET     C
         XOR     A
@@ -80,6 +81,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x20
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
         LD      (EditorCursorBlinkCounter),A
+        LD      (EditorCursorBlinkCounterHi),A
         RET
 
 ; EditorRenderCursor -
@@ -142,10 +144,10 @@ EditorHideCursorDone:
 ; EditorCursorBlinkReset -
 ; Restart the idle blink countdown after a key event or explicit cursor render.
 ;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A
+;!      clobbers  A,HL
 @EditorCursorBlinkReset:
-        LD      A,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
-        LD      (EditorCursorBlinkCounter),A
+        LD      HL,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
+        LD      (EditorCursorBlinkCounter),HL
         XOR     A
         RET
 
@@ -157,18 +159,21 @@ EditorHideCursorDone:
         LD      A,(EditorPromptActive)
         OR      A
         JR      NZ,EditorCursorBlinkNoop
-        LD      A,(EditorCursorBlinkCounter)
-        OR      A
+        LD      HL,(EditorCursorBlinkCounter)
+        LD      A,H
+        OR      L
         JR      Z,EditorCursorBlinkDue
-        DEC     A
-        LD      (EditorCursorBlinkCounter),A
+        DEC     HL
+        LD      (EditorCursorBlinkCounter),HL
+        LD      A,H
+        OR      L
         JR      Z,EditorCursorBlinkDue
         XOR     A
         RET
 
 EditorCursorBlinkDue:
-        LD      A,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
-        LD      (EditorCursorBlinkCounter),A
+        LD      HL,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
+        LD      (EditorCursorBlinkCounter),HL
         LD      A,(EditorCursorBlinkToggleCount)
         INC     A
         LD      (EditorCursorBlinkToggleCount),A
@@ -2070,6 +2075,9 @@ EditorCursorRenderedCol:
         .db     0
 
 EditorCursorBlinkCounter:
+        .db     0
+
+EditorCursorBlinkCounterHi:
         .db     0
 
 EditorCursorBlinkToggleCount:
