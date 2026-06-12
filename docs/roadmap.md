@@ -591,14 +591,17 @@ skipped until a human can test real hardware.
 Detailed design: [Editor Block Operations](block-operations.md).
 
 Goal: add line-oriented block editing with fast in-session copy/move behavior
-and later named file read/write support.
+and later named file read/write support. The milestone for this roadmap section
+is **Block Editing V1**: a user can select line ranges, mark copy and move
+sources, paste or replace a destination range, delete a selected block, and
+verify the result in Debug80 without relying on SD-card clipboard writes.
 
 Direction:
 
 - Treat ordinary block copy/cut/paste as editor state, not an SD-card clipboard
-  file. A pending source block is shown with a thick gutter marker.
-- Keep an ordinary destination selection at the same time, shown with a thin
-  gutter marker.
+  file.
+- Use three gutter states: thin bar for ordinary destination selection, thick
+  bar for pending copy source, and sawtooth edge for pending move/cut source.
 - Use `Shift+Up/Down` and later `Shift+Alt+Up/Down` to select whole lines.
 - Use `Ctrl-C`/`Alt-C` to arm a pending copy source, `Ctrl-X`/`Alt-X` to arm a
   pending move source, and `Ctrl-V`/`Alt-V` to paste or replace.
@@ -612,23 +615,74 @@ Direction:
 - Add named `Ctrl-W` write-block and `Ctrl-R` read-block later as explicit slow
   file operations.
 
-Sequenced subphases:
+Sequenced goals:
 
-1. Keymap cleanup.
-2. Selection state and thin gutter markers.
-3. Pending copy/move source state and thick gutter markers.
-4. Paste insert within the resident editor window.
-5. Paste replace and overlap handling.
-6. Delete selected block with confirmation.
-7. Named block read/write.
+1. **Block Phase B1: Keymap Cleanup**
+   - Move quit to `Ctrl-Q`/`Alt-Q`.
+   - Move restore-from-backup to `Ctrl-Z`/`Alt-Z`.
+   - Reserve `Ctrl-R`/`Alt-R` for read-block and `Ctrl-W`/`Alt-W` for
+     write-block.
+   - Update live smoke and manual docs.
 
-Done when:
+2. **Block Phase B2: Selection Range And Thin Gutter**
+   - Add ordinary line-selection interval state.
+   - Implement `Shift+Up`/`Shift+Down`.
+   - Render selected visible rows with the thin gutter marker.
+   - Clear selection on ordinary movement and editing.
+
+3. **Block Phase B3: Page Selection And Gutter Glyph Proofs**
+   - Add `Shift+Alt+Up`/`Shift+Alt+Down` selection by page.
+   - Add GLCD tile/display proofs for thin, thick, and sawtooth gutter glyphs.
+   - Ensure selection display works through viewport movement.
+
+4. **Block Phase B4: Pending Copy And Move Source**
+   - `Ctrl-C`/`Alt-C` turns the ordinary selection into a pending copy source
+     with a thick gutter marker.
+   - `Ctrl-X`/`Alt-X` turns the ordinary selection into a pending move source
+     with a sawtooth gutter marker.
+   - Allow a second ordinary destination selection while the pending source
+     remains visible.
+
+5. **Block Phase B5: Paste Insert**
+   - `Ctrl-V`/`Alt-V` inserts the pending source before the cursor when no
+     destination selection is active.
+   - Copy leaves source intact; move removes source only after insertion
+     succeeds.
+   - The pasted block becomes the ordinary selected range.
+
+6. **Block Phase B6: Paste Replace And Overlap Handling**
+   - `Ctrl-V`/`Alt-V` replaces an ordinary destination selection.
+   - Reject unsafe move/copy overlaps with status feedback.
+   - Treat exact move-to-self as a no-op.
+
+7. **Block Phase B7: Delete Selected Block**
+   - `Delete` acts on selected blocks.
+   - Add status-line confirmation.
+   - Preserve source-record metadata bits and clean padding.
+
+8. **Block Phase B8: Debug80 Block Editing V1 Acceptance**
+   - Add automated Debug80 smoke coverage for selection, copy, move, replace,
+     overlap rejection, delete, save, and host export validation.
+   - Provide a short manual keyboard test script.
+   - Stop at this milestone for manual validation.
+
+Deferred after Block Editing V1:
+
+- `Ctrl-W`/`Alt-W` named block write.
+- `Ctrl-R`/`Alt-R` named block read.
+- Any anonymous hidden block file for cross-document persistence.
+- Character-precise selections.
+
+Block Editing V1 done criteria:
 
 - A user can select a whole-line range with Shift movement.
-- A user can mark that range as a pending copy or move source.
-- A user can create a second destination selection and paste into or over it.
+- A user can mark that range as a thick pending copy source or sawtooth pending
+  move source.
+- A user can create a second thin destination selection and paste into or over
+  it.
 - Overlapping move/copy cases are predictable and do not lose text.
 - Delete on selected block is confirmed and safe.
+- Save persists the reshaped source.
 - Host export still validates the edited source records and metadata bits.
 
 ## Likely Next Practical Milestone After Phase 1

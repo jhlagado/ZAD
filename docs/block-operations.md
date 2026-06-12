@@ -22,12 +22,13 @@ path. The editor has two related but separate block concepts:
 
 ```text
 selection       the ordinary active destination range, shown with a thin gutter mark
-pending block   the source range armed by Copy or Cut, shown with a thicker gutter mark
+pending copy    the source range armed by Copy, shown with a thick gutter mark
+pending move    the source range armed by Cut/Move, shown with a sawtooth gutter mark
 ```
 
-The pending block replaces the first-version clipboard. It is anonymous and
-fast because it is editor state, not an immediately written file. A named file
-block operation can still exist later for explicit import/export.
+The pending copy/move source replaces the first-version clipboard. It is
+anonymous and fast because it is editor state, not an immediately written file.
+A named file block operation can still exist later for explicit import/export.
 
 ## Normal User Model
 
@@ -49,9 +50,10 @@ move somewhere else
 Ctrl-V moves them there
 ```
 
-After `Ctrl-C` or `Ctrl-X`, the source block remains visible and marked. The
-user can then create a second ordinary selection elsewhere. On paste, the
-pending source block is copied or moved into the destination selection.
+After `Ctrl-C` or `Ctrl-X`, the source block remains visible and marked with
+the relevant source glyph. The user can then create a second ordinary selection
+elsewhere. On paste, the pending source block is copied or moved into the
+destination selection.
 
 ## Key Bindings
 
@@ -91,17 +93,47 @@ Initial display states:
 ```text
 blank       normal line
 thin bar    ordinary selection / destination selection
-thick bar   pending copy or move source
+thick bar   pending copy source
+sawtooth    pending move/cut source
 ```
 
-The first implementation does not need different glyphs for copy-source and
-move-source. The status row can disambiguate with text such as `Copy block` or
-`Move block`. Later renderers can add a double bar, dashed bar, inverted text,
-or TMS9918 sprites if the distinction needs to be visible at all times.
+The thick bar says "this is the block that will be copied." The sawtooth says
+"this is the block that will be moved or disposed of when paste completes."
+That gives cut/move a different mood without requiring text inversion.
+
+One possible 4x6 sawtooth cell is:
+
+```text
+1000
+1100
+1110
+1111
+1110
+1100
+```
+
+A sharper, more serrated variant is:
+
+```text
+1000
+1100
+1110
+1100
+1000
+0000
+```
+
+The exact pattern should be tested on the GLCD because a 4-pixel gutter gives
+very little room. The renderer should keep the glyph vocabulary symbolic in the
+editor state so a later TMS9918 backend can map these states to tile glyphs,
+colors, or sprites.
 
 If a visible row belongs to both the ordinary selection and pending block, the
-pending-block marker should win visually because it represents the source of a
-future operation. Overlap rules still decide whether paste is legal.
+pending source marker should win visually because it represents the source of a
+future operation. If a row is both pending copy and pending move because of a
+stale or invalid state, pending move should win and the editor should clear or
+repair the invalid state at the next command boundary. Overlap rules still
+decide whether paste is legal.
 
 ## Selection Semantics
 
@@ -143,7 +175,7 @@ Ctrl-V duplicates the source at the destination
 
 ```text
 source remains in place for now
-source is shown with thick gutter markers
+source is shown with sawtooth gutter markers
 Ctrl-V inserts it at the destination and removes the original source
 ```
 
@@ -182,7 +214,7 @@ replace the newly pasted lines.
 Overlap must be explicit because there can be two selections at once:
 
 ```text
-pending source range       thick gutter marker
+pending source range       thick or sawtooth gutter marker
 ordinary destination range thin gutter marker
 ```
 
@@ -290,7 +322,7 @@ EditorBlockSelectionActiveLo
 EditorBlockSelectionActiveHi
 
 EditorBlockPendingActive
-EditorBlockPendingMode          ; copy or move
+EditorBlockPendingMode          ; copy = thick gutter, move = sawtooth gutter
 EditorBlockPendingStartLo
 EditorBlockPendingStartHi
 EditorBlockPendingEndLo
@@ -335,12 +367,13 @@ extends through viewport/page movement.
 
 - Implement `Ctrl-C`/`Alt-C` to arm a selected source as pending copy.
 - Implement `Ctrl-X`/`Alt-X` to arm a selected source as pending move.
-- Render pending source rows with thick gutter markers.
+- Render pending copy rows with thick gutter markers.
+- Render pending move rows with sawtooth gutter markers.
 - Allow a second ordinary destination selection while the pending block remains.
 - Clear pending block on ordinary source mutation.
 
-Done when the user can see both a thick source block and a thin destination
-block at the same time.
+Done when the user can see a thick copy source or sawtooth move source at the
+same time as a thin destination block.
 
 ### Phase B4: Paste Insert
 
@@ -394,10 +427,9 @@ A future manual Debug80 script for this feature should cover:
 5. Select two destination lines.
 6. Ctrl-V replaces those lines.
 7. Select another block.
-8. Ctrl-X marks it as a move source.
+8. Ctrl-X marks it as a sawtooth move source.
 9. Move elsewhere and Ctrl-V moves it.
 10. Try an overlapping move and confirm it is rejected.
 11. Select a block and press Delete; answer N, then Y.
 12. Save and export the source to verify records and metadata bits remain valid.
 ```
-
