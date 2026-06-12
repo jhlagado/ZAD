@@ -591,6 +591,19 @@ function glcdRowHasPixels(glcd: number[], displayRow: number): boolean {
   return false;
 }
 
+function assertGlcdGutterHighNibble(glcd: number[], displayRow: number, expected: number): void {
+  const firstPixelRow = displayRow * 6 + DISPLAY_Y_ORIGIN;
+  for (let y = firstPixelRow; y < firstPixelRow + 6; y += 1) {
+    const value = glcd[y * 16] ?? 0;
+    const actual = value & 0xf0;
+    if (actual !== expected) {
+      throw new Error(
+        `display row ${displayRow} gutter at physical row ${y} is ${resultToString(actual)}, expected ${resultToString(expected)}`,
+      );
+    }
+  }
+}
+
 function verifyNoopProof(): void {}
 
 function verifyPositiveProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
@@ -800,16 +813,16 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   verifyShellEditVisibleCursor(runtime, platformRuntime);
 }
 
-function verifyEditorDirtyRenderProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const expectedCounts = [
     { symbol: 'MoveScreenCount', expected: 0 },
     { symbol: 'MovePageCount', expected: 0 },
     { symbol: 'MoveRowCount', expected: 0 },
     { symbol: 'MoveMarkerCount', expected: 4 },
     { symbol: 'MoveFullFlushCount', expected: 0 },
-    { symbol: 'MoveRowFlushCount', expected: 4 },
-    { symbol: 'MoveCellFlushCount', expected: 2 },
-    { symbol: 'MoveCellFlushByteCount', expected: 24 },
+    { symbol: 'MoveRowFlushCount', expected: 0 },
+    { symbol: 'MoveCellFlushCount', expected: 6 },
+    { symbol: 'MoveCellFlushByteCount', expected: 36 },
     { symbol: 'InsertScreenCount', expected: 0 },
     { symbol: 'InsertPageCount', expected: 0 },
     { symbol: 'InsertRowCount', expected: 1 },
@@ -838,10 +851,14 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, _platformRuntime: Platfo
     throw new Error(`editor dirty render row 1 marker ${row1Marker}, expected no marker`);
   }
 
+  const glcd = getGlcdBytes(platformRuntime);
+  assertGlcdGutterHighNibble(glcd, 0, 0x80);
+  assertGlcdGutterHighNibble(glcd, 1, 0x00);
+
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
   const record = readSourceRecord(runtime.hardware.memory, pageBuffer, 0);
-  if (record !== 'PZ0 LINE 00') {
-    throw new Error(`editor dirty render inserted record "${record}", expected "PZ0 LINE 00"`);
+  if (record !== 'ZP0 LINE 00') {
+    throw new Error(`editor dirty render inserted record "${record}", expected "ZP0 LINE 00"`);
   }
 }
 

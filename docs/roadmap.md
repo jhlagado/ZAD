@@ -321,6 +321,10 @@ Work:
   rows. Horizontal cursor movement and simple edit cursor restore/redraw now use
   cell-range transfers instead of spending full 96-byte row flushes for cursor
   work.
+- Done: narrowed non-scrolling vertical cursor movement. Current-row gutter
+  marker changes now call `GlcdTileMarkGutterDirty`, which transfers only the
+  word-aligned gutter byte pair for each affected row. The dirty-render proof
+  now requires ordinary cursor movement to use zero full row flushes.
 - Extend dirty cell-range scheduling beyond cursor overlays where it is useful.
   Current-line text mutations still redraw the affected text row, which is
   simple and safe. Later work can mark exact changed cell ranges for single
@@ -358,7 +362,9 @@ Incremental implementation order:
 5. Done: add a dirty-row mask and use it for current-line edits and vertical
    cursor row-marker movement.
 6. Done: add dirty cell ranges for horizontal movement and edit cursor overlays.
-7. Add cursor blink once cursor updates are cheap.
+7. Done: replace non-scrolling vertical current-row marker flushes with gutter
+   byte-range transfers.
+8. Add cursor blink once cursor updates are cheap.
 
 Proofs:
 

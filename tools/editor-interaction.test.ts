@@ -106,7 +106,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
   assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
   assert.match(source, /EditorKeyBackspaceJoin:[\s\S]*?CALL\s+EditorKeyRenderDirty/);
-  assert.match(source, /@EditorKeyRenderCursorRowMarkers:[\s\S]*?CALL\s+GlcdTileMarkRowDirty[\s\S]*?CALL\s+GlcdTileMarkRowDirty/);
+  assert.match(source, /@EditorKeyRenderCursorRowMarkers:[\s\S]*?CALL\s+GlcdTileMarkGutterDirty[\s\S]*?CALL\s+GlcdTileMarkGutterDirty/);
   assert.match(source, /EditorKeyDone:\n\s+LD\s+A,\(EditorPromptActive\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorKeyDoneNoCursor/);
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorVisibleRow:\n\s+\.db\s+0/);
@@ -289,7 +289,7 @@ test('editor dirty render proof covers ordinary movement and printable edit path
   assert.match(runner, /row 0 marker/);
   assert.match(runner, /row 1 marker/);
   assert.match(runner, /InsertRowCount/);
-  assert.match(runner, /PZ0 LINE 00/);
+  assert.match(runner, /ZP0 LINE 00/);
   assert.match(packageJson, /"proof:display:editor-dirty-render"/);
   assert.match(packageJson, /proof:display:editor-dirty-render/);
 });

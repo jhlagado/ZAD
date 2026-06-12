@@ -260,6 +260,7 @@ Public entries:
 - `GlcdTileQueueRow`
 - `GlcdTileMarkRowDirty`
 - `GlcdTileMarkCellDirty`
+- `GlcdTileMarkGutterDirty`
 - `GlcdTileStep`
 - `GlcdTilePrepareCell`
 
@@ -290,6 +291,9 @@ cell, coalesces the minimum and maximum dirty bytes for that row, and lets
 `GlcdTileStep` transfer only that byte span across the six physical rows. Cursor
 overlay render/erase uses this path, so ordinary horizontal cursor movement and
 post-edit cursor restore/redraw no longer require full text-row transfers.
+`GlcdTileMarkGutterDirty` uses the same scheduler for the left gutter byte pair,
+so non-scrolling vertical cursor movement can move the current-row marker
+without flushing the whole old and new text rows.
 
 This module is the current boundary between TECM8 display policy and MON3 GLCD
 transport. Higher-level display code can stay in row and column coordinates

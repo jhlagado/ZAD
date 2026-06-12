@@ -1439,11 +1439,11 @@ EditorKeyRenderCursorNewOnly:
         LD      A,(EditorCursorPreviousVisibleRow)
         CP      0xFF
         JR      Z,EditorKeyRenderCursorFlushCurrent
-        CALL    GlcdTileMarkRowDirty
+        CALL    GlcdTileMarkGutterDirty
         RET     C
 EditorKeyRenderCursorFlushCurrent:
         LD      A,(EditorCursorVisibleRow)
-        CALL    GlcdTileMarkRowDirty
+        CALL    GlcdTileMarkGutterDirty
         RET     C
         XOR     A
         RET

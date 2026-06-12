@@ -240,6 +240,51 @@ CellTwoByteStepFinalReturn:
         LD      (GlcdTileFlushCellByteCount),A
         LD      (GlcdTileFlushCellCount),A
         LD      (GlcdTileStepCount),A
+        LD      A,8
+        CALL    GlcdTileMarkGutterDirty
+        JP      C,ProofFailed
+        LD      A,6
+        LD      (DirtyStepLoopCount),A
+
+GutterStepLoop:
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        LD      B,A
+        LD      A,(DirtyStepLoopCount)
+        DEC     A
+        LD      (DirtyStepLoopCount),A
+        OR      A
+        JR      Z,GutterStepFinalReturn
+        LD      A,B
+        OR      A
+        JP      Z,ProofFailed
+        JR      GutterStepLoop
+
+GutterStepFinalReturn:
+        LD      A,B
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellByteCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellCount)
+        CP      1
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileFlushCellByteCount),A
+        LD      (GlcdTileFlushCellCount),A
+        LD      (GlcdTileStepCount),A
 
         LD      A,2
         CALL    GlcdTileMarkRowDirty

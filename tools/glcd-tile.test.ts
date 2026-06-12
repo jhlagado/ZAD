@@ -22,6 +22,7 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
     'GlcdTileQueueRow',
     'GlcdTileMarkRowDirty',
     'GlcdTileMarkCellDirty',
+    'GlcdTileMarkGutterDirty',
     'GlcdTileStep',
     'GlcdTilePrepareCell',
   ]) {
@@ -84,6 +85,7 @@ test('GLCD tile proof is wired into package checks', () => {
   assert.match(proof, /CALL\s+GlcdTileQueueRow/);
   assert.match(proof, /CALL\s+GlcdTileMarkRowDirty/);
   assert.match(proof, /CALL\s+GlcdTileMarkCellDirty/);
+  assert.match(proof, /CALL\s+GlcdTileMarkGutterDirty/);
   assert.match(proof, /CALL\s+GlcdTileStep/);
   assert.match(proof, /\.include\s+"..\/..\/src\/glcd-tile\.asm"/);
   assert.match(runner, /verifyGlcdTile/);

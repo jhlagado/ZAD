@@ -348,17 +348,12 @@ GLCD. Use this exact smoke test:
    Debug80 exit path on macOS because host tools commonly reserve Ctrl and
    Command chords.
 
-The current phase does not require fast GLCD hardware flushing. Cursor movement
-and simple printable edits avoid full viewport render, but cursor overlay and
-row edits still flush through the current full GLCD transfer routine. Replacing
-that with tile/dirty-region GLCD transfer is the next display-performance phase.
-
-Ordinary cursor movement and simple in-line printable edits now use dirty
-rendering: horizontal cursor keys redraw the cursor overlay, vertical cursor
-keys redraw the old/new source rows so the gutter marker follows the cursor,
-and printable insert/delete redraws the affected source row. Page loads,
-split/join operations, explicit redraws, and mode changes may still repaint the
-full viewport.
+The current phase uses tile/dirty-region GLCD transfer for ordinary cursor
+movement. Horizontal cursor keys redraw the cursor overlay cell range, and
+non-scrolling vertical cursor keys redraw only the left gutter byte pair for the
+old and new marker rows. Printable insert/delete still redraws the affected
+source row. Page loads, split/join operations, explicit redraws, and mode
+changes may still repaint the full viewport.
 
 The cursor is constrained to the visible 20-column GLCD editor viewport in this
 phase. The 32-byte source-record format still stores up to 31 text bytes, but

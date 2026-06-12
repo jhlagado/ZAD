@@ -22,31 +22,6 @@ PROOF_FAIL       .equ     0xE0
         JP      C,ProofFailed
 
         CALL    ResetRenderCounters
-        LD      A,2
-        LD      (CaseMarker),A
-        LD      HL,MovementKeys
-        CALL    EditorRunKeys
-        JP      C,ProofFailed
-        CALL    GlcdTileDrainPending
-        JP      C,ProofFailed
-        LD      A,(DisplayRenderScreenCount)
-        LD      (MoveScreenCount),A
-        LD      A,(EditorRenderPageBufferCount)
-        LD      (MovePageCount),A
-        LD      A,(EditorViewportRenderRecordRowCount)
-        LD      (MoveRowCount),A
-        LD      A,(EditorViewportRenderRowMarkerCount)
-        LD      (MoveMarkerCount),A
-        LD      A,(GlcdTileFlushFullCount)
-        LD      (MoveFullFlushCount),A
-        LD      A,(GlcdTileFlushRowCount)
-        LD      (MoveRowFlushCount),A
-        LD      A,(GlcdTileFlushCellCount)
-        LD      (MoveCellFlushCount),A
-        LD      A,(GlcdTileFlushCellByteCount)
-        LD      (MoveCellFlushByteCount),A
-
-        CALL    ResetRenderCounters
         LD      A,3
         LD      (CaseMarker),A
         LD      HL,InsertKeys
@@ -70,6 +45,31 @@ PROOF_FAIL       .equ     0xE0
         LD      (InsertCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (InsertCellFlushByteCount),A
+
+        CALL    ResetRenderCounters
+        LD      A,2
+        LD      (CaseMarker),A
+        LD      HL,MovementKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        LD      A,(DisplayRenderScreenCount)
+        LD      (MoveScreenCount),A
+        LD      A,(EditorRenderPageBufferCount)
+        LD      (MovePageCount),A
+        LD      A,(EditorViewportRenderRecordRowCount)
+        LD      (MoveRowCount),A
+        LD      A,(EditorViewportRenderRowMarkerCount)
+        LD      (MoveMarkerCount),A
+        LD      A,(GlcdTileFlushFullCount)
+        LD      (MoveFullFlushCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (MoveRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (MoveCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (MoveCellFlushByteCount),A
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A

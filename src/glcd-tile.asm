@@ -348,6 +348,8 @@ GlcdTileDirtyCellMaxStore:
         LD      A,(GlcdTileDirtyCellMinTemp)
         AND     0xFE
         LD      (GlcdTileDirtyCellMinTemp),A
+
+GlcdTileMarkCellRange:
         LD      A,(GlcdTileDirtyCellRowTemp)
         CP      8
         JR      NC,GlcdTileMarkCellHighRow
@@ -402,6 +404,25 @@ GlcdTileDirtyCellMinDone:
 GlcdTileDirtyCellMaxDone:
         XOR     A
         RET
+
+; GlcdTileMarkGutterDirty -
+; Mark the gutter byte pair for one text row for later cooperative transfer.
+; Input: A = row (0-9)
+;!      in        A
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileMarkGutterDirty:
+        CP      TECM8_GLCD_TILE_ROWS
+        JP      NC,GlcdTileRangeError
+        LD      (GlcdTileDirtyCellRowTemp),A
+        LD      A,(GlcdTileFlushCellCount)
+        INC     A
+        LD      (GlcdTileFlushCellCount),A
+        XOR     A
+        LD      (GlcdTileDirtyCellMinTemp),A
+        LD      A,1
+        LD      (GlcdTileDirtyCellMaxTemp),A
+        JP      GlcdTileMarkCellRange
 
 ; GlcdTileStartQueuedRow -
 ; Start transfer state for GlcdTileFlushRowLast without changing queue counts.
