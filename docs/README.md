@@ -39,6 +39,7 @@ Start here:
 - [TEC-Side Shell Command Contract](shell-command-contract.md)
 - [TECM8 AZM Style Guide](azm-style-guide.md)
 - [Editor Design](editor-design.md)
+- [Editor Block Operations](block-operations.md)
 - [Debug80 Editor Session](debug80-editor-session.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)

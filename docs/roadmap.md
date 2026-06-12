@@ -588,45 +588,48 @@ skipped until a human can test real hardware.
 
 ## Future Phase: Block Operations
 
-Goal: add 1980s-style block editing without assuming a modern in-memory
-clipboard.
+Detailed design: [Editor Block Operations](block-operations.md).
 
-Design direction:
+Goal: add line-oriented block editing with fast in-session copy/move behavior
+and later named file read/write support.
 
-- Treat this as block operations, not a GUI clipboard.
-- Prefer line/record-based blocks for the first version. Character-precise
-  selections across fixed 31-byte records can come later if the line-based model
-  is not enough.
-- Mark block start, move the cursor, then mark block end.
-- Show marked rows with the gutter marker rather than inverse text.
-- Support write-block and read-block as the core primitive, following the Turbo
-  Pascal-era model.
-- Use a project-local hidden default block file, likely `/.tecm8.blk`, when the
-  user does not name a file explicitly. This gives clipboard-like convenience
-  while keeping the storage-backed, file-oriented model.
-- Later support named block files for explicit write/read workflows.
-- Implement block delete and block move as separate commands after block
-  selection and storage-backed write/read are proven.
-- Cross-document paste should be file-backed: write the marked block to the
-  hidden block file, open another file, then read the block at the cursor.
+Direction:
 
-Risks:
+- Treat ordinary block copy/cut/paste as editor state, not an SD-card clipboard
+  file. A pending source block is shown with a thick gutter marker.
+- Keep an ordinary destination selection at the same time, shown with a thin
+  gutter marker.
+- Use `Shift+Up/Down` and later `Shift+Alt+Up/Down` to select whole lines.
+- Use `Ctrl-C`/`Alt-C` to arm a pending copy source, `Ctrl-X`/`Alt-X` to arm a
+  pending move source, and `Ctrl-V`/`Alt-V` to paste or replace.
+- Move quit back to `Ctrl-Q`/`Alt-Q` and move restore-from-backup to
+  `Ctrl-Z`/`Alt-Z`, freeing `Ctrl-R`/`Alt-R` for named block read.
+- Use `Delete` on a selected block rather than adding a separate delete-block
+  command.
+- Represent source and destination selections as line-range intervals in editor
+  state. Do not use the source-record length metadata bits for transient block
+  selection.
+- Add named `Ctrl-W` write-block and `Ctrl-R` read-block later as explicit slow
+  file operations.
 
-- Whole-document copy must not require holding the whole document in RAM.
-- Block operations must preserve source-record metadata bits and clean padding.
-- Delete/move operations need the same backup/save discipline as ordinary edits.
-- Large block reads and writes will stress the slow SD path, so they should use
-  clear status feedback and avoid unnecessary display redraws.
+Sequenced subphases:
+
+1. Keymap cleanup.
+2. Selection state and thin gutter markers.
+3. Pending copy/move source state and thick gutter markers.
+4. Paste insert within the resident editor window.
+5. Paste replace and overlap handling.
+6. Delete selected block with confirmation.
+7. Named block read/write.
 
 Done when:
 
-- A user can mark a line block, write it to the default hidden block file, and
-  read it back at the cursor.
-- A user can delete a marked line block safely.
-- A user can move a marked line block within a file by block write/delete/read
-  or an equivalent direct command.
-- A user can transfer a block between two source files in the same project.
-- Host export still validates the edited source records.
+- A user can select a whole-line range with Shift movement.
+- A user can mark that range as a pending copy or move source.
+- A user can create a second destination selection and paste into or over it.
+- Overlapping move/copy cases are predictable and do not lose text.
+- Delete on selected block is confirmed and safe.
+- Host export still validates the edited source records and metadata bits.
 
 ## Likely Next Practical Milestone After Phase 1
 

@@ -459,7 +459,7 @@ Possible early commands:
 ```text
 Ctrl-S  save
 Ctrl-Q  quit
-Ctrl-X  alternate quit for host environments that capture Ctrl-Q
+Alt-Q   alternate quit for host environments that capture Ctrl-Q
 Ctrl-G  go to line
 Ctrl-K  delete line
 Ctrl-N  insert new line
@@ -467,7 +467,10 @@ Ctrl-L  redraw
 ```
 
 Exact bindings should be adjusted to the TEC-1G matrix keyboard and MON3
-control-key behavior.
+control-key behavior. Block operations now have a more detailed future keymap
+in [Editor Block Operations](block-operations.md): `Ctrl-X`/`Alt-X` should
+eventually mean pending block move, while restore-from-backup moves toward
+`Ctrl-Z`/`Alt-Z`.
 
 ## Status-Line Prompt Mode
 
