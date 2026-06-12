@@ -8,7 +8,9 @@ opens `VOLUME.TM8`, reads `/tecm8.prj`, and launches the GLCD editor.
 The manual entry at `4000h` opens the editor and enters a live MON3 matrix
 keyboard polling loop. The automated runner enters `ScriptStart` instead: it
 saves the project source file, quits, reopens it, and leaves the final editor
-screen on the GLCD for verification.
+screen on the GLCD for verification. Scripted runs use a temporary copy of the
+SD-card image, so they can test destructive editor saves without changing the
+manual Debug80 image.
 
 Run it with:
 
@@ -38,11 +40,17 @@ program at `4000h` (`appStart: 4000h`). For a manual UI check, let MON3 finish
 initializing, then use MON3's normal `GO` flow to execute the TECM8 program at
 `4000h`.
 
-The full scripted session command generates:
+The manual image command generates:
 
 ```text
 demos/debug80/editor-session-fat32.img
 demos/debug80/editor-session-fat32.json
+```
+
+The full scripted session command runs against a temporary image and only
+updates these diagnostic artifacts:
+
+```text
 demos/debug80/editor-session-glcd.pgm
 demos/debug80/editor-session-last-run.json
 ```

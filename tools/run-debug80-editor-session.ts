@@ -4,7 +4,8 @@
  */
 
 const { execFileSync } = require('node:child_process');
-const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { tmpdir } = require('node:os');
 const { dirname, resolve } = require('node:path');
 
 const TECM8_ROOT = resolve(__dirname, '..');
@@ -150,9 +151,13 @@ function encodeProjectConfig(mainFile: string): Buffer {
   return Buffer.from(['tm8project=1', `main=${mainFile}`, ''].join('\n'), 'ascii');
 }
 
-function ensureSessionImage(): void {
-  mkdirSync(SESSION_DIR, { recursive: true });
-  execFileSync(process.execPath, ['--experimental-strip-types', IMAGE_TOOL, IMAGE_PATH], {
+function manifestPath(imagePath: string): string {
+  return imagePath.replace(/\.[^.]*$/, '.json');
+}
+
+function ensureSessionImage(imagePath: string): void {
+  mkdirSync(dirname(imagePath), { recursive: true });
+  execFileSync(process.execPath, ['--experimental-strip-types', IMAGE_TOOL, imagePath], {
     cwd: TECM8_ROOT,
     stdio: 'ignore',
   });
@@ -202,10 +207,10 @@ function ensureSessionImage(): void {
     throw new Error('generated project config was not stored exactly');
   }
 
-  const manifest = JSON.parse(readFileSync(IMAGE_PATH.replace(/\.[^.]*$/, '.json'), 'utf8'));
-  const image = Buffer.from(readFileSync(IMAGE_PATH));
+  const manifest = JSON.parse(readFileSync(manifestPath(imagePath), 'utf8'));
+  const image = Buffer.from(readFileSync(imagePath));
   volume.copy(image, manifest.volume_start_byte_offset);
-  writeFileSync(IMAGE_PATH, image);
+  writeFileSync(imagePath, image);
 }
 
 function makeConfig(imagePath: string, startAddress = APP_START, matrixMode = false) {
@@ -382,10 +387,10 @@ function tapMatrixCombo(
   runInstructions(runtime, platformRuntime, releaseInstructions);
 }
 
-function readTm8File(tm8Path: string): Buffer {
+function readTm8File(imagePath: string, tm8Path: string): Buffer {
   const { readFileFromVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
-  const manifest = JSON.parse(readFileSync(IMAGE_PATH.replace(/\.[^.]*$/, '.json'), 'utf8'));
-  const image = readFileSync(IMAGE_PATH);
+  const manifest = JSON.parse(readFileSync(manifestPath(imagePath), 'utf8'));
+  const image = readFileSync(imagePath);
   const volume = image.subarray(manifest.volume_start_byte_offset, manifest.volume_start_byte_offset + TM8_VOLUME_BYTES);
   return readFileFromVolumeImage(Buffer.from(volume), tm8Path) as Buffer;
 }
@@ -472,8 +477,8 @@ function writeGlcdCapture(glcd: number[]): void {
 }
 
 async function main(): Promise<void> {
-  ensureSessionImage();
   if (process.argv.includes('--prepare-only')) {
+    ensureSessionImage(IMAGE_PATH);
     const summary = {
       result: 'ok',
       preparedOnly: true,
@@ -484,8 +489,14 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { bytes, symbols } = await compileMain();
-  if (process.argv.includes('--live-smoke')) {
+  const tempSessionDir = mkdtempSync(resolve(tmpdir(), 'tecm8-editor-session-'));
+  const sessionImagePath = resolve(tempSessionDir, 'editor-session-fat32.img');
+
+  try {
+    ensureSessionImage(sessionImagePath);
+
+    const { bytes, symbols } = await compileMain();
+    if (process.argv.includes('--live-smoke')) {
     const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
     const doneAddr = symbolAddress(symbols, 'MainDone');
     const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
@@ -505,7 +516,7 @@ async function main(): Promise<void> {
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
     const rawSecondaryAddr = symbolAddress(symbols, 'BiosInputRawSecondary');
     const translatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedKey');
-    const { runtime, platformRuntime } = loadRuntime(bytes, IMAGE_PATH, APP_START, true);
+    const { runtime, platformRuntime } = loadRuntime(bytes, sessionImagePath, APP_START, true);
     platformRuntime.setMatrixMode?.(true);
     const bootInstructions = runUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown: raw key 04h
@@ -762,6 +773,9 @@ async function main(): Promise<void> {
     const summary = {
       result: 'ok',
       liveSmoke: true,
+      manualImage: IMAGE_PATH,
+      temporaryImage: true,
+      temporaryImageRetained: false,
       bootInstructions,
       cursorRow,
       cursorCol,
@@ -802,7 +816,7 @@ async function main(): Promise<void> {
   const resultAddr = symbolAddress(symbols, 'MainResultMarker');
   const errorAddr = symbolAddress(symbols, 'MainErrorMarker');
   const caseAddr = symbolAddress(symbols, 'MainCaseMarker');
-  const { runtime, platformRuntime } = loadRuntime(bytes, IMAGE_PATH, scriptStartAddr);
+  const { runtime, platformRuntime } = loadRuntime(bytes, sessionImagePath, scriptStartAddr);
   const instructions = runUntil(runtime, platformRuntime, doneAddr);
   const resultMarker = runtime.hardware.memory[resultAddr];
   if (resultMarker !== PASS) {
@@ -817,8 +831,8 @@ async function main(): Promise<void> {
     );
   }
 
-  const source = readTm8File('/src/main.asm');
-  const backup = readTm8File('/src/.main.asm.b');
+  const source = readTm8File(sessionImagePath, '/src/main.asm');
+  const backup = readTm8File(sessionImagePath, '/src/.main.asm.b');
   const savedRecord0 = readSourceRecord(source, 0);
   const backupRecord0 = readSourceRecord(backup, 0);
   if (savedRecord0 !== 'ABR0 LINE 00') {
@@ -837,13 +851,18 @@ async function main(): Promise<void> {
   const summary = {
     result: 'ok',
     instructions,
-    image: IMAGE_PATH,
+    manualImage: IMAGE_PATH,
+    temporaryImage: true,
+    temporaryImageRetained: false,
     glcdCapture: GLCD_CAPTURE_PATH,
     savedRecord0,
     backupRecord0,
   };
   writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
+  } finally {
+    rmSync(tempSessionDir, { recursive: true, force: true });
+  }
 }
 
 main().catch((error: unknown) => {
