@@ -18,9 +18,8 @@ TECM8_EDITOR_KEY_BACKSPACE              .equ    8
 TECM8_EDITOR_KEY_INSERT_MODE            .equ    9
 TECM8_EDITOR_KEY_NEWLINE                .equ    13
 TECM8_EDITOR_KEY_QUIT                   .equ    17
-TECM8_EDITOR_KEY_RESTORE                .equ    18
 TECM8_EDITOR_KEY_SAVE                   .equ    19
-TECM8_EDITOR_KEY_ALT_QUIT               .equ    24
+TECM8_EDITOR_KEY_RESTORE                .equ    26
 TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
@@ -269,8 +268,6 @@ EditorKeyLoop:
         JP      Z,EditorKeyRestorePrompt
         CP      TECM8_EDITOR_KEY_SAVE
         JP      Z,EditorKeySave
-        CP      TECM8_EDITOR_KEY_ALT_QUIT
-        JP      Z,EditorKeyQuit
         LD      A,(EditorInsertMode)
         OR      A
         JR      NZ,EditorKeyMaybeInsertMode
@@ -347,8 +344,6 @@ EditorDispatchModifiedCommand:
         CP      TECM8_EDITOR_KEY_SAVE
         JP      Z,EditorKeySave
         CP      TECM8_EDITOR_KEY_QUIT
-        JP      Z,EditorKeyQuit
-        CP      TECM8_EDITOR_KEY_ALT_QUIT
         JP      Z,EditorKeyQuit
         CP      TECM8_EDITOR_KEY_RESTORE
         JP      Z,EditorKeyRestorePrompt
@@ -684,7 +679,7 @@ EditorActionCursorRight:
 
 ; EditorModifiedCommandFromKey -
 ; Prefer modifier-aware editor commands before printable insertion. This keeps
-; Alt-S/Alt-X usable for macOS Debug80 testing and also catches Ctrl-letter
+; Alt-S/Alt-Q/Alt-Z usable for macOS Debug80 testing and also catches Ctrl-letter
 ; events when the host path reports a printable letter plus modifier flags
 ; instead of an ASCII control byte.
 ; Input: EditorPendingChar, EditorPendingModifier
@@ -700,17 +695,13 @@ EditorActionCursorRight:
         JR      Z,EditorModifiedCommandSave
         CP      "S"
         JR      Z,EditorModifiedCommandSave
-        CP      "x"
-        JR      Z,EditorModifiedCommandAltQuit
-        CP      "X"
-        JR      Z,EditorModifiedCommandAltQuit
         CP      "q"
         JR      Z,EditorModifiedCommandQuit
         CP      "Q"
         JR      Z,EditorModifiedCommandQuit
-        CP      "r"
+        CP      "z"
         JR      Z,EditorModifiedCommandRestore
-        CP      "R"
+        CP      "Z"
         JR      Z,EditorModifiedCommandRestore
 
 EditorModifiedCommandNone:
@@ -719,10 +710,6 @@ EditorModifiedCommandNone:
 
 EditorModifiedCommandSave:
         LD      A,TECM8_EDITOR_KEY_SAVE
-        RET
-
-EditorModifiedCommandAltQuit:
-        LD      A,TECM8_EDITOR_KEY_ALT_QUIT
         RET
 
 EditorModifiedCommandQuit:

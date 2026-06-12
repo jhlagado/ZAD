@@ -62,10 +62,10 @@ test('Debug80 main entry separates live launch from scripted verification', () =
   assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 1, 'RZ0 LINE 01', 'after Backspace join'\)/);
   assert.match(runner, /assertRuntimeSourceRecord\(runtime, pageBufferAddr, 15, '', 'after Backspace join'\)/);
   assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 6 \}/);
-  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 5 \}/);
-  assert.match(runner, /promptAfterAltR/);
+  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 7, col: 5 \}/);
+  assert.match(runner, /promptAfterAltZ/);
   assert.match(runner, /dirtyAfterRestoreNo/);
-  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 7, col: 3 \}/);
+  assert.match(runner, /tapMatrixCombo\(platformRuntime, runtime, \{ row: 0, col: 3 \}, \{ row: 6, col: 4 \}/);
   assert.match(runner, /cursorRowAfterEnter !== 1 \|\| cursorColAfterEnter !== 0/);
   assert.match(runner, /cursorRowAfterJoin !== 0 \|\| cursorColAfterJoin !== 0/);
   assert.match(runner, /altModifierBits !== 0x08/);

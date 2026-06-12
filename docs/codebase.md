@@ -468,11 +468,13 @@ proof key stream and the live matrix-key path that polls MON3 through
 - Alt+ArrowDown pages down
 - Alt+ArrowUp pages up
 - Ctrl+ArrowDown and Ctrl+ArrowUp remain page-movement compatibility aliases
-- Alt-Q or Alt-X quits the key stream, prompting first when the page is dirty
+- Alt-Q quits the key stream, prompting first when the page is dirty
 - Alt-S saves the currently loaded page
-- Alt-R prompts to restore the hidden backup into the current buffer
-- Ctrl-Q, Ctrl-X, Ctrl-S, and Ctrl-R remain compatibility aliases where the
-  host environment does not capture them
+- Alt-Z prompts to restore the hidden backup into the current buffer
+- Ctrl-Q, Ctrl-S, and Ctrl-Z remain compatibility aliases where the host
+  environment does not capture them
+- Ctrl-X/Alt-X, Ctrl-R/Alt-R, and Ctrl-W/Alt-W are reserved for block move,
+  block read, and block write
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
 - backspace deletes before the cursor
@@ -499,11 +501,11 @@ and clears the flag only after the backup and page write-back succeeds. Alt-S
 uses the same save path and is the preferred Debug80/macOS manual-test binding.
 Before that save path runs, `EditorHideCursor` removes the XOR cursor overlay
 so the transient `Saving...` redraw and the restored edit row do not inherit
-stale cursor pixels. A clean save is ignored before any storage call. Ctrl-R
+stale cursor pixels. A clean save is ignored before any storage call. Ctrl-Z
 arms a status-line restore prompt; a yes answer loads the hidden backup into the
 current page buffer, rerenders it, and marks it dirty so the user can inspect
-before saving. Ctrl-Q and Ctrl-X exit the key stream immediately when clean;
-when dirty, they ask before discarding changes and only exit on yes. There is
+before saving. Ctrl-Q exits the key stream immediately when clean; when dirty,
+it asks before discarding changes and only exits on yes. There is
 not yet sector-crossing insert/delete. The current live Debug80 smoke now
 drives the same path through matrix `Enter`, `Backspace` at column zero,
 save, page-away/page-back persistence checks, a clean-save no-op, post-save
@@ -554,9 +556,9 @@ from causing a display-wide flicker in Debug80.
 `BiosInputPollKey`, and dispatches that key through `EditorRunModifiedKey` so
 the editor sees both the translated key byte and modifier flags. Because the
 BIOS layer normalizes Ctrl-letter chords to ASCII control codes, the same
-command loop handles proof streams and live Ctrl-S, Ctrl-Q, Ctrl-X, and Ctrl-R
-input. The editor also checks modified printable command letters before normal
-printable insertion, so Alt-S/Alt-Q/Alt-X/Alt-R are first-class commands and a
+command loop handles proof streams and live Ctrl-S, Ctrl-Q, and Ctrl-Z input.
+The editor also checks modified printable command letters before normal
+printable insertion, so Alt-S/Alt-Q/Alt-Z are first-class commands and a
 host path that reports Ctrl+S as printable `S` plus a Ctrl modifier will not
 insert `S` before saving. Ctrl+Up/Down and Alt+Up/Down use modifier flags
 directly for page movement.

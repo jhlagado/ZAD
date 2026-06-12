@@ -143,7 +143,7 @@ Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
 `z`, a blocked dirty `Alt+ArrowDown`, `Alt-S`, a clean `Alt-S`, another `z`, a
-second `Alt-S`, `Alt-R` with a no/cancel answer, and `Alt-X` so the
+second `Alt-S`, `Alt-Z` with a no/cancel answer, and `Alt-Q` so the
 modifier-aware path is exercised, not only printable ASCII.
 The Z80 editor keeps Ctrl commands as compatibility aliases, but manual Debug80
 testing on macOS should prefer Option/Alt because Control and Command collide
@@ -180,7 +180,7 @@ RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
 `Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, a blocked dirty
 `Alt+ArrowDown`, `Enter`, `Backspace`, `Alt-S`, a clean `Alt-S`, another `z`, a
-second `Alt-S`, `Alt-R`, `n`, and `Alt-X`, then verifies that
+second `Alt-S`, `Alt-Z`, `n`, and `Alt-Q`, then verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
@@ -194,8 +194,8 @@ matrix `Enter` splits the current line and moves the cursor to the new line,
 that matrix `Backspace` at column 0 joins the line back to the previous row,
 that Alt-modified `S` clears dirty, that a clean save leaves the editor clean,
 that post-save `z` makes the editor dirty again, that the second save clears
-dirty again, that Alt-modified `R` opens the restore prompt, that `n` cancels
-without dirtying the page, and that Alt-modified `X` exits the live editor.
+dirty again, that Alt-modified `Z` opens the restore prompt, that `n` cancels
+without dirtying the page, and that Alt-modified `Q` exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -213,9 +213,11 @@ For an interactive Debug80 UI check:
    the current matrix-level test path because the raw matrix positions for Alt
    and ArrowUp overlap. Ctrl+Arrow remains a compatibility alias for page
    movement.
-7. `Alt-S` saves, `Alt-X` quits, and `Alt-R` asks to restore from the hidden
-   backup file. Ctrl-S/Ctrl-X/Ctrl-R remain compatibility aliases where the host
-   environment does not capture them.
+7. `Alt-S` saves, `Alt-Q` quits, and `Alt-Z` asks to restore from the hidden
+   backup file. Ctrl-S, Ctrl-Q, and Ctrl-Z remain compatibility aliases where
+   the host environment does not capture them. Ctrl-X is reserved for future
+   block move/cut, Ctrl-R for future block read, and Ctrl-W for future block
+   write.
 8. Unknown modified printable keys, for example `Alt-W`, should show `KEY`
    rather than typing `w`. Page movement while the page is dirty should show
    `Save first` and stay on the current page.
@@ -345,7 +347,7 @@ GLCD. Use this exact smoke test:
    Expected: the editor returns to the first page and shows `R0 LINE ...`
    records again.
 
-16. Press `Alt-X`.
+16. Press `Alt-Q`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt and shows `Shell` on the bottom row. This is the current
@@ -353,9 +355,9 @@ GLCD. Use this exact smoke test:
    separate future work. If the page is dirty, the status row asks a yes/no
    question first.
 
-   Ctrl-Q and Ctrl-X remain available as aliases, but Alt-X is the preferred
-   Debug80 exit path on macOS because host tools commonly reserve Ctrl and
-   Command chords.
+   Ctrl-Q remains available as an alias, but Alt-Q is the preferred Debug80
+   exit path on macOS because host tools commonly reserve Ctrl and Command
+   chords. Ctrl-X and Alt-X are reserved for future block move/cut.
 
 The current phase uses tile/dirty-region GLCD transfer for ordinary cursor
 movement. Horizontal cursor keys redraw the cursor overlay cell range, and

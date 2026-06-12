@@ -269,13 +269,13 @@ EditorPromptYesKeys:
         .db     "Y",0
 
 EditorRestoreYesKeys:
-        .db     18,"Y",0
+        .db     26,"Y",0
 
 EditorRestoreNoKeys:
-        .db     18,"N",0
+        .db     26,"N",0
 
 EditorRestoreEscKeys:
-        .db     18,27,0
+        .db     26,27,0
 
 EditorDirtyQuitNoKeys:
         .db     17,"N",0

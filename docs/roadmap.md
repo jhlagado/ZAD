@@ -100,7 +100,7 @@ Goal: make the current editor behavior predictable under manual Debug80 testing.
 Work:
 
 - Stabilize all live matrix key paths.
-- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Alt-S`, `Alt-X`, `Alt-R`,
+- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Alt-S`, `Alt-Q`, `Alt-Z`,
   and page movement.
 - Add clear status feedback for ignored commands, failed saves, failed loads,
   and RAM-window/page-boundary limits.
@@ -462,7 +462,7 @@ Work:
 - Done: the one-shot shell editor launcher runs `edit` and enters the editor.
 - Done: the bounded command loop dispatches `edit`, `asm`, and `run` in order
   through executor stubs.
-- `Alt-X` or quit returns to shell.
+- `Alt-Q` or quit returns to shell.
 - Done: `asm` resolves the project main file and derived `/build/<stem>.bin`
   plus `/build/<stem>.map` request paths; actual assembler execution remains a
   later tool/runtime increment.
@@ -617,12 +617,12 @@ Direction:
 
 Sequenced goals:
 
-1. **Block Phase B1: Keymap Cleanup**
-   - Move quit to `Ctrl-Q`/`Alt-Q`.
-   - Move restore-from-backup to `Ctrl-Z`/`Alt-Z`.
-   - Reserve `Ctrl-R`/`Alt-R` for read-block and `Ctrl-W`/`Alt-W` for
+1. **Done: Block Phase B1: Keymap Cleanup**
+   - Quit moved to `Ctrl-Q`/`Alt-Q`.
+   - Restore-from-backup moved to `Ctrl-Z`/`Alt-Z`.
+   - `Ctrl-R`/`Alt-R` reserved for read-block and `Ctrl-W`/`Alt-W` reserved for
      write-block.
-   - Update live smoke and manual docs.
+   - Live smoke and manual docs updated.
 
 2. **Block Phase B2: Selection Range And Thin Gutter**
    - Add ordinary line-selection interval state.

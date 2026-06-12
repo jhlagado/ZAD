@@ -728,14 +728,14 @@ async function main(): Promise<void> {
     if (dirtyAfterSecondSave !== 0) {
       throw new Error(`live editor second save dirty=${dirtyAfterSecondSave}, expected 0`);
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 5 }, 200_000, 200_000); // Alt+R
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 5 }, 200_000, 200_000); // Alt+Z
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    const promptAfterAltR = runtime.hardware.memory[promptActiveAddr];
-    if (promptAfterAltR !== 1) {
+    const promptAfterAltZ = runtime.hardware.memory[promptActiveAddr];
+    if (promptAfterAltZ !== 1) {
       const restoreModifierBits = runtime.hardware.memory[modifierBitsAddr];
       const restoreTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
       throw new Error(
-        `live editor Alt-R prompt active=${promptAfterAltR}, expected 1; modifier=0x${restoreModifierBits.toString(16)} translated=0x${restoreTranslatedKey.toString(16)}`,
+        `live editor Alt-Z prompt active=${promptAfterAltZ}, expected 1; modifier=0x${restoreModifierBits.toString(16)} translated=0x${restoreTranslatedKey.toString(16)}`,
       );
     }
     tapMatrixKey(platformRuntime, runtime, 6, 1, 200_000, 200_000); // n: cancel restore prompt
@@ -748,7 +748,7 @@ async function main(): Promise<void> {
         `live editor restore cancel prompt=${promptAfterRestoreNo} result=${restoreNoResult} dirty=${dirtyAfterRestoreNo}, expected prompt=0 result=2 dirty=0`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 3 }, 200_000, 200_000); // Alt+X
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 4 }, 200_000, 200_000); // Alt+Q
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
     if (afterQuitPc === liveLoopAddr && runtime.hardware.memory[quitRequestedAddr] === 1) {
@@ -761,13 +761,13 @@ async function main(): Promise<void> {
       const quitRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
       const quitRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
       throw new Error(
-        `live editor Alt-X returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
+        `live editor Alt-Q returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
       );
     }
     const quitModifierBits = runtime.hardware.memory[modifierBitsAddr];
-    if ((quitTranslatedKey !== 0x58 && quitTranslatedKey !== 0x78) || (quitModifierBits & 0x08) === 0) {
+    if ((quitTranslatedKey !== 0x51 && quitTranslatedKey !== 0x71) || (quitModifierBits & 0x08) === 0) {
       throw new Error(
-        `live editor quit modifier=0x${quitModifierBits.toString(16)} translated=0x${quitTranslatedKey.toString(16)}, expected alt-modified X/x`,
+        `live editor quit modifier=0x${quitModifierBits.toString(16)} translated=0x${quitTranslatedKey.toString(16)}, expected alt-modified Q/q`,
       );
     }
     const summary = {
@@ -795,7 +795,7 @@ async function main(): Promise<void> {
       dirtyAfterPostSaveEdit,
       dirtyAfterJoinSave,
       dirtyAfterSecondSave,
-      promptAfterAltR,
+      promptAfterAltZ,
       promptAfterRestoreNo,
       dirtyAfterRestoreNo,
       saveModifierBits,
