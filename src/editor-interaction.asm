@@ -374,6 +374,8 @@ EditorDispatchModifiedCommand:
         JP      Z,EditorKeyCopyBlock
         CP      "X"
         JP      Z,EditorKeyMoveBlock
+        CP      "V"
+        JP      Z,EditorKeyPasteBlock
         JP      EditorKeyLoop
 
 EditorKeySave:
@@ -679,6 +681,15 @@ EditorKeyMoveBlock:
         RET     C
         JP      EditorKeyLoop
 
+EditorKeyPasteBlock:
+        CALL    EditorPendingBlockPasteInsert
+        RET     C
+        OR      A
+        JP      Z,EditorKeyLoop
+        CALL    EditorKeyRenderDirty
+        RET     C
+        JP      EditorKeyLoop
+
 EditorKeyUnknownModifiedPrintable:
         LD      HL,EditorStatusUnknownKeyText
         CALL    EditorKeyShowStatus
@@ -848,6 +859,10 @@ EditorActionCursorRight:
         JR      Z,EditorModifiedCommandMove
         CP      "X"
         JR      Z,EditorModifiedCommandMove
+        CP      "v"
+        JR      Z,EditorModifiedCommandPaste
+        CP      "V"
+        JR      Z,EditorModifiedCommandPaste
 
 EditorModifiedCommandNone:
         XOR     A
@@ -871,6 +886,10 @@ EditorModifiedCommandCopy:
 
 EditorModifiedCommandMove:
         LD      A,"X"
+        RET
+
+EditorModifiedCommandPaste:
+        LD      A,"V"
         RET
 
 ; EditorShouldIgnoreModifiedPrintable -
@@ -1012,6 +1031,367 @@ EditorBlockSelectionRestoreExisting:
 EditorPendingBlockArmNoSelection:
         CALL    EditorPendingBlockClearState
         XOR     A
+        RET
+
+; EditorPendingBlockPasteInsert -
+; Insert pending source rows before the cursor when no destination selection is
+; active. The first version is conservative: source and destination must be in
+; the current resident page, overlap/self cases are left for B6, and empty tail
+; rows must exist so no records are discarded.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockPasteInsert:
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      Z,EditorPendingBlockPasteNoop
+        LD      (EditorPendingBlockPasteMode),A
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      NZ,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockRowsForCurrentPage
+        JP      C,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockRejectInsertOverlap
+        JP      C,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockTailAvailable
+        JP      Z,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockCopySourceToScratch
+        RET     C
+        CALL    EditorPendingBlockShiftRowsDown
+        RET     C
+        CALL    EditorPendingBlockCopyScratchToDest
+        RET     C
+        LD      A,(EditorPendingBlockPasteMode)
+        CP      TECM8_EDITOR_PENDING_BLOCK_MOVE
+        JR      NZ,EditorPendingBlockPasteSelectInserted
+        CALL    EditorPendingBlockDeleteMovedSource
+        RET     C
+
+EditorPendingBlockPasteSelectInserted:
+        CALL    EditorPendingBlockSelectInsertedRows
+        CALL    EditorPendingBlockClearState
+        CALL    EditorMarkDirty
+        LD      A,1
+        RET
+
+EditorPendingBlockPasteNoop:
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockRowsForCurrentPage:
+        LD      A,(EditorNavCurrentPage)
+        LD      H,0
+        LD      L,A
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        LD      A,L
+        LD      (EditorPendingBlockPageBaseLo),A
+        LD      A,H
+        LD      (EditorPendingBlockPageBaseHi),A
+        LD      A,(EditorPendingBlockStartHi)
+        CP      H
+        JR      NZ,EditorPendingBlockRowsErr
+        LD      A,(EditorPendingBlockEndHi)
+        CP      H
+        JR      NZ,EditorPendingBlockRowsErr
+        LD      A,(EditorPendingBlockStartLo)
+        LD      B,A
+        LD      A,(EditorPendingBlockPageBaseLo)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        CP      16
+        JR      NC,EditorPendingBlockRowsErr
+        LD      (EditorPendingBlockSourceStartRow),A
+        LD      B,A
+        LD      A,(EditorPendingBlockEndLo)
+        SUB     C
+        CP      16
+        JR      NC,EditorPendingBlockRowsErr
+        LD      (EditorPendingBlockSourceEndRow),A
+        SUB     B
+        JR      C,EditorPendingBlockRowsErr
+        INC     A
+        LD      (EditorPendingBlockRowCount),A
+        XOR     A
+        RET
+
+EditorPendingBlockRowsErr:
+        SCF
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,B,zero,sign,parity,halfCarry
+@EditorPendingBlockRejectInsertOverlap:
+        LD      A,(EditorCursorRow)
+        LD      (EditorPendingBlockDestRow),A
+        LD      B,A
+        LD      A,(EditorPendingBlockSourceStartRow)
+        CP      B
+        JR      Z,EditorPendingBlockRejectOverlap
+        JR      NC,EditorPendingBlockRejectNoOverlap
+        LD      A,(EditorPendingBlockSourceEndRow)
+        INC     A
+        CP      B
+        JR      NC,EditorPendingBlockRejectOverlap
+
+EditorPendingBlockRejectNoOverlap:
+        XOR     A
+        RET
+
+EditorPendingBlockRejectOverlap:
+        SCF
+        RET
+
+;!      out       A,zero,carry
+;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockTailAvailable:
+        LD      A,16
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        CP      B
+        JR      NC,EditorPendingBlockTailNo
+        LD      A,B
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        LD      (EditorPendingBlockTailCheckRow),A
+
+EditorPendingBlockTailCheckLoop:
+        LD      A,(EditorPendingBlockTailCheckRow)
+        CP      16
+        JR      Z,EditorPendingBlockTailYes
+        CALL    EditorKeyRecordAtRow
+        CALL    EditorKeyReadRecordLength
+        OR      A
+        JR      NZ,EditorPendingBlockTailNo
+        LD      A,(EditorPendingBlockTailCheckRow)
+        INC     A
+        LD      (EditorPendingBlockTailCheckRow),A
+        JR      EditorPendingBlockTailCheckLoop
+
+EditorPendingBlockTailYes:
+        LD      A,1
+        OR      A
+        RET
+
+EditorPendingBlockTailNo:
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockCopySourceToScratch:
+        LD      A,(EditorPendingBlockSourceStartRow)
+        CALL    EditorKeyRecordAtRow
+        LD      DE,EditorNavBackupPageBuffer
+        LD      A,(EditorPendingBlockRowCount)
+        LD      B,A
+
+EditorPendingBlockScratchLoop:
+        LD      A,B
+        OR      A
+        JR      Z,EditorPendingBlockScratchDone
+        PUSH    BC
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        POP     BC
+        DJNZ    EditorPendingBlockScratchLoop
+
+EditorPendingBlockScratchDone:
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockShiftRowsDown:
+        LD      A,16
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        LD      (EditorPendingBlockShiftRow),A
+        LD      A,(EditorPendingBlockDestRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockShiftRow)
+        CP      B
+        JR      C,EditorPendingBlockShiftDone
+
+EditorPendingBlockShiftLoop:
+        LD      A,(EditorPendingBlockShiftRow)
+        CALL    EditorKeyRecordAtRow
+        LD      (EditorLineSrc),HL
+        LD      A,(EditorPendingBlockShiftRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        ADD     A,B
+        CALL    EditorKeyRecordAtRow
+        LD      D,H
+        LD      E,L
+        LD      HL,(EditorLineSrc)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      A,(EditorPendingBlockShiftRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockDestRow)
+        CP      B
+        JR      Z,EditorPendingBlockShiftDone
+        LD      A,(EditorPendingBlockShiftRow)
+        DEC     A
+        LD      (EditorPendingBlockShiftRow),A
+        JR      EditorPendingBlockShiftLoop
+
+EditorPendingBlockShiftDone:
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockCopyScratchToDest:
+        LD      A,(EditorPendingBlockDestRow)
+        CALL    EditorKeyRecordAtRow
+        LD      D,H
+        LD      E,L
+        LD      HL,EditorNavBackupPageBuffer
+        LD      A,(EditorPendingBlockRowCount)
+        LD      B,A
+
+EditorPendingBlockCopyDestLoop:
+        LD      A,B
+        OR      A
+        JR      Z,EditorPendingBlockCopyDestDone
+        PUSH    BC
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        POP     BC
+        DJNZ    EditorPendingBlockCopyDestLoop
+
+EditorPendingBlockCopyDestDone:
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockDeleteMovedSource:
+        LD      A,(EditorPendingBlockSourceStartRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockDestRow)
+        CP      B
+        JR      C,EditorPendingBlockDeleteSourceAfterDest
+        LD      A,(EditorPendingBlockSourceStartRow)
+        JR      EditorPendingBlockDeleteStartReady
+
+EditorPendingBlockDeleteSourceAfterDest:
+        LD      A,(EditorPendingBlockSourceStartRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        ADD     A,B
+
+EditorPendingBlockDeleteStartReady:
+        LD      (EditorPendingBlockDeleteStartRow),A
+        LD      A,(EditorPendingBlockDeleteStartRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        ADD     A,B
+        LD      (EditorPendingBlockShiftRow),A
+
+EditorPendingBlockDeleteLoop:
+        LD      A,(EditorPendingBlockShiftRow)
+        CP      16
+        JR      Z,EditorPendingBlockDeleteClearTail
+        CALL    EditorKeyRecordAtRow
+        LD      (EditorLineSrc),HL
+        LD      A,(EditorPendingBlockShiftRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        CALL    EditorKeyRecordAtRow
+        LD      D,H
+        LD      E,L
+        LD      HL,(EditorLineSrc)
+        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
+        LDIR
+        LD      A,(EditorPendingBlockShiftRow)
+        INC     A
+        LD      (EditorPendingBlockShiftRow),A
+        JR      EditorPendingBlockDeleteLoop
+
+EditorPendingBlockDeleteClearTail:
+        LD      A,16
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        LD      (EditorPendingBlockTailCheckRow),A
+
+EditorPendingBlockDeleteClearLoop:
+        LD      A,(EditorPendingBlockTailCheckRow)
+        CP      16
+        JR      Z,EditorPendingBlockDeleteDone
+        CALL    EditorKeyRecordAtRow
+        CALL    EditorKeyClearRecord
+        LD      A,(EditorPendingBlockTailCheckRow)
+        INC     A
+        LD      (EditorPendingBlockTailCheckRow),A
+        JR      EditorPendingBlockDeleteClearLoop
+
+EditorPendingBlockDeleteDone:
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockSelectInsertedRows:
+        LD      A,(EditorPendingBlockDestRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockPasteMode)
+        CP      TECM8_EDITOR_PENDING_BLOCK_MOVE
+        JR      NZ,EditorPendingBlockSelectStartReady
+        LD      A,(EditorPendingBlockSourceStartRow)
+        LD      C,A
+        LD      A,(EditorPendingBlockDestRow)
+        CP      C
+        JR      C,EditorPendingBlockSelectStartReady
+        LD      A,(EditorPendingBlockDestRow)
+        LD      C,A
+        LD      A,(EditorPendingBlockRowCount)
+        LD      B,A
+        LD      A,C
+        SUB     B
+        LD      B,A
+
+EditorPendingBlockSelectStartReady:
+        LD      A,(EditorPendingBlockPageBaseLo)
+        ADD     A,B
+        LD      (EditorBlockSelectionAnchorLo),A
+        LD      (EditorBlockSelectionActiveLo),A
+        LD      A,(EditorPendingBlockPageBaseHi)
+        LD      (EditorBlockSelectionAnchorHi),A
+        LD      (EditorBlockSelectionActiveHi),A
+        LD      A,(EditorPendingBlockRowCount)
+        DEC     A
+        ADD     A,B
+        LD      B,A
+        LD      A,(EditorPendingBlockPageBaseLo)
+        ADD     A,B
+        LD      (EditorBlockSelectionActiveLo),A
+        LD      A,(EditorPendingBlockPageBaseHi)
+        LD      (EditorBlockSelectionActiveHi),A
+        LD      A,1
+        LD      (EditorBlockSelectionActive),A
+        LD      A,B
+        LD      (EditorCursorRow),A
+        XOR     A
+        LD      (EditorCursorCol),A
         RET
 
 ; EditorBlockSelectionClearIfActive -
@@ -2433,6 +2813,36 @@ EditorBlockSelectionPageAnchorHi:
         .db     0
 
 EditorPendingBlockRequestedMode:
+        .db     0
+
+EditorPendingBlockPasteMode:
+        .db     0
+
+EditorPendingBlockPageBaseLo:
+        .db     0
+
+EditorPendingBlockPageBaseHi:
+        .db     0
+
+EditorPendingBlockSourceStartRow:
+        .db     0
+
+EditorPendingBlockSourceEndRow:
+        .db     0
+
+EditorPendingBlockRowCount:
+        .db     0
+
+EditorPendingBlockDestRow:
+        .db     0
+
+EditorPendingBlockTailCheckRow:
+        .db     0
+
+EditorPendingBlockShiftRow:
+        .db     0
+
+EditorPendingBlockDeleteStartRow:
         .db     0
 
 EditorRestorePromptText:

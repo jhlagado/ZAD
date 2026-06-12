@@ -649,12 +649,17 @@ Sequenced goals:
    - `editor-selection-proof` covers pending copy, pending move, and a pending
      copy source with a second thin destination selection.
 
-5. **Block Phase B5: Paste Insert**
+5. **Done: Block Phase B5: Paste Insert**
    - `Ctrl-V`/`Alt-V` inserts the pending source before the cursor when no
      destination selection is active.
    - Copy leaves source intact; move removes source only after insertion
      succeeds.
    - The pasted block becomes the ordinary selected range.
+   - The first implementation is resident-page only, rejects overlap/self as a
+     no-op, and requires blank tail records so it cannot silently discard
+     existing lines.
+   - `editor-selection-proof` covers copy insert, move insert, overlap no-op,
+     destination-selection no-op, and blank-tail rejection.
 
 6. **Block Phase B6: Paste Replace And Overlap Handling**
    - `Ctrl-V`/`Alt-V` replaces an ordinary destination selection.

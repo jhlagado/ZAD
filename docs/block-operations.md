@@ -392,13 +392,21 @@ copy source plus a second thin destination selection.
 
 ### Phase B5: Paste Insert
 
-- Implement `Ctrl-V`/`Alt-V` with no destination selection.
-- Insert the pending block before the current line.
-- For copy mode, leave source intact.
-- For move mode, remove source after insertion succeeds.
-- Select the pasted lines as the new ordinary selection.
+- Done: `Ctrl-V`/`Alt-V` with no destination selection.
+- Done: insert the pending block before the current line.
+- Done: for copy mode, leave source intact.
+- Done: for move mode, remove source after insertion succeeds.
+- Done: select the pasted lines as the new ordinary selection.
 
-Done when copy/paste and move/paste work within the resident editor window.
+The first implementation is deliberately conservative: it only pastes when the
+pending source and insertion point are in the current resident 16-record page,
+rejects overlap/self cases as no-ops, and requires enough blank tail records so
+that no existing line is silently discarded. It uses the backup page buffer as a
+transient scratch area during the operation.
+
+`editor-selection-proof` covers copy/paste insert, move/paste insert, overlap
+no-op, destination-selection no-op, and blank-tail rejection within the
+resident editor window.
 
 ### Phase B6: Paste Replace And Overlap Handling
 

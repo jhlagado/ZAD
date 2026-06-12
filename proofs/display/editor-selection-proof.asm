@@ -184,6 +184,131 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    AssertCursorRenderedAtRowTwo
         JP      C,ProofFailed
 
+        LD      A,13
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    ClearPasteTailRows
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,3
+        LD      (PlainDownCount),A
+        CALL    RunPlainDownCount
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertCopyPasteInsertRows
+        JP      C,ProofFailed
+
+        LD      A,14
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    ClearPasteTailRows
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"x"
+        LD      B,PROOF_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,3
+        LD      (PlainDownCount),A
+        CALL    RunPlainDownCount
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertMovePasteInsertRows
+        JP      C,ProofFailed
+
+        LD      A,15
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    ClearPasteTailRows
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    AssertPasteNoopPendingCopyRowsZeroToOne
+        JP      C,ProofFailed
+
+        LD      A,16
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    ClearPasteTailRows
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,2
+        LD      (PlainDownCount),A
+        CALL    RunPlainDownCount
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    AssertPasteNoopDestinationSelection
+        JP      C,ProofFailed
+
+        LD      A,17
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,3
+        LD      (PlainDownCount),A
+        CALL    RunPlainDownCount
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    AssertPasteNoopPendingCopyRowsZeroToOne
+        JP      C,ProofFailed
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -215,7 +340,29 @@ ProofFailedDone:
         JR      RunShiftDownCount
 
 ;!      out       A,carry,zero
-;!      clobbers  A,B,HL
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@RunPlainDownCount:
+        LD      A,(PlainDownCount)
+        OR      A
+        RET     Z
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,0
+        CALL    EditorRunModifiedKey
+        RET     C
+        LD      A,(PlainDownCount)
+        DEC     A
+        LD      (PlainDownCount),A
+        JR      RunPlainDownCount
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@SelectRowsZeroToOne:
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,PROOF_MOD_SHIFT
+        JP      EditorRunModifiedKey
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @SelectRowsZeroToTwo:
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,PROOF_MOD_SHIFT
@@ -224,6 +371,16 @@ ProofFailedDone:
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,PROOF_MOD_SHIFT
         JP      EditorRunModifiedKey
+
+;!      out       A,carry,zero
+;!      clobbers  A,B,HL
+@ClearPasteTailRows:
+        LD      A,14
+        CALL    EditorKeyRecordAtRow
+        CALL    EditorKeyClearRecord
+        LD      A,15
+        CALL    EditorKeyRecordAtRow
+        JP      EditorKeyClearRecord
 
 ;!      out       A,carry,zero
 ;!      clobbers  A,HL
@@ -511,6 +668,150 @@ ProofFailedDone:
         XOR     A
         RET
 
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertCopyPasteInsertRows:
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorLo)
+        CP      4
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      5
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRow)
+        CP      5
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line00
+        LD      DE,EditorNavPageBuffer + (4 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line01
+        LD      DE,EditorNavPageBuffer + (5 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line04
+        LD      DE,EditorNavPageBuffer + (6 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertPasteNoopPendingCopyRowsZeroToOne:
+        LD      A,(EditorPendingBlockMode)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockStartLo)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockEndLo)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line04
+        LD      DE,EditorNavPageBuffer + (4 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertPasteNoopDestinationSelection:
+        LD      A,(EditorPendingBlockMode)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorLo)
+        CP      3
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      4
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line03
+        LD      DE,EditorNavPageBuffer + (3 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line04
+        LD      DE,EditorNavPageBuffer + (4 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertMovePasteInsertRows:
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorLo)
+        CP      2
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      3
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRow)
+        CP      3
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line02
+        LD      DE,EditorNavPageBuffer
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line03
+        LD      DE,EditorNavPageBuffer + 32
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line00
+        LD      DE,EditorNavPageBuffer + (2 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line01
+        LD      DE,EditorNavPageBuffer + (3 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line04
+        LD      DE,EditorNavPageBuffer + (4 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      in        DE,HL
+;!      out       A,BC,DE,HL,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertRecordEquals:
+        LD      A,(HL)
+        LD      B,A
+        INC     B
+
+AssertRecordEqualsLoop:
+        LD      A,(DE)
+        CP      (HL)
+        JR      NZ,AssertRecordEqualsErr
+        INC     DE
+        INC     HL
+        DJNZ    AssertRecordEqualsLoop
+        XOR     A
+        RET
+
+AssertRecordEqualsErr:
+        SCF
+        RET
+
 AssertFail:
         SCF
         RET
@@ -570,3 +871,21 @@ ResultMarker:
 
 ShiftDownCount:
         .db     0
+
+PlainDownCount:
+        .db     0
+
+ExpectedP0Line00:
+        .db     10,"P0 LINE 00"
+
+ExpectedP0Line01:
+        .db     10,"P0 LINE 01"
+
+ExpectedP0Line02:
+        .db     10,"P0 LINE 02"
+
+ExpectedP0Line03:
+        .db     10,"P0 LINE 03"
+
+ExpectedP0Line04:
+        .db     10,"P0 LINE 04"
