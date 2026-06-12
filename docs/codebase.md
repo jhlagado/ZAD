@@ -508,8 +508,10 @@ not yet sector-crossing insert/delete. The current live Debug80 smoke now
 drives the same path through matrix `Enter`, `Backspace` at column zero,
 save, page-away/page-back persistence checks, a clean-save no-op, post-save
 input, and quit.
-Page-boundary movement uses the same transient status overlay: page-up at the
-first page shows `Top`, and page-down at the hard page limit shows `End`.
+Page-boundary movement uses the same transient status overlay for the top
+boundary: page-up at the first page shows `Top`. Page-down past the available
+source restores the hidden source row instead of drawing an `End` label over
+the last visible line.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -878,8 +880,9 @@ What exists now:
 - Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
   instead of falling through as plain text, and dirty page movement is allowed
   inside the RAM window.
-- Page-boundary commands report `Top` or `End` through the transient status row
-  instead of silently doing nothing.
+- Page-up at the first page reports `Top`; page-down past the available source
+  leaves the visible source rows intact instead of overlaying a misleading
+  end-of-file label.
 - Logical cursor movement can traverse all 16 records of a source page. The
   GLCD viewport scrolls within that page, with `EditorCursorVisibleRow` tracking
   the physical row used for cursor and marker rendering.

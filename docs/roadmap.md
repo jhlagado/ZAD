@@ -47,8 +47,9 @@ available.
   interactive shell prompt exists.
 - Shell `edit name` can create a missing one-block `.asm` source file in an
   existing prefix before opening it.
-- Page-boundary movement now gives explicit transient status feedback: `Top`
-  at the first page and `End` at the hard page limit.
+- Page-boundary movement now gives explicit transient `Top` feedback at the
+  first page. Page-down past the available source keeps visible source rows
+  intact instead of overlaying a confusing end marker.
 - Source-record padding is kept clean after in-page mutations so host export
   validation remains meaningful.
 - Sector-edge editing has proof coverage for split pushing into the adjacent
@@ -272,8 +273,8 @@ Done when:
 - Every slow or risky operation tells the user what is happening.
 - Prompt mode ignores unrelated keys safely.
 - The source row underneath the prompt is restored cleanly.
-- Page-boundary commands provide explicit `Top`/`End` feedback instead of
-  silently doing nothing.
+- Page-up at the first page provides explicit `Top` feedback. Page-down past
+  available source restores the hidden row cleanly without drawing an end label.
 
 ## Phase 7: Display Performance
 

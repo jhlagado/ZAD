@@ -1120,9 +1120,6 @@ EditorStatusUnknownKeyText:
 EditorStatusTopText:
         .db     "Top",0
 
-EditorStatusEndText:
-        .db     "End",0
-
 EditorErrOpenText:
         .db     "ERR OPEN 30",0
 

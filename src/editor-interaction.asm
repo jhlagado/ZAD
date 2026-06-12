@@ -416,8 +416,9 @@ EditorKeyPageDownErr:
         JR      EditorKeyNavigationErr
 
 EditorKeyPageDownEnd:
-        LD      HL,EditorStatusEndText
-        CALL    EditorKeyShowStatus
+        CALL    EditorHideCursor
+        RET     C
+        CALL    EditorViewportRestoreStatusRow
         RET     C
         JP      EditorKeyLoop
 

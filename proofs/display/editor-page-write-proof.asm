@@ -17,6 +17,17 @@ PROOF_FAIL       .equ     0xE0
 
         CALL    EditorOpenMain
         JP      C,ProofFailed
+        LD      HL,InitialRow9Bytes
+        CALL    CaptureStatusRowTextByte
+
+        LD      A,9
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorVisibleRow),A
+        LD      (EditorNavCurrentRow),A
+        CALL    EditorViewportSetCurrentRow
+        JP      C,ProofFailed
+        CALL    EditorRenderCursor
+        JP      C,ProofFailed
 
         LD      A,TECM8_EDITOR_KEY_ARROW_UP
         LD      B,TECM8_EDITOR_KEY_MOD_ALT
@@ -25,14 +36,19 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,(EditorPromptTextPtr)
         LD      (TopStatusPtrAfterPageUp),HL
 
+        CALL    EditorRenderCursor
+        JP      C,ProofFailed
+
         LD      A,127
         LD      (EditorNavCurrentPage),A
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,TECM8_EDITOR_KEY_MOD_ALT
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
-        LD      HL,(EditorPromptTextPtr)
-        LD      (EndStatusPtrAfterPageDown),HL
+        CALL    EditorHideCursor
+        JP      C,ProofFailed
+        LD      HL,PageDownBoundaryRow9Bytes
+        CALL    CaptureStatusRowTextByte
         XOR     A
         LD      (EditorNavCurrentPage),A
         CALL    EditorRenderCurrent
@@ -276,8 +292,11 @@ DirtyAfterNoopDelete:
 TopStatusPtrAfterPageUp:
         .dw     0
 
-EndStatusPtrAfterPageDown:
-        .dw     0
+InitialRow9Bytes:
+        .ds     TECM8_DISPLAY_ROW_HEIGHT
+
+PageDownBoundaryRow9Bytes:
+        .ds     TECM8_DISPLAY_ROW_HEIGHT
 
 DirtyAfterNoopSplit:
         .db     0
