@@ -99,7 +99,7 @@ EditorViewportBuildLoop:
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorViewportSetTopRow:
         CP      7
-        JR      NC,EditorViewportRowError
+        JP      NC,EditorViewportRowError
         LD      (EditorViewportTopRow),A
         XOR     A
         RET
@@ -112,8 +112,19 @@ EditorViewportBuildLoop:
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorViewportSetColOffset:
         CP      12
-        JR      NC,EditorViewportRowError
+        JP      NC,EditorViewportRowError
         LD      (EditorViewportColOffset),A
+        XOR     A
+        RET
+
+; EditorViewportSetCurrentPage -
+; Select the source page used when mapping visible rows to absolute lines.
+; Input: A = current 16-record page number
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorViewportSetCurrentPage:
+        LD      (EditorViewportCurrentPage),A
         XOR     A
         RET
 
@@ -157,25 +168,170 @@ EditorViewportRowTextPtrLoop:
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorViewportSetCurrentRow:
         CP      TECM8_EDITOR_VISIBLE_ROWS
-        JR      NC,EditorViewportRowError
+        JP      NC,EditorViewportRowError
         LD      (EditorViewportCurrentRow),A
         XOR     A
         RET
 
 ;!      in        A
 ;!      out       C,carry
-;!      clobbers  A,C,HL,zero,sign,parity,halfCarry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorViewportMarkerForRow:
+        LD      (EditorViewportMarkerInput),A
+        CALL    EditorBlockSelectionVisibleRowSelected
+        LD      C,TECM8_DISPLAY_MARKER_NONE
+        OR      A
+        JR      Z,EditorViewportMarkerCheckCurrent
+        LD      C,TECM8_DISPLAY_MARKER_SELECTED
+
+EditorViewportMarkerCheckCurrent:
+        LD      A,(EditorViewportMarkerInput)
         LD      HL,EditorViewportCurrentRow
         CP      (HL)
         JR      Z,EditorViewportMarkerCurrent
-        LD      C,TECM8_DISPLAY_MARKER_NONE
         XOR     A
         RET
 
 EditorViewportMarkerCurrent:
-        LD      C,TECM8_DISPLAY_MARKER_CURRENT
+        LD      A,C
+        OR      TECM8_DISPLAY_MARKER_CURRENT
+        LD      C,A
         XOR     A
+        RET
+
+; EditorBlockSelectionVisibleRowSelected -
+; Return A=1 when visible row A is inside the ordinary selection interval.
+; The viewport owns this query because selection is a marker-rendering concern;
+; editor interaction code only updates the interval endpoints.
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionVisibleRowSelected:
+        LD      (EditorBlockSelectionVisibleRow),A
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JR      Z,EditorBlockSelectionVisibleNo
+        CALL    EditorBlockSelectionNormalize
+        CALL    EditorBlockSelectionVisibleLine
+        LD      A,L
+        LD      (EditorBlockSelectionLineLo),A
+        LD      A,H
+        LD      (EditorBlockSelectionLineHi),A
+        LD      A,(EditorBlockSelectionLineLo)
+        LD      E,A
+        LD      A,(EditorBlockSelectionLineHi)
+        LD      D,A
+        LD      A,(EditorBlockSelectionStartLo)
+        LD      L,A
+        LD      A,(EditorBlockSelectionStartHi)
+        LD      H,A
+        CALL    EditorBlockSelectionCompareHlDe
+        JR      C,EditorBlockSelectionVisiblePastStart
+        JR      NZ,EditorBlockSelectionVisibleNo
+
+EditorBlockSelectionVisiblePastStart:
+        LD      A,(EditorBlockSelectionLineLo)
+        LD      L,A
+        LD      A,(EditorBlockSelectionLineHi)
+        LD      H,A
+        LD      A,(EditorBlockSelectionEndLo)
+        LD      E,A
+        LD      A,(EditorBlockSelectionEndHi)
+        LD      D,A
+        CALL    EditorBlockSelectionCompareHlDe
+        JR      C,EditorBlockSelectionVisibleYes
+        JR      NZ,EditorBlockSelectionVisibleNo
+
+EditorBlockSelectionVisibleYes:
+        LD      A,1
+        OR      A
+        RET
+
+EditorBlockSelectionVisibleNo:
+        XOR     A
+        RET
+
+;!      out       HL,A,carry
+;!      clobbers  A,B,zero,sign,parity,halfCarry
+@EditorBlockSelectionVisibleLine:
+        LD      A,(EditorViewportCurrentPage)
+        LD      H,0
+        LD      L,A
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        LD      A,(EditorViewportTopRow)
+        LD      B,A
+        LD      A,(EditorBlockSelectionVisibleRow)
+        ADD     A,B
+        ADD     A,L
+        LD      L,A
+        JR      NC,EditorBlockSelectionVisibleLineDone
+        INC     H
+
+EditorBlockSelectionVisibleLineDone:
+        XOR     A
+        RET
+
+; EditorBlockSelectionNormalize -
+; Return the inclusive selection start in BC and end in DE.
+;!      out       BC,DE,A,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionNormalize:
+        LD      A,(EditorBlockSelectionAnchorHi)
+        LD      B,A
+        LD      A,(EditorBlockSelectionAnchorLo)
+        LD      C,A
+        LD      A,(EditorBlockSelectionActiveHi)
+        LD      D,A
+        LD      A,(EditorBlockSelectionActiveLo)
+        LD      E,A
+        LD      H,B
+        LD      L,C
+        CALL    EditorBlockSelectionCompareHlDe
+        JR      C,EditorBlockSelectionNormalizeStore
+        JR      Z,EditorBlockSelectionNormalizeStore
+        LD      H,B
+        LD      L,C
+        LD      B,D
+        LD      C,E
+        LD      D,H
+        LD      E,L
+
+EditorBlockSelectionNormalizeStore:
+        LD      A,C
+        LD      (EditorBlockSelectionStartLo),A
+        LD      A,B
+        LD      (EditorBlockSelectionStartHi),A
+        LD      A,E
+        LD      (EditorBlockSelectionEndLo),A
+        LD      A,D
+        LD      (EditorBlockSelectionEndHi),A
+        XOR     A
+        RET
+
+; EditorBlockSelectionCompareHlDe -
+; Set carry or zero when HL <= DE.
+;!      in        DE,HL
+;!      out       A,carry,zero
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorBlockSelectionCompareHlDe:
+        LD      A,H
+        CP      D
+        JR      C,EditorBlockSelectionCompareYes
+        JR      NZ,EditorBlockSelectionCompareNo
+        LD      A,L
+        CP      E
+        JR      C,EditorBlockSelectionCompareYes
+        RET     Z
+
+EditorBlockSelectionCompareNo:
+        OR      A
+        RET
+
+EditorBlockSelectionCompareYes:
+        SCF
         RET
 
 ; Uses EditorViewportRenderRowMarkerInput as the validated row.
@@ -369,6 +525,9 @@ EditorRecordBasePtr:
 EditorRowIndex:
         .db     0
 
+EditorViewportMarkerInput:
+        .db     0
+
 EditorViewportTopRow:
         .db     0
 
@@ -376,6 +535,48 @@ EditorViewportColOffset:
         .db     0
 
 EditorViewportCurrentRow:
+        .db     0
+
+EditorViewportCurrentPage:
+        .db     0
+
+EditorBlockSelectionActive:
+        .db     0
+
+EditorBlockSelectionAnchorLo:
+        .db     0
+
+EditorBlockSelectionAnchorHi:
+        .db     0
+
+EditorBlockSelectionActiveLo:
+        .db     0
+
+EditorBlockSelectionActiveHi:
+        .db     0
+
+EditorBlockSelectionStartLo:
+        .db     0
+
+EditorBlockSelectionStartHi:
+        .db     0
+
+EditorBlockSelectionEndLo:
+        .db     0
+
+EditorBlockSelectionEndHi:
+        .db     0
+
+EditorBlockSelectionLineLo:
+        .db     0
+
+EditorBlockSelectionLineHi:
+        .db     0
+
+EditorBlockSelectionVisibleRow:
+        .db     0
+
+EditorBlockSelectionMarkerRow:
         .db     0
 
 EditorRowText0:

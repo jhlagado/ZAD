@@ -126,6 +126,13 @@ const PROOF_CASES = {
     lines: makeMultiBlockLines(),
     verify: verifyEditorDirtyRenderProof,
   },
+  'editor-selection-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-selection-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-selection-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-selection-fat32.img'),
+    lines: makeMultiBlockLines(),
+    verify: verifyNoopProof,
+  },
   'editor-mutation-boundary-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-mutation-boundary-proof-last-run.json'),

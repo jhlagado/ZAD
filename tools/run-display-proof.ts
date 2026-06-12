@@ -238,9 +238,9 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   const expectedMarkers = [
     { row: 0, pattern: 0xf0, name: 'breakpoint' },
     { row: 1, pattern: 0x80, name: 'current' },
-    { row: 2, pattern: 0xc0, name: 'selected' },
+    { row: 2, pattern: 0x80, name: 'selected' },
     { row: 5, pattern: 0xf0, name: 'breakpoint-current' },
-    { row: 7, pattern: 0xc0, name: 'selected' },
+    { row: 7, pattern: 0x80, name: 'selected' },
   ];
 
   for (const marker of expectedMarkers) {

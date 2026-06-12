@@ -625,11 +625,12 @@ Sequenced goals:
    - Live smoke and manual docs updated to keep Ctrl and Alt command aliases in
      parallel during host-keyboard testing.
 
-2. **Block Phase B2: Selection Range And Thin Gutter**
-   - Add ordinary line-selection interval state.
-   - Implement `Shift+Up`/`Shift+Down`.
-   - Render selected visible rows with the thin gutter marker.
-   - Clear selection on ordinary movement and editing.
+2. **Done: Block Phase B2: Selection Range And Thin Gutter**
+   - Ordinary line-selection interval state added as absolute line endpoints.
+   - `Shift+Up`/`Shift+Down` extend or shrink the visible line selection.
+   - Selected visible rows render with the thin gutter marker.
+   - Ordinary movement and editing clear the selection.
+   - `editor-selection-proof` covers selection, clearing, and package wiring.
 
 3. **Block Phase B3: Page Selection And Gutter Glyph Proofs**
    - Add `Shift+Alt+Up`/`Shift+Alt+Down` selection by page.

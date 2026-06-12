@@ -25,6 +25,7 @@ TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
 TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
+TECM8_EDITOR_KEY_MOD_SHIFT              .equ    0x01
 TECM8_EDITOR_KEY_MOD_ALT                .equ    0x08
 TECM8_EDITOR_KEY_MOD_PAGE               .equ    0x0A
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    15
@@ -59,6 +60,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
         LD      (EditorCursorRendered),A
         LD      (EditorCursorBlinkCounter),A
         LD      (EditorCursorBlinkCounterHi),A
+        CALL    EditorBlockSelectionClearState
         CALL    EditorNavResetViewport
         RET     C
         XOR     A
@@ -81,6 +83,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
         LD      (EditorCursorRendered),A
         LD      (EditorCursorBlinkCounter),A
         LD      (EditorCursorBlinkCounterHi),A
+        CALL    EditorBlockSelectionClearState
         RET
 
 ; EditorRenderCursor -
@@ -447,6 +450,8 @@ EditorKeyShowErrorAndLoop:
         JP      EditorKeyLoop
 
 EditorKeyCursorLeft:
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         LD      A,(EditorCursorCol)
         OR      A
         JP      Z,EditorKeyLoop
@@ -457,6 +462,11 @@ EditorKeyCursorLeft:
         JP      EditorKeyLoop
 
 EditorKeyCursorDown:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_SHIFT
+        JP      NZ,EditorKeySelectDown
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         LD      A,(EditorCursorRow)
         CP      TECM8_EDITOR_CURSOR_MAX_ROW
         JP      Z,EditorKeyLoop
@@ -468,6 +478,11 @@ EditorKeyCursorDown:
         JP      EditorKeyLoop
 
 EditorKeyCursorUp:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_SHIFT
+        JP      NZ,EditorKeySelectUp
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         LD      A,(EditorCursorRow)
         OR      A
         JP      Z,EditorKeyLoop
@@ -478,7 +493,45 @@ EditorKeyCursorUp:
         RET     C
         JP      EditorKeyLoop
 
+EditorKeySelectDown:
+        LD      A,(EditorCursorRow)
+        CP      TECM8_EDITOR_CURSOR_MAX_ROW
+        JP      Z,EditorKeyLoop
+        CALL    EditorBlockSelectionBeginIfNeeded
+        RET     C
+        LD      A,(EditorCursorRow)
+        LD      (EditorCursorPreviousRow),A
+        INC     A
+        LD      (EditorCursorRow),A
+        CALL    EditorBlockSelectionUpdateActive
+        RET     C
+        CALL    EditorKeyRenderCursorMove
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeySelectUp:
+        LD      A,(EditorCursorRow)
+        OR      A
+        JP      Z,EditorKeyLoop
+        CALL    EditorBlockSelectionBeginIfNeeded
+        RET     C
+        LD      A,(EditorCursorRow)
+        LD      (EditorCursorPreviousRow),A
+        DEC     A
+        LD      (EditorCursorRow),A
+        CALL    EditorBlockSelectionUpdateActive
+        RET     C
+        CALL    EditorKeyRenderCursorMove
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
+        RET     C
+        JP      EditorKeyLoop
+
 EditorKeyCursorRight:
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         LD      A,(EditorCursorCol)
         CP      TECM8_EDITOR_CURSOR_MAX_COL
         JP      Z,EditorKeyLoop
@@ -489,6 +542,8 @@ EditorKeyCursorRight:
         JP      EditorKeyLoop
 
 EditorKeyInsertPrintable:
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         LD      A,(EditorPendingChar)
         CALL    EditorInsertChar
         RET     C
@@ -499,6 +554,8 @@ EditorKeyInsertPrintable:
         JP      EditorKeyLoop
 
 EditorKeySplitLine:
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         CALL    EditorSplitLine
         RET     C
         OR      A
@@ -508,6 +565,8 @@ EditorKeySplitLine:
         JP      EditorKeyLoop
 
 EditorKeyBackspace:
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         LD      A,(EditorCursorCol)
         OR      A
         JR      Z,EditorKeyBackspaceJoin
@@ -534,6 +593,8 @@ EditorKeyBackspaceJoin:
         JP      EditorKeyLoop
 
 EditorKeyDelete:
+        CALL    EditorBlockSelectionClearIfActive
+        RET     C
         CALL    EditorDeleteChar
         RET     C
         OR      A
@@ -739,6 +800,108 @@ EditorModifiedCommandRestore:
         RET
 
 EditorShouldIgnoreModifiedPrintableNo:
+        XOR     A
+        RET
+
+; EditorBlockSelectionBeginIfNeeded -
+; Start an inclusive whole-line block selection at the current absolute line if
+; no ordinary selection is already active.
+;!      out       A,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionBeginIfNeeded:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        RET     NZ
+        CALL    EditorBlockSelectionCurrentLine
+        LD      A,L
+        LD      (EditorBlockSelectionAnchorLo),A
+        LD      (EditorBlockSelectionActiveLo),A
+        LD      A,H
+        LD      (EditorBlockSelectionAnchorHi),A
+        LD      (EditorBlockSelectionActiveHi),A
+        LD      A,1
+        LD      (EditorBlockSelectionActive),A
+        XOR     A
+        RET
+
+; EditorBlockSelectionUpdateActive -
+; Move the active end of the ordinary selection to the current absolute line.
+;!      out       A,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionUpdateActive:
+        CALL    EditorBlockSelectionCurrentLine
+        LD      A,L
+        LD      (EditorBlockSelectionActiveLo),A
+        LD      A,H
+        LD      (EditorBlockSelectionActiveHi),A
+        XOR     A
+        RET
+
+; EditorBlockSelectionClearState -
+; Clear ordinary selection state without repainting. Used before full page
+; renders and cursor resets.
+;!      out       A,zero,sign,parity,halfCarry
+;!      clobbers  A
+@EditorBlockSelectionClearState:
+        XOR     A
+        LD      (EditorBlockSelectionActive),A
+        RET
+
+; EditorBlockSelectionClearIfActive -
+; Clear ordinary selection state and repaint visible gutter markers when needed.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionClearIfActive:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        RET     Z
+        CALL    EditorHideCursor
+        RET     C
+        CALL    EditorBlockSelectionClearState
+        JP      EditorBlockSelectionRenderMarkers
+
+; EditorBlockSelectionRenderMarkers -
+; Repaint all visible gutter markers after a selection range change.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionRenderMarkers:
+        XOR     A
+        LD      (EditorBlockSelectionMarkerRow),A
+
+EditorBlockSelectionRenderMarkerLoop:
+        LD      A,(EditorBlockSelectionMarkerRow)
+        CALL    EditorViewportRenderRowMarker
+        RET     C
+        LD      A,(EditorBlockSelectionMarkerRow)
+        CALL    GlcdTileMarkGutterDirty
+        RET     C
+        LD      A,(EditorBlockSelectionMarkerRow)
+        INC     A
+        LD      (EditorBlockSelectionMarkerRow),A
+        CP      TECM8_EDITOR_CURSOR_VISIBLE_ROWS
+        JR      NZ,EditorBlockSelectionRenderMarkerLoop
+        XOR     A
+        RET
+
+; EditorBlockSelectionCurrentLine -
+; Compute the current absolute source line as page * 16 + current row.
+;!      out       HL,A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorBlockSelectionCurrentLine:
+        LD      A,(EditorNavCurrentPage)
+        LD      H,0
+        LD      L,A
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        LD      A,(EditorCursorRow)
+        ADD     A,L
+        LD      L,A
+        JR      NC,EditorBlockSelectionCurrentLineDone
+        INC     H
+
+EditorBlockSelectionCurrentLineDone:
         XOR     A
         RET
 

@@ -124,7 +124,7 @@ DisplayGutterCheckCurrent:
         JR      DisplayGutterPatternReady
 
 DisplayGutterCheckSelected:
-        LD      A,0xC0
+        LD      A,0x80
 
 DisplayGutterPatternReady:
         LD      (DisplayPattern),A

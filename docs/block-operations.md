@@ -354,14 +354,15 @@ Done when Debug80 live smoke covers the new quit and restore bindings.
 
 ### Phase B2: Selection State And Gutter Markers
 
-- Add line selection state.
-- Implement `Shift+Up` and `Shift+Down`.
-- Implement `Shift+Alt+Up` and `Shift+Alt+Down` if modifier reporting is ready.
-- Render selected visible rows with a thin gutter marker.
-- Clear selection on ordinary movement/editing.
+- Done: line selection state is stored as an inclusive absolute-line interval.
+- Done: `Shift+Up` and `Shift+Down` extend or shrink the ordinary selection.
+- Deferred to Phase B3: `Shift+Alt+Up` and `Shift+Alt+Down` page selection.
+- Done: selected visible rows render with the thin gutter marker.
+- Done: ordinary movement and editing clear the ordinary selection.
 
-Done when manual Debug80 testing can select a visible range and a range that
-extends through viewport/page movement.
+The current proof covers visible-range selection, ordinary movement clearing,
+and editing clearing. Manual testing should confirm the visible gutter behavior
+on Debug80 before Phase B3 adds page-range selection.
 
 ### Phase B3: Pending Copy/Move Source
 

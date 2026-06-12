@@ -51,6 +51,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_LEFT\s+\.equ\s+0x05/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_RIGHT\s+\.equ\s+0x06/);
   assert.match(source, /TECM8_EDITOR_KEY_MOD_CTRL\s+\.equ\s+0x02/);
+  assert.match(source, /TECM8_EDITOR_KEY_MOD_SHIFT\s+\.equ\s+0x01/);
   assert.match(source, /TECM8_EDITOR_KEY_MOD_ALT\s+\.equ\s+0x08/);
   assert.match(source, /TECM8_EDITOR_KEY_MOD_PAGE\s+\.equ\s+0x0A/);
   assert.match(source, /TECM8_EDITOR_KEY_ESCAPE\s+\.equ\s+27/);
@@ -125,6 +126,11 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorVisibleRow\),A\n\s+LD\s+\(EditorCursorVisibleCol\),A\n\s+LD\s+\(EditorNavCurrentRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?CALL\s+EditorNavResetViewport/);
   assert.match(source, /CALL\s+EditorViewportSetCurrentRow/);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
+  assert.match(source, /^@EditorBlockSelectionBeginIfNeeded:/m);
+  assert.match(source, /^@EditorBlockSelectionUpdateActive:/m);
+  assert.match(source, /^@EditorBlockSelectionClearState:/m);
+  assert.match(source, /^@EditorBlockSelectionClearIfActive:/m);
+  assert.match(source, /^@EditorBlockSelectionCurrentLine:/m);
   assert.match(source, /JP\s+EditorKeyRenderCursorRowMarkers/);
   assert.match(source, /CALL\s+EditorModifiedCommandFromKey\n\s+RET\s+C\n\s+OR\s+A\n\s+JP\s+NZ,EditorDispatchModifiedCommand/);
   assert.match(source, /EditorModifiedCommandFromKey:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_PAGE/);
@@ -174,8 +180,13 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyCursorLeft:/);
   assert.match(source, /EditorKeyCursorDown:/);
   assert.match(source, /EditorKeyCursorUp:/);
+  assert.match(source, /EditorKeySelectDown:/);
+  assert.match(source, /EditorKeySelectUp:/);
   assert.match(source, /EditorKeyCursorDown:[\s\S]*?CALL\s+EditorKeyRenderCursorMove/);
   assert.match(source, /EditorKeyCursorUp:[\s\S]*?CALL\s+EditorKeyRenderCursorMove/);
+  assert.match(source, /EditorKeyCursorDown:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_SHIFT[\s\S]*?JP\s+NZ,EditorKeySelectDown/);
+  assert.match(source, /EditorKeyCursorUp:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_SHIFT[\s\S]*?JP\s+NZ,EditorKeySelectUp/);
+  assert.doesNotMatch(source, /EditorBlockSelectionActive:\n\s+\.db\s+0/);
   assert.match(source, /EditorKeyPageDownErr:[\s\S]*?CP\s+EDITOR_LOAD_ERR_SIZE[\s\S]*?JR\s+Z,EditorKeyPageDownEnd/);
   assert.match(source, /EditorKeyPageDownEnd:\n\s+CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+RET\s+C\n\s+JP\s+EditorKeyLoop/);
   assert.doesNotMatch(source, /EditorStatusEndText/);
@@ -210,6 +221,24 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
+});
+
+test('editor line selection proof is wired into package checks', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-selection-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-selection-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+ShellRunEditorSession/);
+  assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_DOWN\n\s+LD\s+B,PROOF_MOD_SHIFT\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_UP\n\s+LD\s+B,PROOF_MOD_SHIFT\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /AssertSelectionRowsZeroToOne:/);
+  assert.match(proof, /AssertSelectionRowsZeroToTwo:/);
+  assert.match(proof, /AssertSelectionClear:/);
+  assert.match(proof, /TECM8_DISPLAY_MARKER_CURRENT \| TECM8_DISPLAY_MARKER_SELECTED/);
+  assert.match(runner, /editor-selection-proof/);
+  assert.match(packageJson, /"proof:display:editor-selection"/);
+  assert.match(packageJson, /proof:display:editor-selection/);
 });
 
 test('editor cross-page join proof is wired into package checks', () => {

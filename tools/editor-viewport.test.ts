@@ -16,7 +16,12 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^@EditorViewportRenderRecordRow:/m);
   assert.match(source, /^@EditorViewportSetTopRow:/m);
   assert.match(source, /^@EditorViewportSetColOffset:/m);
+  assert.match(source, /^@EditorViewportSetCurrentPage:/m);
   assert.match(source, /^@EditorViewportTopRecordPtr:/m);
+  assert.match(source, /^@EditorBlockSelectionVisibleRowSelected:/m);
+  assert.match(source, /^@EditorBlockSelectionVisibleLine:/m);
+  assert.match(source, /^@EditorBlockSelectionNormalize:/m);
+  assert.match(source, /^@EditorBlockSelectionCompareHlDe:/m);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRender:/);
   assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRenderRecordRow:/);
 
@@ -35,6 +40,12 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^TECM8_EDITOR_VISIBLE_COLS\s+\.equ\s+20$/m);
   assert.match(source, /EditorViewportTopRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorViewportColOffset:\n\s+\.db\s+0/);
+  assert.match(source, /EditorViewportCurrentPage:\n\s+\.db\s+0/);
+  assert.match(source, /EditorBlockSelectionActive:\n\s+\.db\s+0/);
+  assert.match(source, /EditorBlockSelectionAnchorLo:\n\s+\.db\s+0/);
+  assert.match(source, /EditorBlockSelectionAnchorHi:\n\s+\.db\s+0/);
+  assert.match(source, /EditorBlockSelectionActiveLo:\n\s+\.db\s+0/);
+  assert.match(source, /EditorBlockSelectionActiveHi:\n\s+\.db\s+0/);
   assert.match(source, /EditorRecordBasePtr:\n\s+\.dw\s+0/);
   assert.match(source, /CALL\s+EditorViewportTopRecordPtr/);
   assert.match(source, /LD\s+A,\(EditorViewportColOffset\)/);
@@ -43,6 +54,8 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^@EditorViewportRowTextPtr:/m);
   assert.match(source, /^@EditorViewportSetCurrentRow:/m);
   assert.match(source, /^@EditorViewportMarkerForRow:/m);
+  assert.match(source, /CALL\s+EditorBlockSelectionVisibleRowSelected/);
+  assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_CURRENT/);
   assert.match(source, /^@EditorViewportRenderRowMarker:/m);
   assert.match(source, /^@EditorViewportStoreDescriptorMarker:/m);
   assert.match(source, /EditorViewportRenderRowMarkerCount:\n\s+\.db\s+0/);

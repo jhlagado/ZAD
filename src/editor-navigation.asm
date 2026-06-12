@@ -93,6 +93,9 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
 ;!      out       A,carry
 ;!      clobbers  A,BC,zero,sign,parity,halfCarry
 @EditorNavSyncViewport:
+        LD      A,(EditorNavCurrentPage)
+        CALL    EditorViewportSetCurrentPage
+        RET     C
         LD      A,(EditorNavViewportTopRow)
         CALL    EditorViewportSetTopRow
         RET     C
