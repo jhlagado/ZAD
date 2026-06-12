@@ -126,6 +126,10 @@ function readWord(memory: Uint8Array, address: number): number {
   return memory[address] | (memory[address + 1] << 8);
 }
 
+function readRuntimeByte(runtime: Runtime, address: number): number {
+  return runtime.hardware.memory[address] ?? 0;
+}
+
 function readCString(memory: Uint8Array, address: number): string {
   const bytes: number[] = [];
   for (let offset = address; offset < memory.length && memory[offset] !== 0; offset += 1) {
@@ -155,17 +159,8 @@ function manifestPath(imagePath: string): string {
   return imagePath.replace(/\.[^.]*$/, '.json');
 }
 
-function ensureSessionImage(imagePath: string): void {
-  mkdirSync(dirname(imagePath), { recursive: true });
-  execFileSync(process.execPath, ['--experimental-strip-types', IMAGE_TOOL, imagePath], {
-    cwd: TECM8_ROOT,
-    stdio: 'ignore',
-  });
-
-  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } =
-    require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
-  let volume = createVolumeImage() as Buffer;
-  const sourceRecords = encodeSourceRecords([
+function defaultSessionSourceLines(): string[] {
+  return [
     'R0 LINE 00',
     'R0 LINE 01',
     'R0 LINE 02',
@@ -198,7 +193,41 @@ function ensureSessionImage(imagePath: string): void {
     'R1 LINE 13',
     'R1 LINE 14',
     'R1 LINE 15',
-  ]);
+  ];
+}
+
+function blockSmokeSourceLines(): string[] {
+  return [
+    'B0 LINE 00',
+    'B0 LINE 01',
+    'B0 LINE 02',
+    'B0 LINE 03',
+    'B0 LINE 04',
+    'B0 LINE 05',
+    'B0 LINE 06',
+    'B0 LINE 07',
+    'B0 LINE 08',
+    'B0 LINE 09',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ];
+}
+
+function ensureSessionImageWithSourceLines(imagePath: string, sourceLines: string[]): void {
+  mkdirSync(dirname(imagePath), { recursive: true });
+  execFileSync(process.execPath, ['--experimental-strip-types', IMAGE_TOOL, imagePath], {
+    cwd: TECM8_ROOT,
+    stdio: 'ignore',
+  });
+
+  const { createVolumeImage, importFileIntoVolumeImage, readFileFromVolumeImage } =
+    require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
+  let volume = createVolumeImage() as Buffer;
+  const sourceRecords = encodeSourceRecords(sourceLines);
   volume = importFileIntoVolumeImage(volume, '/tecm8.prj', encodeProjectConfig('/src/main.asm'));
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
 
@@ -211,6 +240,14 @@ function ensureSessionImage(imagePath: string): void {
   const image = Buffer.from(readFileSync(imagePath));
   volume.copy(image, manifest.volume_start_byte_offset);
   writeFileSync(imagePath, image);
+}
+
+function ensureSessionImage(imagePath: string): void {
+  ensureSessionImageWithSourceLines(imagePath, defaultSessionSourceLines());
+}
+
+function ensureBlockSmokeSessionImage(imagePath: string): void {
+  ensureSessionImageWithSourceLines(imagePath, blockSmokeSourceLines());
 }
 
 function makeConfig(imagePath: string, startAddress = APP_START, matrixMode = false) {
@@ -501,10 +538,15 @@ function writeGlcdCapture(glcd: number[]): void {
 
 async function main(): Promise<void> {
   if (process.argv.includes('--prepare-only')) {
-    ensureSessionImage(IMAGE_PATH);
+    if (process.argv.includes('--block-fixture')) {
+      ensureBlockSmokeSessionImage(IMAGE_PATH);
+    } else {
+      ensureSessionImage(IMAGE_PATH);
+    }
     const summary = {
       result: 'ok',
       preparedOnly: true,
+      blockFixture: process.argv.includes('--block-fixture'),
       image: IMAGE_PATH,
     };
     writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
@@ -516,9 +558,117 @@ async function main(): Promise<void> {
   const sessionImagePath = resolve(tempSessionDir, 'editor-session-fat32.img');
 
   try {
-    ensureSessionImage(sessionImagePath);
+    if (process.argv.includes('--block-smoke')) {
+      ensureBlockSmokeSessionImage(sessionImagePath);
+    } else {
+      ensureSessionImage(sessionImagePath);
+    }
 
     const { bytes, symbols } = await compileMain();
+    if (process.argv.includes('--block-smoke')) {
+    const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
+    const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
+    const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
+    const pageBufferAddr = symbolAddress(symbols, 'EditorNavPageBuffer');
+    const selectionActiveAddr = symbolAddress(symbols, 'EditorBlockSelectionActive');
+    const selectionAnchorLoAddr = symbolAddress(symbols, 'EditorBlockSelectionAnchorLo');
+    const selectionActiveLoAddr = symbolAddress(symbols, 'EditorBlockSelectionActiveLo');
+    const pendingBlockModeAddr = symbolAddress(symbols, 'EditorPendingBlockMode');
+    const translatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedKey');
+    const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
+    const { runtime, platformRuntime } = loadRuntime(bytes, sessionImagePath, APP_START, true);
+    platformRuntime.setMatrixMode?.(true);
+    const bootInstructions = runUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
+
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 0 }, { row: 0, col: 4 }, 200_000, 200_000); // Shift+Down
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const selectionActiveAfterShiftDown = readRuntimeByte(runtime, selectionActiveAddr);
+    const selectionAnchorAfterShiftDown = readRuntimeByte(runtime, selectionAnchorLoAddr);
+    const selectionEndAfterShiftDown = readRuntimeByte(runtime, selectionActiveLoAddr);
+    if (
+      selectionActiveAfterShiftDown !== 1 ||
+      selectionAnchorAfterShiftDown !== 0 ||
+      selectionEndAfterShiftDown !== 1
+    ) {
+      throw new Error(
+        `block smoke selection active=${selectionActiveAfterShiftDown} anchor=${selectionAnchorAfterShiftDown} activeLo=${selectionEndAfterShiftDown}, expected 0..1`,
+      );
+    }
+
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 4, col: 6 }, 200_000, 200_000); // Alt+C
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const copyModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const copyTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const pendingAfterCopy = readRuntimeByte(runtime, pendingBlockModeAddr);
+    const selectionAfterCopy = readRuntimeByte(runtime, selectionActiveAddr);
+    if (
+      pendingAfterCopy !== 1 ||
+      selectionAfterCopy !== 0 ||
+      (copyModifierBits & 0x08) === 0 ||
+      (copyTranslatedKey !== 0x43 && copyTranslatedKey !== 0x63)
+    ) {
+      throw new Error(
+        `block smoke Alt-C pending=${pendingAfterCopy} selection=${selectionAfterCopy} modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)}, expected pending copy`,
+      );
+    }
+
+    for (let i = 0; i < 3; i += 1) {
+      tapMatrixKey(platformRuntime, runtime, 0, 4, 200_000, 200_000); // ArrowDown
+      stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    }
+    if (runtime.hardware.memory[cursorRowAddr] !== 4) {
+      throw new Error(`block smoke cursor row before paste ${runtime.hardware.memory[cursorRowAddr]}, expected 4`);
+    }
+
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 1 }, 200_000, 200_000); // Alt+V
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pendingAfterPaste = readRuntimeByte(runtime, pendingBlockModeAddr);
+    const selectionAfterPaste = readRuntimeByte(runtime, selectionActiveAddr);
+    const selectionAnchorAfterPaste = readRuntimeByte(runtime, selectionAnchorLoAddr);
+    const selectionEndAfterPaste = readRuntimeByte(runtime, selectionActiveLoAddr);
+    if (
+      pendingAfterPaste !== 0 ||
+      selectionAfterPaste !== 1 ||
+      selectionAnchorAfterPaste !== 4 ||
+      selectionEndAfterPaste !== 5
+    ) {
+      throw new Error(
+        `block smoke Alt-V pending=${pendingAfterPaste} selection=${selectionAfterPaste} anchor=${selectionAnchorAfterPaste} activeLo=${selectionEndAfterPaste}, expected pasted selection 4..5`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'B0 LINE 00', 'block smoke row 0 after copy insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'B0 LINE 01', 'block smoke row 1 after copy insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 4, 'B0 LINE 00', 'block smoke row 4 after copy insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 5, 'B0 LINE 01', 'block smoke row 5 after copy insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 6, 'B0 LINE 04', 'block smoke row 6 after copy insert');
+
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
+    if (runtime.hardware.memory[dirtyAddr] !== 0) {
+      throw new Error(`block smoke dirty after save ${runtime.hardware.memory[dirtyAddr]}, expected 0`);
+    }
+    const savedSource = readTm8File(sessionImagePath, '/src/main.asm');
+    const savedRows = [0, 1, 4, 5, 6].map((row) => readSourceRecord(savedSource, row));
+    const expectedRows = ['B0 LINE 00', 'B0 LINE 01', 'B0 LINE 00', 'B0 LINE 01', 'B0 LINE 04'];
+    if (JSON.stringify(savedRows) !== JSON.stringify(expectedRows)) {
+      throw new Error(`block smoke saved rows ${JSON.stringify(savedRows)}, expected ${JSON.stringify(expectedRows)}`);
+    }
+
+    const summary = {
+      result: 'ok',
+      blockSmoke: true,
+      manualImage: IMAGE_PATH,
+      temporaryImage: true,
+      temporaryImageRetained: false,
+      bootInstructions,
+      copyModifierBits,
+      copyTranslatedKey,
+      savedRows,
+    };
+    writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
     if (process.argv.includes('--live-smoke')) {
     const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
     const doneAddr = symbolAddress(symbols, 'MainDone');

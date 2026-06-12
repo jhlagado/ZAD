@@ -436,10 +436,14 @@ block.
 
 ### Phase B8: Debug80 Block Editing V1 Acceptance
 
-- Add automated Debug80 smoke coverage for selection, copy, move, replace,
-  overlap rejection, delete, save, and host export validation.
-- Provide a short manual keyboard test script.
-- Stop at this milestone for manual validation.
+- Done: `debug80:editor-block-smoke` boots the editor in Debug80 matrix mode,
+  selects lines with `Shift+Down`, arms copy with `Alt-C`, pastes with `Alt-V`,
+  saves with `Alt-S`, and validates the saved TM8 source records from the host
+  side.
+- Done: `acceptance:block-editing-v1` runs the selection/paste proof, the
+  delete proof, the Debug80 block smoke, and prepares the manual Debug80 block
+  fixture image.
+- Done: this document provides the manual keyboard test script below.
 
 Done when Block Editing V1 is manually testable in Debug80.
 
@@ -456,19 +460,37 @@ still avoids unnecessary SD writes.
 
 ## Manual Test Script Target
 
-A future manual Debug80 script for this feature should cover:
+Run:
+
+```sh
+npm run debug80:editor-block-image
+```
+
+Then launch `demos/debug80/editor-session-fat32.img` in Debug80, start the
+program at `0x4000` from MON3, and use the matrix keyboard.
+
+The current resident-page implementation is deliberately conservative. It is
+best to test block paste in a file with blank tail rows, such as the prepared
+demo image, so insertion has room to shift records down.
+
+Manual script:
 
 ```text
-1. Select three lines with Shift+Down.
-2. Ctrl-C marks them with a thick gutter source.
-3. Move to another location.
-4. Ctrl-V copies them before the cursor.
-5. Select two destination lines.
-6. Ctrl-V replaces those lines.
-7. Select another block.
-8. Ctrl-X marks it as a sawtooth move source.
-9. Move elsewhere and Ctrl-V moves it.
-10. Try an overlapping move and confirm it is rejected.
-11. Select a block and press Delete; answer N, then Y.
-12. Save and export the source to verify records and metadata bits remain valid.
+1. Press Shift+Down once. Rows 0..1 should show the thin selection gutter.
+2. Press Alt-C. Rows 0..1 should change to the thick pending-copy gutter.
+3. Press Down three times to move to row 4.
+4. Press Alt-V. Rows 0..1 should be copied before row 4 and the pasted rows
+   should become the thin selected destination block.
+5. Press Alt-X. The pasted rows should change to the sawtooth pending-move
+   gutter.
+6. Press Down a few rows, then Alt-V. The moved rows should reappear at the new
+   position and the old source rows should close up.
+7. Select a destination range with Shift+Down, arm another source with Alt-C or
+   Alt-X, and press Alt-V. Equal-sized resident-page ranges should replace;
+   unsafe overlaps should leave the text unchanged.
+8. Select a block and press Delete. Answer N first; the block should remain.
+9. Press Delete again and answer Y; the selected whole-line block should be
+   removed and following lines should shift up.
+10. Press Alt-S. The editor should show saving feedback and return with the
+    edited rows still visible.
 ```

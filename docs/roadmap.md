@@ -677,11 +677,14 @@ Sequenced goals:
      records, clears selection, and marks the editor dirty.
    - `editor-block-delete-proof` covers cancel and confirm behavior.
 
-8. **Block Phase B8: Debug80 Block Editing V1 Acceptance**
-   - Add automated Debug80 smoke coverage for selection, copy, move, replace,
-     overlap rejection, delete, save, and host export validation.
-   - Provide a short manual keyboard test script.
-   - Stop at this milestone for manual validation.
+8. **Done: Block Phase B8: Debug80 Block Editing V1 Acceptance**
+   - `debug80:editor-block-smoke` boots the editor in Debug80 matrix mode,
+     selects a line block, arms copy, pastes it, saves, and validates the saved
+     TM8 source records from the host side.
+   - `acceptance:block-editing-v1` runs the selection/paste proof, delete proof,
+     block smoke, and manual block-fixture image preparation.
+   - The manual keyboard test script is recorded in
+     [Editor Block Operations](block-operations.md).
 
 Deferred after Block Editing V1:
 
@@ -701,6 +704,9 @@ Block Editing V1 done criteria:
 - Delete on selected block is confirmed and safe.
 - Save persists the reshaped source.
 - Host export still validates the edited source records and metadata bits.
+
+Status: reached in automation. Stop here for manual Debug80 validation before
+starting named block read/write or character-precise selections.
 
 ## Likely Next Practical Milestone After Phase 1
 
