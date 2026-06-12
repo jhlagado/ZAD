@@ -439,12 +439,11 @@ GlcdTileDirtyCellMaxDone:
 
 ; GlcdTileStartQueuedTransfer -
 ; Start row-transfer state for GlcdTileFlushRowLast and current byte range.
+; Precondition: DisplayInit has placed the GLCD in bitmap/graphics mode and no
+; MON3 text-mode terminal routine has changed that mode since.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileStartQueuedTransfer:
-        CALL    BiosDisplaySetBitmapMode
-        RET     C
-
         LD      HL,TECM8_GLCD_TILE_TGBUF + (TECM8_GLCD_TILE_Y_ORIGIN * TECM8_GLCD_TILE_ROW_BYTES)
         LD      A,(GlcdTileFlushRowLast)
         LD      DE,TECM8_GLCD_TILE_ROW_STRIDE

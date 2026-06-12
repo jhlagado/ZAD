@@ -44,7 +44,7 @@ TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
 TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 TECM8_EDITOR_PROMPT_ACTION_QUIT         .equ    2
 TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
-TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0400
+TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0800
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.

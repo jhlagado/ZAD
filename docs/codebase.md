@@ -540,6 +540,13 @@ blending into a grey high-speed flicker in Debug80. The proof-visible
 `EditorCursorBlinkToggleCount` lets emulator proofs assert that blink toggles do
 not use row or full-screen flushes.
 
+Dirty row and cell transfers write ST7920 command/data ports directly and do
+not reissue the MON3 bitmap-mode setup call for every small transfer. The live
+editor enters GLCD bitmap mode through `DisplayInit`, and TECM8's direct tile
+renderer assumes no MON3 text-mode terminal routine changes that mode before
+dirty row/cell transfers run. Avoiding repeated mode setup keeps cursor blink
+from causing a display-wide flicker in Debug80.
+
 `EditorRunLive` renders the cursor, polls one TECM8 key event at a time from
 `BiosInputPollKey`, and dispatches that key through `EditorRunModifiedKey` so
 the editor sees both the translated key byte and modifier flags. Because the

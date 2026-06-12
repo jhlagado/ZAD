@@ -45,6 +45,7 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
   assert.match(source, /LD\s+HL,TECM8_GLCD_TILE_TGBUF\n\s+LD\s+\(TECM8_GLCD_TILE_VPORT\),HL\n\s+CALL\s+BiosDisplayUpdate/);
   const rowFlush = source.slice(source.indexOf('@GlcdTileFlushRow:'), source.indexOf('GlcdTileRangeError:'));
   assert.doesNotMatch(rowFlush, /CALL\s+BiosDisplayUpdate/);
+  assert.doesNotMatch(rowFlush, /CALL\s+BiosDisplaySetBitmapMode/);
   assert.match(rowFlush, /OUT\s+\(TECM8_GLCD_TILE_PORT_CMD\),A/);
   assert.match(rowFlush, /OUT\s+\(TECM8_GLCD_TILE_PORT_DATA\),A/);
   assert.match(source, /GlcdTileFlushFullCount:\n\s+\.db\s+0/);
