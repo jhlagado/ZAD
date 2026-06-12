@@ -43,6 +43,9 @@ TECM8_EDITOR_PROMPT_RESULT_NO           .equ    2
 TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
 TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 TECM8_EDITOR_PROMPT_ACTION_QUIT         .equ    2
+TECM8_EDITOR_PENDING_BLOCK_NONE         .equ    0
+TECM8_EDITOR_PENDING_BLOCK_COPY         .equ    1
+TECM8_EDITOR_PENDING_BLOCK_MOVE         .equ    2
 TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
 TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
 
@@ -61,6 +64,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
         LD      (EditorCursorBlinkCounter),A
         LD      (EditorCursorBlinkCounterHi),A
         CALL    EditorBlockSelectionClearState
+        CALL    EditorPendingBlockClearState
         CALL    EditorNavResetViewport
         RET     C
         XOR     A
@@ -366,6 +370,10 @@ EditorDispatchModifiedCommand:
         JP      Z,EditorKeyQuit
         CP      TECM8_EDITOR_KEY_RESTORE
         JP      Z,EditorKeyRestorePrompt
+        CP      "C"
+        JP      Z,EditorKeyCopyBlock
+        CP      "X"
+        JP      Z,EditorKeyMoveBlock
         JP      EditorKeyLoop
 
 EditorKeySave:
@@ -594,7 +602,7 @@ EditorKeyCursorRight:
         JP      EditorKeyLoop
 
 EditorKeyInsertPrintable:
-        CALL    EditorBlockSelectionClearIfActive
+        CALL    EditorBlockStateClearForEdit
         RET     C
         LD      A,(EditorPendingChar)
         CALL    EditorInsertChar
@@ -606,7 +614,7 @@ EditorKeyInsertPrintable:
         JP      EditorKeyLoop
 
 EditorKeySplitLine:
-        CALL    EditorBlockSelectionClearIfActive
+        CALL    EditorBlockStateClearForEdit
         RET     C
         CALL    EditorSplitLine
         RET     C
@@ -617,7 +625,7 @@ EditorKeySplitLine:
         JP      EditorKeyLoop
 
 EditorKeyBackspace:
-        CALL    EditorBlockSelectionClearIfActive
+        CALL    EditorBlockStateClearForEdit
         RET     C
         LD      A,(EditorCursorCol)
         OR      A
@@ -645,13 +653,29 @@ EditorKeyBackspaceJoin:
         JP      EditorKeyLoop
 
 EditorKeyDelete:
-        CALL    EditorBlockSelectionClearIfActive
+        CALL    EditorBlockStateClearForEdit
         RET     C
         CALL    EditorDeleteChar
         RET     C
         OR      A
         JP      Z,EditorKeyLoop
         CALL    EditorKeyRenderCurrentLineCellsDirty
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyCopyBlock:
+        LD      A,TECM8_EDITOR_PENDING_BLOCK_COPY
+        CALL    EditorPendingBlockArm
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyMoveBlock:
+        LD      A,TECM8_EDITOR_PENDING_BLOCK_MOVE
+        CALL    EditorPendingBlockArm
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
         RET     C
         JP      EditorKeyLoop
 
@@ -816,6 +840,14 @@ EditorActionCursorRight:
         JR      Z,EditorModifiedCommandRestore
         CP      "Z"
         JR      Z,EditorModifiedCommandRestore
+        CP      "c"
+        JR      Z,EditorModifiedCommandCopy
+        CP      "C"
+        JR      Z,EditorModifiedCommandCopy
+        CP      "x"
+        JR      Z,EditorModifiedCommandMove
+        CP      "X"
+        JR      Z,EditorModifiedCommandMove
 
 EditorModifiedCommandNone:
         XOR     A
@@ -831,6 +863,14 @@ EditorModifiedCommandQuit:
 
 EditorModifiedCommandRestore:
         LD      A,TECM8_EDITOR_KEY_RESTORE
+        RET
+
+EditorModifiedCommandCopy:
+        LD      A,"C"
+        RET
+
+EditorModifiedCommandMove:
+        LD      A,"X"
         RET
 
 ; EditorShouldIgnoreModifiedPrintable -
@@ -934,6 +974,46 @@ EditorBlockSelectionRestoreExisting:
         LD      (EditorBlockSelectionActive),A
         RET
 
+; EditorPendingBlockClearState -
+; Clear the pending copy/move source without repainting.
+;!      out       A,zero,sign,parity,halfCarry
+;!      clobbers  A
+@EditorPendingBlockClearState:
+        XOR     A
+        LD      (EditorPendingBlockMode),A
+        RET
+
+; EditorPendingBlockArm -
+; Convert the ordinary selected range into a pending copy/move source.
+; Input: A = TECM8_EDITOR_PENDING_BLOCK_COPY or *_MOVE.
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockArm:
+        LD      (EditorPendingBlockRequestedMode),A
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JR      Z,EditorPendingBlockArmNoSelection
+        CALL    EditorBlockSelectionNormalize
+        LD      A,(EditorBlockSelectionStartLo)
+        LD      (EditorPendingBlockStartLo),A
+        LD      A,(EditorBlockSelectionStartHi)
+        LD      (EditorPendingBlockStartHi),A
+        LD      A,(EditorBlockSelectionEndLo)
+        LD      (EditorPendingBlockEndLo),A
+        LD      A,(EditorBlockSelectionEndHi)
+        LD      (EditorPendingBlockEndHi),A
+        LD      A,(EditorPendingBlockRequestedMode)
+        LD      (EditorPendingBlockMode),A
+        CALL    EditorBlockSelectionClearState
+        XOR     A
+        RET
+
+EditorPendingBlockArmNoSelection:
+        CALL    EditorPendingBlockClearState
+        XOR     A
+        RET
+
 ; EditorBlockSelectionClearIfActive -
 ; Clear ordinary selection state and repaint visible gutter markers when needed.
 ;!      out       A,carry
@@ -945,6 +1025,22 @@ EditorBlockSelectionRestoreExisting:
         CALL    EditorHideCursor
         RET     C
         CALL    EditorBlockSelectionClearState
+        JP      EditorBlockSelectionRenderMarkers
+
+; EditorBlockStateClearForEdit -
+; Clear ordinary selection and pending source before mutating source records.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorBlockStateClearForEdit:
+        LD      A,(EditorBlockSelectionActive)
+        LD      B,A
+        LD      A,(EditorPendingBlockMode)
+        OR      B
+        RET     Z
+        CALL    EditorHideCursor
+        RET     C
+        CALL    EditorBlockSelectionClearState
+        CALL    EditorPendingBlockClearState
         JP      EditorBlockSelectionRenderMarkers
 
 ; EditorBlockSelectionRenderMarkers -
@@ -2334,6 +2430,9 @@ EditorBlockSelectionPageAnchorLo:
         .db     0
 
 EditorBlockSelectionPageAnchorHi:
+        .db     0
+
+EditorPendingBlockRequestedMode:
         .db     0
 
 EditorRestorePromptText:

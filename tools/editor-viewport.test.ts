@@ -46,6 +46,9 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /EditorBlockSelectionAnchorHi:\n\s+\.db\s+0/);
   assert.match(source, /EditorBlockSelectionActiveLo:\n\s+\.db\s+0/);
   assert.match(source, /EditorBlockSelectionActiveHi:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPendingBlockMode:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPendingBlockStartLo:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPendingBlockEndLo:\n\s+\.db\s+0/);
   assert.match(source, /EditorRecordBasePtr:\n\s+\.dw\s+0/);
   assert.match(source, /CALL\s+EditorViewportTopRecordPtr/);
   assert.match(source, /LD\s+A,\(EditorViewportColOffset\)/);
@@ -55,6 +58,10 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^@EditorViewportSetCurrentRow:/m);
   assert.match(source, /^@EditorViewportMarkerForRow:/m);
   assert.match(source, /CALL\s+EditorBlockSelectionVisibleRowSelected/);
+  assert.match(source, /^@EditorPendingBlockVisibleRowMode:/m);
+  assert.match(source, /CALL\s+EditorPendingBlockVisibleRowMode/);
+  assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_COPY_SOURCE/);
+  assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_MOVE_SOURCE/);
   assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_CURRENT/);
   assert.match(source, /^@EditorViewportRenderRowMarker:/m);
   assert.match(source, /^@EditorViewportStoreDescriptorMarker:/m);

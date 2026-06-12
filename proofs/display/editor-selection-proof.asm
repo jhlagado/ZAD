@@ -10,6 +10,7 @@ PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 PROOF_MOD_SHIFT  .equ     0x01
 PROOF_MOD_ALT    .equ     0x08
+PROOF_MOD_CTRL   .equ     0x02
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
@@ -130,6 +131,59 @@ PROOF_MOD_ALT    .equ     0x08
         CALL    AssertSelectionClear
         JP      C,ProofFailed
 
+        LD      A,10
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToTwo
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertPendingCopyRowsZeroToTwo
+        JP      C,ProofFailed
+        CALL    AssertCursorRenderedAtRowTwo
+        JP      C,ProofFailed
+
+        LD      A,11
+        LD      (CaseMarker),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,0
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,PROOF_MOD_SHIFT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertPendingCopyWithDestination
+        JP      C,ProofFailed
+
+        LD      A,12
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToTwo
+        JP      C,ProofFailed
+        LD      A,"x"
+        LD      B,PROOF_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertPendingMoveRowsZeroToTwo
+        JP      C,ProofFailed
+        CALL    AssertCursorRenderedAtRowTwo
+        JP      C,ProofFailed
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -159,6 +213,17 @@ ProofFailedDone:
         DEC     A
         LD      (ShiftDownCount),A
         JR      RunShiftDownCount
+
+;!      out       A,carry,zero
+;!      clobbers  A,B,HL
+@SelectRowsZeroToTwo:
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,PROOF_MOD_SHIFT
+        CALL    EditorRunModifiedKey
+        RET     C
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,PROOF_MOD_SHIFT
+        JP      EditorRunModifiedKey
 
 ;!      out       A,carry,zero
 ;!      clobbers  A,HL
@@ -328,6 +393,120 @@ ProofFailedDone:
         LD      HL,EditorScreenDescriptor + 27
         LD      A,(HL)
         CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,HL
+@AssertPendingCopyRowsZeroToTwo:
+        LD      A,(EditorPendingBlockMode)
+        CP      1
+        JP      NZ,AssertFail
+        CALL    AssertPendingSourceRowsZeroToTwo
+        JP      C,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_COPY_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 3
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_COPY_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 6
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_COPY_SOURCE
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,HL
+@AssertPendingCopyWithDestination:
+        LD      A,(EditorPendingBlockMode)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_COPY_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 3
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_COPY_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 6
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_COPY_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 9
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_SELECTED
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 12
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,HL
+@AssertPendingMoveRowsZeroToTwo:
+        LD      A,(EditorPendingBlockMode)
+        CP      2
+        JP      NZ,AssertFail
+        CALL    AssertPendingSourceRowsZeroToTwo
+        JP      C,AssertFail
+        LD      HL,EditorScreenDescriptor
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 3
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 6
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A
+@AssertCursorRenderedAtRowTwo:
+        LD      A,(EditorCursorRendered)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRenderedRow)
+        CP      2
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRenderedCol)
+        OR      A
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A
+@AssertPendingSourceRowsZeroToTwo:
+        LD      A,(EditorPendingBlockStartLo)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockStartHi)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockEndLo)
+        CP      2
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockEndHi)
+        OR      A
         JP      NZ,AssertFail
         XOR     A
         RET

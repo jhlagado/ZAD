@@ -189,13 +189,32 @@ EditorViewportMarkerCheckCurrent:
         LD      HL,EditorViewportCurrentRow
         CP      (HL)
         JR      Z,EditorViewportMarkerCurrent
-        XOR     A
-        RET
+        JR      EditorViewportMarkerAddPending
 
 EditorViewportMarkerCurrent:
         LD      A,C
         OR      TECM8_DISPLAY_MARKER_CURRENT
         LD      C,A
+
+EditorViewportMarkerAddPending:
+        LD      A,(EditorViewportMarkerInput)
+        CALL    EditorPendingBlockVisibleRowMode
+        OR      A
+        JR      Z,EditorViewportMarkerDone
+        CP      1
+        JR      Z,EditorViewportMarkerCopySource
+        LD      A,C
+        OR      TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        LD      C,A
+        XOR     A
+        RET
+
+EditorViewportMarkerCopySource:
+        LD      A,C
+        OR      TECM8_DISPLAY_MARKER_COPY_SOURCE
+        LD      C,A
+
+EditorViewportMarkerDone:
         XOR     A
         RET
 
@@ -248,6 +267,56 @@ EditorBlockSelectionVisibleYes:
         RET
 
 EditorBlockSelectionVisibleNo:
+        XOR     A
+        RET
+
+; EditorPendingBlockVisibleRowMode -
+; Return the pending block mode when visible row A is inside the pending source.
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockVisibleRowMode:
+        LD      (EditorBlockSelectionVisibleRow),A
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JR      Z,EditorPendingBlockVisibleNo
+        LD      (EditorPendingBlockVisibleMode),A
+        CALL    EditorBlockSelectionVisibleLine
+        LD      A,L
+        LD      (EditorBlockSelectionLineLo),A
+        LD      A,H
+        LD      (EditorBlockSelectionLineHi),A
+        LD      A,(EditorBlockSelectionLineLo)
+        LD      E,A
+        LD      A,(EditorBlockSelectionLineHi)
+        LD      D,A
+        LD      A,(EditorPendingBlockStartLo)
+        LD      L,A
+        LD      A,(EditorPendingBlockStartHi)
+        LD      H,A
+        CALL    EditorBlockSelectionCompareHlDe
+        JR      C,EditorPendingBlockVisiblePastStart
+        JR      NZ,EditorPendingBlockVisibleNo
+
+EditorPendingBlockVisiblePastStart:
+        LD      A,(EditorBlockSelectionLineLo)
+        LD      L,A
+        LD      A,(EditorBlockSelectionLineHi)
+        LD      H,A
+        LD      A,(EditorPendingBlockEndLo)
+        LD      E,A
+        LD      A,(EditorPendingBlockEndHi)
+        LD      D,A
+        CALL    EditorBlockSelectionCompareHlDe
+        JR      C,EditorPendingBlockVisibleYes
+        JR      NZ,EditorPendingBlockVisibleNo
+
+EditorPendingBlockVisibleYes:
+        LD      A,(EditorPendingBlockVisibleMode)
+        OR      A
+        RET
+
+EditorPendingBlockVisibleNo:
         XOR     A
         RET
 
@@ -574,6 +643,24 @@ EditorBlockSelectionLineHi:
         .db     0
 
 EditorBlockSelectionVisibleRow:
+        .db     0
+
+EditorPendingBlockMode:
+        .db     0
+
+EditorPendingBlockStartLo:
+        .db     0
+
+EditorPendingBlockStartHi:
+        .db     0
+
+EditorPendingBlockEndLo:
+        .db     0
+
+EditorPendingBlockEndHi:
+        .db     0
+
+EditorPendingBlockVisibleMode:
         .db     0
 
 EditorBlockSelectionMarkerRow:

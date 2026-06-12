@@ -55,6 +55,10 @@ the relevant source glyph. The user can then create a second ordinary selection
 elsewhere. On paste, the pending source block is copied or moved into the
 destination selection.
 
+Implementation note: TECM8's editor key namespace uses `0x03` for arrow up, so
+block copy/move are recognized as printable `C`/`X` plus Ctrl or Alt modifier
+flags. They are not dispatched from raw ASCII control bytes.
+
 ## Key Bindings
 
 Preferred bindings:
@@ -356,13 +360,13 @@ Done when Debug80 live smoke covers the new quit and restore bindings.
 
 - Done: line selection state is stored as an inclusive absolute-line interval.
 - Done: `Shift+Up` and `Shift+Down` extend or shrink the ordinary selection.
-- Deferred to Phase B3: `Shift+Alt+Up` and `Shift+Alt+Down` page selection.
+- Done in Phase B3: `Shift+Ctrl/Alt+Up` and `Shift+Ctrl/Alt+Down` page
+  selection.
 - Done: selected visible rows render with the thin gutter marker.
 - Done: ordinary movement and editing clear the ordinary selection.
 
 The current proof covers visible-range selection, ordinary movement clearing,
-and editing clearing. Manual testing should confirm the visible gutter behavior
-on Debug80 before Phase B3 adds page-range selection.
+editing clearing, page-range selection, and pending source markers.
 
 ### Phase B3: Page Selection And Gutter Glyph Proofs
 
@@ -375,15 +379,16 @@ proofs.
 
 ### Phase B4: Pending Copy/Move Source
 
-- Implement `Ctrl-C`/`Alt-C` to arm a selected source as pending copy.
-- Implement `Ctrl-X`/`Alt-X` to arm a selected source as pending move.
-- Render pending copy rows with thick gutter markers.
-- Render pending move rows with sawtooth gutter markers.
-- Allow a second ordinary destination selection while the pending block remains.
-- Clear pending block on ordinary source mutation.
+- Done: `Ctrl-C`/`Alt-C` arm a selected source as pending copy.
+- Done: `Ctrl-X`/`Alt-X` arm a selected source as pending move.
+- Done: pending copy rows render with thick gutter markers.
+- Done: pending move rows render with sawtooth gutter markers.
+- Done: a second ordinary destination selection can coexist while the pending
+  block remains visible.
+- Done: pending blocks are cleared on ordinary source mutation.
 
-Done when the user can see a thick copy source or sawtooth move source at the
-same time as a thin destination block.
+`editor-selection-proof` covers pending copy source, pending move source, and
+copy source plus a second thin destination selection.
 
 ### Phase B5: Paste Insert
 

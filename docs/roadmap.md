@@ -639,13 +639,15 @@ Sequenced goals:
    - `editor-selection-proof` covers page selection and selection display
      through viewport movement.
 
-4. **Block Phase B4: Pending Copy And Move Source**
+4. **Done: Block Phase B4: Pending Copy And Move Source**
    - `Ctrl-C`/`Alt-C` turns the ordinary selection into a pending copy source
      with a thick gutter marker.
    - `Ctrl-X`/`Alt-X` turns the ordinary selection into a pending move source
      with a sawtooth gutter marker.
-   - Allow a second ordinary destination selection while the pending source
-     remains visible.
+   - A second ordinary destination selection can coexist while the pending
+     source remains visible.
+   - `editor-selection-proof` covers pending copy, pending move, and a pending
+     copy source with a second thin destination selection.
 
 5. **Block Phase B5: Paste Insert**
    - `Ctrl-V`/`Alt-V` inserts the pending source before the cursor when no
