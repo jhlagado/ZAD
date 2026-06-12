@@ -315,11 +315,112 @@ GlcdTileMarkMaskReady:
         XOR     A
         RET
 
+; GlcdTileMarkCellDirty -
+; Mark one text cell for later cooperative byte-range transfer.
+; Input: B = row (0-9), C = column (0-19)
+;!      in        B,C
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileMarkCellDirty:
+        CALL    GlcdTilePrepareCell
+        RET     C
+        LD      A,(GlcdTileCellRow)
+        LD      (GlcdTileDirtyCellRowTemp),A
+        LD      A,(GlcdTileFlushCellCount)
+        INC     A
+        LD      (GlcdTileFlushCellCount),A
+        LD      A,(GlcdTileByteX)
+        LD      (GlcdTileDirtyCellMinTemp),A
+        LD      B,A
+        LD      A,(GlcdTileStartBit)
+        CP      3
+        JR      C,GlcdTileDirtyCellMaxReady
+        LD      A,B
+        INC     A
+        JR      GlcdTileDirtyCellMaxStore
+
+GlcdTileDirtyCellMaxReady:
+        LD      A,B
+
+GlcdTileDirtyCellMaxStore:
+        OR      1
+        LD      (GlcdTileDirtyCellMaxTemp),A
+        LD      A,(GlcdTileDirtyCellMinTemp)
+        AND     0xFE
+        LD      (GlcdTileDirtyCellMinTemp),A
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        CP      8
+        JR      NC,GlcdTileMarkCellHighRow
+        LD      HL,GlcdTileDirtyCellRowsLo
+        JR      GlcdTileMarkCellMaskReady
+
+GlcdTileMarkCellHighRow:
+        SUB     8
+        LD      HL,GlcdTileDirtyCellRowsHi
+
+GlcdTileMarkCellMaskReady:
+        LD      D,0
+        LD      E,A
+        PUSH    HL
+        LD      HL,GlcdTileDirtySetMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        POP     HL
+        OR      (HL)
+        LD      (HL),A
+
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        LD      E,A
+        LD      D,0
+        LD      HL,GlcdTileDirtyCellMin
+        ADD     HL,DE
+        LD      A,(HL)
+        CP      0xFF
+        JR      Z,GlcdTileDirtyCellWriteMin
+        LD      B,A
+        LD      A,(GlcdTileDirtyCellMinTemp)
+        CP      B
+        JR      NC,GlcdTileDirtyCellMinDone
+
+GlcdTileDirtyCellWriteMin:
+        LD      A,(GlcdTileDirtyCellMinTemp)
+        LD      (HL),A
+
+GlcdTileDirtyCellMinDone:
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        LD      E,A
+        LD      D,0
+        LD      HL,GlcdTileDirtyCellMax
+        ADD     HL,DE
+        LD      A,(HL)
+        LD      B,A
+        LD      A,(GlcdTileDirtyCellMaxTemp)
+        CP      B
+        JR      C,GlcdTileDirtyCellMaxDone
+        LD      (HL),A
+
+GlcdTileDirtyCellMaxDone:
+        XOR     A
+        RET
+
 ; GlcdTileStartQueuedRow -
 ; Start transfer state for GlcdTileFlushRowLast without changing queue counts.
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileStartQueuedRow:
+        XOR     A
+        LD      (GlcdTileFlushByteX),A
+        LD      (GlcdTileFlushMode),A
+        LD      (GlcdTileFlushRowAdvance),A
+        LD      A,TECM8_GLCD_TILE_ROW_BYTES
+        LD      (GlcdTileFlushBytesPerRow),A
+        JP      GlcdTileStartQueuedTransfer
+
+; GlcdTileStartQueuedTransfer -
+; Start row-transfer state for GlcdTileFlushRowLast and current byte range.
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileStartQueuedTransfer:
         CALL    BiosDisplaySetBitmapMode
         RET     C
 
@@ -335,6 +436,10 @@ GlcdTileFlushRowPtrLoop:
         JR      NZ,GlcdTileFlushRowPtrLoop
 
 GlcdTileFlushRowPtrReady:
+        LD      A,(GlcdTileFlushByteX)
+        LD      E,A
+        LD      D,0
+        ADD     HL,DE
         LD      (GlcdTileFlushRowPtr),HL
         LD      A,(GlcdTileFlushRowLast)
         LD      C,A
@@ -357,6 +462,10 @@ GlcdTileFlushRowPtrReady:
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileStep:
         LD      A,(GlcdTileFlushPending)
+        OR      A
+        JR      NZ,GlcdTileStepPending
+        CALL    GlcdTileStartDirtyCellRow
+        RET     C
         OR      A
         JR      NZ,GlcdTileStepPending
         CALL    GlcdTileStartDirtyRow
@@ -386,6 +495,12 @@ GlcdTileStepPending:
 GlcdTileStepDone:
         XOR     A
         LD      (GlcdTileFlushPending),A
+        LD      A,(GlcdTileDirtyCellRowsLo)
+        OR      A
+        JR      NZ,GlcdTileStepMoreDirty
+        LD      A,(GlcdTileDirtyCellRowsHi)
+        OR      A
+        JR      NZ,GlcdTileStepMoreDirty
         LD      A,(GlcdTileDirtyRowsLo)
         OR      A
         JR      NZ,GlcdTileStepMoreDirty
@@ -469,6 +584,96 @@ GlcdTileStartDirtyMaskIndexReady:
         OR      A
         RET
 
+; GlcdTileStartDirtyCellRow -
+; Start the lowest marked dirty cell byte range without transferring it yet.
+; Output: A = 1 when a range was started, 0 when no cell ranges are queued.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileStartDirtyCellRow:
+        LD      A,(GlcdTileDirtyCellRowsLo)
+        OR      A
+        JR      NZ,GlcdTileStartDirtyCellLow
+        LD      A,(GlcdTileDirtyCellRowsHi)
+        OR      A
+        JR      NZ,GlcdTileStartDirtyCellHigh
+        XOR     A
+        RET
+
+GlcdTileStartDirtyCellLow:
+        LD      B,A
+        LD      C,0
+        LD      HL,GlcdTileDirtyCellRowsLo
+        JR      GlcdTileStartDirtyCellFindRow
+
+GlcdTileStartDirtyCellHigh:
+        LD      B,A
+        LD      C,8
+        LD      HL,GlcdTileDirtyCellRowsHi
+
+GlcdTileStartDirtyCellFindRow:
+        LD      A,B
+        AND     1
+        JR      NZ,GlcdTileStartDirtyCellFound
+        SRL     B
+        INC     C
+        JR      GlcdTileStartDirtyCellFindRow
+
+GlcdTileStartDirtyCellFound:
+        LD      A,C
+        LD      (GlcdTileFlushRowLast),A
+        LD      (GlcdTileDirtyCellRowTemp),A
+        CP      8
+        JR      C,GlcdTileStartDirtyCellMaskIndexReady
+        SUB     8
+
+GlcdTileStartDirtyCellMaskIndexReady:
+        LD      D,0
+        LD      E,A
+        PUSH    HL
+        LD      HL,GlcdTileDirtyClearMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        POP     HL
+        AND     (HL)
+        LD      (HL),A
+
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        LD      E,A
+        LD      D,0
+        LD      HL,GlcdTileDirtyCellMin
+        ADD     HL,DE
+        LD      A,(HL)
+        LD      (GlcdTileFlushByteX),A
+        LD      (HL),0xFF
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        LD      E,A
+        LD      D,0
+        LD      HL,GlcdTileDirtyCellMax
+        ADD     HL,DE
+        LD      A,(HL)
+        LD      B,A
+        XOR     A
+        LD      (HL),A
+        LD      A,B
+        LD      (GlcdTileDirtyCellMaxTemp),A
+        LD      A,(GlcdTileFlushByteX)
+        LD      C,A
+        LD      A,(GlcdTileDirtyCellMaxTemp)
+        SUB     C
+        INC     A
+        LD      (GlcdTileFlushBytesPerRow),A
+        LD      B,A
+        LD      A,TECM8_GLCD_TILE_ROW_BYTES
+        SUB     B
+        LD      (GlcdTileFlushRowAdvance),A
+        LD      A,1
+        LD      (GlcdTileFlushMode),A
+        CALL    GlcdTileStartQueuedTransfer
+        RET     C
+        LD      A,1
+        OR      A
+        RET
+
 ; GlcdTilePrepareCell -
 ; Validate B/C and compute the first row byte address plus start bit.
 ;!      in        B,C
@@ -523,6 +728,7 @@ GlcdTileByteOffsetLoop:
 GlcdTileByteOffsetReady:
         LD      (GlcdTileStartBit),A
         LD      A,B
+        LD      (GlcdTileByteX),A
         OR      A
         JR      Z,GlcdTileCellPtrReady
 
@@ -537,13 +743,14 @@ GlcdTileCellPtrReady:
         RET
 
 ; GlcdTileFlushPhysicalRow -
-; Push the 16 backing bytes for the selected physical GLCD row.
+; Push the selected backing-byte range for the selected physical GLCD row.
 ;!      out       carry
 ;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileFlushPhysicalRow:
         CALL    GlcdTileSetGraphicAddress
         LD      HL,(GlcdTileFlushRowPtr)
-        LD      B,TECM8_GLCD_TILE_ROW_BYTES
+        LD      A,(GlcdTileFlushBytesPerRow)
+        LD      B,A
 
 GlcdTileFlushByteLoop:
         LD      A,(HL)
@@ -553,7 +760,19 @@ GlcdTileFlushByteLoop:
         LD      A,(GlcdTileFlushRowByteCount)
         INC     A
         LD      (GlcdTileFlushRowByteCount),A
+        LD      A,(GlcdTileFlushMode)
+        OR      A
+        JR      Z,GlcdTileFlushByteNext
+        LD      A,(GlcdTileFlushCellByteCount)
+        INC     A
+        LD      (GlcdTileFlushCellByteCount),A
+
+GlcdTileFlushByteNext:
         DJNZ    GlcdTileFlushByteLoop
+        LD      A,(GlcdTileFlushRowAdvance)
+        LD      E,A
+        LD      D,0
+        ADD     HL,DE
         LD      (GlcdTileFlushRowPtr),HL
         XOR     A
         RET
@@ -577,7 +796,9 @@ GlcdTileSetGraphicAddressRowReady:
         OR      TECM8_GLCD_TILE_SET_ADDR
         OUT     (TECM8_GLCD_TILE_PORT_CMD),A
         CALL    GlcdTileFlushDelay
-        LD      A,B
+        LD      A,(GlcdTileFlushByteX)
+        SRL     A
+        OR      B
         OUT     (TECM8_GLCD_TILE_PORT_CMD),A
         CALL    GlcdTileFlushDelay
         XOR     A
@@ -617,6 +838,8 @@ GlcdTileCellColumn:
         .db     0
 GlcdTileStartBit:
         .db     0
+GlcdTileByteX:
+        .db     0
 GlcdTileBitIndex:
         .db     0
 GlcdTileGlyphCode:
@@ -641,21 +864,47 @@ GlcdTileFlushRowLast:
         .db     0
 GlcdTileFlushRowByteCount:
         .db     0
+GlcdTileFlushCellCount:
+        .db     0
+GlcdTileFlushCellByteCount:
+        .db     0
 GlcdTileStepCount:
         .db     0
 GlcdTileFlushPending:
+        .db     0
+GlcdTileFlushMode:
         .db     0
 GlcdTileDirtyRowsLo:
         .db     0
 GlcdTileDirtyRowsHi:
         .db     0
+GlcdTileDirtyCellRowsLo:
+        .db     0
+GlcdTileDirtyCellRowsHi:
+        .db     0
 GlcdTileDirtyRowTemp:
         .db     0
+GlcdTileDirtyCellRowTemp:
+        .db     0
+GlcdTileDirtyCellMinTemp:
+        .db     0
+GlcdTileDirtyCellMaxTemp:
+        .db     0
+GlcdTileDirtyCellMin:
+        .db     0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+GlcdTileDirtyCellMax:
+        .db     0,0,0,0,0,0,0,0,0,0
 GlcdTileRequestedRow:
         .db     0
 GlcdTileFlushPhysicalY:
         .db     0
 GlcdTileFlushRowsRemaining:
+        .db     0
+GlcdTileFlushByteX:
+        .db     0
+GlcdTileFlushBytesPerRow:
+        .db     TECM8_GLCD_TILE_ROW_BYTES
+GlcdTileFlushRowAdvance:
         .db     0
 GlcdTileFlushRowPtr:
         .dw     0

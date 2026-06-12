@@ -503,6 +503,8 @@ function verifyGlcdTile(runtime: Runtime, platformRuntime: PlatformRuntime): voi
     throw new Error('GLCD tile proof did not flush tile rows to the visible GLCD');
   }
   assertGlcdCellMatchesFont(runtime.hardware.memory, glcd, 1, 1, 'D'.charCodeAt(0));
+  assertGlcdCellMatchesFont(runtime.hardware.memory, glcd, 6, 2, 'E'.charCodeAt(0));
+  assertGlcdCellMatchesFont(runtime.hardware.memory, glcd, 7, 0, 'F'.charCodeAt(0));
 }
 
 function readCString(memory: Uint8Array, address: number): string {

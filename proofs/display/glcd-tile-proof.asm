@@ -132,6 +132,113 @@ PROOF_FAIL       .equ     0xE0
 
         XOR     A
         LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileFlushCellByteCount),A
+        LD      (GlcdTileFlushCellCount),A
+        LD      (GlcdTileStepCount),A
+        LD      A,'E'
+        LD      B,6
+        LD      C,2
+        CALL    GlcdTileDrawCell
+        JP      C,ProofFailed
+        LD      B,6
+        LD      C,2
+        CALL    GlcdTileMarkCellDirty
+        JP      C,ProofFailed
+        LD      A,6
+        LD      (DirtyStepLoopCount),A
+
+CellStepLoop:
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        LD      B,A
+        LD      A,(DirtyStepLoopCount)
+        DEC     A
+        LD      (DirtyStepLoopCount),A
+        OR      A
+        JR      Z,CellStepFinalReturn
+        LD      A,B
+        OR      A
+        JP      Z,ProofFailed
+        JR      CellStepLoop
+
+CellStepFinalReturn:
+        LD      A,B
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellByteCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellCount)
+        CP      1
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushPending)
+        OR      A
+        JP      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileFlushCellByteCount),A
+        LD      (GlcdTileFlushCellCount),A
+        LD      (GlcdTileStepCount),A
+        LD      A,'F'
+        LD      B,7
+        LD      C,0
+        CALL    GlcdTileDrawCell
+        JP      C,ProofFailed
+        LD      B,7
+        LD      C,0
+        CALL    GlcdTileMarkCellDirty
+        JP      C,ProofFailed
+        LD      A,6
+        LD      (DirtyStepLoopCount),A
+
+CellTwoByteStepLoop:
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        LD      B,A
+        LD      A,(DirtyStepLoopCount)
+        DEC     A
+        LD      (DirtyStepLoopCount),A
+        OR      A
+        JR      Z,CellTwoByteStepFinalReturn
+        LD      A,B
+        OR      A
+        JP      Z,ProofFailed
+        JR      CellTwoByteStepLoop
+
+CellTwoByteStepFinalReturn:
+        LD      A,B
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellByteCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellCount)
+        CP      1
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileFlushCellByteCount),A
+        LD      (GlcdTileFlushCellCount),A
         LD      (GlcdTileStepCount),A
 
         LD      A,2

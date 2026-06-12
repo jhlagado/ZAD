@@ -289,7 +289,10 @@ DisplayCursorNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorWriteLoop
         LD      A,(DisplayCursorCellRow)
-        CALL    GlcdTileMarkRowDirty
+        LD      B,A
+        LD      A,(DisplayCursorCellCol)
+        LD      C,A
+        CALL    GlcdTileMarkCellDirty
         RET
 
 DisplayCursorNoop:
@@ -406,7 +409,10 @@ DisplayCursorEraseNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorEraseWriteLoop
         LD      A,(DisplayCursorCellRow)
-        CALL    GlcdTileMarkRowDirty
+        LD      B,A
+        LD      A,(DisplayCursorCellCol)
+        LD      C,A
+        CALL    GlcdTileMarkCellDirty
         RET
 
 DisplayCursorEraseNoop:

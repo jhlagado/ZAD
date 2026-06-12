@@ -807,13 +807,17 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, _platformRuntime: Platfo
     { symbol: 'MoveRowCount', expected: 0 },
     { symbol: 'MoveMarkerCount', expected: 4 },
     { symbol: 'MoveFullFlushCount', expected: 0 },
-    { symbol: 'MoveRowFlushCount', expected: 6 },
+    { symbol: 'MoveRowFlushCount', expected: 4 },
+    { symbol: 'MoveCellFlushCount', expected: 2 },
+    { symbol: 'MoveCellFlushByteCount', expected: 24 },
     { symbol: 'InsertScreenCount', expected: 0 },
     { symbol: 'InsertPageCount', expected: 0 },
     { symbol: 'InsertRowCount', expected: 1 },
     { symbol: 'InsertMarkerCount', expected: 0 },
     { symbol: 'InsertFullFlushCount', expected: 0 },
-    { symbol: 'InsertRowFlushCount', expected: 3 },
+    { symbol: 'InsertRowFlushCount', expected: 1 },
+    { symbol: 'InsertCellFlushCount', expected: 2 },
+    { symbol: 'InsertCellFlushByteCount', expected: 24 },
   ];
   for (const count of expectedCounts) {
     const value = runtime.hardware.memory[symbolAddress(symbols, count.symbol)];

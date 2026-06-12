@@ -27,6 +27,8 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,MovementKeys
         CALL    EditorRunKeys
         JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
         LD      A,(DisplayRenderScreenCount)
         LD      (MoveScreenCount),A
         LD      A,(EditorRenderPageBufferCount)
@@ -39,12 +41,18 @@ PROOF_FAIL       .equ     0xE0
         LD      (MoveFullFlushCount),A
         LD      A,(GlcdTileFlushRowCount)
         LD      (MoveRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (MoveCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (MoveCellFlushByteCount),A
 
         CALL    ResetRenderCounters
         LD      A,3
         LD      (CaseMarker),A
         LD      HL,InsertKeys
         CALL    EditorRunKeys
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
         JP      C,ProofFailed
         LD      A,(DisplayRenderScreenCount)
         LD      (InsertScreenCount),A
@@ -58,6 +66,10 @@ PROOF_FAIL       .equ     0xE0
         LD      (InsertFullFlushCount),A
         LD      A,(GlcdTileFlushRowCount)
         LD      (InsertRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (InsertCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (InsertCellFlushByteCount),A
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -84,6 +96,8 @@ ProofFailedDone:
         LD      (EditorViewportRenderRowMarkerCount),A
         LD      (GlcdTileFlushFullCount),A
         LD      (GlcdTileFlushRowCount),A
+        LD      (GlcdTileFlushCellCount),A
+        LD      (GlcdTileFlushCellByteCount),A
         RET
 
 ; Stub LoadProjectConfig for shell-to-editor proof.
@@ -156,6 +170,10 @@ MoveFullFlushCount:
         .db     0
 MoveRowFlushCount:
         .db     0
+MoveCellFlushCount:
+        .db     0
+MoveCellFlushByteCount:
+        .db     0
 InsertScreenCount:
         .db     0
 InsertPageCount:
@@ -167,4 +185,8 @@ InsertMarkerCount:
 InsertFullFlushCount:
         .db     0
 InsertRowFlushCount:
+        .db     0
+InsertCellFlushCount:
+        .db     0
+InsertCellFlushByteCount:
         .db     0

@@ -222,9 +222,12 @@ The main entry points are:
 - `DisplayEraseCursorCell`
 
 The cursor routines save and restore the original GLCD bytes under the cursor,
-which prevents cursor trails when the cursor moves. This module depends on the
-MON3 terminal graphics buffer at `0x13C0`, shares the tile layer's 6x6 cell
-geometry, and pushes updates through `BiosDisplayUpdate`.
+which prevents cursor trails when the cursor moves. Cursor render and erase now
+mark only the affected cell byte range dirty through `GlcdTileMarkCellDirty`;
+the cooperative GLCD stepper then transfers that byte span rather than a whole
+text row. This module depends on the MON3 terminal graphics buffer at `0x13C0`,
+shares the tile layer's 6x6 cell geometry, and pushes full-screen updates
+through `BiosDisplayUpdate`.
 
 The live editor no longer uses the old proof-only breakpoint and selection
 markers in the gutter. The viewport owns a single current-row marker, and the
@@ -244,7 +247,7 @@ directly. Row flushes are now TECM8-owned ST7920 transfers: one editor text row
 writes the six physical GLCD rows, 16 bytes per physical row, through ports
 `0x07` and `0x87`. Current entry points include `GlcdTileClearCell`,
 `GlcdTileDrawCell`, `GlcdTileDrawTextRun`, `GlcdTileClearTextRow`,
-`GlcdTileFlushFull`, `GlcdTileFlushRow`, and the cooperative dirty-row
+`GlcdTileFlushFull`, `GlcdTileFlushRow`, and the cooperative dirty row/cell
 scheduler.
 
 Public entries:
@@ -256,6 +259,7 @@ Public entries:
 - `GlcdTileFlushRow`
 - `GlcdTileQueueRow`
 - `GlcdTileMarkRowDirty`
+- `GlcdTileMarkCellDirty`
 - `GlcdTileStep`
 - `GlcdTilePrepareCell`
 
@@ -279,6 +283,13 @@ requested row and drains all six steps before returning. The live editor idle
 loop calls `GlcdTileStep`, so current-line edits and vertical cursor row-marker
 movement can schedule GLCD work and return to matrix keyboard polling while the
 display drains in bounded slices.
+
+The same stepper also understands dirty cell byte ranges. `GlcdTileMarkCellDirty`
+validates a row/column, computes the GLCD byte column touched by the 6-pixel
+cell, coalesces the minimum and maximum dirty bytes for that row, and lets
+`GlcdTileStep` transfer only that byte span across the six physical rows. Cursor
+overlay render/erase uses this path, so ordinary horizontal cursor movement and
+post-edit cursor restore/redraw no longer require full text-row transfers.
 
 This module is the current boundary between TECM8 display policy and MON3 GLCD
 transport. Higher-level display code can stay in row and column coordinates

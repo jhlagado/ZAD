@@ -314,13 +314,17 @@ Work:
   `GlcdTileMarkRowDirty` records dirty text rows in a small row mask, and
   `GlcdTileStep` starts the next marked row when no row transfer is already
   pending. Current-line redraws and vertical cursor marker moves now mark rows
-  dirty instead of synchronously flushing them. Cursor overlay render/erase also
-  marks its affected row dirty, so live editing can return to keyboard polling
-  while GLCD rows drain in bounded slices.
-- Replace row-granular flushing with dirty byte-range or dirty cell-range GLCD
-  transfers once row flushing is proven manually. Row flushing is intentionally
-  the first hardware transfer step because it is easier to prove and fits the
-  current 6-pixel text-row model.
+  dirty instead of synchronously flushing them.
+- Done: added dirty cell-range scheduling for cursor overlays. `GlcdTileMarkCellDirty`
+  records the minimum and maximum GLCD byte columns touched by a dirty text cell,
+  and `GlcdTileStep` transfers only that byte span across the six physical GLCD
+  rows. Horizontal cursor movement and simple edit cursor restore/redraw now use
+  cell-range transfers instead of spending full 96-byte row flushes for cursor
+  work.
+- Extend dirty cell-range scheduling beyond cursor overlays where it is useful.
+  Current-line text mutations still redraw the affected text row, which is
+  simple and safe. Later work can mark exact changed cell ranges for single
+  character insert/delete paths once the redraw/coalescing policy is clearer.
 - Add a small display work queue or dirty mask:
   - full viewport dirty for page loads, restore, and explicit redraw
   - dirty row for vertical cursor movement, line edits, status prompt restore
@@ -353,7 +357,7 @@ Incremental implementation order:
 4. Done: introduce `GlcdTileStep` and call it from live editor idle.
 5. Done: add a dirty-row mask and use it for current-line edits and vertical
    cursor row-marker movement.
-6. Add dirty cell ranges for horizontal movement and normal character edits.
+6. Done: add dirty cell ranges for horizontal movement and edit cursor overlays.
 7. Add cursor blink once cursor updates are cheap.
 
 Proofs:
