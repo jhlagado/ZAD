@@ -130,6 +130,103 @@ PROOF_FAIL       .equ     0xE0
         CP      6
         JP      NZ,ProofFailed
 
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileStepCount),A
+
+        LD      A,2
+        CALL    GlcdTileMarkRowDirty
+        JP      C,ProofFailed
+        LD      A,3
+        CALL    GlcdTileMarkRowDirty
+        JP      C,ProofFailed
+        LD      A,12
+        LD      (DirtyStepLoopCount),A
+
+DirtyStepLoop:
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        LD      B,A
+        LD      A,(DirtyStepLoopCount)
+        DEC     A
+        LD      (DirtyStepLoopCount),A
+        OR      A
+        JR      Z,DirtyStepFinalReturn
+        LD      A,B
+        OR      A
+        JP      Z,ProofFailed
+        JR      DirtyStepLoop
+
+DirtyStepFinalReturn:
+        LD      A,B
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      192
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileStepCount)
+        CP      12
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushPending)
+        OR      A
+        JP      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileStepCount),A
+        LD      A,4
+        CALL    GlcdTileMarkRowDirty
+        JP      C,ProofFailed
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        OR      A
+        JP      Z,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      16
+        JP      NZ,ProofFailed
+        LD      A,5
+        CALL    GlcdTileQueueRow
+        JP      C,ProofFailed
+        LD      A,6
+        LD      (DirtyStepLoopCount),A
+
+SyncStepLoop:
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        LD      B,A
+        LD      A,(DirtyStepLoopCount)
+        DEC     A
+        LD      (DirtyStepLoopCount),A
+        OR      A
+        JR      Z,SyncStepFinalReturn
+        LD      A,B
+        OR      A
+        JP      Z,ProofFailed
+        JR      SyncStepLoop
+
+SyncStepFinalReturn:
+        LD      A,B
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      192
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushPending)
+        OR      A
+        JP      NZ,ProofFailed
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -150,4 +247,6 @@ TileText:
         .db     "OK",0
 
 ResultMarker:
+        .db     0
+DirtyStepLoopCount:
         .db     0

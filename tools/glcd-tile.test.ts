@@ -20,6 +20,7 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
     'GlcdTileFlushFull',
     'GlcdTileFlushRow',
     'GlcdTileQueueRow',
+    'GlcdTileMarkRowDirty',
     'GlcdTileStep',
     'GlcdTilePrepareCell',
   ]) {
@@ -50,6 +51,9 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
   assert.match(source, /GlcdTileFlushRowByteCount:\n\s+\.db\s+0/);
   assert.match(source, /GlcdTileStepCount:\n\s+\.db\s+0/);
   assert.match(source, /GlcdTileFlushPending:\n\s+\.db\s+0/);
+  assert.match(source, /GlcdTileDirtyRowsLo:\n\s+\.db\s+0/);
+  assert.match(source, /GlcdTileDirtyRowsHi:\n\s+\.db\s+0/);
+  assert.match(source, /@GlcdTileStep:[\s\S]*?CALL\s+GlcdTileStartDirtyRow/);
 });
 
 test('GLCD tile layer does not call MON3 terminal glyph policy', () => {
@@ -73,6 +77,7 @@ test('GLCD tile proof is wired into package checks', () => {
   assert.match(proof, /CALL\s+GlcdTileDrawTextRun/);
   assert.match(proof, /CALL\s+GlcdTileFlushFull/);
   assert.match(proof, /CALL\s+GlcdTileQueueRow/);
+  assert.match(proof, /CALL\s+GlcdTileMarkRowDirty/);
   assert.match(proof, /CALL\s+GlcdTileStep/);
   assert.match(proof, /\.include\s+"..\/..\/src\/glcd-tile\.asm"/);
   assert.match(runner, /verifyGlcdTile/);

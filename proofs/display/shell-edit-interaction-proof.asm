@@ -54,6 +54,8 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,EditorKeyRight
         CALL    EditorRunKeys
         JR      C,ProofFailed
+        CALL    DrainDisplayWork
+        JR      C,ProofFailed
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -92,6 +94,19 @@ LoadProjectStubLoop:
         RET
 
 LoadProjectStubOk:
+        XOR     A
+        RET
+
+; DrainDisplayWork -
+; Scripted proofs do not run the live idle loop, so drain queued GLCD rows
+; before host-side visible-pixel assertions.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@DrainDisplayWork:
+        CALL    GlcdTileStep
+        RET     C
+        OR      A
+        JR      NZ,DrainDisplayWork
         XOR     A
         RET
 

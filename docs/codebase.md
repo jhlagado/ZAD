@@ -244,7 +244,8 @@ directly. Row flushes are now TECM8-owned ST7920 transfers: one editor text row
 writes the six physical GLCD rows, 16 bytes per physical row, through ports
 `0x07` and `0x87`. Current entry points include `GlcdTileClearCell`,
 `GlcdTileDrawCell`, `GlcdTileDrawTextRun`, `GlcdTileClearTextRow`,
-`GlcdTileFlushFull`, and `GlcdTileFlushRow`.
+`GlcdTileFlushFull`, `GlcdTileFlushRow`, and the cooperative dirty-row
+scheduler.
 
 Public entries:
 
@@ -254,6 +255,7 @@ Public entries:
 - `GlcdTileFlushFull`
 - `GlcdTileFlushRow`
 - `GlcdTileQueueRow`
+- `GlcdTileMarkRowDirty`
 - `GlcdTileStep`
 - `GlcdTilePrepareCell`
 
@@ -268,11 +270,15 @@ status overlays, and row-local edits avoid the old full-screen blank/repaint
 path.
 
 The row-transfer path now also has a cooperative surface. `GlcdTileQueueRow`
-sets up one dirty text row, and `GlcdTileStep` transfers one physical GLCD row
-per call. `GlcdTileFlushRow` is kept as the synchronous compatibility wrapper:
-it queues the row and drains all six steps before returning. The live editor
-idle loop calls `GlcdTileStep`, which gives later non-blocking display paths a
-place to advance GLCD work between matrix keyboard polls.
+sets up one text row immediately, while `GlcdTileMarkRowDirty` records row
+numbers in a compact dirty mask for later transfer. `GlcdTileStep` starts the
+next marked row when no transfer is pending, then transfers one physical GLCD
+row per call. `GlcdTileFlushRow` is kept as the synchronous compatibility
+wrapper: it first drains any already pending cooperative work, then queues the
+requested row and drains all six steps before returning. The live editor idle
+loop calls `GlcdTileStep`, so current-line edits and vertical cursor row-marker
+movement can schedule GLCD work and return to matrix keyboard polling while the
+display drains in bounded slices.
 
 This module is the current boundary between TECM8 display policy and MON3 GLCD
 transport. Higher-level display code can stay in row and column coordinates

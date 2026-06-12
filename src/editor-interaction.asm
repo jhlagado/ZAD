@@ -1408,7 +1408,7 @@ EditorDeleteDone:
         CALL    EditorViewportRenderRecordRow
         RET     C
         LD      A,(EditorCursorVisibleRow)
-        CALL    GlcdTileFlushRow
+        CALL    GlcdTileMarkRowDirty
         RET     C
         XOR     A
         RET
@@ -1439,11 +1439,11 @@ EditorKeyRenderCursorNewOnly:
         LD      A,(EditorCursorPreviousVisibleRow)
         CP      0xFF
         JR      Z,EditorKeyRenderCursorFlushCurrent
-        CALL    GlcdTileFlushRow
+        CALL    GlcdTileMarkRowDirty
         RET     C
 EditorKeyRenderCursorFlushCurrent:
         LD      A,(EditorCursorVisibleRow)
-        CALL    GlcdTileFlushRow
+        CALL    GlcdTileMarkRowDirty
         RET     C
         XOR     A
         RET

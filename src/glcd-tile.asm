@@ -268,10 +268,58 @@ GlcdTileFlushRowDrainLoop:
         CP      TECM8_GLCD_TILE_ROWS
         JP      NC,GlcdTileRangeError
         LD      (GlcdTileFlushRowLast),A
+        LD      (GlcdTileRequestedRow),A
         LD      A,(GlcdTileFlushRowCount)
         INC     A
         LD      (GlcdTileFlushRowCount),A
+        CALL    GlcdTileDrainPending
+        RET     C
+        LD      A,(GlcdTileRequestedRow)
+        LD      (GlcdTileFlushRowLast),A
+        JP      GlcdTileStartQueuedRow
 
+; GlcdTileMarkRowDirty -
+; Mark one text row for later cooperative transfer by GlcdTileStep.
+; Input: A = row (0-9)
+;!      in        A
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileMarkRowDirty:
+        CP      TECM8_GLCD_TILE_ROWS
+        JP      NC,GlcdTileRangeError
+        LD      (GlcdTileDirtyRowTemp),A
+        LD      A,(GlcdTileFlushRowCount)
+        INC     A
+        LD      (GlcdTileFlushRowCount),A
+        LD      A,(GlcdTileDirtyRowTemp)
+        CP      8
+        JR      NC,GlcdTileMarkHighRow
+        LD      HL,GlcdTileDirtyRowsLo
+        JR      GlcdTileMarkMaskReady
+
+GlcdTileMarkHighRow:
+        SUB     8
+        LD      (GlcdTileDirtyRowTemp),A
+        LD      HL,GlcdTileDirtyRowsHi
+
+GlcdTileMarkMaskReady:
+        LD      D,0
+        LD      E,A
+        PUSH    HL
+        LD      HL,GlcdTileDirtySetMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        POP     HL
+        OR      (HL)
+        LD      (HL),A
+        XOR     A
+        RET
+
+; GlcdTileStartQueuedRow -
+; Start transfer state for GlcdTileFlushRowLast without changing queue counts.
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileStartQueuedRow:
         CALL    BiosDisplaySetBitmapMode
         RET     C
 
@@ -306,9 +354,13 @@ GlcdTileFlushRowPtrReady:
 ; Transfer at most one physical GLCD row from the queued row flush.
 ; Output: A = 1 when more queued work remains, 0 when idle/done.
 ;!      out       A,carry,zero
-;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @GlcdTileStep:
         LD      A,(GlcdTileFlushPending)
+        OR      A
+        JR      NZ,GlcdTileStepPending
+        CALL    GlcdTileStartDirtyRow
+        RET     C
         OR      A
         JR      NZ,GlcdTileStepPending
         XOR     A
@@ -334,7 +386,87 @@ GlcdTileStepPending:
 GlcdTileStepDone:
         XOR     A
         LD      (GlcdTileFlushPending),A
+        LD      A,(GlcdTileDirtyRowsLo)
+        OR      A
+        JR      NZ,GlcdTileStepMoreDirty
+        LD      A,(GlcdTileDirtyRowsHi)
+        OR      A
+        JR      NZ,GlcdTileStepMoreDirty
         XOR     A
+        RET
+
+GlcdTileStepMoreDirty:
+        LD      A,1
+        OR      A
+        RET
+
+; GlcdTileDrainPending -
+; Drain any already pending or marked row work before a synchronous row starts.
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileDrainPending:
+        CALL    GlcdTileStep
+        RET     C
+        OR      A
+        JR      NZ,GlcdTileDrainPending
+        XOR     A
+        RET
+
+; GlcdTileStartDirtyRow -
+; Start the lowest marked dirty row without transferring it yet.
+; Output: A = 1 when a row was started, 0 when no dirty rows are queued.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileStartDirtyRow:
+        LD      A,(GlcdTileDirtyRowsLo)
+        OR      A
+        JR      NZ,GlcdTileStartDirtyLow
+        LD      A,(GlcdTileDirtyRowsHi)
+        OR      A
+        JR      NZ,GlcdTileStartDirtyHigh
+        XOR     A
+        RET
+
+GlcdTileStartDirtyLow:
+        LD      B,A
+        LD      C,0
+        LD      HL,GlcdTileDirtyRowsLo
+        JR      GlcdTileStartDirtyFindRow
+
+GlcdTileStartDirtyHigh:
+        LD      B,A
+        LD      C,8
+        LD      HL,GlcdTileDirtyRowsHi
+
+GlcdTileStartDirtyFindRow:
+        LD      A,B
+        AND     1
+        JR      NZ,GlcdTileStartDirtyFound
+        SRL     B
+        INC     C
+        JR      GlcdTileStartDirtyFindRow
+
+GlcdTileStartDirtyFound:
+        LD      A,C
+        LD      (GlcdTileFlushRowLast),A
+        CP      8
+        JR      C,GlcdTileStartDirtyMaskIndexReady
+        SUB     8
+
+GlcdTileStartDirtyMaskIndexReady:
+        LD      D,0
+        LD      E,A
+        PUSH    HL
+        LD      HL,GlcdTileDirtyClearMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        POP     HL
+        AND     (HL)
+        LD      (HL),A
+        CALL    GlcdTileStartQueuedRow
+        RET     C
+        LD      A,1
+        OR      A
         RET
 
 ; GlcdTilePrepareCell -
@@ -474,6 +606,10 @@ GlcdTileSetMaskTable:
         .db     0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01
 GlcdTileClearMaskTable:
         .db     0x7F,0xBF,0xDF,0xEF,0xF7,0xFB,0xFD,0xFE
+GlcdTileDirtySetMaskTable:
+        .db     0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
+GlcdTileDirtyClearMaskTable:
+        .db     0xFE,0xFD,0xFB,0xF7,0xEF,0xDF,0xBF,0x7F
 
 GlcdTileCellRow:
         .db     0
@@ -508,6 +644,14 @@ GlcdTileFlushRowByteCount:
 GlcdTileStepCount:
         .db     0
 GlcdTileFlushPending:
+        .db     0
+GlcdTileDirtyRowsLo:
+        .db     0
+GlcdTileDirtyRowsHi:
+        .db     0
+GlcdTileDirtyRowTemp:
+        .db     0
+GlcdTileRequestedRow:
         .db     0
 GlcdTileFlushPhysicalY:
         .db     0

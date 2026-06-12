@@ -310,6 +310,13 @@ Work:
   drains all six steps. The live editor idle path now calls `GlcdTileStep`, so
   later non-blocking render paths have a place to advance pending display work
   between keyboard polls.
+- Done: moved the first real editor paths onto cooperative dirty-row scheduling.
+  `GlcdTileMarkRowDirty` records dirty text rows in a small row mask, and
+  `GlcdTileStep` starts the next marked row when no row transfer is already
+  pending. Current-line redraws and vertical cursor marker moves now mark rows
+  dirty instead of synchronously flushing them. Cursor overlay render/erase also
+  marks its affected row dirty, so live editing can return to keyboard polling
+  while GLCD rows drain in bounded slices.
 - Replace row-granular flushing with dirty byte-range or dirty cell-range GLCD
   transfers once row flushing is proven manually. Row flushing is intentionally
   the first hardware transfer step because it is easier to prove and fits the
@@ -344,8 +351,10 @@ Incremental implementation order:
 3. Done: replace MON3-backed row flushes with a TECM8-owned row-range GLCD
    flush backend.
 4. Done: introduce `GlcdTileStep` and call it from live editor idle.
-5. Add dirty cell ranges for horizontal movement and normal character edits.
-6. Add cursor blink once cursor updates are cheap.
+5. Done: add a dirty-row mask and use it for current-line edits and vertical
+   cursor row-marker movement.
+6. Add dirty cell ranges for horizontal movement and normal character edits.
+7. Add cursor blink once cursor updates are cheap.
 
 Proofs:
 

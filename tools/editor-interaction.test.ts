@@ -84,7 +84,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /@EditorRunModifiedKey:\n\s+LD\s+\(EditorLiveKeyBuffer\),A\n\s+LD\s+A,B\n\s+LD\s+\(EditorKeyStreamModifier\),A/);
   assert.doesNotMatch(source, /CALL\s+EditorRunKeys\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.doesNotMatch(source, /CALL\s+EditorRenderCursor\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
-  assert.match(source, /CALL\s+GlcdTileFlushRow/);
+  assert.doesNotMatch(source, /CALL\s+GlcdTileFlushRow/);
+  assert.match(source, /@EditorKeyRenderCurrentLineDirty:[\s\S]*?CALL\s+GlcdTileMarkRowDirty/);
   assert.match(source, /EditorKeyRenderCursorFlushCurrent:/);
   assert.match(source, /EditorDispatchAction:/);
   assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_UP\n\s+JR\s+Z,EditorActionArrowUp/);
@@ -105,6 +106,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
   assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
   assert.match(source, /EditorKeyBackspaceJoin:[\s\S]*?CALL\s+EditorKeyRenderDirty/);
+  assert.match(source, /@EditorKeyRenderCursorRowMarkers:[\s\S]*?CALL\s+GlcdTileMarkRowDirty[\s\S]*?CALL\s+GlcdTileMarkRowDirty/);
   assert.match(source, /EditorKeyDone:\n\s+LD\s+A,\(EditorPromptActive\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorKeyDoneNoCursor/);
   assert.match(source, /EditorCursorRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorVisibleRow:\n\s+\.db\s+0/);
