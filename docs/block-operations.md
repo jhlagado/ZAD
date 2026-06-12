@@ -423,13 +423,16 @@ added later if this proof grows too large for stable storage-backed runs.
 
 ### Phase B7: Delete Selected Block
 
-- Make `Delete` act on the selected block.
-- Add status-line confirmation.
-- Ensure Backspace behavior is explicit and tested.
-- Preserve backup/save discipline.
+- Done: `Delete` on an ordinary selected block opens a status-line
+  confirmation prompt.
+- Done: `N` cancels without changing the selected block.
+- Done: `Y` deletes the selected whole-line range, shifts following records up,
+  clears the tail records, clears selection state, and marks the editor dirty.
+- Done: ordinary character `Delete` behavior remains unchanged when no block is
+  selected.
 
-Done when selected block deletion is covered by proof and manual Debug80
-testing.
+`editor-block-delete-proof` covers cancel and confirm behavior on a selected
+block.
 
 ### Phase B8: Debug80 Block Editing V1 Acceptance
 

@@ -670,10 +670,12 @@ Sequenced goals:
    - Unsafe partial overlaps and exact self-overlaps are rejected as no-ops by
      the replacement path.
 
-7. **Block Phase B7: Delete Selected Block**
-   - `Delete` acts on selected blocks.
-   - Add status-line confirmation.
-   - Preserve source-record metadata bits and clean padding.
+7. **Done: Block Phase B7: Delete Selected Block**
+   - `Delete` on a selected block opens a status-line confirmation prompt.
+   - `N` cancels without changing the selected block.
+   - `Y` deletes the whole-line range, shifts following records up, clears tail
+     records, clears selection, and marks the editor dirty.
+   - `editor-block-delete-proof` covers cancel and confirm behavior.
 
 8. **Block Phase B8: Debug80 Block Editing V1 Acceptance**
    - Add automated Debug80 smoke coverage for selection, copy, move, replace,

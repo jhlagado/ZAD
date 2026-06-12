@@ -68,6 +68,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /TECM8_EDITOR_PROOF_KEY_PAGE_/);
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_YES\s+\.equ\s+1/);
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_NO\s+\.equ\s+2/);
+  assert.match(source, /TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK\s+\.equ\s+3/);
   assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
   assert.match(source, /;!\s+in\s+A,B\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunModifiedKey:/);
   assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,zero,sign,parity,halfCarry\n@EditorActionFromKey:/);
@@ -114,7 +115,12 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorViewportRenderRecordRow/);
   assert.match(source, /CALL\s+EditorViewportRenderRowMarker/);
   assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
+  assert.match(source, /EditorKeyDelete:[\s\S]*?LD\s+A,\(EditorBlockSelectionActive\)[\s\S]*?JP\s+NZ,EditorKeyDeleteBlockPrompt/);
   assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
+  assert.match(source, /EditorKeyDeleteBlockPrompt:[\s\S]*?LD\s+HL,EditorDeleteBlockPromptText[\s\S]*?CALL\s+EditorPromptAskYesNo/);
+  assert.match(source, /EditorPromptDispatch:[\s\S]*?CP\s+TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK[\s\S]*?JR\s+Z,EditorPromptDispatchDeleteBlock/);
+  assert.match(source, /^@EditorDeleteSelectedBlock:/m);
+  assert.match(source, /EditorDeleteBlockPromptText:\n\s+\.db\s+"Delete block\? Y\/N",0/);
   assert.match(source, /EditorKeyBackspaceDirty:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
   assert.match(source, /EditorKeyBackspaceJoin:[\s\S]*?CALL\s+EditorKeyRenderDirty/);
   assert.match(source, /@EditorKeyRenderCursorRowMarkers:[\s\S]*?CALL\s+GlcdTileMarkGutterDirty[\s\S]*?CALL\s+GlcdTileMarkGutterDirty/);
@@ -300,6 +306,23 @@ test('editor line selection proof is wired into package checks', () => {
   assert.match(runner, /editor-selection-proof/);
   assert.match(packageJson, /"proof:display:editor-selection"/);
   assert.match(packageJson, /proof:display:editor-selection/);
+});
+
+test('editor block delete proof is wired into package checks', () => {
+  assert.ok(existsSync(resolve(root, 'proofs/display/editor-block-delete-proof.asm')));
+  const proof = readRepoFile('proofs/display/editor-block-delete-proof.asm');
+  const runner = readRepoFile('tools/run-editor-viewport-storage-proof.ts');
+  const packageJson = readRepoFile('package.json');
+
+  assert.match(proof, /CALL\s+ShellRunEditorSession/);
+  assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_DELETE\n\s+LD\s+B,0\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /LD\s+A,"n"\n\s+LD\s+B,0\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /LD\s+A,"y"\n\s+LD\s+B,0\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /AssertDeleteBlockNoCancelled:/);
+  assert.match(proof, /AssertDeleteBlockYesRows:/);
+  assert.match(runner, /editor-block-delete-proof/);
+  assert.match(packageJson, /"proof:display:editor-block-delete"/);
+  assert.match(packageJson, /proof:display:editor-block-delete/);
 });
 
 test('editor cross-page join proof is wired into package checks', () => {

@@ -43,6 +43,7 @@ TECM8_EDITOR_PROMPT_RESULT_NO           .equ    2
 TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
 TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 TECM8_EDITOR_PROMPT_ACTION_QUIT         .equ    2
+TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK .equ    3
 TECM8_EDITOR_PENDING_BLOCK_NONE         .equ    0
 TECM8_EDITOR_PENDING_BLOCK_COPY         .equ    1
 TECM8_EDITOR_PENDING_BLOCK_MOVE         .equ    2
@@ -655,6 +656,9 @@ EditorKeyBackspaceJoin:
         JP      EditorKeyLoop
 
 EditorKeyDelete:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      NZ,EditorKeyDeleteBlockPrompt
         CALL    EditorBlockStateClearForEdit
         RET     C
         CALL    EditorDeleteChar
@@ -662,6 +666,14 @@ EditorKeyDelete:
         OR      A
         JP      Z,EditorKeyLoop
         CALL    EditorKeyRenderCurrentLineCellsDirty
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyDeleteBlockPrompt:
+        LD      A,TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK
+        LD      (EditorPromptAction),A
+        LD      HL,EditorDeleteBlockPromptText
+        CALL    EditorPromptAskYesNo
         RET     C
         JP      EditorKeyLoop
 
@@ -1114,21 +1126,15 @@ EditorPendingBlockPasteReplaceSelect:
 ;!      out       A,carry
 ;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
 @EditorPendingBlockRowsForCurrentPage:
-        LD      A,(EditorNavCurrentPage)
-        LD      H,0
-        LD      L,A
-        ADD     HL,HL
-        ADD     HL,HL
-        ADD     HL,HL
-        ADD     HL,HL
-        LD      A,L
-        LD      (EditorPendingBlockPageBaseLo),A
-        LD      A,H
-        LD      (EditorPendingBlockPageBaseHi),A
+        CALL    EditorPendingBlockPageBaseForCurrentPage
         LD      A,(EditorPendingBlockStartHi)
+        LD      H,A
+        LD      A,(EditorPendingBlockPageBaseHi)
         CP      H
         JR      NZ,EditorPendingBlockRowsErr
         LD      A,(EditorPendingBlockEndHi)
+        LD      H,A
+        LD      A,(EditorPendingBlockPageBaseHi)
         CP      H
         JR      NZ,EditorPendingBlockRowsErr
         LD      A,(EditorPendingBlockStartLo)
@@ -1150,6 +1156,23 @@ EditorPendingBlockPasteReplaceSelect:
         JR      C,EditorPendingBlockRowsErr
         INC     A
         LD      (EditorPendingBlockRowCount),A
+        XOR     A
+        RET
+
+;!      out       A,HL,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockPageBaseForCurrentPage:
+        LD      A,(EditorNavCurrentPage)
+        LD      H,0
+        LD      L,A
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        LD      A,L
+        LD      (EditorPendingBlockPageBaseLo),A
+        LD      A,H
+        LD      (EditorPendingBlockPageBaseHi),A
         XOR     A
         RET
 
@@ -2663,6 +2686,8 @@ EditorPromptComplete:
         JR      Z,EditorPromptDispatchRestore
         CP      TECM8_EDITOR_PROMPT_ACTION_QUIT
         JR      Z,EditorPromptDispatchQuit
+        CP      TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK
+        JR      Z,EditorPromptDispatchDeleteBlock
         XOR     A
         RET
 
@@ -2684,6 +2709,15 @@ EditorPromptDispatchQuit:
         XOR     A
         RET
 
+EditorPromptDispatchDeleteBlock:
+        XOR     A
+        LD      (EditorPromptAction),A
+        LD      A,(EditorPromptResult)
+        CP      TECM8_EDITOR_PROMPT_RESULT_YES
+        JR      Z,EditorDeleteBlockConfirmed
+        XOR     A
+        RET
+
 EditorQuitConfirmed:
         LD      A,1
         LD      (EditorQuitRequested),A
@@ -2695,6 +2729,45 @@ EditorRestoreConfirmed:
         RET     C
         CALL    EditorKeyRenderDirty
         RET     C
+        XOR     A
+        RET
+
+EditorDeleteBlockConfirmed:
+        CALL    EditorDeleteSelectedBlock
+        RET     C
+        OR      A
+        RET     Z
+        CALL    EditorKeyRenderDirty
+        RET     C
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorDeleteSelectedBlock:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      Z,EditorDeleteSelectedBlockNoop
+        CALL    EditorPendingBlockPageBaseForCurrentPage
+        CALL    EditorPendingBlockDestinationRowsForCurrentPage
+        JP      C,EditorDeleteSelectedBlockNoop
+        LD      A,(EditorPendingBlockDestStartRow)
+        LD      (EditorPendingBlockSourceStartRow),A
+        LD      A,(EditorPendingBlockDestRowCount)
+        LD      (EditorPendingBlockRowCount),A
+        CALL    EditorPendingBlockDeleteOriginalSource
+        RET     C
+        CALL    EditorBlockSelectionClearState
+        CALL    EditorPendingBlockClearState
+        LD      A,(EditorPendingBlockDestStartRow)
+        LD      (EditorCursorRow),A
+        XOR     A
+        LD      (EditorCursorCol),A
+        CALL    EditorMarkDirty
+        LD      A,1
+        RET
+
+EditorDeleteSelectedBlockNoop:
         XOR     A
         RET
 
@@ -2972,3 +3045,6 @@ EditorRestorePromptText:
 
 EditorQuitPromptText:
         .db     "Discard changes? Y/N",0
+
+EditorDeleteBlockPromptText:
+        .db     "Delete block? Y/N",0
