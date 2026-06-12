@@ -364,7 +364,16 @@ The current proof covers visible-range selection, ordinary movement clearing,
 and editing clearing. Manual testing should confirm the visible gutter behavior
 on Debug80 before Phase B3 adds page-range selection.
 
-### Phase B3: Pending Copy/Move Source
+### Phase B3: Page Selection And Gutter Glyph Proofs
+
+- Add `Shift+Alt+Up`/`Shift+Alt+Down` page selection.
+- Add GLCD tile/display proofs for thin, thick, and sawtooth gutter glyphs.
+- Ensure selection display works through viewport movement.
+
+Done when page selection and all three gutter glyph families are covered by
+proofs.
+
+### Phase B4: Pending Copy/Move Source
 
 - Implement `Ctrl-C`/`Alt-C` to arm a selected source as pending copy.
 - Implement `Ctrl-X`/`Alt-X` to arm a selected source as pending move.
@@ -376,7 +385,7 @@ on Debug80 before Phase B3 adds page-range selection.
 Done when the user can see a thick copy source or sawtooth move source at the
 same time as a thin destination block.
 
-### Phase B4: Paste Insert
+### Phase B5: Paste Insert
 
 - Implement `Ctrl-V`/`Alt-V` with no destination selection.
 - Insert the pending block before the current line.
@@ -386,7 +395,7 @@ same time as a thin destination block.
 
 Done when copy/paste and move/paste work within the resident editor window.
 
-### Phase B5: Paste Replace And Overlap Handling
+### Phase B6: Paste Replace And Overlap Handling
 
 - If a destination selection exists, paste replaces it.
 - Reject unsafe partial overlaps with a status message.
@@ -395,7 +404,7 @@ Done when copy/paste and move/paste work within the resident editor window.
 
 Done when replacement behavior is predictable and does not lose source lines.
 
-### Phase B6: Delete Selected Block
+### Phase B7: Delete Selected Block
 
 - Make `Delete` act on the selected block.
 - Add status-line confirmation.
@@ -405,7 +414,16 @@ Done when replacement behavior is predictable and does not lose source lines.
 Done when selected block deletion is covered by proof and manual Debug80
 testing.
 
-### Phase B7: Named Block Read/Write
+### Phase B8: Debug80 Block Editing V1 Acceptance
+
+- Add automated Debug80 smoke coverage for selection, copy, move, replace,
+  overlap rejection, delete, save, and host export validation.
+- Provide a short manual keyboard test script.
+- Stop at this milestone for manual validation.
+
+Done when Block Editing V1 is manually testable in Debug80.
+
+### Deferred: Named Block Read/Write
 
 - Add filename prompt support if it is not already sufficient.
 - Implement `Ctrl-W`/`Alt-W` write selected block to named file.

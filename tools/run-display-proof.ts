@@ -239,6 +239,7 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
     { row: 0, pattern: 0xf0, name: 'breakpoint' },
     { row: 1, pattern: 0x80, name: 'current' },
     { row: 2, pattern: 0x80, name: 'selected' },
+    { row: 3, pattern: 0xc0, name: 'copy source' },
     { row: 5, pattern: 0xf0, name: 'breakpoint-current' },
     { row: 7, pattern: 0x80, name: 'selected' },
   ];
@@ -260,6 +261,26 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
           `structured display proof missing visible ${marker.name} gutter bits at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(marker.pattern)}`,
         );
       }
+    }
+  }
+
+  const sawtoothPattern = [0x80, 0xc0, 0xe0, 0xf0, 0xe0, 0xc0];
+  for (let y = 0; y < sawtoothPattern.length; y += 1) {
+    const pattern = sawtoothPattern[y];
+    const address = mon3Tgbuf + (4 * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
+    const value = runtime.hardware.memory[address];
+    if ((value & 0xf0) !== pattern) {
+      throw new Error(
+        `structured display proof missing sawtooth gutter bits at 0x${address.toString(16)}: got ${resultToString(value)} expected ${resultToString(pattern)}`,
+      );
+    }
+
+    const glcdOffset = (4 * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
+    const visibleValue = glcd[glcdOffset] ?? 0;
+    if ((visibleValue & 0xf0) !== pattern) {
+      throw new Error(
+        `structured display proof missing visible sawtooth gutter bits at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected ${resultToString(pattern)}`,
+      );
     }
   }
 

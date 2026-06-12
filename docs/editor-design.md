@@ -126,6 +126,8 @@ TECM8_DISPLAY_MARKER_NONE       0
 TECM8_DISPLAY_MARKER_BREAKPOINT bit 0
 TECM8_DISPLAY_MARKER_CURRENT    bit 1
 TECM8_DISPLAY_MARKER_SELECTED   bit 2
+TECM8_DISPLAY_MARKER_COPY_SOURCE bit 3
+TECM8_DISPLAY_MARKER_MOVE_SOURCE bit 4
 ```
 
 The first display-model proof uses a fixed screen descriptor rather than an
@@ -195,7 +197,9 @@ A WordStar-like command family remains plausible, such as `Ctrl-B` or
 `Ctrl-Space` to start a block, cursor movement to extend it, and a second
 command to end or clear the block. The important point for now is that selected
 lines can be represented by `TECM8_DISPLAY_MARKER_SELECTED` without requiring
-text inversion.
+text inversion. Pending copy and move sources use separate marker bits:
+`TECM8_DISPLAY_MARKER_COPY_SOURCE` renders a thicker gutter bar, while
+`TECM8_DISPLAY_MARKER_MOVE_SOURCE` renders a sawtooth gutter edge.
 
 TMS9918 renderers can map the same metadata differently: a left tile-column
 glyph, color attributes, or hardware sprite markers. The source/editor model

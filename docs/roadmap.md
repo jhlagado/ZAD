@@ -632,10 +632,12 @@ Sequenced goals:
    - Ordinary movement and editing clear the selection.
    - `editor-selection-proof` covers selection, clearing, and package wiring.
 
-3. **Block Phase B3: Page Selection And Gutter Glyph Proofs**
-   - Add `Shift+Alt+Up`/`Shift+Alt+Down` selection by page.
-   - Add GLCD tile/display proofs for thin, thick, and sawtooth gutter glyphs.
-   - Ensure selection display works through viewport movement.
+3. **Done: Block Phase B3: Page Selection And Gutter Glyph Proofs**
+   - `Shift+Ctrl/Alt+Up` and `Shift+Ctrl/Alt+Down` extend selection by page.
+   - GLCD tile/display proof coverage added for thin, thick, and sawtooth
+     gutter glyphs.
+   - `editor-selection-proof` covers page selection and selection display
+     through viewport movement.
 
 4. **Block Phase B4: Pending Copy And Move Source**
    - `Ctrl-C`/`Alt-C` turns the ordinary selection into a pending copy source

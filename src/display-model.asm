@@ -20,6 +20,8 @@ TECM8_DISPLAY_MARKER_NONE           .equ    0
 TECM8_DISPLAY_MARKER_BREAKPOINT     .equ    1
 TECM8_DISPLAY_MARKER_CURRENT        .equ    2
 TECM8_DISPLAY_MARKER_SELECTED       .equ    4
+TECM8_DISPLAY_MARKER_COPY_SOURCE    .equ    8
+TECM8_DISPLAY_MARKER_MOVE_SOURCE    .equ    16
 TECM8_DISPLAY_CURSOR_SAVED_BYTES    .equ    TECM8_DISPLAY_ROW_HEIGHT * 2
 
 MON3_TGBUF                          .equ    0x13C0
@@ -105,6 +107,8 @@ DisplayScreenLoop:
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @DisplayRenderGutter:
         LD      (DisplayRow),A
+        XOR     A
+        LD      (DisplaySawtoothGutter),A
         LD      A,C
         OR      A
         JR      NZ,DisplayGutterHasMarker
@@ -113,8 +117,21 @@ DisplayScreenLoop:
 
 DisplayGutterHasMarker:
         BIT     0,C
-        JR      Z,DisplayGutterCheckCurrent
+        JR      Z,DisplayGutterCheckMoveSource
         LD      A,0xF0
+        JR      DisplayGutterPatternReady
+
+DisplayGutterCheckMoveSource:
+        BIT     4,C
+        JR      Z,DisplayGutterCheckCopySource
+        LD      A,1
+        LD      (DisplaySawtoothGutter),A
+        JR      DisplayGutterPatternReady
+
+DisplayGutterCheckCopySource:
+        BIT     3,C
+        JR      Z,DisplayGutterCheckCurrent
+        LD      A,0xC0
         JR      DisplayGutterPatternReady
 
 DisplayGutterCheckCurrent:
@@ -144,8 +161,26 @@ DisplayGutterOffsetLoop:
 DisplayGutterWriteRows:
         LD      B,TECM8_DISPLAY_GUTTER_ROWS
         LD      DE,TECM8_DISPLAY_ROW_BYTES
+        XOR     A
+        LD      (DisplayGutterPixelRow),A
 
 DisplayGutterWriteLoop:
+        LD      A,(DisplaySawtoothGutter)
+        OR      A
+        JR      Z,DisplayGutterWriteStaticPattern
+        LD      A,(DisplayGutterPixelRow)
+        PUSH    HL
+        PUSH    DE
+        CALL    DisplaySawtoothPatternForRow
+        POP     DE
+        POP     HL
+        JR      DisplayGutterWritePatternReady
+
+DisplayGutterWriteStaticPattern:
+        LD      A,(DisplayPattern)
+
+DisplayGutterWritePatternReady:
+        LD      (DisplayPattern),A
         LD      A,(HL)
         AND     0x0F
         LD      C,A
@@ -153,8 +188,24 @@ DisplayGutterWriteLoop:
         OR      C
         LD      (HL),A
         ADD     HL,DE
+        LD      A,(DisplayGutterPixelRow)
+        INC     A
+        LD      (DisplayGutterPixelRow),A
         DJNZ    DisplayGutterWriteLoop
         XOR     A
+        LD      (DisplaySawtoothGutter),A
+        XOR     A
+        RET
+
+;!      in        A
+;!      out       A,carry
+;!      clobbers  A,DE,HL,zero,sign,parity,halfCarry
+@DisplaySawtoothPatternForRow:
+        LD      E,A
+        LD      D,0
+        LD      HL,DisplaySawtoothPatternTable
+        ADD     HL,DE
+        LD      A,(HL)
         RET
 
 ; DisplayRenderCursorCell -
@@ -461,6 +512,10 @@ DisplayRemaining:
         .db     0
 DisplayPattern:
         .db     0
+DisplaySawtoothGutter:
+        .db     0
+DisplayGutterPixelRow:
+        .db     0
 DisplayTextX:
         .db     0
 DisplayTextY:
@@ -492,5 +547,7 @@ DisplayCursorFirstMaskTable:
         .db     0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01
 DisplayCursorSecondMaskTable:
         .db     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+DisplaySawtoothPatternTable:
+        .db     0x80,0xC0,0xE0,0xF0,0xE0,0xC0
 DisplayRenderScreenCount:
         .db     0

@@ -99,9 +99,9 @@ StructuredScreen:
         .dw     SourceLine1
         .db     TECM8_DISPLAY_MARKER_SELECTED
         .dw     SourceLine2
-        .db     TECM8_DISPLAY_MARKER_NONE
+        .db     TECM8_DISPLAY_MARKER_COPY_SOURCE
         .dw     SourceLine3
-        .db     TECM8_DISPLAY_MARKER_NONE
+        .db     TECM8_DISPLAY_MARKER_MOVE_SOURCE
         .dw     SourceLine4
         .db     TECM8_DISPLAY_MARKER_BREAKPOINT | TECM8_DISPLAY_MARKER_CURRENT
         .dw     SourceLine5
@@ -121,9 +121,9 @@ StructuredScreenLong:
         .dw     SourceLine1
         .db     TECM8_DISPLAY_MARKER_SELECTED
         .dw     SourceLine2
-        .db     TECM8_DISPLAY_MARKER_NONE
+        .db     TECM8_DISPLAY_MARKER_COPY_SOURCE
         .dw     SourceLine3
-        .db     TECM8_DISPLAY_MARKER_NONE
+        .db     TECM8_DISPLAY_MARKER_MOVE_SOURCE
         .dw     SourceLine4
         .db     TECM8_DISPLAY_MARKER_BREAKPOINT | TECM8_DISPLAY_MARKER_CURRENT
         .dw     SourceLine5

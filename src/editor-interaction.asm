@@ -86,6 +86,22 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
         CALL    EditorBlockSelectionClearState
         RET
 
+; EditorCursorResetStateKeepSelection -
+; Reset cursor state after a page render while preserving block selection.
+;!      out       A,zero,sign,parity,halfCarry
+;!      clobbers  A
+@EditorCursorResetStateKeepSelection:
+        XOR     A
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorVisibleRow),A
+        LD      (EditorCursorVisibleCol),A
+        LD      (EditorNavCurrentRow),A
+        LD      (EditorCursorCol),A
+        LD      (EditorCursorRendered),A
+        LD      (EditorCursorBlinkCounter),A
+        LD      (EditorCursorBlinkCounterHi),A
+        RET
+
 ; EditorRenderCursor -
 ; Overlay the logical cursor when it is inside the visible edit pane.
 ;!      out       A,carry
@@ -393,6 +409,9 @@ EditorKeyQuitPrompt:
         JP      EditorKeyLoop
 
 EditorKeyPageDown:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_SHIFT
+        JP      NZ,EditorKeySelectPageDown
         CALL    EditorPageDown
         JR      C,EditorKeyPageDownErr
         CALL    EditorCursorResetState
@@ -400,6 +419,9 @@ EditorKeyPageDown:
         JP      EditorKeyLoop
 
 EditorKeyPageUp:
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_SHIFT
+        JP      NZ,EditorKeySelectPageUp
         CALL    EditorPageUp
         JR      C,EditorKeyPageUpErr
         CALL    EditorCursorResetState
@@ -429,6 +451,36 @@ EditorKeyPageUpTop:
         LD      HL,EditorStatusTopText
         CALL    EditorKeyShowStatus
         RET     C
+        JP      EditorKeyLoop
+
+EditorKeySelectPageDown:
+        CALL    EditorBlockSelectionCapturePageAnchor
+        RET     C
+        CALL    EditorPageDown
+        JR      C,EditorKeyPageDownErr
+        CALL    EditorCursorResetStateKeepSelection
+        CALL    EditorBlockSelectionRestorePageAnchor
+        RET     C
+        CALL    EditorBlockSelectionUpdateActive
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
+        RET     C
+        CALL    EditorInvalidateCursorOverlay
+        JP      EditorKeyLoop
+
+EditorKeySelectPageUp:
+        CALL    EditorBlockSelectionCapturePageAnchor
+        RET     C
+        CALL    EditorPageUp
+        JR      C,EditorKeyPageUpErr
+        CALL    EditorCursorResetStateKeepSelection
+        CALL    EditorBlockSelectionRestorePageAnchor
+        RET     C
+        CALL    EditorBlockSelectionUpdateActive
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
+        RET     C
+        CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
 EditorKeyDirtyPageBlocked:
@@ -819,6 +871,41 @@ EditorShouldIgnoreModifiedPrintableNo:
         LD      A,H
         LD      (EditorBlockSelectionAnchorHi),A
         LD      (EditorBlockSelectionActiveHi),A
+        LD      A,1
+        LD      (EditorBlockSelectionActive),A
+        XOR     A
+        RET
+
+; EditorBlockSelectionCapturePageAnchor -
+; Save the current absolute line and active state before a page-selection move.
+;!      out       A,carry
+;!      clobbers  A,HL,zero,sign,parity,halfCarry
+@EditorBlockSelectionCapturePageAnchor:
+        LD      A,(EditorBlockSelectionActive)
+        LD      (EditorBlockSelectionPageWasActive),A
+        CALL    EditorBlockSelectionCurrentLine
+        LD      A,L
+        LD      (EditorBlockSelectionPageAnchorLo),A
+        LD      A,H
+        LD      (EditorBlockSelectionPageAnchorHi),A
+        XOR     A
+        RET
+
+; EditorBlockSelectionRestorePageAnchor -
+; Ensure a successful page-selection move has an anchor. Existing selections
+; keep their original anchor; fresh page selections anchor at the old line.
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@EditorBlockSelectionRestorePageAnchor:
+        LD      A,(EditorBlockSelectionPageWasActive)
+        OR      A
+        JR      NZ,EditorBlockSelectionRestoreExisting
+        LD      A,(EditorBlockSelectionPageAnchorLo)
+        LD      (EditorBlockSelectionAnchorLo),A
+        LD      A,(EditorBlockSelectionPageAnchorHi)
+        LD      (EditorBlockSelectionAnchorHi),A
+
+EditorBlockSelectionRestoreExisting:
         LD      A,1
         LD      (EditorBlockSelectionActive),A
         XOR     A
@@ -2238,6 +2325,15 @@ EditorCursorPreviousRow:
         .db     0
 
 EditorCursorPreviousVisibleRow:
+        .db     0
+
+EditorBlockSelectionPageWasActive:
+        .db     0
+
+EditorBlockSelectionPageAnchorLo:
+        .db     0
+
+EditorBlockSelectionPageAnchorHi:
         .db     0
 
 EditorRestorePromptText:

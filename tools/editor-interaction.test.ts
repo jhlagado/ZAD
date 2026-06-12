@@ -17,6 +17,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorRunLive:/m);
   assert.match(source, /^@EditorCursorReset:/m);
   assert.match(source, /^@EditorCursorResetState:/m);
+  assert.match(source, /^@EditorCursorResetStateKeepSelection:/m);
   assert.match(source, /^@EditorRenderCursor:/m);
   assert.match(source, /^@EditorHideCursor:/m);
   assert.match(source, /^@EditorCursorBlinkReset:/m);
@@ -127,6 +128,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorViewportSetCurrentRow/);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /^@EditorBlockSelectionBeginIfNeeded:/m);
+  assert.match(source, /^@EditorBlockSelectionCapturePageAnchor:/m);
+  assert.match(source, /^@EditorBlockSelectionRestorePageAnchor:/m);
   assert.match(source, /^@EditorBlockSelectionUpdateActive:/m);
   assert.match(source, /^@EditorBlockSelectionClearState:/m);
   assert.match(source, /^@EditorBlockSelectionClearIfActive:/m);
@@ -195,6 +198,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /@EditorKeyRenderCursorMove:[\s\S]*?CALL\s+EditorEnsureCursorVisible[\s\S]*?JP\s+NZ,EditorKeyRenderViewport/);
   assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown[\s\S]*?CALL\s+EditorCursorReset/);
   assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp[\s\S]*?CALL\s+EditorCursorReset/);
+  assert.match(source, /EditorKeyPageDown:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_SHIFT[\s\S]*?JP\s+NZ,EditorKeySelectPageDown/);
+  assert.match(source, /EditorKeyPageUp:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_SHIFT[\s\S]*?JP\s+NZ,EditorKeySelectPageUp/);
+  assert.match(source, /EditorKeySelectPageDown:[\s\S]*?CALL\s+EditorBlockSelectionCapturePageAnchor[\s\S]*?CALL\s+EditorBlockSelectionRenderMarkers/);
+  assert.match(source, /EditorKeySelectPageUp:[\s\S]*?CALL\s+EditorBlockSelectionCapturePageAnchor[\s\S]*?CALL\s+EditorBlockSelectionRenderMarkers/);
   assert.match(source, /@EditorKeyRenderDirty:[\s\S]*?CALL\s+EditorEnsureCursorVisible[\s\S]*?CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /EditorKeyCursorRight:/);
   assert.match(source, /EditorKeyCursorLeft:[\s\S]*?CALL\s+EditorKeyRenderCursorColumnMove/);
@@ -234,7 +241,11 @@ test('editor line selection proof is wired into package checks', () => {
   assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_UP\n\s+LD\s+B,PROOF_MOD_SHIFT\n\s+CALL\s+EditorRunModifiedKey/);
   assert.match(proof, /AssertSelectionRowsZeroToOne:/);
   assert.match(proof, /AssertSelectionRowsZeroToTwo:/);
+  assert.match(proof, /AssertPageSelectionDown:/);
+  assert.match(proof, /AssertPageSelectionUp:/);
+  assert.match(proof, /AssertViewportSelectionScroll:/);
   assert.match(proof, /AssertSelectionClear:/);
+  assert.match(proof, /PROOF_MOD_SHIFT \| PROOF_MOD_ALT/);
   assert.match(proof, /TECM8_DISPLAY_MARKER_CURRENT \| TECM8_DISPLAY_MARKER_SELECTED/);
   assert.match(runner, /editor-selection-proof/);
   assert.match(packageJson, /"proof:display:editor-selection"/);

@@ -21,6 +21,8 @@ test('editor design documents the structured display model constants', () => {
     'TECM8_DISPLAY_STATUS_ROW',
     'TECM8_DISPLAY_MARKER_BREAKPOINT',
     'TECM8_DISPLAY_MARKER_CURRENT',
+    'TECM8_DISPLAY_MARKER_COPY_SOURCE',
+    'TECM8_DISPLAY_MARKER_MOVE_SOURCE',
   ]) {
     assert.match(docs, new RegExp(`\\b${phrase}\\b`));
   }
@@ -76,6 +78,9 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /@DisplayMarkCursorDirty:/);
   assert.match(source, /DEC\s+A\n\s+LD\s+C,A\n\s+CALL\s+GlcdTileMarkCellDirty/);
   assert.match(source, /DisplayCursorSavedBytes:/);
+  assert.match(source, /TECM8_DISPLAY_MARKER_COPY_SOURCE\s+\.equ\s+8/);
+  assert.match(source, /TECM8_DISPLAY_MARKER_MOVE_SOURCE\s+\.equ\s+16/);
+  assert.match(source, /DisplaySawtoothPatternTable:\n\s+\.db\s+0x80,0xC0,0xE0,0xF0,0xE0,0xC0/);
   assert.match(source, /DisplayCursorFirstMaskTable:\n\s+\.db\s+0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01/);
   assert.match(source, /DisplayCursorSecondMaskTable:\n\s+\.db\s+0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00/);
   assert.match(source, /DisplayRenderScreenCount:/);
@@ -100,6 +105,8 @@ test('structured GLCD proof calls the display model and renders markers', () => 
   assert.match(source, /\.include\s+"..\/..\/src\/glcd-tile\.asm"/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_BREAKPOINT\b/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_CURRENT\b/);
+  assert.match(source, /\bTECM8_DISPLAY_MARKER_COPY_SOURCE\b/);
+  assert.match(source, /\bTECM8_DISPLAY_MARKER_MOVE_SOURCE\b/);
   assert.match(source, /\.include\s+"..\/..\/src\/display-model\.asm"/);
 });
 
@@ -112,6 +119,7 @@ test('structured display proof is wired into package checks', () => {
   assert.match(runner, /verifyStructuredScreen/);
   assert.match(runner, /mon3Tgbuf = 0x13c0/);
   assert.match(runner, /visible .*gutter bits/);
+  assert.match(runner, /sawtooth gutter bits/);
   assert.match(runner, /did not render .* text pixels in TGBUF/);
   assert.match(runner, /left stale pixels after shorter row redraw/);
 });
