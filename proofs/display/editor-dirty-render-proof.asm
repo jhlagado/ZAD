@@ -47,6 +47,56 @@ PROOF_FAIL       .equ     0xE0
         LD      (InsertCellFlushByteCount),A
 
         CALL    ResetRenderCounters
+        LD      A,6
+        LD      (CaseMarker),A
+        LD      HL,DeleteKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        LD      A,(DisplayRenderScreenCount)
+        LD      (DeleteScreenCount),A
+        LD      A,(EditorRenderPageBufferCount)
+        LD      (DeletePageCount),A
+        LD      A,(EditorViewportRenderRecordRowCount)
+        LD      (DeleteRowCount),A
+        LD      A,(EditorViewportRenderRowMarkerCount)
+        LD      (DeleteMarkerCount),A
+        LD      A,(GlcdTileFlushFullCount)
+        LD      (DeleteFullFlushCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (DeleteRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (DeleteCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (DeleteCellFlushByteCount),A
+
+        CALL    ResetRenderCounters
+        LD      A,7
+        LD      (CaseMarker),A
+        LD      HL,BackspaceKeys
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        LD      A,(DisplayRenderScreenCount)
+        LD      (BackspaceScreenCount),A
+        LD      A,(EditorRenderPageBufferCount)
+        LD      (BackspacePageCount),A
+        LD      A,(EditorViewportRenderRecordRowCount)
+        LD      (BackspaceRowCount),A
+        LD      A,(EditorViewportRenderRowMarkerCount)
+        LD      (BackspaceMarkerCount),A
+        LD      A,(GlcdTileFlushFullCount)
+        LD      (BackspaceFullFlushCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (BackspaceRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (BackspaceCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (BackspaceCellFlushByteCount),A
+
+        CALL    ResetRenderCounters
         LD      A,2
         LD      (CaseMarker),A
         LD      HL,MovementKeys
@@ -197,6 +247,12 @@ MovementKeys:
 InsertKeys:
         .db     "Z",0
 
+DeleteKeys:
+        .db     TECM8_EDITOR_KEY_DELETE,0
+
+BackspaceKeys:
+        .db     TECM8_EDITOR_KEY_BACKSPACE,0
+
 ExpectedMain:
         .db     "/src/main.asm",0
 
@@ -237,6 +293,38 @@ InsertRowFlushCount:
 InsertCellFlushCount:
         .db     0
 InsertCellFlushByteCount:
+        .db     0
+DeleteScreenCount:
+        .db     0
+DeletePageCount:
+        .db     0
+DeleteRowCount:
+        .db     0
+DeleteMarkerCount:
+        .db     0
+DeleteFullFlushCount:
+        .db     0
+DeleteRowFlushCount:
+        .db     0
+DeleteCellFlushCount:
+        .db     0
+DeleteCellFlushByteCount:
+        .db     0
+BackspaceScreenCount:
+        .db     0
+BackspacePageCount:
+        .db     0
+BackspaceRowCount:
+        .db     0
+BackspaceMarkerCount:
+        .db     0
+BackspaceFullFlushCount:
+        .db     0
+BackspaceRowFlushCount:
+        .db     0
+BackspaceCellFlushCount:
+        .db     0
+BackspaceCellFlushByteCount:
         .db     0
 BlinkHideScreenCount:
         .db     0

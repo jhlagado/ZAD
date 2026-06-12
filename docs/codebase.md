@@ -516,6 +516,14 @@ buffer changed, `0` means the operation was a no-op, and carry still reports
 errors. The key loop uses that result so no-op delete, split, insert, and join
 paths do not dirty a clean buffer.
 
+Simple printable insert/delete and non-joining backspace record the logical
+source-column range they changed. `EditorKeyRenderCurrentLineCellsDirty`
+rerenders the current source row into the GLCD backing buffer, clips that dirty
+range to the visible 20-column viewport, and marks only the first and last
+affected cells so the GLCD stepper transfers the coalesced byte span. Split,
+join, status restore, and viewport-changing edits still use broader redraw
+paths.
+
 Horizontal cursor movement only redraws the cursor overlay cell range.
 Non-scrolling vertical cursor movement redraws the old and new current-row
 gutter markers and then transfers only the left gutter byte pair for each

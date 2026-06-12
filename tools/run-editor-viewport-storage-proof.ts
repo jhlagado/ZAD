@@ -828,21 +828,37 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
     { symbol: 'InsertRowCount', expected: 1 },
     { symbol: 'InsertMarkerCount', expected: 0 },
     { symbol: 'InsertFullFlushCount', expected: 0 },
-    { symbol: 'InsertRowFlushCount', expected: 1 },
-    { symbol: 'InsertCellFlushCount', expected: 2 },
-    { symbol: 'InsertCellFlushByteCount', expected: 24 },
+    { symbol: 'InsertRowFlushCount', expected: 0 },
+    { symbol: 'InsertCellFlushCount', expected: 4 },
+    { symbol: 'InsertCellFlushByteCount', expected: 60 },
+    { symbol: 'DeleteScreenCount', expected: 0 },
+    { symbol: 'DeletePageCount', expected: 0 },
+    { symbol: 'DeleteRowCount', expected: 1 },
+    { symbol: 'DeleteMarkerCount', expected: 0 },
+    { symbol: 'DeleteFullFlushCount', expected: 0 },
+    { symbol: 'DeleteRowFlushCount', expected: 0 },
+    { symbol: 'DeleteCellFlushCount', expected: 4 },
+    { symbol: 'DeleteCellFlushByteCount', expected: 60 },
+    { symbol: 'BackspaceScreenCount', expected: 0 },
+    { symbol: 'BackspacePageCount', expected: 0 },
+    { symbol: 'BackspaceRowCount', expected: 1 },
+    { symbol: 'BackspaceMarkerCount', expected: 0 },
+    { symbol: 'BackspaceFullFlushCount', expected: 0 },
+    { symbol: 'BackspaceRowFlushCount', expected: 0 },
+    { symbol: 'BackspaceCellFlushCount', expected: 4 },
+    { symbol: 'BackspaceCellFlushByteCount', expected: 60 },
     { symbol: 'BlinkHideScreenCount', expected: 0 },
     { symbol: 'BlinkHidePageCount', expected: 0 },
     { symbol: 'BlinkHideRowFlushCount', expected: 0 },
     { symbol: 'BlinkHideCellFlushCount', expected: 1 },
-    { symbol: 'BlinkHideCellFlushByteCount', expected: 12 },
+    { symbol: 'BlinkHideCellFlushByteCount', expected: 24 },
     { symbol: 'BlinkHideRendered', expected: 0 },
     { symbol: 'BlinkHideToggleCount', expected: 1 },
     { symbol: 'BlinkShowScreenCount', expected: 0 },
     { symbol: 'BlinkShowPageCount', expected: 0 },
     { symbol: 'BlinkShowRowFlushCount', expected: 0 },
     { symbol: 'BlinkShowCellFlushCount', expected: 1 },
-    { symbol: 'BlinkShowCellFlushByteCount', expected: 12 },
+    { symbol: 'BlinkShowCellFlushByteCount', expected: 24 },
     { symbol: 'BlinkShowRendered', expected: 1 },
     { symbol: 'BlinkShowToggleCount', expected: 2 },
   ];
@@ -871,8 +887,8 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
 
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
   const record = readSourceRecord(runtime.hardware.memory, pageBuffer, 0);
-  if (record !== 'ZP0 LINE 00') {
-    throw new Error(`editor dirty render inserted record "${record}", expected "ZP0 LINE 00"`);
+  if (record !== '0 LINE 00') {
+    throw new Error(`editor dirty render inserted record "${record}", expected "0 LINE 00"`);
   }
 }
 

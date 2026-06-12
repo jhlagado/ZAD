@@ -493,7 +493,7 @@ EditorKeyInsertPrintable:
         RET     C
         OR      A
         JP      Z,EditorKeyLoop
-        CALL    EditorKeyRenderCurrentLineDirty
+        CALL    EditorKeyRenderCurrentLineCellsDirty
         RET     C
         JP      EditorKeyLoop
 
@@ -519,7 +519,7 @@ EditorKeyBackspace:
         JP      EditorKeyLoop
 
 EditorKeyBackspaceDirty:
-        CALL    EditorKeyRenderCurrentLineDirty
+        CALL    EditorKeyRenderCurrentLineCellsDirty
         RET     C
         JP      EditorKeyLoop
 
@@ -537,7 +537,7 @@ EditorKeyDelete:
         RET     C
         OR      A
         JP      Z,EditorKeyLoop
-        CALL    EditorKeyRenderCurrentLineDirty
+        CALL    EditorKeyRenderCurrentLineCellsDirty
         RET     C
         JP      EditorKeyLoop
 
@@ -772,6 +772,9 @@ EditorShouldIgnoreModifiedPrintableNo:
 
 EditorInsertColReady:
         LD      C,A
+        LD      (EditorLineDirtyStartCol),A
+        LD      A,(EditorLineLength)
+        LD      (EditorLineDirtyEndCol),A
         LD      A,B
         SUB     C
         LD      B,A
@@ -1401,6 +1404,10 @@ EditorJoinPreviousPageClearLast:
         CP      B
         JR      NC,EditorDeleteDone
         LD      C,A
+        LD      (EditorLineDirtyStartCol),A
+        LD      A,B
+        DEC     A
+        LD      (EditorLineDirtyEndCol),A
         LD      A,B
         SUB     C
         DEC     A
@@ -1471,6 +1478,92 @@ EditorDeleteDone:
         LD      A,(EditorCursorVisibleRow)
         CALL    GlcdTileMarkRowDirty
         RET     C
+        XOR     A
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorKeyRenderCurrentLineCellsDirty:
+        CALL    EditorMarkDirty
+        CALL    EditorHideCursor
+        RET     C
+        CALL    EditorEnsureCursorVisible
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
+        CALL    EditorEnsureCursorVisibleColumn
+        RET     C
+        OR      A
+        JP      NZ,EditorKeyRenderViewport
+        CALL    EditorKeyCurrentRecord
+        LD      A,(EditorCursorVisibleRow)
+        CALL    EditorViewportRenderRecordRow
+        RET     C
+        LD      A,(EditorLineDirtyEndCol)
+        LD      B,A
+        LD      A,(EditorViewportColOffset)
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      C,EditorKeyRenderCurrentLineCellsDone
+        LD      A,(EditorViewportColOffset)
+        ADD     A,TECM8_EDITOR_CURSOR_VISIBLE_COLS
+        LD      C,A
+        LD      A,(EditorLineDirtyStartCol)
+        CP      C
+        JR      NC,EditorKeyRenderCurrentLineCellsDone
+        LD      A,(EditorLineDirtyStartCol)
+        LD      B,A
+        LD      A,(EditorViewportColOffset)
+        LD      C,A
+        LD      A,B
+        CP      C
+        JR      C,EditorKeyRenderCurrentLineCellsStartZero
+        SUB     C
+        JR      EditorKeyRenderCurrentLineCellsStartReady
+
+EditorKeyRenderCurrentLineCellsStartZero:
+        XOR     A
+
+EditorKeyRenderCurrentLineCellsStartReady:
+        LD      (EditorLineDirtyVisibleStart),A
+        LD      A,(EditorViewportColOffset)
+        ADD     A,TECM8_EDITOR_CURSOR_VISIBLE_COLS
+        LD      C,A
+        LD      A,(EditorLineDirtyEndCol)
+        CP      C
+        JR      NC,EditorKeyRenderCurrentLineCellsEndMax
+        LD      B,A
+        LD      A,(EditorViewportColOffset)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        JR      EditorKeyRenderCurrentLineCellsEndReady
+
+EditorKeyRenderCurrentLineCellsEndMax:
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_COLS - 1
+
+EditorKeyRenderCurrentLineCellsEndReady:
+        LD      (EditorLineDirtyVisibleEnd),A
+        LD      A,(EditorCursorVisibleRow)
+        LD      B,A
+        LD      A,(EditorLineDirtyVisibleStart)
+        LD      C,A
+        CALL    GlcdTileMarkCellDirty
+        RET     C
+        LD      A,(EditorLineDirtyVisibleEnd)
+        LD      C,A
+        LD      A,(EditorLineDirtyVisibleStart)
+        CP      C
+        JR      Z,EditorKeyRenderCurrentLineCellsDone
+        LD      A,(EditorCursorVisibleRow)
+        LD      B,A
+        LD      A,(EditorLineDirtyVisibleEnd)
+        LD      C,A
+        CALL    GlcdTileMarkCellDirty
+        RET     C
+
+EditorKeyRenderCurrentLineCellsDone:
         XOR     A
         RET
 
@@ -1941,6 +2034,18 @@ EditorLinePrevLength:
         .db     0
 
 EditorLineJoinedLength:
+        .db     0
+
+EditorLineDirtyStartCol:
+        .db     0
+
+EditorLineDirtyEndCol:
+        .db     0
+
+EditorLineDirtyVisibleStart:
+        .db     0
+
+EditorLineDirtyVisibleEnd:
         .db     0
 
 EditorCursorRow:

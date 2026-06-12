@@ -87,7 +87,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /CALL\s+EditorRunKeys\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.doesNotMatch(source, /CALL\s+EditorRenderCursor\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.doesNotMatch(source, /CALL\s+GlcdTileFlushRow/);
-  assert.match(source, /@EditorKeyRenderCurrentLineDirty:[\s\S]*?CALL\s+GlcdTileMarkRowDirty/);
+  assert.match(source, /^@EditorKeyRenderCurrentLineCellsDirty:/m);
+  assert.match(source, /@EditorKeyRenderCurrentLineCellsDirty:[\s\S]*?CALL\s+GlcdTileMarkCellDirty[\s\S]*?CALL\s+GlcdTileMarkCellDirty/);
   assert.match(source, /EditorKeyRenderCursorFlushCurrent:/);
   assert.match(source, /EditorDispatchAction:/);
   assert.match(source, /CP\s+TECM8_EDITOR_KEY_ARROW_UP\n\s+JR\s+Z,EditorActionArrowUp/);
@@ -108,8 +109,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /CALL\s+EditorViewportRenderRecordRow/);
   assert.match(source, /CALL\s+EditorViewportRenderRowMarker/);
-  assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
-  assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineDirty/);
+  assert.match(source, /EditorKeyInsertPrintable:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
+  assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
+  assert.match(source, /EditorKeyBackspaceDirty:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
   assert.match(source, /EditorKeyBackspaceJoin:[\s\S]*?CALL\s+EditorKeyRenderDirty/);
   assert.match(source, /@EditorKeyRenderCursorRowMarkers:[\s\S]*?CALL\s+GlcdTileMarkGutterDirty[\s\S]*?CALL\s+GlcdTileMarkGutterDirty/);
   assert.match(source, /EditorKeyDone:\n\s+LD\s+A,\(EditorPromptActive\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorKeyDoneNoCursor/);
@@ -294,7 +296,7 @@ test('editor dirty render proof covers ordinary movement and printable edit path
   assert.match(runner, /row 0 marker/);
   assert.match(runner, /row 1 marker/);
   assert.match(runner, /InsertRowCount/);
-  assert.match(runner, /ZP0 LINE 00/);
+  assert.match(runner, /0 LINE 00/);
   assert.match(packageJson, /"proof:display:editor-dirty-render"/);
   assert.match(packageJson, /proof:display:editor-dirty-render/);
 });

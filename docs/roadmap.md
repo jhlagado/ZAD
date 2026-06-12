@@ -330,10 +330,11 @@ Work:
   queued display work remains; when the blink countdown is due it hides or
   restores the inverse cursor cell through the existing dirty cell byte-range
   path, without viewport, row, or gutter redraws.
-- Extend dirty cell-range scheduling beyond cursor overlays where it is useful.
-  Current-line text mutations still redraw the affected text row, which is
-  simple and safe. Later work can mark exact changed cell ranges for single
-  character insert/delete paths once the redraw/coalescing policy is clearer.
+- Done: extended dirty cell-range scheduling to simple printable insert/delete
+  and non-joining backspace. These paths still rebuild the row text in the
+  backing buffer for pixel correctness, but they transfer only the clipped
+  changed cell range plus cursor overlay cells instead of queueing a full source
+  row flush.
 - Add a small display work queue or dirty mask:
   - full viewport dirty for page loads, restore, and explicit redraw
   - dirty row for vertical cursor movement, line edits, status prompt restore
@@ -373,6 +374,8 @@ Incremental implementation order:
 7. Done: replace non-scrolling vertical current-row marker flushes with gutter
    byte-range transfers.
 8. Done: add cursor blink once cursor updates are cheap.
+9. Done: replace simple printable insert/delete row flushes with clipped dirty
+   cell-range transfers.
 
 Proofs:
 
