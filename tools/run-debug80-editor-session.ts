@@ -9,7 +9,7 @@ const { dirname, resolve } = require('node:path');
 
 const TECM8_ROOT = resolve(__dirname, '..');
 const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
-const AZM_ROOT = resolve(process.env.AZM_ROOT ?? '/Users/johnhardy/projects/AZM');
+const AZM_ROOT = process.env.AZM_ROOT ? resolve(process.env.AZM_ROOT) : undefined;
 const SESSION_DIR = resolve(TECM8_ROOT, 'demos/debug80');
 const IMAGE_PATH = resolve(SESSION_DIR, 'editor-session-fat32.img');
 const GLCD_CAPTURE_PATH = resolve(SESSION_DIR, 'editor-session-glcd.pgm');
@@ -82,7 +82,9 @@ function requireFromDebug80(modulePath: string): unknown {
 }
 
 async function compileMain(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
-  const { compile, defaultFormatWriters } = await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'));
+  const { compile, defaultFormatWriters } = AZM_ROOT
+    ? await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'))
+    : await import('@jhlagado/azm/compile');
   const result = await compile(
     SOURCE_FILE,
     {

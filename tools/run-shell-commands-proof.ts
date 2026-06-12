@@ -8,7 +8,7 @@ const { resolve } = require('node:path');
 
 const TECM8_ROOT = resolve(__dirname, '..');
 const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
-const AZM_ROOT = resolve(process.env.AZM_ROOT ?? '/Users/johnhardy/projects/AZM');
+const AZM_ROOT = process.env.AZM_ROOT ? resolve(process.env.AZM_ROOT) : undefined;
 const PROOF_SOURCE = resolve(TECM8_ROOT, 'proofs/shell-commands/shell-commands-proof.asm');
 const LAST_RUN = resolve(TECM8_ROOT, 'proofs/shell-commands/last-run.json');
 const APP_START = 0x4000;
@@ -43,7 +43,9 @@ function requireFromDebug80(modulePath: string): unknown {
 }
 
 async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
-  const { compile, defaultFormatWriters } = await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'));
+  const { compile, defaultFormatWriters } = AZM_ROOT
+    ? await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'))
+    : await import('@jhlagado/azm/compile');
   const result = await compile(
     PROOF_SOURCE,
     {

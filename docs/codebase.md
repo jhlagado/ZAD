@@ -709,16 +709,20 @@ address those hidden TM8 paths directly.
 
 ### Proof Runners
 
-The `run-*.ts` files assemble proof programs through AZM and run them through
-Debug80:
+The `run-*.ts` files assemble proof programs through the npm
+`@jhlagado/azm` package and run them through Debug80. Set `AZM_ROOT` only when
+intentionally testing against a local AZM checkout:
 
 - `tools/run-project-config-proof.ts`
 - `tools/run-project-config-storage-proof.ts`
 - `tools/run-shell-commands-proof.ts`
 - `tools/run-display-proof.ts`
 - `tools/run-editor-viewport-storage-proof.ts`
-- `tools/run-storage-proof.ts`
 - `tools/run-debug80-editor-session.ts`
+
+`tools/run-storage-proof.ts` is the exception: it builds a very small proof
+program directly because it is testing raw MON3 sector access rather than
+assembled TECM8 source.
 
 The storage-backed runners also create FAT32 images, load MON3 ROM, configure
 the TEC-1G runtime, disable shadow ROM where needed, seed SD card state, and

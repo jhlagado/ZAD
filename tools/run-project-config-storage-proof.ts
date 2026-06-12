@@ -10,7 +10,7 @@ const { resolve } = require('node:path');
 
 const TECM8_ROOT = resolve(__dirname, '..');
 const DEBUG80_ROOT = resolve(process.env.DEBUG80_ROOT ?? '/Users/johnhardy/projects/debug80');
-const AZM_ROOT = resolve(process.env.AZM_ROOT ?? '/Users/johnhardy/projects/AZM');
+const AZM_ROOT = process.env.AZM_ROOT ? resolve(process.env.AZM_ROOT) : undefined;
 const MON3_ROM_CANDIDATES = [
   resolve(DEBUG80_ROOT, 'resources/bundles/tec1g/mon3/v1/mon3.bin'),
   '/Users/johnhardy/projects/debug80-tec1g-mon3/roms/tec1g/mon-3/mon3.bin',
@@ -82,7 +82,9 @@ function requireFromDebug80(modulePath: string): unknown {
 }
 
 async function compileProof(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
-  const { compile, defaultFormatWriters } = await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'));
+  const { compile, defaultFormatWriters } = AZM_ROOT
+    ? await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'))
+    : await import('@jhlagado/azm/compile');
   const result = await compile(
     PROOF_SOURCE,
     {
