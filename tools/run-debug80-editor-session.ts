@@ -387,6 +387,29 @@ function tapMatrixCombo(
   runInstructions(runtime, platformRuntime, releaseInstructions);
 }
 
+function pressMatrixCombo(platformRuntime: PlatformRuntime, modifier: { row: number; col: number }, key: { row: number; col: number }): void {
+  if (!platformRuntime.applyMatrixKey) {
+    throw new Error('Debug80 runtime does not expose matrix key injection');
+  }
+  platformRuntime.applyMatrixKey(modifier.row, modifier.col, true);
+  platformRuntime.applyMatrixKey(key.row, key.col, true);
+}
+
+function releaseMatrixCombo(
+  platformRuntime: PlatformRuntime,
+  runtime: Runtime,
+  modifier: { row: number; col: number },
+  key: { row: number; col: number },
+  releaseInstructions = 20000,
+): void {
+  if (!platformRuntime.applyMatrixKey) {
+    throw new Error('Debug80 runtime does not expose matrix key injection');
+  }
+  platformRuntime.applyMatrixKey(key.row, key.col, false);
+  platformRuntime.applyMatrixKey(modifier.row, modifier.col, false);
+  runInstructions(runtime, platformRuntime, releaseInstructions);
+}
+
 function readTm8File(imagePath: string, tm8Path: string): Buffer {
   const { readFileFromVolumeImage } = require(resolve(TECM8_ROOT, 'tools/tm8/format.ts'));
   const manifest = JSON.parse(readFileSync(manifestPath(imagePath), 'utf8'));
@@ -508,6 +531,9 @@ async function main(): Promise<void> {
     const rowText9Addr = symbolAddress(symbols, 'EditorRowText9');
     const promptActiveAddr = symbolAddress(symbols, 'EditorPromptActive');
     const promptResultAddr = symbolAddress(symbols, 'EditorPromptResult');
+    const promptActionAddr = symbolAddress(symbols, 'EditorPromptAction');
+    const pendingCharAddr = symbolAddress(symbols, 'EditorPendingChar');
+    const pendingModifierAddr = symbolAddress(symbols, 'EditorPendingModifier');
     const nextPageValidAddr = symbolAddress(symbols, 'EditorNavNextPageValid');
     const nextPageSyntheticAddr = symbolAddress(symbols, 'EditorNavNextPageSynthetic');
     const dirtySectorsAddr = symbolAddress(symbols, 'EditorNavDirtySectors');
@@ -604,6 +630,8 @@ async function main(): Promise<void> {
         `live editor key event modifier=0x${modifierBits.toString(16)} raw=${rawSecondary.toString(16)}/${rawPrimary.toString(16)} translated=0x${translatedKey.toString(16)}`,
       );
     }
+    tapMatrixKey(platformRuntime, runtime, 0, 7); // CapsLock toggles caps state back off before command chords
+    runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     tapMatrixKey(platformRuntime, runtime, 7, 5); // z
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const dirtyAfterEdit = runtime.hardware.memory[dirtyAddr];
@@ -653,7 +681,7 @@ async function main(): Promise<void> {
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, '', 'after Enter split');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after Enter split');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'RZ0 LINE 01', 'after Enter split');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'Rz0 LINE 01', 'after Enter split');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, 'R0 LINE 14', 'after Enter split');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
@@ -683,7 +711,7 @@ async function main(): Promise<void> {
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, '', 'after saved split page return');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after saved split page return');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'RZ0 LINE 01', 'after saved split page return');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'Rz0 LINE 01', 'after saved split page return');
     tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown: move to split tail for join
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     tapMatrixKey(platformRuntime, runtime, 1, 0); // Backspace: join with previous line
@@ -696,7 +724,7 @@ async function main(): Promise<void> {
       );
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after Backspace join');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'RZ0 LINE 01', 'after Backspace join');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'Rz0 LINE 01', 'after Backspace join');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, '', 'after Backspace join');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // save joined page
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
@@ -722,11 +750,78 @@ async function main(): Promise<void> {
         `live editor post-save edit dirty=${dirtyAfterPostSaveEdit}, expected 1; modifier=0x${postSaveModifierBits.toString(16)} raw=${postSaveRawSecondary.toString(16)}/${postSaveRawPrimary.toString(16)} translated=0x${postSaveTranslatedKey.toString(16)}`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // save post-save edit
+    const promptBeforeCtrlQ = runtime.hardware.memory[promptActiveAddr];
+    if (promptBeforeCtrlQ !== 0) {
+      throw new Error(`live editor prompt before Ctrl-Q active=${promptBeforeCtrlQ}, expected 0`);
+    }
+    pressMatrixCombo(platformRuntime, { row: 0, col: 1 }, { row: 6, col: 4 }); // Ctrl+Q dirty quit prompt
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const promptAfterCtrlQ = runtime.hardware.memory[promptActiveAddr];
+    const actionAfterCtrlQ = runtime.hardware.memory[promptActionAddr];
+    const pendingAfterCtrlQ = runtime.hardware.memory[pendingCharAddr];
+    const pendingModifierAfterCtrlQ = runtime.hardware.memory[pendingModifierAddr];
+    const ctrlQuitTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const ctrlQuitModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    if (
+      promptAfterCtrlQ !== 1 ||
+      actionAfterCtrlQ !== 2 ||
+      pendingAfterCtrlQ !== 0x11 ||
+      (pendingModifierAfterCtrlQ & 0x02) === 0
+    ) {
+      throw new Error(
+        `live editor Ctrl-Q prompt active=${promptAfterCtrlQ} action=${actionAfterCtrlQ} pending=0x${pendingAfterCtrlQ.toString(16)} pendingMod=0x${pendingModifierAfterCtrlQ.toString(16)} modifier=0x${ctrlQuitModifierBits.toString(16)} translated=0x${ctrlQuitTranslatedKey.toString(16)}, expected ctrl quit prompt`,
+      );
+    }
+    releaseMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 4 }, 200_000);
+    tapMatrixKey(platformRuntime, runtime, 6, 1, 200_000, 200_000); // n: cancel quit prompt
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const promptAfterCtrlQNo = runtime.hardware.memory[promptActiveAddr];
+    const ctrlQuitNoResult = runtime.hardware.memory[promptResultAddr];
+    const dirtyAfterCtrlQNo = runtime.hardware.memory[dirtyAddr];
+    const quitAfterCtrlQNo = runtime.hardware.memory[quitRequestedAddr];
+    if (promptAfterCtrlQNo !== 0 || ctrlQuitNoResult !== 2 || dirtyAfterCtrlQNo !== 1 || quitAfterCtrlQNo !== 0) {
+      throw new Error(
+        `live editor Ctrl-Q cancel prompt=${promptAfterCtrlQNo} result=${ctrlQuitNoResult} dirty=${dirtyAfterCtrlQNo} quit=${quitAfterCtrlQNo}, expected prompt=0 result=2 dirty=1 quit=0`,
+      );
+    }
+    pressMatrixCombo(platformRuntime, { row: 0, col: 1 }, { row: 7, col: 5 }); // Ctrl+Z
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const promptAfterCtrlZ = runtime.hardware.memory[promptActiveAddr];
+    const actionAfterCtrlZ = runtime.hardware.memory[promptActionAddr];
+    const pendingAfterCtrlZ = runtime.hardware.memory[pendingCharAddr];
+    const pendingModifierAfterCtrlZ = runtime.hardware.memory[pendingModifierAddr];
+    const ctrlRestoreTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const ctrlRestoreModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    if (
+      promptAfterCtrlZ !== 1 ||
+      actionAfterCtrlZ !== 1 ||
+      pendingAfterCtrlZ !== 0x1a ||
+      (pendingModifierAfterCtrlZ & 0x02) === 0
+    ) {
+      throw new Error(
+        `live editor Ctrl-Z prompt active=${promptAfterCtrlZ} action=${actionAfterCtrlZ} pending=0x${pendingAfterCtrlZ.toString(16)} pendingMod=0x${pendingModifierAfterCtrlZ.toString(16)} modifier=0x${ctrlRestoreModifierBits.toString(16)} translated=0x${ctrlRestoreTranslatedKey.toString(16)}, expected ctrl restore prompt`,
+      );
+    }
+    releaseMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 5 }, 200_000);
+    tapMatrixKey(platformRuntime, runtime, 6, 1, 200_000, 200_000); // n: cancel restore prompt
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const promptAfterCtrlZNo = runtime.hardware.memory[promptActiveAddr];
+    const ctrlRestoreNoResult = runtime.hardware.memory[promptResultAddr];
+    const dirtyAfterCtrlZNo = runtime.hardware.memory[dirtyAddr];
+    if (promptAfterCtrlZNo !== 0 || ctrlRestoreNoResult !== 2 || dirtyAfterCtrlZNo !== 1) {
+      throw new Error(
+        `live editor Ctrl-Z cancel prompt=${promptAfterCtrlZNo} result=${ctrlRestoreNoResult} dirty=${dirtyAfterCtrlZNo}, expected prompt=0 result=2 dirty=1`,
+      );
+    }
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // Ctrl+S save post-save edit
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     const dirtyAfterSecondSave = runtime.hardware.memory[dirtyAddr];
-    if (dirtyAfterSecondSave !== 0) {
-      throw new Error(`live editor second save dirty=${dirtyAfterSecondSave}, expected 0`);
+    const ctrlSaveTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const ctrlSaveModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    if (dirtyAfterSecondSave !== 0 || ctrlSaveTranslatedKey !== 0x13 || (ctrlSaveModifierBits & 0x02) === 0) {
+      throw new Error(
+        `live editor Ctrl-S save dirty=${dirtyAfterSecondSave} modifier=0x${ctrlSaveModifierBits.toString(16)} translated=0x${ctrlSaveTranslatedKey.toString(16)}, expected dirty=0 ctrl-save`,
+      );
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 5 }, 200_000, 200_000); // Alt+Z
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
@@ -795,15 +890,34 @@ async function main(): Promise<void> {
       dirtyAfterPostSaveEdit,
       dirtyAfterJoinSave,
       dirtyAfterSecondSave,
+      promptAfterCtrlQ,
+      actionAfterCtrlQ,
+      pendingAfterCtrlQ,
+      pendingModifierAfterCtrlQ,
+      promptAfterCtrlQNo,
+      dirtyAfterCtrlQNo,
+      quitAfterCtrlQNo,
+      promptAfterCtrlZ,
+      actionAfterCtrlZ,
+      pendingAfterCtrlZ,
+      pendingModifierAfterCtrlZ,
+      promptAfterCtrlZNo,
+      dirtyAfterCtrlZNo,
       promptAfterAltZ,
       promptAfterRestoreNo,
       dirtyAfterRestoreNo,
       saveModifierBits,
+      ctrlSaveModifierBits,
+      ctrlQuitModifierBits,
+      ctrlRestoreModifierBits,
       modifierBits,
       rawPrimary,
       rawSecondary,
       translatedKey,
       saveTranslatedKey,
+      ctrlSaveTranslatedKey,
+      ctrlQuitTranslatedKey,
+      ctrlRestoreTranslatedKey,
       quitTranslatedKey,
     };
     writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);

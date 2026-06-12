@@ -457,9 +457,9 @@ Prefer control-key style commands over menus.
 Possible early commands:
 
 ```text
-Ctrl-S  save
-Ctrl-Q  quit
-Alt-Q   alternate quit for host environments that capture Ctrl-Q
+Ctrl-S / Alt-S  save
+Ctrl-Q / Alt-Q  quit
+Ctrl-Z / Alt-Z  restore from backup
 Ctrl-G  go to line
 Ctrl-K  delete line
 Ctrl-N  insert new line
@@ -467,7 +467,9 @@ Ctrl-L  redraw
 ```
 
 Exact bindings should be adjusted to the TEC-1G matrix keyboard and MON3
-control-key behavior. Block operations now have a more detailed future keymap
+control-key behavior. For now, Ctrl and Alt command chords should both remain
+active so host-keyboard testing does not force an early modifier decision.
+Block operations now have a more detailed future keymap
 in [Editor Block Operations](block-operations.md): `Ctrl-X`/`Alt-X` should
 eventually mean pending block move, while restore-from-backup moves toward
 `Ctrl-Z`/`Alt-Z`.

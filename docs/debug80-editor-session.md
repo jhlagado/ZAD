@@ -81,10 +81,10 @@ The session drives this flow:
 ```text
 edit
 insert AB at the start of the first source record
-Ctrl-S save
-Ctrl-Q quit
+Ctrl-S or Alt-S save
+Ctrl-Q or Alt-Q quit
 edit
-Ctrl-Q quit after reopening the saved file
+Ctrl-Q or Alt-Q quit after reopening the saved file
 ```
 
 The runner verifies:
@@ -142,12 +142,14 @@ other modified arrows reserved for later word/page movement
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Alt+ArrowRight`, `CapsLock`,
-`z`, a blocked dirty `Alt+ArrowDown`, `Alt-S`, a clean `Alt-S`, another `z`, a
-second `Alt-S`, `Alt-Z` with a no/cancel answer, and `Alt-Q` so the
-modifier-aware path is exercised, not only printable ASCII.
-The Z80 editor keeps Ctrl commands as compatibility aliases, but manual Debug80
-testing on macOS should prefer Option/Alt because Control and Command collide
-with host application and window-manager shortcuts.
+`ArrowDown` with CapsLock set, CapsLock back off, `z`, a blocked dirty
+`Alt+ArrowDown`, `Alt-S`, a clean `Alt-S`, another `z`, a
+dirty `Ctrl-Q` with a no/cancel answer, `Ctrl-S`, `Ctrl-Z` with a no/cancel
+answer, `Alt-Z` with a no/cancel answer, and `Alt-Q` so both modifier command
+families are exercised, not only printable ASCII.
+For now the Z80 editor treats Ctrl and Alt command chords as equal first-class
+bindings. That avoids forcing a decision while Debug80 and host keyboard
+behavior are still being tested on macOS and other platforms.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
 Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
@@ -178,9 +180,10 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, `z`, a blocked dirty
+`Alt+ArrowRight`, `CapsLock`, `ArrowDown`, CapsLock back off, `z`, a blocked dirty
 `Alt+ArrowDown`, `Enter`, `Backspace`, `Alt-S`, a clean `Alt-S`, another `z`, a
-second `Alt-S`, `Alt-Z`, `n`, and `Alt-Q`, then verifies that
+dirty `Ctrl-Q`, `n`, `Ctrl-S`, `Ctrl-Z`, `n`, `Alt-Z`, `n`, and `Alt-Q`, then
+verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
@@ -189,13 +192,16 @@ editor cursor reaches row 1, column 1 before save/quit. It also checks that
 `Alt+ArrowRight` reports modifier bit `0x08`, raw secondary `03h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
-marks the editor dirty, that dirty page movement is blocked until save, that
+marks the editor dirty after CapsLock is toggled back off, that dirty page
+movement is blocked until save, that
 matrix `Enter` splits the current line and moves the cursor to the new line,
 that matrix `Backspace` at column 0 joins the line back to the previous row,
 that Alt-modified `S` clears dirty, that a clean save leaves the editor clean,
-that post-save `z` makes the editor dirty again, that the second save clears
-dirty again, that Alt-modified `Z` opens the restore prompt, that `n` cancels
-without dirtying the page, and that Alt-modified `Q` exits the live editor.
+that post-save `z` makes the editor dirty again, that Ctrl-modified `Q` opens
+the dirty quit prompt and `n` cancels it, that Ctrl-modified `S` clears dirty
+again, that Ctrl-modified `Z` and Alt-modified `Z` both open the restore prompt,
+that `n` cancels Ctrl-Z without clearing the dirty page and cancels Alt-Z
+without dirtying a clean page, and that Alt-modified `Q` exits the live editor.
 
 For an interactive Debug80 UI check:
 
@@ -213,11 +219,11 @@ For an interactive Debug80 UI check:
    the current matrix-level test path because the raw matrix positions for Alt
    and ArrowUp overlap. Ctrl+Arrow remains a compatibility alias for page
    movement.
-7. `Alt-S` saves, `Alt-Q` quits, and `Alt-Z` asks to restore from the hidden
-   backup file. Ctrl-S, Ctrl-Q, and Ctrl-Z remain compatibility aliases where
-   the host environment does not capture them. Ctrl-X is reserved for future
-   block move/cut, Ctrl-R for future block read, and Ctrl-W for future block
-   write.
+7. `Ctrl-S` or `Alt-S` saves, `Ctrl-Q` or `Alt-Q` quits, and `Ctrl-Z` or
+   `Alt-Z` asks to restore from the hidden backup file. Both modifier families
+   are intentionally active for now. Ctrl-X/Alt-X are reserved for future block
+   move/cut, Ctrl-R/Alt-R for future block read, and Ctrl-W/Alt-W for future
+   block write.
 8. Unknown modified printable keys, for example `Alt-W`, should show `KEY`
    rather than typing `w`. Page movement while the page is dirty should show
    `Save first` and stay on the current page.
@@ -313,7 +319,7 @@ GLCD. Use this exact smoke test:
    stays on the `R0 LINE ...` page. This prevents accidental loss of unsaved
    page-buffer edits.
 
-13. Press `Alt-S`.
+13. Press `Ctrl-S` or `Alt-S`.
 
    Expected: the joined page is saved. When the save returns, the source row
    hidden by the transient status message is restored. A second save while the
@@ -327,9 +333,9 @@ GLCD. Use this exact smoke test:
 
    If manual `Command-S` or `Ctrl-S` on macOS saves but then leaves the editor
    apparently unresponsive, compare it with `npm run debug80:editor-live-smoke`.
-   The smoke test injects the same matrix-level `Alt-S`, then types another `z`, and
-   expects the editor to become dirty again. If the smoke test passes but the
-   browser session wedges after a host-level Command or Control chord, the
+   The smoke test injects matrix-level `Alt-S` and `Ctrl-S`, then types another
+   `z`, and expects the editor to become dirty again. If the smoke test passes
+   but the browser session wedges after a host-level Command or Control chord, the
    likely bug is in Debug80's browser keyboard-event path, such as a stuck
    synthesized modifier, missed key release during the long SD write, or
    focus/key-repeat state after the host-level chord.
@@ -347,7 +353,7 @@ GLCD. Use this exact smoke test:
    Expected: the editor returns to the first page and shows `R0 LINE ...`
    records again.
 
-16. Press `Alt-Q`.
+16. Press `Ctrl-Q` or `Alt-Q`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt and shows `Shell` on the bottom row. This is the current
@@ -355,9 +361,9 @@ GLCD. Use this exact smoke test:
    separate future work. If the page is dirty, the status row asks a yes/no
    question first.
 
-   Ctrl-Q remains available as an alias, but Alt-Q is the preferred Debug80
-   exit path on macOS because host tools commonly reserve Ctrl and Command
-   chords. Ctrl-X and Alt-X are reserved for future block move/cut.
+   Ctrl-Q and Alt-Q are both valid exit paths. Keep testing both while host
+   keyboard behavior is still settling. Ctrl-X and Alt-X are reserved for
+   future block move/cut.
 
 The current phase uses tile/dirty-region GLCD transfer for ordinary cursor
 movement. Horizontal cursor keys redraw the cursor overlay cell range, and

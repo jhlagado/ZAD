@@ -100,8 +100,8 @@ Goal: make the current editor behavior predictable under manual Debug80 testing.
 Work:
 
 - Stabilize all live matrix key paths.
-- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Alt-S`, `Alt-Q`, `Alt-Z`,
-  and page movement.
+- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Ctrl-S`/`Alt-S`,
+  `Ctrl-Q`/`Alt-Q`, `Ctrl-Z`/`Alt-Z`, and page movement.
 - Add clear status feedback for ignored commands, failed saves, failed loads,
   and RAM-window/page-boundary limits.
 - Decide whether unknown modified printable keys should insert text or be
@@ -622,7 +622,8 @@ Sequenced goals:
    - Restore-from-backup moved to `Ctrl-Z`/`Alt-Z`.
    - `Ctrl-R`/`Alt-R` reserved for read-block and `Ctrl-W`/`Alt-W` reserved for
      write-block.
-   - Live smoke and manual docs updated.
+   - Live smoke and manual docs updated to keep Ctrl and Alt command aliases in
+     parallel during host-keyboard testing.
 
 2. **Block Phase B2: Selection Range And Thin Gutter**
    - Add ordinary line-selection interval state.
