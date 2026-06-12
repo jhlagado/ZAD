@@ -263,8 +263,8 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
     }
   }
 
-  assertCellMatchesInvertedFont(runtime.hardware.memory, 1, 0, 'C'.charCodeAt(0));
-  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 1, 0, 'C'.charCodeAt(0));
+  assertCursorInsertionBar(runtime.hardware.memory, 1, 7);
+  assertGlcdCursorInsertionBar(glcd, 1, 7);
   assertCursorAdjacentMarkerPreserved(runtime.hardware.memory, glcd);
 
   const expectedTextRows = [
@@ -403,12 +403,26 @@ function assertCellMatchesFont(memory: Uint8Array, row: number, column: number, 
   }
 }
 
-function assertCellMatchesInvertedFont(memory: Uint8Array, row: number, column: number, charCode: number): void {
-  const actual = readCellRows(memory, row, column);
-  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+function readCursorInsertionRows(memory: Uint8Array, row: number, column: number): number[] {
+  const mon3Tgbuf = 0x13c0;
+  const rowBytes = 16;
+  const textX = 6;
+  const x = textX + column * 6 - 1;
+  const rows = [];
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    const offset = mon3Tgbuf + y * rowBytes + Math.floor(x / 8);
+    const mask = 0x80 >> (x % 8);
+    rows.push((memory[offset] & mask) === 0 ? 0 : 1);
+  }
+  return rows;
+}
+
+function assertCursorInsertionBar(memory: Uint8Array, row: number, column: number): void {
+  const actual = readCursorInsertionRows(memory, row, column);
+  const expected = [1, 1, 1, 1, 1, 1];
   if (actual.join(',') !== expected.join(',')) {
     throw new Error(
-      `GLCD cursor proof rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
+      `GLCD cursor proof rendered insertion bar as [${actual.join(',')}], expected [${expected.join(',')}]`,
     );
   }
 }
@@ -454,18 +468,25 @@ function readGlcdCellRows(glcd: number[], row: number, column: number): number[]
   return rows;
 }
 
-function assertGlcdCellMatchesInvertedFont(
-  memory: Uint8Array,
-  glcd: number[],
-  row: number,
-  column: number,
-  charCode: number,
-): void {
-  const actual = readGlcdCellRows(glcd, row, column);
-  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+function readGlcdCursorInsertionRows(glcd: number[], row: number, column: number): number[] {
+  const rowBytes = 16;
+  const textX = 6;
+  const x = textX + column * 6 - 1;
+  const rows = [];
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    const offset = y * rowBytes + Math.floor(x / 8);
+    const mask = 0x80 >> (x % 8);
+    rows.push(((glcd[offset] ?? 0) & mask) === 0 ? 0 : 1);
+  }
+  return rows;
+}
+
+function assertGlcdCursorInsertionBar(glcd: number[], row: number, column: number): void {
+  const actual = readGlcdCursorInsertionRows(glcd, row, column);
+  const expected = [1, 1, 1, 1, 1, 1];
   if (actual.join(',') !== expected.join(',')) {
     throw new Error(
-      `visible GLCD cursor proof rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
+      `visible GLCD cursor proof rendered insertion bar as [${actual.join(',')}], expected [${expected.join(',')}]`,
     );
   }
 }

@@ -823,7 +823,7 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
     { symbol: 'MoveMarkerCount', expected: 4 },
     { symbol: 'MoveFullFlushCount', expected: 0 },
     { symbol: 'MoveRowFlushCount', expected: 0 },
-    { symbol: 'MoveCellFlushCount', expected: 6 },
+    { symbol: 'MoveCellFlushCount', expected: 7 },
     { symbol: 'MoveCellFlushByteCount', expected: 36 },
     { symbol: 'InsertScreenCount', expected: 0 },
     { symbol: 'InsertPageCount', expected: 0 },
@@ -831,7 +831,7 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
     { symbol: 'InsertMarkerCount', expected: 0 },
     { symbol: 'InsertFullFlushCount', expected: 0 },
     { symbol: 'InsertRowFlushCount', expected: 0 },
-    { symbol: 'InsertCellFlushCount', expected: 4 },
+    { symbol: 'InsertCellFlushCount', expected: 5 },
     { symbol: 'InsertCellFlushByteCount', expected: 60 },
     { symbol: 'DeleteScreenCount', expected: 0 },
     { symbol: 'DeletePageCount', expected: 0 },
@@ -839,7 +839,7 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
     { symbol: 'DeleteMarkerCount', expected: 0 },
     { symbol: 'DeleteFullFlushCount', expected: 0 },
     { symbol: 'DeleteRowFlushCount', expected: 0 },
-    { symbol: 'DeleteCellFlushCount', expected: 4 },
+    { symbol: 'DeleteCellFlushCount', expected: 6 },
     { symbol: 'DeleteCellFlushByteCount', expected: 60 },
     { symbol: 'BackspaceScreenCount', expected: 0 },
     { symbol: 'BackspacePageCount', expected: 0 },
@@ -847,19 +847,19 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
     { symbol: 'BackspaceMarkerCount', expected: 0 },
     { symbol: 'BackspaceFullFlushCount', expected: 0 },
     { symbol: 'BackspaceRowFlushCount', expected: 0 },
-    { symbol: 'BackspaceCellFlushCount', expected: 4 },
+    { symbol: 'BackspaceCellFlushCount', expected: 5 },
     { symbol: 'BackspaceCellFlushByteCount', expected: 60 },
     { symbol: 'BlinkHideScreenCount', expected: 0 },
     { symbol: 'BlinkHidePageCount', expected: 0 },
     { symbol: 'BlinkHideRowFlushCount', expected: 0 },
-    { symbol: 'BlinkHideCellFlushCount', expected: 1 },
+    { symbol: 'BlinkHideCellFlushCount', expected: 2 },
     { symbol: 'BlinkHideCellFlushByteCount', expected: 24 },
     { symbol: 'BlinkHideRendered', expected: 0 },
     { symbol: 'BlinkHideToggleCount', expected: 1 },
     { symbol: 'BlinkShowScreenCount', expected: 0 },
     { symbol: 'BlinkShowPageCount', expected: 0 },
     { symbol: 'BlinkShowRowFlushCount', expected: 0 },
-    { symbol: 'BlinkShowCellFlushCount', expected: 1 },
+    { symbol: 'BlinkShowCellFlushCount', expected: 2 },
     { symbol: 'BlinkShowCellFlushByteCount', expected: 24 },
     { symbol: 'BlinkShowRendered', expected: 1 },
     { symbol: 'BlinkShowToggleCount', expected: 2 },
@@ -1478,8 +1478,8 @@ function readStatusRowTextByte(memory: Uint8Array): number[] {
 
 function verifyShellEditVisibleCursor(runtime: Runtime, platformRuntime: PlatformRuntime): void {
   const glcd = getGlcdBytes(platformRuntime);
-  assertCellMatchesInvertedFont(runtime.hardware.memory, 7, 3, ' '.charCodeAt(0));
-  assertGlcdCellMatchesInvertedFont(runtime.hardware.memory, glcd, 7, 3, ' '.charCodeAt(0));
+  assertCursorInsertionBar(runtime.hardware.memory, 7, 3);
+  assertGlcdCursorInsertionBar(glcd, 7, 3);
 }
 
 function readCellRows(memory: Uint8Array, row: number, column: number): number[] {
@@ -1529,28 +1529,49 @@ function readFontRows(memory: Uint8Array, charCode: number): number[] {
   return Array.from(memory.subarray(offset, offset + 6), (value) => value & 0x3f);
 }
 
-function assertCellMatchesInvertedFont(memory: Uint8Array, row: number, column: number, charCode: number): void {
-  const actual = readCellRows(memory, row, column);
-  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+function readCursorInsertionRows(memory: Uint8Array, row: number, column: number): number[] {
+  const mon3Tgbuf = 0x13c0;
+  const rowBytes = 16;
+  const textX = 6;
+  const x = textX + column * 6 - 1;
+  const rows = [];
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    const offset = mon3Tgbuf + y * rowBytes + Math.floor(x / 8);
+    const mask = 0x80 >> (x % 8);
+    rows.push((memory[offset] & mask) === 0 ? 0 : 1);
+  }
+  return rows;
+}
+
+function assertCursorInsertionBar(memory: Uint8Array, row: number, column: number): void {
+  const actual = readCursorInsertionRows(memory, row, column);
+  const expected = [1, 1, 1, 1, 1, 1];
   if (actual.join(',') !== expected.join(',')) {
     throw new Error(
-      `shell edit cursor rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
+      `shell edit cursor rendered insertion bar as [${actual.join(',')}], expected [${expected.join(',')}]`,
     );
   }
 }
 
-function assertGlcdCellMatchesInvertedFont(
-  memory: Uint8Array,
-  glcd: number[],
-  row: number,
-  column: number,
-  charCode: number,
-): void {
-  const actual = readGlcdCellRows(glcd, row, column);
-  const expected = readFontRows(memory, charCode).map((value) => value ^ 0x3f);
+function readGlcdCursorInsertionRows(glcd: number[], row: number, column: number): number[] {
+  const rowBytes = 16;
+  const textX = 6;
+  const x = textX + column * 6 - 1;
+  const rows = [];
+  for (let y = row * 6 + DISPLAY_Y_ORIGIN; y < row * 6 + DISPLAY_Y_ORIGIN + 6; y += 1) {
+    const offset = y * rowBytes + Math.floor(x / 8);
+    const mask = 0x80 >> (x % 8);
+    rows.push(((glcd[offset] ?? 0) & mask) === 0 ? 0 : 1);
+  }
+  return rows;
+}
+
+function assertGlcdCursorInsertionBar(glcd: number[], row: number, column: number): void {
+  const actual = readGlcdCursorInsertionRows(glcd, row, column);
+  const expected = [1, 1, 1, 1, 1, 1];
   if (actual.join(',') !== expected.join(',')) {
     throw new Error(
-      `visible shell edit cursor rendered inverted ${String.fromCharCode(charCode)} as [${actual.join(',')}], expected [${expected.join(',')}]`,
+      `visible shell edit cursor rendered insertion bar as [${actual.join(',')}], expected [${expected.join(',')}]`,
     );
   }
 }

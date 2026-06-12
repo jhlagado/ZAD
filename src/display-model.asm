@@ -158,7 +158,7 @@ DisplayGutterWriteLoop:
         RET
 
 ; DisplayRenderCursorCell -
-; Overlay an inverse 6x6 cursor cell for one visible edit-pane cell.
+; Overlay an XOR insertion cursor bar one pixel before the active cell.
 ; Input: A = edit row (0-9), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
@@ -201,6 +201,7 @@ DisplayCursorPixelLoop:
 
 DisplayCursorPixelReady:
         LD      A,(DisplayCursorPixelX)
+        DEC     A
         LD      B,0
 
 DisplayCursorByteLoop:
@@ -288,11 +289,7 @@ DisplayCursorSkipSecondWrite:
 DisplayCursorNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorWriteLoop
-        LD      A,(DisplayCursorCellRow)
-        LD      B,A
-        LD      A,(DisplayCursorCellCol)
-        LD      C,A
-        CALL    GlcdTileMarkCellDirty
+        CALL    DisplayMarkCursorDirty
         RET
 
 DisplayCursorNoop:
@@ -300,7 +297,7 @@ DisplayCursorNoop:
         RET
 
 ; DisplayEraseCursorCell -
-; Restore the bytes saved before an inverse cursor cell was overlaid.
+; Restore the bytes saved before the XOR insertion cursor bar was overlaid.
 ; Input: A = edit row (0-9), C = text column (0-19)
 ;!      in        A,C
 ;!      out       carry
@@ -343,6 +340,7 @@ DisplayCursorErasePixelLoop:
 
 DisplayCursorErasePixelReady:
         LD      A,(DisplayCursorPixelX)
+        DEC     A
         LD      B,0
 
 DisplayCursorEraseByteLoop:
@@ -408,15 +406,33 @@ DisplayCursorEraseSkipSecond:
 DisplayCursorEraseNextRow:
         ADD     HL,DE
         DJNZ    DisplayCursorEraseWriteLoop
+        CALL    DisplayMarkCursorDirty
+        RET
+
+DisplayCursorEraseNoop:
+        XOR     A
+        RET
+
+; DisplayMarkCursorDirty -
+; Mark the insertion bar byte range dirty. The bar is drawn one pixel before
+; the active text cell, so byte-boundary columns also need the previous cell.
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@DisplayMarkCursorDirty:
         LD      A,(DisplayCursorCellRow)
         LD      B,A
         LD      A,(DisplayCursorCellCol)
         LD      C,A
         CALL    GlcdTileMarkCellDirty
-        RET
-
-DisplayCursorEraseNoop:
-        XOR     A
+        LD      A,(DisplayCursorCellCol)
+        OR      A
+        RET     Z
+        LD      A,(DisplayCursorCellRow)
+        LD      B,A
+        LD      A,(DisplayCursorCellCol)
+        DEC     A
+        LD      C,A
+        CALL    GlcdTileMarkCellDirty
         RET
 
 ; DisplayRowToPixel -
@@ -473,8 +489,8 @@ DisplayCursorSavedBytes:
         .ds     TECM8_DISPLAY_CURSOR_SAVED_BYTES
 
 DisplayCursorFirstMaskTable:
-        .db     0xFC,0x7E,0x3F,0x1F,0x0F,0x07,0x03,0x01
+        .db     0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01
 DisplayCursorSecondMaskTable:
-        .db     0x00,0x00,0x00,0x80,0xC0,0xE0,0xF0,0xF8
+        .db     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 DisplayRenderScreenCount:
         .db     0

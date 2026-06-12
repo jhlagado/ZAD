@@ -247,8 +247,9 @@ GLCD. Use this exact smoke test:
    This phase does not render a persistent title/header row. The visible rows
    are the source records from `/src/main.asm`.
 
-   The cursor should be a non-blinking inverse cell, initially near the top-left
-   source text area. It should not be the earlier single vertical stroke.
+   The cursor should be a blinking XOR vertical insertion bar immediately
+   before the active 6x6 text cell, initially near the top-left source text
+   area.
    The left gutter should be mostly clean: only the current source row should
    have a small marker, not the old prototype breakpoint/selection blocks.
 
@@ -355,6 +356,6 @@ old and new marker rows. Printable insert/delete still redraws the affected
 source row. Page loads, split/join operations, explicit redraws, and mode
 changes may still repaint the full viewport.
 
-The cursor is an inverse 6x6 cell and now blinks from the cooperative live idle
-path. Each blink hide/show updates only the affected cursor cell byte range, so
-it should not blank the screen or repaint a full source row.
+The cursor is an XOR vertical insertion bar and now blinks from the cooperative
+live idle path. Each blink hide/show updates only the affected cursor byte
+range, so it should not blank the screen or repaint a full source row.

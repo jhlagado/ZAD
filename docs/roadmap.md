@@ -328,7 +328,7 @@ Work:
 - Done: added cooperative cursor blink. The live idle path runs one
   `GlcdTileStep` first and advances `EditorCursorBlinkStep` only when no
   queued display work remains; when the blink countdown is due it hides or
-  restores the inverse cursor cell through the existing dirty cell byte-range
+  restores the XOR insertion cursor through the existing dirty cell byte-range
   path, without viewport, row, or gutter redraws.
 - Done: extended dirty cell-range scheduling to simple printable insert/delete
   and non-joining backspace. These paths still rebuild the row text in the
@@ -591,9 +591,7 @@ editor to a file editor.
 
 - Implement cleanup for hidden `.b` backups.
 - Decide whether to use source-record length bits 5-7 for line metadata.
-- Add a low-cost blinking cursor after the renderer can update the cursor cell
-  or row without an irritating full GLCD transfer.
-- Add an optional vertical insertion caret after cursor compositing is cheap and
-  reliable enough not to disappear into glyph strokes.
+- Decide whether the current low-cost blinking insertion caret remains the
+  preferred cursor shape, or whether to return to a block cursor.
 - Revisit MON3-to-BIOS reductions once editor storage/display requirements are
   better measured.

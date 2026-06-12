@@ -103,19 +103,14 @@ clears the row's text cells and redraws the string through TECM8 tile
 primitives. Full-screen repaint remains available, but normal structured text
 rows no longer call MON3's terminal glyph drawing path.
 
-Cursor rendering should also move from a fragile single vertical stroke toward a
-cell-level visual treatment. A vertical bar can disappear inside glyphs such as
-`E`, `L`, and `N` because those glyphs already contain a left vertical stroke.
-The current default is therefore a saved-byte inverse cell: the renderer saves
-the affected cell bytes, draws an inverted 6x6 cell, then restores the original
-cell when the cursor moves. A blinking cursor is useful, but it is a low
-priority until cursor updates can avoid an irritating full GLCD transfer.
-
-A vertical insertion caret remains a reasonable later option. If it returns, it
-should be treated as a distinct cursor shape rather than the default fallback:
-draw it in the inter-character spacing column where possible, blink it, and use
-the same save/restore or dirty-cell compositing path so it does not disappear
-inside glyph strokes.
+Cursor rendering now uses a saved-byte XOR insertion bar rather than a full
+inverse block. The bar is drawn one pixel before the active 6x6 cell, so column
+0 appears just to the left of the first source character and column N appears
+between columns N-1 and N. The renderer saves the affected bytes, toggles that
+one-pixel vertical bar, then restores the original bytes when the cursor moves
+or blinks. This keeps the cursor in the inter-character space where possible,
+while preserving the same dirty-cell compositing path used by the earlier
+inverse-cell experiment.
 
 Initial structured display constants:
 

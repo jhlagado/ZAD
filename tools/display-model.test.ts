@@ -73,7 +73,11 @@ test('structured display model has assembly entry points and contracts', () => {
   assert.match(source, /CP\s+TECM8_DISPLAY_MAX_TEXT_CHARS/);
   assert.doesNotMatch(source, /CALL\s+GlcdTileFlushRow/);
   assert.match(source, /CALL\s+GlcdTileMarkCellDirty/);
+  assert.match(source, /@DisplayMarkCursorDirty:/);
+  assert.match(source, /DEC\s+A\n\s+LD\s+C,A\n\s+CALL\s+GlcdTileMarkCellDirty/);
   assert.match(source, /DisplayCursorSavedBytes:/);
+  assert.match(source, /DisplayCursorFirstMaskTable:\n\s+\.db\s+0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01/);
+  assert.match(source, /DisplayCursorSecondMaskTable:\n\s+\.db\s+0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00/);
   assert.match(source, /DisplayRenderScreenCount:/);
   assert.match(source, /LD\s+\(DisplayCursorOriginalByte\),A/);
   assert.match(source, /CALL\s+GlcdTileClearTextRow/);
@@ -86,6 +90,7 @@ test('structured display model has assembly entry points and contracts', () => {
 test('structured GLCD proof calls the display model and renders markers', () => {
   assert.ok(existsSync(resolve(root, 'proofs/display/structured-screen-proof.asm')));
   const source = readRepoFile('proofs/display/structured-screen-proof.asm');
+  assert.match(source, /LD\s+A,1\n\s+LD\s+C,7\n\s+CALL\s+DisplayRenderCursorCell[\s\S]*?CALL\s+DrainDisplayWork/);
 
   assert.match(source, /CALL\s+DisplayInit/);
   assert.match(source, /CALL\s+DisplayRenderScreen/);

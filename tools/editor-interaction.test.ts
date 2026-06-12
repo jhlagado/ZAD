@@ -101,7 +101,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /EditorActionPageDownLower/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
-  assert.match(source, /TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS\s+\.equ\s+0x0800/);
+  assert.match(source, /TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS\s+\.equ\s+0x0600/);
   assert.match(source, /@EditorCursorBlinkReset:\n\s+LD\s+HL,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS\n\s+LD\s+\(EditorCursorBlinkCounter\),HL/);
   assert.match(source, /@EditorCursorBlinkStep:[\s\S]*?CALL\s+EditorHideCursor[\s\S]*?CALL\s+EditorRenderCursor/);
   assert.match(source, /EditorCursorBlinkCounter:\n\s+\.db\s+0\n\nEditorCursorBlinkCounterHi:\n\s+\.db\s+0/);
@@ -257,8 +257,8 @@ test('shell-launched editor interaction proof is wired into storage proof runner
   assert.match(runner, /mutatedRecord !== 'Adl\? LINE 08'/);
   assert.match(runner, /UnknownModifiedDirty/);
   assert.match(runner, /unknown modified dirty/);
-  assert.match(runner, /assertCellMatchesInvertedFont/);
-  assert.match(runner, /assertGlcdCellMatchesInvertedFont/);
+  assert.match(runner, /assertCursorInsertionBar/);
+  assert.match(runner, /assertGlcdCursorInsertionBar/);
   assert.doesNotMatch(runner, /previous cursor/);
   assert.match(packageJson, /"proof:display:shell-edit-interaction"/);
   assert.match(packageJson, /proof:display:shell-edit-interaction/);

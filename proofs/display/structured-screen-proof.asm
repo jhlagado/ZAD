@@ -52,12 +52,14 @@ CursorFarRightMarker .equ     0x13F0
         CALL    DisplayEraseCursorCell
         JR      C,ProofFailed
 
-        LD      A,1
-        LD      C,0
-        CALL    DisplayRenderCursorCell
+        CALL    GlcdTileFlushFull
         JR      C,ProofFailed
 
-        CALL    GlcdTileFlushFull
+        LD      A,1
+        LD      C,7
+        CALL    DisplayRenderCursorCell
+        JR      C,ProofFailed
+        CALL    DrainDisplayWork
         JR      C,ProofFailed
 
         LD      A,PROOF_PASS
@@ -72,6 +74,19 @@ ProofFailed:
 
 ProofFailedDone:
         JP      ProofDone
+
+; DrainDisplayWork -
+; Structured proofs do not run the live idle loop, so drain queued GLCD bytes
+; before host-side visible-pixel assertions.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@DrainDisplayWork:
+        CALL    GlcdTileStep
+        RET     C
+        OR      A
+        JR      NZ,DrainDisplayWork
+        XOR     A
+        RET
 
         .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"

@@ -497,7 +497,7 @@ host source export can continue validating the fixed-record format. Mutating
 operations mark `EditorNavDirty`; Ctrl-S routes through `EditorSaveCurrentPage`
 and clears the flag only after the backup and page write-back succeeds. Alt-S
 uses the same save path and is the preferred Debug80/macOS manual-test binding.
-Before that save path runs, `EditorHideCursor` removes the inverse-cell overlay
+Before that save path runs, `EditorHideCursor` removes the XOR cursor overlay
 so the transient `Saving...` redraw and the restored edit row do not inherit
 stale cursor pixels. A clean save is ignored before any storage call. Ctrl-R
 arms a status-line restore prompt; a yes answer loads the hidden backup into the
@@ -529,7 +529,8 @@ Non-scrolling vertical cursor movement redraws the old and new current-row
 gutter markers and then transfers only the left gutter byte pair for each
 affected row.
 
-The cursor is an inverse 6x6 cell overlay with a cooperative blink state.
+The cursor is a one-pixel XOR insertion bar drawn one pixel before the active
+6x6 cell, with a cooperative blink state.
 `EditorCursorBlinkReset` arms a 16-bit idle countdown after key handling
 renders the cursor. The live idle path first runs one `GlcdTileStep`; only when
 that reports no remaining queued display work does it call
