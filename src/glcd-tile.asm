@@ -288,6 +288,7 @@ GlcdTileFlushRowDrainLoop:
         CP      TECM8_GLCD_TILE_ROWS
         JP      NC,GlcdTileRangeError
         LD      (GlcdTileDirtyRowTemp),A
+        LD      (GlcdTileDirtyRowAbsTemp),A
         LD      A,(GlcdTileFlushRowCount)
         INC     A
         LD      (GlcdTileFlushRowCount),A
@@ -312,6 +313,8 @@ GlcdTileMarkMaskReady:
         POP     HL
         OR      (HL)
         LD      (HL),A
+        LD      A,(GlcdTileDirtyRowAbsTemp)
+        CALL    GlcdTileClearDirtyCellRow
         XOR     A
         RET
 
@@ -326,6 +329,8 @@ GlcdTileMarkMaskReady:
         RET     C
         LD      A,(GlcdTileCellRow)
         LD      (GlcdTileDirtyCellRowTemp),A
+        CALL    GlcdTileRowDirtyQueued
+        RET     NZ
         LD      A,(GlcdTileFlushCellCount)
         INC     A
         LD      (GlcdTileFlushCellCount),A
@@ -415,6 +420,8 @@ GlcdTileDirtyCellMaxDone:
         CP      TECM8_GLCD_TILE_ROWS
         JP      NC,GlcdTileRangeError
         LD      (GlcdTileDirtyCellRowTemp),A
+        CALL    GlcdTileRowDirtyQueued
+        RET     NZ
         LD      A,(GlcdTileFlushCellCount)
         INC     A
         LD      (GlcdTileFlushCellCount),A
@@ -423,6 +430,75 @@ GlcdTileDirtyCellMaxDone:
         LD      A,1
         LD      (GlcdTileDirtyCellMaxTemp),A
         JP      GlcdTileMarkCellRange
+
+; GlcdTileRowDirtyQueued -
+; Return NZ when a full dirty-row transfer already covers this text row.
+; Input: A = row (0-9)
+;!      in        A
+;!      out       zero
+;!      clobbers  A,DE,HL,carry,zero,sign,parity,halfCarry
+@GlcdTileRowDirtyQueued:
+        CP      8
+        JR      NC,GlcdTileRowDirtyQueuedHigh
+        LD      HL,GlcdTileDirtyRowsLo
+        JR      GlcdTileRowDirtyQueuedMaskReady
+
+GlcdTileRowDirtyQueuedHigh:
+        SUB     8
+        LD      HL,GlcdTileDirtyRowsHi
+
+GlcdTileRowDirtyQueuedMaskReady:
+        LD      D,0
+        LD      E,A
+        PUSH    HL
+        LD      HL,GlcdTileDirtySetMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        POP     HL
+        AND     (HL)
+        RET
+
+; GlcdTileClearDirtyCellRow -
+; Drop queued cell-range work that is superseded by a full dirty-row transfer.
+; Input: A = row (0-9)
+;!      in        A
+;!      out       carry
+;!      clobbers  A,DE,HL,zero,sign,parity,halfCarry
+@GlcdTileClearDirtyCellRow:
+        LD      (GlcdTileDirtyCellRowTemp),A
+        CP      8
+        JR      NC,GlcdTileClearDirtyCellHigh
+        LD      HL,GlcdTileDirtyCellRowsLo
+        JR      GlcdTileClearDirtyCellMaskReady
+
+GlcdTileClearDirtyCellHigh:
+        SUB     8
+        LD      HL,GlcdTileDirtyCellRowsHi
+
+GlcdTileClearDirtyCellMaskReady:
+        LD      D,0
+        LD      E,A
+        PUSH    HL
+        LD      HL,GlcdTileDirtyClearMaskTable
+        ADD     HL,DE
+        LD      A,(HL)
+        POP     HL
+        AND     (HL)
+        LD      (HL),A
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        LD      E,A
+        LD      D,0
+        LD      HL,GlcdTileDirtyCellMin
+        ADD     HL,DE
+        LD      (HL),0xFF
+        LD      A,(GlcdTileDirtyCellRowTemp)
+        LD      E,A
+        LD      D,0
+        LD      HL,GlcdTileDirtyCellMax
+        ADD     HL,DE
+        LD      (HL),0
+        XOR     A
+        RET
 
 ; GlcdTileStartQueuedRow -
 ; Start transfer state for GlcdTileFlushRowLast without changing queue counts.
@@ -903,6 +979,8 @@ GlcdTileDirtyCellRowsLo:
 GlcdTileDirtyCellRowsHi:
         .db     0
 GlcdTileDirtyRowTemp:
+        .db     0
+GlcdTileDirtyRowAbsTemp:
         .db     0
 GlcdTileDirtyCellRowTemp:
         .db     0

@@ -331,6 +331,76 @@ DirtyStepFinalReturn:
 
         XOR     A
         LD      (GlcdTileFlushRowByteCount),A
+        LD      (GlcdTileFlushCellByteCount),A
+        LD      (GlcdTileFlushCellCount),A
+        LD      (GlcdTileFlushRowCount),A
+        LD      (GlcdTileStepCount),A
+
+        LD      B,4
+        LD      C,2
+        CALL    GlcdTileMarkCellDirty
+        JP      C,ProofFailed
+        LD      A,4
+        CALL    GlcdTileMarkRowDirty
+        JP      C,ProofFailed
+        LD      B,4
+        LD      C,3
+        CALL    GlcdTileMarkCellDirty
+        JP      C,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyCellRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellCount)
+        CP      1
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowCount)
+        CP      1
+        JP      NZ,ProofFailed
+        LD      A,6
+        LD      (DirtyStepLoopCount),A
+
+CoalescedRowStepLoop:
+        CALL    GlcdTileStep
+        JP      C,ProofFailed
+        LD      B,A
+        LD      A,(DirtyStepLoopCount)
+        DEC     A
+        LD      (DirtyStepLoopCount),A
+        OR      A
+        JR      Z,CoalescedRowStepFinalReturn
+        LD      A,B
+        OR      A
+        JP      Z,ProofFailed
+        JR      CoalescedRowStepLoop
+
+CoalescedRowStepFinalReturn:
+        LD      A,B
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushRowByteCount)
+        CP      96
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushCellByteCount)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileStepCount)
+        CP      6
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyRowsLo)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileDirtyRowsHi)
+        OR      A
+        JP      NZ,ProofFailed
+        LD      A,(GlcdTileFlushPending)
+        OR      A
+        JP      NZ,ProofFailed
+
+        XOR     A
+        LD      (GlcdTileFlushRowByteCount),A
         LD      (GlcdTileStepCount),A
         LD      A,4
         CALL    GlcdTileMarkRowDirty

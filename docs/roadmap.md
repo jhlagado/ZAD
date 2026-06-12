@@ -336,6 +336,13 @@ Work:
   backing buffer for pixel correctness, but they transfer only the clipped
   changed cell range plus cursor overlay cells instead of queueing a full source
   row flush.
+- Done: added first-pass display-work coalescing. A full dirty row now
+  supersedes queued cell-range work for that row, and later cell/gutter marks
+  for an already dirty full row are ignored so stale narrow updates do not drain
+  before the latest row state.
+- Done: added bounded-step measurements for common dirty-render operations:
+  movement, insert, delete, non-joining backspace, and cursor blink now record
+  and assert `GlcdTileStepCount` as well as byte counts.
 - Add a small display work queue or dirty mask:
   - full viewport dirty for page loads, restore, and explicit redraw
   - dirty row for vertical cursor movement, line edits, status prompt restore
@@ -361,6 +368,9 @@ Work:
   more important dirty display work is being drained, and should not reduce
   keyboard polling frequency beyond one bounded idle slice.
 - Measure instruction counts for common operations.
+- Finish this efficiency work before starting block operations. Block copy,
+  delete, move, and read/write are useful, but they will add more redraw and
+  storage pressure; the display scheduler should be settled first.
 
 Incremental implementation order:
 
@@ -377,6 +387,8 @@ Incremental implementation order:
 8. Done: add cursor blink once cursor updates are cheap.
 9. Done: replace simple printable insert/delete row flushes with clipped dirty
    cell-range transfers.
+10. Done: coalesce dirty row work against stale dirty cell ranges.
+11. Done: measure bounded GLCD steps for common dirty render paths.
 
 Proofs:
 
@@ -574,6 +586,48 @@ Status: automated Debug80 milestone complete at commit `5bcfe80`. The manual
 Debug80 script remains the human acceptance check, and Phase 14 is intentionally
 skipped until a human can test real hardware.
 
+## Future Phase: Block Operations
+
+Goal: add 1980s-style block editing without assuming a modern in-memory
+clipboard.
+
+Design direction:
+
+- Treat this as block operations, not a GUI clipboard.
+- Prefer line/record-based blocks for the first version. Character-precise
+  selections across fixed 31-byte records can come later if the line-based model
+  is not enough.
+- Mark block start, move the cursor, then mark block end.
+- Show marked rows with the gutter marker rather than inverse text.
+- Support write-block and read-block as the core primitive, following the Turbo
+  Pascal-era model.
+- Use a project-local hidden default block file, likely `/.tecm8.blk`, when the
+  user does not name a file explicitly. This gives clipboard-like convenience
+  while keeping the storage-backed, file-oriented model.
+- Later support named block files for explicit write/read workflows.
+- Implement block delete and block move as separate commands after block
+  selection and storage-backed write/read are proven.
+- Cross-document paste should be file-backed: write the marked block to the
+  hidden block file, open another file, then read the block at the cursor.
+
+Risks:
+
+- Whole-document copy must not require holding the whole document in RAM.
+- Block operations must preserve source-record metadata bits and clean padding.
+- Delete/move operations need the same backup/save discipline as ordinary edits.
+- Large block reads and writes will stress the slow SD path, so they should use
+  clear status feedback and avoid unnecessary display redraws.
+
+Done when:
+
+- A user can mark a line block, write it to the default hidden block file, and
+  read it back at the cursor.
+- A user can delete a marked line block safely.
+- A user can move a marked line block within a file by block write/delete/read
+  or an equivalent direct command.
+- A user can transfer a block between two source files in the same project.
+- Host export still validates the edited source records.
+
 ## Likely Next Practical Milestone After Phase 1
 
 The next sizeable milestone after the reliability phase should be **Multi-Page
@@ -594,5 +648,6 @@ editor to a file editor.
 - Decide whether to use source-record length bits 5-7 for line metadata.
 - Decide whether the current low-cost blinking insertion caret remains the
   preferred cursor shape, or whether to return to a block cursor.
+- Revisit block operations after Phase 7 display efficiency is settled.
 - Revisit MON3-to-BIOS reductions once editor storage/display requirements are
   better measured.

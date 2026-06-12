@@ -279,12 +279,18 @@ test('editor dirty render proof covers ordinary movement and printable edit path
   assert.match(proof, /MoveMarkerCount:/);
   assert.match(proof, /MoveFullFlushCount:/);
   assert.match(proof, /MoveRowFlushCount:/);
+  assert.match(proof, /MoveStepCount:/);
   assert.match(proof, /InsertScreenCount:/);
   assert.match(proof, /InsertPageCount:/);
   assert.match(proof, /InsertRowCount:/);
   assert.match(proof, /InsertMarkerCount:/);
   assert.match(proof, /InsertFullFlushCount:/);
   assert.match(proof, /InsertRowFlushCount:/);
+  assert.match(proof, /InsertStepCount:/);
+  assert.match(proof, /DeleteStepCount:/);
+  assert.match(proof, /BackspaceStepCount:/);
+  assert.match(proof, /BlinkHideStepCount:/);
+  assert.match(proof, /BlinkShowStepCount:/);
   assert.match(proof, /DisplayRenderScreenCount/);
   assert.match(proof, /EditorRenderPageBufferCount/);
   assert.match(proof, /EditorViewportRenderRecordRowCount/);
@@ -297,6 +303,8 @@ test('editor dirty render proof covers ordinary movement and printable edit path
   assert.match(runner, /MoveMarkerCount/);
   assert.match(runner, /MoveFullFlushCount/);
   assert.match(runner, /MoveRowFlushCount/);
+  assert.match(runner, /MoveStepCount/);
+  assert.match(runner, /BlinkShowStepCount/);
   assert.match(runner, /row 0 marker/);
   assert.match(runner, /row 1 marker/);
   assert.match(runner, /InsertRowCount/);

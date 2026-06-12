@@ -45,6 +45,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (InsertCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (InsertCellFlushByteCount),A
+        LD      A,(GlcdTileStepCount)
+        LD      (InsertStepCount),A
 
         CALL    ResetRenderCounters
         LD      A,6
@@ -70,6 +72,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (DeleteCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (DeleteCellFlushByteCount),A
+        LD      A,(GlcdTileStepCount)
+        LD      (DeleteStepCount),A
 
         CALL    ResetRenderCounters
         LD      A,7
@@ -95,6 +99,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (BackspaceCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (BackspaceCellFlushByteCount),A
+        LD      A,(GlcdTileStepCount)
+        LD      (BackspaceStepCount),A
 
         CALL    ResetRenderCounters
         LD      A,2
@@ -120,6 +126,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (MoveCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (MoveCellFlushByteCount),A
+        LD      A,(GlcdTileStepCount)
+        LD      (MoveStepCount),A
 
         CALL    ResetRenderCounters
         LD      A,4
@@ -142,6 +150,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (BlinkHideCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (BlinkHideCellFlushByteCount),A
+        LD      A,(GlcdTileStepCount)
+        LD      (BlinkHideStepCount),A
         LD      A,(EditorCursorRendered)
         LD      (BlinkHideRendered),A
         LD      A,(EditorCursorBlinkToggleCount)
@@ -168,6 +178,8 @@ PROOF_FAIL       .equ     0xE0
         LD      (BlinkShowCellFlushCount),A
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (BlinkShowCellFlushByteCount),A
+        LD      A,(GlcdTileStepCount)
+        LD      (BlinkShowStepCount),A
         LD      A,(EditorCursorRendered)
         LD      (BlinkShowRendered),A
         LD      A,(EditorCursorBlinkToggleCount)
@@ -200,6 +212,7 @@ ProofFailedDone:
         LD      (GlcdTileFlushRowCount),A
         LD      (GlcdTileFlushCellCount),A
         LD      (GlcdTileFlushCellByteCount),A
+        LD      (GlcdTileStepCount),A
         RET
 
 ; Stub LoadProjectConfig for shell-to-editor proof.
@@ -282,6 +295,8 @@ MoveCellFlushCount:
         .db     0
 MoveCellFlushByteCount:
         .db     0
+MoveStepCount:
+        .db     0
 InsertScreenCount:
         .db     0
 InsertPageCount:
@@ -297,6 +312,8 @@ InsertRowFlushCount:
 InsertCellFlushCount:
         .db     0
 InsertCellFlushByteCount:
+        .db     0
+InsertStepCount:
         .db     0
 DeleteScreenCount:
         .db     0
@@ -314,6 +331,8 @@ DeleteCellFlushCount:
         .db     0
 DeleteCellFlushByteCount:
         .db     0
+DeleteStepCount:
+        .db     0
 BackspaceScreenCount:
         .db     0
 BackspacePageCount:
@@ -330,6 +349,8 @@ BackspaceCellFlushCount:
         .db     0
 BackspaceCellFlushByteCount:
         .db     0
+BackspaceStepCount:
+        .db     0
 BlinkHideScreenCount:
         .db     0
 BlinkHidePageCount:
@@ -339,6 +360,8 @@ BlinkHideRowFlushCount:
 BlinkHideCellFlushCount:
         .db     0
 BlinkHideCellFlushByteCount:
+        .db     0
+BlinkHideStepCount:
         .db     0
 BlinkHideRendered:
         .db     0
@@ -353,6 +376,8 @@ BlinkShowRowFlushCount:
 BlinkShowCellFlushCount:
         .db     0
 BlinkShowCellFlushByteCount:
+        .db     0
+BlinkShowStepCount:
         .db     0
 BlinkShowRendered:
         .db     0
