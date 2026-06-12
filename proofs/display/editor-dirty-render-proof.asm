@@ -71,6 +71,54 @@ PROOF_FAIL       .equ     0xE0
         LD      A,(GlcdTileFlushCellByteCount)
         LD      (MoveCellFlushByteCount),A
 
+        CALL    ResetRenderCounters
+        LD      A,4
+        LD      (CaseMarker),A
+        LD      A,1
+        LD      (EditorCursorBlinkCounter),A
+        CALL    EditorCursorBlinkStep
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        LD      A,(DisplayRenderScreenCount)
+        LD      (BlinkHideScreenCount),A
+        LD      A,(EditorRenderPageBufferCount)
+        LD      (BlinkHidePageCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (BlinkHideRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (BlinkHideCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (BlinkHideCellFlushByteCount),A
+        LD      A,(EditorCursorRendered)
+        LD      (BlinkHideRendered),A
+        LD      A,(EditorCursorBlinkToggleCount)
+        LD      (BlinkHideToggleCount),A
+
+        CALL    ResetRenderCounters
+        LD      A,5
+        LD      (CaseMarker),A
+        LD      A,1
+        LD      (EditorCursorBlinkCounter),A
+        CALL    EditorCursorBlinkStep
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        LD      A,(DisplayRenderScreenCount)
+        LD      (BlinkShowScreenCount),A
+        LD      A,(EditorRenderPageBufferCount)
+        LD      (BlinkShowPageCount),A
+        LD      A,(GlcdTileFlushRowCount)
+        LD      (BlinkShowRowFlushCount),A
+        LD      A,(GlcdTileFlushCellCount)
+        LD      (BlinkShowCellFlushCount),A
+        LD      A,(GlcdTileFlushCellByteCount)
+        LD      (BlinkShowCellFlushByteCount),A
+        LD      A,(EditorCursorRendered)
+        LD      (BlinkShowRendered),A
+        LD      A,(EditorCursorBlinkToggleCount)
+        LD      (BlinkShowToggleCount),A
+
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
 
@@ -189,4 +237,32 @@ InsertRowFlushCount:
 InsertCellFlushCount:
         .db     0
 InsertCellFlushByteCount:
+        .db     0
+BlinkHideScreenCount:
+        .db     0
+BlinkHidePageCount:
+        .db     0
+BlinkHideRowFlushCount:
+        .db     0
+BlinkHideCellFlushCount:
+        .db     0
+BlinkHideCellFlushByteCount:
+        .db     0
+BlinkHideRendered:
+        .db     0
+BlinkHideToggleCount:
+        .db     0
+BlinkShowScreenCount:
+        .db     0
+BlinkShowPageCount:
+        .db     0
+BlinkShowRowFlushCount:
+        .db     0
+BlinkShowCellFlushCount:
+        .db     0
+BlinkShowCellFlushByteCount:
+        .db     0
+BlinkShowRendered:
+        .db     0
+BlinkShowToggleCount:
         .db     0

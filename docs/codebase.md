@@ -516,9 +516,19 @@ buffer changed, `0` means the operation was a no-op, and carry still reports
 errors. The key loop uses that result so no-op delete, split, insert, and join
 paths do not dirty a clean buffer.
 
-Horizontal cursor movement only redraws the cursor overlay. Vertical cursor
-movement also redraws the old and new source rows so the current-row gutter
-marker follows the cursor without a full viewport repaint.
+Horizontal cursor movement only redraws the cursor overlay cell range.
+Non-scrolling vertical cursor movement redraws the old and new current-row
+gutter markers and then transfers only the left gutter byte pair for each
+affected row.
+
+The cursor is an inverse 6x6 cell overlay with a cooperative blink state.
+`EditorCursorBlinkReset` arms the idle countdown after key handling renders the
+cursor. The live idle path first runs one `GlcdTileStep`; only when that reports
+no remaining queued display work does it call `EditorCursorBlinkStep`. When the
+countdown expires, blink hides or restores the cursor through the same dirty
+cell byte-range path used by ordinary cursor movement. The proof-visible
+`EditorCursorBlinkToggleCount` lets emulator proofs assert that blink toggles
+do not use row or full-screen flushes.
 
 `EditorRunLive` renders the cursor, polls one TECM8 key event at a time from
 `BiosInputPollKey`, and dispatches that key through `EditorRunModifiedKey` so

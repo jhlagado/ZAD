@@ -19,6 +19,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorCursorResetState:/m);
   assert.match(source, /^@EditorRenderCursor:/m);
   assert.match(source, /^@EditorHideCursor:/m);
+  assert.match(source, /^@EditorCursorBlinkReset:/m);
+  assert.match(source, /^@EditorCursorBlinkStep:/m);
   assert.match(source, /^@EditorEnsureCursorVisible:/m);
   assert.match(source, /^@EditorEnsureCursorVisibleColumn:/m);
   assert.match(source, /^@EditorKeyRenderViewport:/m);
@@ -80,7 +82,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+BiosInputPollKey/);
   assert.match(source, /XOR\s+A\n\s+LD\s+\(EditorKeyStreamModifier\),A\n\s+LD\s+\(EditorInsertMode\),A/);
   assert.match(source, /CALL\s+BiosInputPollKey\n\s+JR\s+NC,EditorLiveIdle\n\s+CALL\s+EditorRunModifiedKey/);
-  assert.match(source, /EditorLiveIdle:\n\s+CALL\s+GlcdTileStep/);
+  assert.match(source, /EditorLiveIdle:\n\s+CALL\s+GlcdTileStep\n\s+RET\s+C\n\s+OR\s+A\n\s+JR\s+NZ,EditorLiveIdleDelay\n\s+CALL\s+EditorCursorBlinkStep/);
   assert.match(source, /@EditorRunModifiedKey:\n\s+LD\s+\(EditorLiveKeyBuffer\),A\n\s+LD\s+A,B\n\s+LD\s+\(EditorKeyStreamModifier\),A/);
   assert.doesNotMatch(source, /CALL\s+EditorRunKeys\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
   assert.doesNotMatch(source, /CALL\s+EditorRenderCursor\n\s+RET\s+C\n\s+CALL\s+GlcdTileFlushFull/);
@@ -98,6 +100,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /EditorActionPageDownLower/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell/);
   assert.match(source, /CALL\s+DisplayEraseCursorCell/);
+  assert.match(source, /@EditorCursorBlinkStep:[\s\S]*?CALL\s+EditorHideCursor[\s\S]*?CALL\s+EditorRenderCursor/);
+  assert.match(source, /EditorCursorBlinkCounter:\n\s+\.db\s+0/);
+  assert.match(source, /EditorCursorBlinkToggleCount:\n\s+\.db\s+0/);
   assert.match(source, /CALL\s+DisplayRenderCursorCell[\s\S]*?LD\s+A,\(EditorCursorVisibleCol\)\n\s+LD\s+\(EditorCursorRenderedCol\),A/);
   assert.match(source, /@EditorInvalidateCursorOverlay:\n\s+XOR\s+A\n\s+LD\s+\(EditorCursorRendered\),A\n\s+RET/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);

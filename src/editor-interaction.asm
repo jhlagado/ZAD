@@ -44,6 +44,7 @@ TECM8_EDITOR_PROMPT_ACTION_NONE         .equ    0
 TECM8_EDITOR_PROMPT_ACTION_RESTORE      .equ    1
 TECM8_EDITOR_PROMPT_ACTION_QUIT         .equ    2
 TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
+TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x20
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
@@ -57,6 +58,7 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
         LD      (EditorNavCurrentRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
+        LD      (EditorCursorBlinkCounter),A
         CALL    EditorNavResetViewport
         RET     C
         XOR     A
@@ -77,6 +79,7 @@ TECM8_EDITOR_LIVE_IDLE_SPINS            .equ    0x10
         LD      (EditorNavCurrentRow),A
         LD      (EditorCursorCol),A
         LD      (EditorCursorRendered),A
+        LD      (EditorCursorBlinkCounter),A
         RET
 
 ; EditorRenderCursor -
@@ -133,6 +136,55 @@ EditorCursorRenderDone:
         LD      (EditorCursorRendered),A
 
 EditorHideCursorDone:
+        XOR     A
+        RET
+
+; EditorCursorBlinkReset -
+; Restart the idle blink countdown after a key event or explicit cursor render.
+;!      out       A,zero,sign,parity,halfCarry
+;!      clobbers  A
+@EditorCursorBlinkReset:
+        LD      A,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
+        LD      (EditorCursorBlinkCounter),A
+        XOR     A
+        RET
+
+; EditorCursorBlinkStep -
+; Advance the cooperative cursor blink state once from the live idle path.
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorCursorBlinkStep:
+        LD      A,(EditorPromptActive)
+        OR      A
+        JR      NZ,EditorCursorBlinkNoop
+        LD      A,(EditorCursorBlinkCounter)
+        OR      A
+        JR      Z,EditorCursorBlinkDue
+        DEC     A
+        LD      (EditorCursorBlinkCounter),A
+        JR      Z,EditorCursorBlinkDue
+        XOR     A
+        RET
+
+EditorCursorBlinkDue:
+        LD      A,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
+        LD      (EditorCursorBlinkCounter),A
+        LD      A,(EditorCursorBlinkToggleCount)
+        INC     A
+        LD      (EditorCursorBlinkToggleCount),A
+        LD      A,(EditorCursorRendered)
+        OR      A
+        JR      NZ,EditorCursorBlinkHide
+        CALL    EditorRenderCursor
+        RET     C
+        XOR     A
+        RET
+
+EditorCursorBlinkHide:
+        CALL    EditorHideCursor
+        RET     C
+
+EditorCursorBlinkNoop:
         XOR     A
         RET
 
@@ -511,6 +563,8 @@ EditorKeyDone:
         JR      NZ,EditorKeyDoneNoCursor
         CALL    EditorRenderCursor
         RET     C
+        CALL    EditorCursorBlinkReset
+        RET     C
         XOR     A
         LD      (EditorKeyStreamModifier),A
         RET
@@ -532,6 +586,8 @@ EditorKeyDoneNoCursor:
         LD      (EditorInsertMode),A
         CALL    EditorRenderCursor
         RET     C
+        CALL    EditorCursorBlinkReset
+        RET     C
 
 EditorLiveLoop:
         LD      A,(EditorQuitRequested)
@@ -546,6 +602,11 @@ EditorLiveLoop:
 EditorLiveIdle:
         CALL    GlcdTileStep
         RET     C
+        OR      A
+        JR      NZ,EditorLiveIdleDelay
+        CALL    EditorCursorBlinkStep
+        RET     C
+EditorLiveIdleDelay:
         LD      B,TECM8_EDITOR_LIVE_IDLE_SPINS
 
 EditorLiveIdleLoop:
@@ -1901,6 +1962,12 @@ EditorCursorRenderedRow:
         .db     0
 
 EditorCursorRenderedCol:
+        .db     0
+
+EditorCursorBlinkCounter:
+        .db     0
+
+EditorCursorBlinkToggleCount:
         .db     0
 
 EditorCursorPreviousRow:

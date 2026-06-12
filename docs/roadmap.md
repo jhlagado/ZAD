@@ -325,6 +325,11 @@ Work:
   marker changes now call `GlcdTileMarkGutterDirty`, which transfers only the
   word-aligned gutter byte pair for each affected row. The dirty-render proof
   now requires ordinary cursor movement to use zero full row flushes.
+- Done: added cooperative cursor blink. The live idle path runs one
+  `GlcdTileStep` first and advances `EditorCursorBlinkStep` only when no
+  queued display work remains; when the blink countdown is due it hides or
+  restores the inverse cursor cell through the existing dirty cell byte-range
+  path, without viewport, row, or gutter redraws.
 - Extend dirty cell-range scheduling beyond cursor overlays where it is useful.
   Current-line text mutations still redraw the affected text row, which is
   simple and safe. Later work can mark exact changed cell ranges for single
@@ -348,8 +353,11 @@ Work:
 - Coalesce display work when keys arrive faster than the GLCD can update. The
   latest editor state should win; stale intermediate cursor paints should not
   build up as a backlog.
-- Optimize cursor redraw before implementing cursor blink. A blinking cursor
+- Preserve the optimized cursor redraw rule: cursor movement and blinking
   should update only the affected cursor cell/bytes, never the whole GLCD.
+- Keep blink work cooperative: blink toggles should be skipped or delayed while
+  more important dirty display work is being drained, and should not reduce
+  keyboard polling frequency beyond one bounded idle slice.
 - Measure instruction counts for common operations.
 
 Incremental implementation order:
@@ -364,13 +372,14 @@ Incremental implementation order:
 6. Done: add dirty cell ranges for horizontal movement and edit cursor overlays.
 7. Done: replace non-scrolling vertical current-row marker flushes with gutter
    byte-range transfers.
-8. Add cursor blink once cursor updates are cheap.
+8. Done: add cursor blink once cursor updates are cheap.
 
 Proofs:
 
 - Dirty row render.
 - Dirty cell render.
 - Cursor move without full render.
+- Cursor blink without row/full render.
 - Insert/delete without full render.
 - Cooperative display-step proof: a pending display update can be advanced in
   bounded slices without losing a queued/polled key event.
