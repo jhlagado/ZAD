@@ -259,33 +259,6 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    AssertPasteNoopPendingCopyRowsZeroToOne
         JP      C,ProofFailed
 
-        LD      A,16
-        LD      (CaseMarker),A
-        CALL    EditorOpenMain
-        JP      C,ProofFailed
-        CALL    EditorCursorReset
-        JP      C,ProofFailed
-        CALL    ClearPasteTailRows
-        JP      C,ProofFailed
-        CALL    SelectRowsZeroToOne
-        JP      C,ProofFailed
-        LD      A,"c"
-        LD      B,PROOF_MOD_CTRL
-        CALL    EditorRunModifiedKey
-        JP      C,ProofFailed
-        LD      A,2
-        LD      (PlainDownCount),A
-        CALL    RunPlainDownCount
-        JP      C,ProofFailed
-        CALL    SelectRowsZeroToOne
-        JP      C,ProofFailed
-        LD      A,"v"
-        LD      B,PROOF_MOD_ALT
-        CALL    EditorRunModifiedKey
-        JP      C,ProofFailed
-        CALL    AssertPasteNoopDestinationSelection
-        JP      C,ProofFailed
-
         LD      A,17
         LD      (CaseMarker),A
         CALL    EditorOpenMain
@@ -307,6 +280,60 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         CALL    AssertPasteNoopPendingCopyRowsZeroToOne
+        JP      C,ProofFailed
+
+        LD      A,18
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,2
+        LD      (PlainDownCount),A
+        CALL    RunPlainDownCount
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertCopyPasteReplaceRows
+        JP      C,ProofFailed
+
+        LD      A,19
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"x"
+        LD      B,PROOF_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,2
+        LD      (PlainDownCount),A
+        CALL    RunPlainDownCount
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToOne
+        JP      C,ProofFailed
+        LD      A,"v"
+        LD      B,PROOF_MOD_ALT
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertMovePasteReplaceRows
         JP      C,ProofFailed
 
         LD      A,PROOF_PASS
@@ -725,32 +752,6 @@ ProofFailedDone:
 
 ;!      out       A,carry,zero
 ;!      clobbers  A,BC,DE,HL
-@AssertPasteNoopDestinationSelection:
-        LD      A,(EditorPendingBlockMode)
-        CP      1
-        JP      NZ,AssertFail
-        LD      A,(EditorBlockSelectionActive)
-        CP      1
-        JP      NZ,AssertFail
-        LD      A,(EditorBlockSelectionAnchorLo)
-        CP      3
-        JP      NZ,AssertFail
-        LD      A,(EditorBlockSelectionActiveLo)
-        CP      4
-        JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line03
-        LD      DE,EditorNavPageBuffer + (3 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line04
-        LD      DE,EditorNavPageBuffer + (4 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        XOR     A
-        RET
-
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
 @AssertMovePasteInsertRows:
         LD      A,(EditorPendingBlockMode)
         OR      A
@@ -785,6 +786,88 @@ ProofFailedDone:
         JP      C,AssertFail
         LD      HL,ExpectedP0Line04
         LD      DE,EditorNavPageBuffer + (4 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertCopyPasteReplaceRows:
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorLo)
+        CP      3
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      4
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRow)
+        CP      4
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line00
+        LD      DE,EditorNavPageBuffer
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line01
+        LD      DE,EditorNavPageBuffer + 32
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line02
+        LD      DE,EditorNavPageBuffer + (2 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line00
+        LD      DE,EditorNavPageBuffer + (3 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line01
+        LD      DE,EditorNavPageBuffer + (4 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line05
+        LD      DE,EditorNavPageBuffer + (5 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertMovePasteReplaceRows:
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorLo)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      2
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRow)
+        CP      2
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line02
+        LD      DE,EditorNavPageBuffer
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line00
+        LD      DE,EditorNavPageBuffer + 32
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line01
+        LD      DE,EditorNavPageBuffer + (2 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line05
+        LD      DE,EditorNavPageBuffer + (3 * 32)
         CALL    AssertRecordEquals
         JP      C,AssertFail
         XOR     A
@@ -889,3 +972,6 @@ ExpectedP0Line03:
 
 ExpectedP0Line04:
         .db     10,"P0 LINE 04"
+
+ExpectedP0Line05:
+        .db     10,"P0 LINE 05"

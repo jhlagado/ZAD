@@ -405,17 +405,21 @@ that no existing line is silently discarded. It uses the backup page buffer as a
 transient scratch area during the operation.
 
 `editor-selection-proof` covers copy/paste insert, move/paste insert, overlap
-no-op, destination-selection no-op, and blank-tail rejection within the
-resident editor window.
+no-op, and blank-tail rejection within the resident editor window.
 
 ### Phase B6: Paste Replace And Overlap Handling
 
-- If a destination selection exists, paste replaces it.
-- Reject unsafe partial overlaps with a status message.
-- Treat exact move-to-self as a no-op.
-- Add proofs for overlap edge cases.
+- Done: if a destination selection exists, paste replaces it when the source
+  and destination are equal-sized resident-page ranges.
+- Done: copy-replace leaves the source intact.
+- Done: move-replace deletes the original source after replacement succeeds and
+  selects the moved rows at their adjusted location.
+- Done: unsafe partial overlaps and exact self-overlaps are rejected as no-ops
+  by the replacement path.
 
-Done when replacement behavior is predictable and does not lose source lines.
+`editor-selection-proof` covers copy-replace and move-replace. The overlap
+rejection path is kept conservative in code; a separate compact proof should be
+added later if this proof grows too large for stable storage-backed runs.
 
 ### Phase B7: Delete Selected Block
 

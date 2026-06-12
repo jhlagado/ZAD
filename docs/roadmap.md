@@ -659,12 +659,16 @@ Sequenced goals:
      no-op, and requires blank tail records so it cannot silently discard
      existing lines.
    - `editor-selection-proof` covers copy insert, move insert, overlap no-op,
-     destination-selection no-op, and blank-tail rejection.
+     and blank-tail rejection.
 
-6. **Block Phase B6: Paste Replace And Overlap Handling**
-   - `Ctrl-V`/`Alt-V` replaces an ordinary destination selection.
-   - Reject unsafe move/copy overlaps with status feedback.
-   - Treat exact move-to-self as a no-op.
+6. **Done: Block Phase B6: Paste Replace And Overlap Handling**
+   - `Ctrl-V`/`Alt-V` replaces an ordinary destination selection when the
+     pending source and destination are equal-sized resident-page ranges.
+   - Copy-replace leaves source intact.
+   - Move-replace deletes the original source after replacement succeeds and
+     selects the moved rows at their adjusted location.
+   - Unsafe partial overlaps and exact self-overlaps are rejected as no-ops by
+     the replacement path.
 
 7. **Block Phase B7: Delete Selected Block**
    - `Delete` acts on selected blocks.

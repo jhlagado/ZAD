@@ -1047,7 +1047,7 @@ EditorPendingBlockArmNoSelection:
         LD      (EditorPendingBlockPasteMode),A
         LD      A,(EditorBlockSelectionActive)
         OR      A
-        JP      NZ,EditorPendingBlockPasteNoop
+        JP      NZ,EditorPendingBlockPasteReplace
         CALL    EditorPendingBlockRowsForCurrentPage
         JP      C,EditorPendingBlockPasteNoop
         CALL    EditorPendingBlockRejectInsertOverlap
@@ -1075,6 +1075,40 @@ EditorPendingBlockPasteSelectInserted:
 
 EditorPendingBlockPasteNoop:
         XOR     A
+        RET
+
+; EditorPendingBlockPasteReplace -
+; Replace an ordinary destination selection with a pending copy or move source.
+; This first B6 slice is intentionally narrow: current page only, equal-sized
+; ranges only, and no overlap.
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockPasteReplace:
+        CALL    EditorPendingBlockRowsForCurrentPage
+        JP      C,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockDestinationRowsForCurrentPage
+        JP      C,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockRejectReplaceOverlap
+        JP      C,EditorPendingBlockPasteNoop
+        CALL    EditorPendingBlockReplaceSameSize
+        JP      NZ,EditorPendingBlockPasteNoop
+        LD      A,(EditorPendingBlockDestStartRow)
+        LD      (EditorPendingBlockDestRow),A
+        CALL    EditorPendingBlockCopySourceToScratch
+        RET     C
+        CALL    EditorPendingBlockCopyScratchToDest
+        RET     C
+        LD      A,(EditorPendingBlockPasteMode)
+        CP      TECM8_EDITOR_PENDING_BLOCK_MOVE
+        JR      NZ,EditorPendingBlockPasteReplaceSelect
+        CALL    EditorPendingBlockDeleteOriginalSource
+        RET     C
+
+EditorPendingBlockPasteReplaceSelect:
+        CALL    EditorPendingBlockSelectInsertedRows
+        CALL    EditorPendingBlockClearState
+        CALL    EditorMarkDirty
+        LD      A,1
         RET
 
 ;!      out       A,carry
@@ -1124,6 +1158,46 @@ EditorPendingBlockRowsErr:
         RET
 
 ;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@EditorPendingBlockDestinationRowsForCurrentPage:
+        CALL    EditorBlockSelectionNormalize
+        LD      A,(EditorBlockSelectionStartHi)
+        LD      B,A
+        LD      A,(EditorPendingBlockPageBaseHi)
+        CP      B
+        JR      NZ,EditorPendingBlockDestinationRowsErr
+        LD      A,(EditorBlockSelectionEndHi)
+        LD      B,A
+        LD      A,(EditorPendingBlockPageBaseHi)
+        CP      B
+        JR      NZ,EditorPendingBlockDestinationRowsErr
+        LD      A,(EditorBlockSelectionStartLo)
+        LD      B,A
+        LD      A,(EditorPendingBlockPageBaseLo)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        CP      16
+        JR      NC,EditorPendingBlockDestinationRowsErr
+        LD      (EditorPendingBlockDestStartRow),A
+        LD      B,A
+        LD      A,(EditorBlockSelectionEndLo)
+        SUB     C
+        CP      16
+        JR      NC,EditorPendingBlockDestinationRowsErr
+        LD      (EditorPendingBlockDestEndRow),A
+        SUB     B
+        JR      C,EditorPendingBlockDestinationRowsErr
+        INC     A
+        LD      (EditorPendingBlockDestRowCount),A
+        XOR     A
+        RET
+
+EditorPendingBlockDestinationRowsErr:
+        SCF
+        RET
+
+;!      out       A,carry
 ;!      clobbers  A,B,zero,sign,parity,halfCarry
 @EditorPendingBlockRejectInsertOverlap:
         LD      A,(EditorCursorRow)
@@ -1144,6 +1218,39 @@ EditorPendingBlockRejectNoOverlap:
 
 EditorPendingBlockRejectOverlap:
         SCF
+        RET
+
+;!      out       A,carry
+;!      clobbers  A,B,zero,sign,parity,halfCarry
+@EditorPendingBlockRejectReplaceOverlap:
+        LD      A,(EditorPendingBlockDestEndRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockSourceStartRow)
+        CP      B
+        JR      Z,EditorPendingBlockReplaceOverlap
+        JR      NC,EditorPendingBlockReplaceNoOverlap
+        LD      A,(EditorPendingBlockSourceEndRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockDestStartRow)
+        CP      B
+        JR      Z,EditorPendingBlockReplaceOverlap
+        JR      C,EditorPendingBlockReplaceOverlap
+
+EditorPendingBlockReplaceNoOverlap:
+        XOR     A
+        RET
+
+EditorPendingBlockReplaceOverlap:
+        SCF
+        RET
+
+;!      out       A,zero
+;!      clobbers  A,B,zero,sign,parity,halfCarry
+@EditorPendingBlockReplaceSameSize:
+        LD      A,(EditorPendingBlockDestRowCount)
+        LD      B,A
+        LD      A,(EditorPendingBlockRowCount)
+        CP      B
         RET
 
 ;!      out       A,zero,carry
@@ -1347,6 +1454,12 @@ EditorPendingBlockDeleteClearLoop:
 EditorPendingBlockDeleteDone:
         XOR     A
         RET
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL
+@EditorPendingBlockDeleteOriginalSource:
+        LD      A,(EditorPendingBlockSourceStartRow)
+        JP      EditorPendingBlockDeleteStartReady
 
 ;!      out       A,carry
 ;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
@@ -2843,6 +2956,15 @@ EditorPendingBlockShiftRow:
         .db     0
 
 EditorPendingBlockDeleteStartRow:
+        .db     0
+
+EditorPendingBlockDestStartRow:
+        .db     0
+
+EditorPendingBlockDestEndRow:
+        .db     0
+
+EditorPendingBlockDestRowCount:
         .db     0
 
 EditorRestorePromptText:

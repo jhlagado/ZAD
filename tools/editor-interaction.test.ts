@@ -166,10 +166,16 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorPendingBlockCopySourceToScratch:/m);
   assert.match(source, /^@EditorPendingBlockShiftRowsDown:/m);
   assert.match(source, /^@EditorPendingBlockDeleteMovedSource:/m);
+  assert.match(source, /^@EditorPendingBlockPasteReplace:/m);
+  assert.match(source, /^@EditorPendingBlockDestinationRowsForCurrentPage:/m);
+  assert.match(source, /^@EditorPendingBlockRejectReplaceOverlap:/m);
+  assert.match(source, /^@EditorPendingBlockDeleteOriginalSource:/m);
   assert.match(source, /^@EditorPendingBlockSelectInsertedRows:/m);
   assert.match(source, /EditorPendingBlockPasteMode:\n\s+\.db\s+0/);
   assert.match(source, /EditorPendingBlockRowCount:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPendingBlockDestRowCount:\n\s+\.db\s+0/);
   assert.match(source, /EditorPendingBlockPasteInsert:[\s\S]*?CALL\s+EditorPendingBlockRejectInsertOverlap[\s\S]*?CALL\s+EditorPendingBlockTailAvailable/);
+  assert.match(source, /EditorPendingBlockPasteReplace:[\s\S]*?CALL\s+EditorPendingBlockRejectReplaceOverlap[\s\S]*?CALL\s+EditorPendingBlockReplaceSameSize/);
   assert.doesNotMatch(source, /EditorKeyCopyBlock:[\s\S]*?CALL\s+EditorInvalidateCursorOverlay[\s\S]*?EditorKeyMoveBlock:/);
   assert.doesNotMatch(source, /EditorKeyMoveBlock:[\s\S]*?CALL\s+EditorInvalidateCursorOverlay[\s\S]*?EditorKeyUnknownModifiedPrintable:/);
   assert.doesNotMatch(source, /TECM8_EDITOR_KEY_COPY\s+\.equ\s+3/);
@@ -284,7 +290,8 @@ test('editor line selection proof is wired into package checks', () => {
   assert.match(proof, /AssertCopyPasteInsertRows:/);
   assert.match(proof, /AssertMovePasteInsertRows:/);
   assert.match(proof, /AssertPasteNoopPendingCopyRowsZeroToOne:/);
-  assert.match(proof, /AssertPasteNoopDestinationSelection:/);
+  assert.match(proof, /AssertCopyPasteReplaceRows:/);
+  assert.match(proof, /AssertMovePasteReplaceRows:/);
   assert.match(proof, /ExpectedP0Line00:/);
   assert.match(proof, /ExpectedP0Line04:/);
   assert.match(proof, /TECM8_DISPLAY_MARKER_COPY_SOURCE/);
