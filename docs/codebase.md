@@ -55,9 +55,11 @@ For the fastest orientation, read these files first:
 11. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
     editor path.
-12. `proofs/display/glcd-tile-proof.asm` and
+12. `proofs/display/glcd-tile-proof.asm`,
+    `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
-    cell renderer and the current line editing behavior.
+    cell renderer, the current block-editing state, and the fixed-record line
+    editing behavior.
 
 ## Z80 Source Tree
 
@@ -229,12 +231,12 @@ text row. This module depends on the MON3 terminal graphics buffer at `0x13C0`,
 shares the tile layer's 6x6 cell geometry, and pushes full-screen updates
 through `BiosDisplayUpdate`.
 
-The live editor no longer uses the old proof-only breakpoint and selection
-markers in the gutter. The viewport owns a single current-row marker, and the
-interaction layer updates that marker from the cursor row. Other marker types
-remain available in the display model for later breakpoint, selection, dirty,
-or diagnostic metadata, but they should not appear until the editor has real
-state to justify them.
+The gutter markers are now live editor state rather than proof-only
+placeholders. An ordinary whole-line selection draws a thin bar, the current
+row adds the current-line bar, a pending copy source draws a thick bar, and a
+pending move source draws the sawtooth edge. The viewport composes those marker
+bits for every visible row and the interaction layer updates them as cursor
+movement, selection movement, and pending source state change.
 
 ### `src/glcd-tile.asm`
 
@@ -322,8 +324,12 @@ calls `DisplayRenderScreen`.
 one visible row and calls `DisplayRenderLine`, which is the dirty-rendering path
 used by ordinary in-line editor mutations.
 
-This module currently has fixed marker flags. It is a viewport proof surface,
-not a full editor model yet.
+This module now owns the viewport-facing selection projection. It keeps the
+current visible row marker, maps visible rows back to absolute page-line
+numbers, tests whether those lines fall inside the current ordinary selection
+and layers pending copy or move source markers over the same rows. It is still
+only a viewport and marker surface: selection intervals and block-editing
+commands live in `editor-interaction.asm`.
 
 ### `src/editor-storage-loader.asm`
 
@@ -468,19 +474,28 @@ proof key stream and the live matrix-key path that polls MON3 through
 - Alt+ArrowDown pages down
 - Alt+ArrowUp pages up
 - Ctrl+ArrowDown and Ctrl+ArrowUp remain page-movement compatibility aliases
+- Shift+ArrowDown and Shift+ArrowUp extend or shrink an ordinary whole-line
+  selection
+- Shift+Ctrl/Alt+ArrowDown and Shift+Ctrl/Alt+ArrowUp extend that selection by
+  page
 - Ctrl-Q/Alt-Q quit the key stream, prompting first when the page is dirty
 - Ctrl-S/Alt-S save the currently loaded page
 - Ctrl-Z/Alt-Z prompt to restore the hidden backup into the current buffer
 - Ctrl and Alt command chords are intentionally kept in parallel for now so
   manual Debug80 testing does not depend on one host modifier policy
-- Ctrl-X/Alt-X, Ctrl-R/Alt-R, and Ctrl-W/Alt-W are reserved for block move,
-  block read, and block write
+- Ctrl-C/Alt-C arm the current selection as a pending copy source
+- Ctrl-X/Alt-X arm the current selection as a pending move source
+- Ctrl-V/Alt-V paste the pending source before the cursor or replace an
+  ordinary destination selection
+- Ctrl-R/Alt-R and Ctrl-W/Alt-W remain reserved for named block read and
+  write
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
 - backspace deletes before the cursor
 - newline splits the current fixed source record when there is room in the page
 - backspace at column zero joins with the previous record when the result fits
-- delete removes the character at the cursor
+- delete removes the character at the cursor, or prompts before deleting a
+  selected whole-line block
 
 The public interface now exposes the primitive edit operations as separate
 entry points, the proof key-stream runner, and the live polling loop:
@@ -506,11 +521,27 @@ and Alt-Z arm a status-line restore prompt; a yes answer loads the hidden
 backup into the current page buffer, rerenders it, and marks it dirty so the
 user can inspect before saving. Ctrl-Q and Alt-Q exit the key stream
 immediately when clean; when dirty, they ask before discarding changes and only
-exit on yes. There is
-not yet sector-crossing insert/delete. The current live Debug80 smoke now
-drives the same path through matrix `Enter`, `Backspace` at column zero,
-save, page-away/page-back persistence checks, a clean-save no-op, post-save
-input, and quit.
+exit on yes.
+The same key loop now owns whole-line block editing state. `Shift` movement
+captures an absolute-line selection interval. `Ctrl-C` and `Alt-C` normalize
+that interval into a pending copy source, while `Ctrl-X` and `Alt-X` store the
+same interval as a pending move source. `Ctrl-V` and `Alt-V` either insert the
+pending rows before the cursor when no destination selection is active, or
+replace an ordinary destination selection when the source and destination are
+equal-sized resident-page ranges. Move paste deletes the original source only
+after the destination copy succeeds. Overlap and self cases are rejected as
+no-ops, and insert paste requires blank tail rows so it cannot silently discard
+existing records. `Delete` on a selected block asks `Delete block? Y/N`, then
+shifts following records up and clears the vacated tail rows on confirmation.
+Ordinary movement and ordinary character editing clear selection and pending
+source state before mutating records.
+
+There is not yet sector-crossing insert/delete or multi-page block editing.
+The current live Debug80 smoke now drives the same path through matrix `Enter`,
+`Backspace` at column zero, save, page-away/page-back persistence checks, a
+clean-save no-op, post-save input, and quit. The block-editing acceptance smoke
+boots the live matrix-key path, selects a line block, arms copy, pastes it,
+saves, and validates the reshaped TM8 source records from the host side.
 Page-boundary movement uses the same transient status overlay for the top
 boundary: page-up at the first page shows `Top`. Page-down past the available
 source restores the hidden source row instead of drawing an `End` label over
@@ -659,6 +690,12 @@ The display proofs build up the editor stack incrementally:
   to 31 characters, proves the logical cursor reaches column 30, proves the
   visible cursor stays at column 19, and proves the rendered row starts at
   column offset 11.
+- `proofs/display/editor-selection-proof.asm`: tests Shift-based whole-line
+  selection, page-sized selection extension, thin/thick/sawtooth gutter marker
+  combinations, pending copy and move sources, insert paste, replace paste and
+  overlap or blank-tail no-op cases.
+- `proofs/display/editor-block-delete-proof.asm`: tests selected-block delete
+  prompt cancel and confirm behavior.
 - `proofs/display/editor-file-list-proof.asm`: lists `/src` through TEC-side
   TM8 catalog code and proves hidden backup files are omitted.
 - `proofs/display/shell-edit-navigation-proof.asm`: resolves shell `edit`,
@@ -763,7 +800,9 @@ persisted TM8 image bytes after save. Backup proof coverage starts without
 `/src/.main.asm.b`, verifies that the Z80 save path creates that hidden backup,
 and checks that resident-window saves preserve the old on-disk text for both
 the active page and dirty adjacent next page before the edited source pages are
-written.
+written. It also runs the selection and block-delete proofs, checking visible
+marker state, selected-row intervals, paste reshaping and prompted delete
+behavior through the same storage-backed editor path.
 
 `tools/run-debug80-editor-session.ts` is the milestone runner for the first
 user-testable editor session. Its default path assembles `src/main.asm`,
@@ -778,6 +817,14 @@ second save, and quit commands reach the same dirty-state and translated-key
 results as the scripted editor loop. The generated fixture now carries two
 source pages, with page 0 ending in an empty record so the live smoke can split
 and rejoin a line without crossing a sector boundary.
+
+The same runner now has a block-editing acceptance path. `--block-smoke` builds
+an editor fixture with spare tail rows, boots the live matrix-key path, drives
+selection, copy, paste, save and quit through real key injection, then checks
+the saved TM8 records from the host side. `debug80:editor-block-image` prepares
+the same fixture for manual screenshot or keyboard validation, and
+`acceptance:block-editing-v1` composes the selection proof, block-delete proof,
+block smoke and manual image preparation into one host acceptance entry.
 
 `proof:display:shell-edit-create-source` covers the missing-source launch case:
 `edit fresh` creates `/src/fresh.asm` as a blank one-block source file and opens
@@ -866,6 +913,8 @@ What exists now:
 - A shell `edit` command can launch that editor path in proofs.
 - Cursor movement, in-page character mutation, split-line, and join-line
   behavior are implemented and covered by proofs.
+- Whole-line selection and resident-page block copy, move, paste, replace and
+  prompted delete behavior are implemented and covered by proofs.
 - The editor can save the currently loaded 512-byte page buffer back to the
   matching TM8 source page, with persisted image verification.
 - The editor tracks dirty state for the loaded page, marks dirty after
@@ -902,15 +951,18 @@ What is still missing or intentionally skeletal:
 - The current RAM edit window is deliberately small: active sector, adjacent
   next sector, and one previous-page cache. A later 2K or 4K window should
   reduce SD reads further for 100-200 line source files.
-- Stop before starting assembler integration until a new milestone is chosen.
 - Split can push row 15 into the adjacent sector, row-15 Enter can create the
   first record in the adjacent sector, and Backspace at row 0 can join into
   cached previous row 15. Saving can grow the catalog byte size when the new
   sector still fits inside the file's existing 4K allocation block, and can
   allocate/link a new block when the grown file crosses a 4K boundary. Shrinking
   and freeing TM8 blocks are still not implemented.
-- The marker policy is still mostly fixed proof data, and prompt overlays still
-  flush more than they should.
+- Block editing is still intentionally narrow: selections are whole-line
+  intervals, paste and replace operate on resident-page ranges, named block
+  read/write is not implemented yet, and there is no hidden cross-document
+  clipboard file.
+- Prompt overlays and some full-row redraw paths still do more GLCD work than
+  the simple cell-dirty cursor and character-mutation paths.
 - The Z80 storage readers are narrow readers, not a general reusable TM8
   filesystem layer.
 - Banked overlays and a trimmed TECM8 BIOS are design targets, not implemented
