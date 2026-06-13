@@ -87,6 +87,17 @@ saves, quits, reopens the same file, and leaves the final editor screen
 visible. Both paths include the real project config loader and storage-backed
 editor path rather than a stub.
 
+### `src/keyboard-tester.main.asm`
+
+This is a standalone Debug80/TEC-1G keyboard diagnostic target. It also starts
+at `0x4000`, initializes the GLCD tile display, and then polls
+`BiosInputPollKey` forever. Each key event is appended to a small on-screen
+history so Debug80 mouse-matrix input and physical-keyboard input can be
+compared without involving the editor. Ctrl chords render as `^X`; Alt chords
+render as `\X`. The second display row shows the latest raw matrix `D/E` bytes
+in hex so translated-token issues can be separated from raw Debug80 matrix
+mapping issues.
+
 ### `src/tecm8-bios.asm` and `src/mon3.asmi`
 
 These are the stable service boundary under TECM8 code. The implementation is
@@ -827,6 +838,10 @@ the saved TM8 records from the host side. `debug80:editor-block-image` prepares
 the same fixture for manual screenshot or keyboard validation, and
 `acceptance:block-editing-v1` composes the selection proof, block-delete proof,
 block smoke and manual image preparation into one host acceptance entry.
+
+`tools/build-keyboard-tester.ts` assembles `src/keyboard-tester.main.asm` into
+`build/keyboard-tester.bin` plus a D8M symbol file. It is a manual diagnostic
+target, not a storage-backed proof runner.
 
 `proof:display:shell-edit-create-source` covers the missing-source launch case:
 `edit fresh` creates `/src/fresh.asm` as a blank one-block source file and opens

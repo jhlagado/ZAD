@@ -43,3 +43,14 @@ Useful local checks:
 npm install
 npm run check
 ```
+
+Manual Debug80 diagnostics:
+
+```text
+npm run debug80:editor-image
+npm run debug80:keyboard-tester
+```
+
+The keyboard tester assembles `src/keyboard-tester.main.asm` into
+`build/keyboard-tester.bin`. Load it at `0x4000` from MON3 to inspect matrix
+keyboard events independently of the editor.

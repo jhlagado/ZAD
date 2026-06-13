@@ -18,6 +18,54 @@ Run it with:
 npm run debug80:editor-session
 ```
 
+## Keyboard Tester
+
+The repository also contains a standalone manual diagnostic target:
+
+```sh
+npm run debug80:keyboard-tester
+```
+
+This assembles `src/keyboard-tester.main.asm` and writes:
+
+- `build/keyboard-tester.bin`
+- `build/keyboard-tester.d8m.json`
+
+Load `build/keyboard-tester.bin` at `0x4000` from MON3 and press GO. The
+program does not use the FAT32/TM8 editor image. It initializes the GLCD, clears
+the screen, shows the latest raw matrix bytes on row 1, and appends one compact
+token for each key event returned by `BiosInputPollKey`.
+
+Display convention:
+
+- Plain printable keys are shown as the character received.
+- Ctrl chords are shown with `^`, so Ctrl-C appears as `^C`.
+- Alt chords are shown with `\`, so Alt-C appears as `\C`.
+- Special keys use compact names: `U`, `D`, `L`, `R` for arrows, `B` for
+  backspace, `T` for tab, `N` for enter, `E` for escape, and `X` for delete.
+- The `RAW dd ee` row shows the latest raw secondary byte `D` and primary byte
+  `E` returned by `BiosInputPollKey`, in hex.
+
+The target is meant to separate three failure classes while Debug80 keyboard
+handling is being tuned:
+
+- TECM8 BIOS translation problems: the mouse matrix UI and physical keyboard
+  both produce the same wrong token.
+- Debug80 mouse matrix problems: the on-screen matrix UI produces the wrong raw
+  chord.
+- Debug80 physical keyboard mapping problems: mouse matrix input works, but the
+  host keyboard produces a different token.
+
+For example, press Alt-C three times. The expected display history is:
+
+```text
+\C \C \C
+```
+
+The `RAW` row should update each time. If the compact token looks right but the
+raw bytes differ between mouse-matrix input and host-keyboard input, the problem
+is in Debug80's host-keyboard mapping path rather than the TECM8 editor.
+
 For launching the `main` target from the Debug80 UI, prepare the disk image
 without running the scripted edit session:
 
