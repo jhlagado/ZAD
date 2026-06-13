@@ -15,6 +15,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   const cursorSource = readRepoFile('src/editor-cursor.asm');
   const promptSource = readRepoFile('src/editor-prompt.asm');
   const renderSource = readRepoFile('src/editor-render.asm');
+  const editorRecordSource = readRepoFile('src/editor-record.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
   const recordSource = readRepoFile('src/tecm8-record.asm');
 
@@ -40,8 +41,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorSplitLine:/m);
   assert.match(source, /^@EditorJoinPreviousLine:/m);
   assert.match(source, /^@EditorJoinPreviousPageLine:/m);
-  assert.match(source, /^@EditorKeyReadRecordLength:/m);
-  assert.match(source, /^@EditorKeyWriteRecordLength:/m);
+  assert.match(editorRecordSource, /^@EditorKeyReadRecordLength:/m);
+  assert.match(editorRecordSource, /^@EditorKeyWriteRecordLength:/m);
   assert.match(renderSource, /^@EditorMarkDirty:/m);
   assert.match(renderSource, /^@EditorKeyRenderCurrentLineDirty:/m);
   assert.match(promptSource, /^@EditorPromptAskYesNo:/m);
@@ -288,9 +289,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorDeleteChar/);
   assert.match(source, /CALL\s+EditorSplitLine/);
   assert.match(source, /JP\s+Z,EditorJoinPreviousLine/);
-  assert.match(source, /@EditorKeyZeroRecordPadding:\n\s+JP\s+Tecm8RecordZeroPadding/);
-  assert.match(source, /@EditorKeyReadRecordLength:\n\s+JP\s+Tecm8RecordReadLength/);
-  assert.match(source, /@EditorKeyWriteRecordLength:\n\s+JP\s+Tecm8RecordWriteLength/);
+  assert.match(editorRecordSource, /@EditorKeyZeroRecordPadding:\n\s+JP\s+Tecm8RecordZeroPadding/);
+  assert.match(editorRecordSource, /@EditorKeyReadRecordLength:\n\s+JP\s+Tecm8RecordReadLength/);
+  assert.match(editorRecordSource, /@EditorKeyWriteRecordLength:\n\s+JP\s+Tecm8RecordWriteLength/);
   assert.match(recordSource, /^@Tecm8RecordZeroPadding:/m);
   assert.match(recordSource, /^@Tecm8RecordReadLength:/m);
   assert.match(recordSource, /^@Tecm8RecordWriteLength:/m);
@@ -309,7 +310,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorNavRememberCurrentPage/);
   assert.match(source, /CALL\s+EditorNavSlideNextPageToCurrent/);
   assert.match(source, /EditorNavNextPageBuffer/);
-  assert.match(source, /@EditorKeyClearRecord:\n\s+JP\s+Tecm8RecordClear/);
+  assert.match(editorRecordSource, /@EditorKeyClearRecord:\n\s+JP\s+Tecm8RecordClear/);
   assert.match(recordSource, /^@Tecm8RecordClear:/m);
   assert.match(recordSource, /LD\s+B,TECM8_SOURCE_RECORD_BYTES/);
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);

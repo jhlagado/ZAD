@@ -9,9 +9,9 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 22 `.asm` modules, 11,363 lines.
+- Z80 source size: 23 `.asm` modules, 11,365 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 2,208 lines.
+  - `src/editor-interaction.asm`: 2,100 lines.
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-commands.asm`: 1,325 lines.
   - `src/editor-navigation.asm`: 1,164 lines.
@@ -376,6 +376,8 @@ Target ownership:
 - `src/editor-keymap.asm`: key normalization, command lookup, and dispatch
   tables/helpers.
 - `src/editor-cursor.asm`: cursor position, visibility, blink, render/erase.
+- `src/editor-record.asm`: editor-facing fixed-record addressing wrappers and
+  record-operation scratch state shared by line-edit and block-edit paths.
 - `src/editor-line-edit.asm`: character insert/delete, split, join, fixed-record
   mutation.
 - `src/editor-block.asm`: ordinary selection, pending copy/move source, paste,
@@ -401,6 +403,10 @@ Actions:
     code for the later block-module extraction.
   - Current checkpoint: dirty render policy, cursor visibility checks, and
     dirty-column scratch state now live in `src/editor-render.asm`.
+  - Current checkpoint: editor-facing record addressing wrappers, record helper
+    wrappers, cursor advance, and line-edit scratch bytes now live in
+    `src/editor-record.asm`; the edit mutations that use them remain in
+    `src/editor-interaction.asm`.
 - After movement is green, collapse duplicated cursor-reset and movement
   handler shapes into shared routines.
 - Move selection state out of viewport if it is not purely projection state.

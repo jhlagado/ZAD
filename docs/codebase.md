@@ -62,8 +62,8 @@ For the fastest orientation, read these files first:
 14. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
-    `src/editor-viewport.asm`, `src/editor-keymap.asm`,
-    `src/editor-cursor.asm`, `src/editor-prompt.asm`,
+    `src/editor-viewport.asm`, `src/editor-record.asm`,
+    `src/editor-keymap.asm`, `src/editor-cursor.asm`, `src/editor-prompt.asm`,
     `src/editor-render.asm`, and
     `src/editor-interaction.asm`: the current editor path.
 16. `proofs/display/glcd-tile-proof.asm`,
@@ -119,10 +119,10 @@ that must treat that format consistently:
 - shift text bytes left or right within one record
 - shift contiguous record windows up or down
 
-`src/editor-interaction.asm` still exposes the older `EditorKey*Record*` entry
-points as compatibility wrappers, but they now delegate to this shared module.
-Proof bundles include `src/tecm8-record.asm` once before
-`src/editor-interaction.asm`.
+`src/editor-record.asm` exposes the editor-facing `EditorKey*Record*` entry
+points as compatibility wrappers around these shared helpers, plus current-row
+addressing helpers and line-edit scratch bytes. Proof bundles include
+`src/tecm8-record.asm` once before the editor modules.
 
 ### `src/tecm8-string.asm`
 
@@ -624,10 +624,11 @@ from the interaction state block. That keeps this checkpoint behavior-only and
 avoids moving shared state before the block, prompt, and line-edit modules have
 their own ownership boundaries. The source-level contract is pinned by
 `tools/editor-interaction.test.ts`, and the live editor acceptance proofs now
-include `src/editor-interaction.asm`, then `src/editor-keymap.asm`, then
-`src/editor-cursor.asm`, then `src/editor-prompt.asm`, then
-`src/editor-render.asm`, so the storage-backed editor runners exercise the same
-normalized command path as the real session target.
+include `src/editor-interaction.asm`, then `src/editor-record.asm`, then
+`src/editor-keymap.asm`, then `src/editor-cursor.asm`, then
+`src/editor-prompt.asm`, then `src/editor-render.asm`, so the storage-backed
+editor runners exercise the same normalized command path as the real session
+target.
 
 ### `src/editor-prompt.asm`
 
@@ -664,9 +665,28 @@ the direct GLCD tile layer. It contains:
 - `EditorEnsureCursorVisible`, `EditorEnsureCursorVisibleColumn`,
   `EditorLogicalRowVisible`, and `EditorMarkDirty`.
 
-The module still calls interaction-owned record helpers such as
-`EditorKeyCurrentRecord` and still reads cursor/block state that has not yet
-been moved into smaller ownership modules.
+The module still calls editor-record helpers such as `EditorKeyCurrentRecord`
+and still reads cursor/block state that has not yet been moved into smaller
+ownership modules.
+
+### `src/editor-record.asm`
+
+`src/editor-record.asm` is the editor-facing layer above `src/tecm8-record.asm`.
+It owns:
+
+- `EditorKeyCurrentRecord` and `EditorKeyRecordAtRow`, which calculate fixed
+  32-byte source-record addresses inside `EditorNavPageBuffer`.
+- thin editor wrappers for masked length read/write, record padding zeroing, and
+  full-record clear.
+- `EditorKeyAdvanceCursor`.
+- record-operation scratch bytes such as `EditorRecordBase`, `EditorLineSrc`,
+  `EditorLineDest`, `EditorLineRowsLeft`, `EditorLineLength`, and split/join
+  length temporaries. Some of this scratch is still shared by block-edit
+  row-shift paths until block and line mutation have separate modules.
+
+The actual insert/delete/split/join and block row-shift mutation routines still
+live in `src/editor-interaction.asm`; this module only isolates their shared
+record addressing and scratch storage for later block and line-edit extraction.
 
 ### `src/editor-interaction.asm`
 

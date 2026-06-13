@@ -16,7 +16,7 @@ The main problem is **incremental growth without consolidation**. Features lande
 
 | Symptom | Primary location |
 |--------|-------------------|
-| One file doing too much | `editor-interaction.asm` (2,208 lines after keymap/cursor/prompt/render extraction) |
+| One file doing too much | `editor-interaction.asm` (2,100 lines after keymap/cursor/prompt/render/record extraction) |
 | Copy-pasted TM8 I/O | `editor-storage-loader.asm` |
 | Parallel constant namespaces | `display-model.asm`, `glcd-tile.asm`, `editor-viewport.asm`, `editor-interaction.asm` |
 | Legacy state kept for compatibility | `EditorNavDirty` vs `EditorNavDirtySectors` |
@@ -71,7 +71,7 @@ These are strengths to preserve through refactoring:
                                               └───────────────┘
 ```
 
-**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-keymap → editor-cursor → editor-prompt → editor-render → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
+**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-record → editor-keymap → editor-cursor → editor-prompt → editor-render → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
 
 ---
 
@@ -79,7 +79,7 @@ These are strengths to preserve through refactoring:
 
 ### 1. `editor-interaction.asm` is a monolith (highest priority)
 
-**2,208 lines, still covering too many concerns in one file:**
+**2,100 lines, still covering too many concerns in one file:**
 
 | Approx. lines | Concern |
 |---------------|---------|
@@ -87,10 +87,11 @@ These are strengths to preserve through refactoring:
 | Extracted | Cursor overlay and cooperative blink now live in `editor-cursor.asm` |
 | Extracted | Prompt dispatch now lives in `editor-prompt.asm` |
 | Extracted | Dirty render policy now lives in `editor-render.asm` |
+| Extracted | Editor-facing record helpers and line scratch now live in `editor-record.asm` |
 | 55–596 | Key dispatch (`EditorRunKeys`, `EditorRunLive`, handlers) |
 | 620–1545 | Block selection, pending copy/move, paste, delete |
 | 1569–1948 | Record mutation: insert, backspace, split, join, cross-page |
-| 1950–2208 | Block deletion, record helpers, scratch, state, and strings |
+| 1950–2100 | Block deletion, remaining state, and strings |
 
 This is the single largest barrier to review, banking, and compactness. A Z80 editor **should** have a key loop module, but not one that also owns TM8 record algebra, block editing, cursor rendering, and GLCD dirty scheduling.
 
@@ -298,7 +299,7 @@ tecm8-memory.asm          (equates only)
 tm8-bytes.asm             (TM8 layout equates + MatchBytes)
 tm8-path.asm              → tecm8-bios, tm8-bytes
 tm8-catalog.asm           → tm8-path
-editor-record.asm         → tecm8-memory (equates)
+editor-record.asm         → editor-viewport state, editor-cursor state, tecm8-record
 glcd-tile.asm             → tecm8-display-equ, tecm8-bios
 display-model.asm         → glcd-tile
 editor-viewport.asm       → display-model, editor-record
@@ -324,7 +325,7 @@ Copy this section directly to the implementing agent:
 ```text
 [ ] Read docs/azm-style-guide.md and docs/memory-and-code-quality.md
 [ ] Baseline: assemble main.asm, record 15225 bytes and symbol map
-[ ] Phase A1: create editor-record.asm, move constants + Read/WriteRecordLength
+[x] Phase A1: create editor-record.asm, move editor-facing record wrappers and line scratch
 [ ] Phase A2: EditorShiftRecordsDown/Up — replace 9 duplicate loops
 [ ] Phase A3–A4: tm8-bytes.asm + tm8-path.asm — collapse 3× prefix-open blocks
 [ ] Phase A5: tecm8-display-equ.asm — unify geometry constants
