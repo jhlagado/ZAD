@@ -342,6 +342,13 @@ Actions:
   `/src/first.asm` catalog entry and proves `/src/main.asm` still saves back to
   the correct catalog entry. This leaves the live Debug80 image at 14,966 bytes,
   with 1,418 bytes free in the current 16K bank.
+- Done: add `Tecm8StorageBlockSectorToOffset` for source-page read/write paths
+  that convert a resolved TM8 block plus sector-in-block into a MON3 byte
+  offset. This is a code-organization helper rather than a size win: the live
+  Debug80 image is now 14,969 bytes, leaving 1,415 bytes free in the current
+  16K bank. AZM strict contracts caught the first draft because it tried to use
+  `A` after calling `Tecm8StorageBlockToOffset`, whose contract clobbers `A`;
+  the helper now preserves `AF` across that call.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

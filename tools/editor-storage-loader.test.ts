@@ -78,13 +78,14 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.doesNotMatch(source, /@EditorLoadMatchBytes:/);
   assert.match(stringSource, /^@Tecm8StringMatchBytes:/m);
   assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
+  assert.match(storageSource, /^@Tecm8StorageBlockSectorToOffset:/m);
   assert.match(storageSource, /^@Tecm8StorageValidateCoreSuperblock:/m);
   assert.match(storageSource, /^@Tecm8StorageAdvanceSectorOffset:/m);
   assert.match(storageSource, /^@Tecm8StorageReadSectorPreserveOffset:/m);
   assert.match(storageSource, /^@Tecm8StorageAdvancePrefixEntryPtr:/m);
   assert.match(storageSource, /^@Tecm8StorageAdvanceCatalogEntryPtr:/m);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
-  assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
+  assert.match(source, /CALL\s+Tecm8StorageBlockSectorToOffset/);
   assert.match(source, /CALL\s+Tecm8StorageAdvanceSectorOffset/);
   assert.match(source, /CALL\s+Tecm8StorageReadSectorPreserveOffset/);
   assert.match(source, /CALL\s+Tecm8StorageAdvancePrefixEntryPtr/);
@@ -134,7 +135,7 @@ test('editor storage loader checks a 32-bit file size for the requested page', (
   assert.match(source, /LD\s+DE,46\n\s+ADD\s+HL,DE/);
   assert.match(source, /ADD\s+A,A\n\s+INC\s+A\n\s+LD\s+\(EditorLoadRequiredSizeHigh\),A/);
   assert.match(source, /INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+INC\s+HL\n\s+LD\s+A,\(HL\)\n\s+OR\s+A\n\s+JR\s+NZ,EditorLoadSizeOk\n\s+LD\s+A,D\n\s+LD\s+B,A\n\s+LD\s+A,\(EditorLoadRequiredSizeHigh\)/);
-  assert.match(source, /LD\s+A,\(EditorLoadSectorInBlock\)\n\s+ADD\s+A,A\n\s+ADD\s+A,D\n\s+LD\s+D,A/);
+  assert.match(source, /LD\s+A,\(EditorLoadSectorInBlock\)\n\s+CALL\s+Tecm8StorageBlockSectorToOffset/);
 });
 
 test('storage-backed editor viewport proof composes loader, viewport, and display update', () => {

@@ -672,11 +672,8 @@ EditorLoadBlockErr:
         CALL    EditorLoadResolveSourceBlock
         RET     C
         LD      HL,(EditorLoadResolvedBlock)
-        CALL    Tecm8StorageBlockToOffset
         LD      A,(EditorLoadSectorInBlock)
-        ADD     A,A
-        ADD     A,D
-        LD      D,A
+        CALL    Tecm8StorageBlockSectorToOffset
         CALL    BiosFileReadSector
         JP      C,EditorLoadReadErr
 
@@ -1055,12 +1052,8 @@ EditorCreateChecksumNoCarry:
         CALL    EditorLoadResolveSourceBlock
         RET     C
         LD      HL,(EditorLoadResolvedBlock)
-        ; expects out HL
-        CALL    Tecm8StorageBlockToOffset
         LD      A,(EditorLoadSectorInBlock)
-        ADD     A,A
-        ADD     A,D
-        LD      D,A
+        CALL    Tecm8StorageBlockSectorToOffset
         LD      (EditorLoadSectorOffsetHigh),A
         LD      (EditorLoadSectorOffsetUpper),HL
         CALL    BiosFileReadSector

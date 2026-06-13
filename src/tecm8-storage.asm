@@ -141,6 +141,20 @@ Tecm8StorageCoreSuperErr:
         POP     DE
         RET
 
+; Tecm8StorageBlockSectorToOffset -
+; Convert a 4K TM8 block plus sector-in-block to MON3 HLDE byte offset.
+;! in A,HL
+;! out A,DE,HL
+;! clobbers F
+@Tecm8StorageBlockSectorToOffset:
+        PUSH    AF
+        CALL    Tecm8StorageBlockToOffset
+        POP     AF
+        ADD     A,A
+        ADD     A,D
+        LD      D,A
+        RET
+
 ; Tecm8StorageBlockToOffset —
 ; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
 ;! in HL

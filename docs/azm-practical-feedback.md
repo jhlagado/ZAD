@@ -148,6 +148,11 @@ Current concrete evidence:
   input pointer explicitly instead of relying on the matcher's current internal
   increment behavior. This was a useful example of the contracts preventing a
   helper from depending on another helper's undocumented side effect.
+- AZM also caught a first draft of `Tecm8StorageBlockSectorToOffset` that used
+  `A` after calling `Tecm8StorageBlockToOffset`. The block helper's contract
+  correctly says `A` is clobbered, so strict checking rejected the new wrapper
+  before it could become a wrong-sector bug. The fixed helper preserves `AF`
+  across the nested call, then uses the restored sector-in-block value.
 - Contract annotation experiment: running
   `azm --contracts --fix --rc audit --reg-profile mon3 --interface src/mon3.asmi src/main.asm`
   successfully rewrote contract comments across the included source tree. TECM8

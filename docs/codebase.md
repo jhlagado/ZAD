@@ -159,10 +159,11 @@ by project config, editor storage, and file listing. It also owns
 `Tecm8StorageAdvanceCatalogEntryPtr`, which advance table entry pointers while
 preserving the current scan offset in `DE`. It also owns
 `Tecm8StorageBlockToOffset`, the 4K TM8 block-number to MON3 `HLDE` byte-offset
-conversion used by both `src/project-config-loader.asm` and
-`src/editor-storage-loader.asm`. The code is intentionally format-level only:
-callers still own their own error codes, sector-in-block adjustment, extra
-validation needs, and storage write policy.
+conversion used by `src/project-config-loader.asm`, and
+`Tecm8StorageBlockSectorToOffset`, the block-plus-sector variant used by editor
+source page reads and writes. The code is intentionally format-level only:
+callers still own their own error codes, extra validation needs, and storage
+write policy.
 
 Proof bundles that include storage loaders directly include
 `src/tecm8-storage.asm` after `src/tecm8-string.asm` and before the loader.
