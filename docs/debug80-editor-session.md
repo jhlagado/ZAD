@@ -186,7 +186,7 @@ other modified arrows reserved for later word/page movement
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Ctrl+ArrowRight`, `CapsLock`,
-`ArrowDown` with CapsLock set, CapsLock back off, `z`, a blocked dirty
+`ArrowDown` with CapsLock set, CapsLock back off, `z`, dirty-window
 `Ctrl+ArrowDown`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a
 dirty `Ctrl-Q` with a no/cancel answer, `Ctrl-S`, `Ctrl-Z` with a no/cancel
 answer, a second `Ctrl-Z` with a no/cancel answer, and `Ctrl-Q`, so Control
@@ -223,8 +223,8 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Ctrl+ArrowRight`, `CapsLock`, `ArrowDown`, CapsLock back off, `z`, a blocked dirty
-`Ctrl+ArrowDown`, `Enter`, `Backspace`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a
+`Ctrl+ArrowRight`, `CapsLock`, `ArrowDown`, CapsLock back off, `z`,
+dirty-window `Ctrl+ArrowDown`, `Enter`, `Backspace`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a
 dirty `Ctrl-Q`, `n`, `Ctrl-S`, `Ctrl-Z`, `n`, `Ctrl-Z`, `n`, and `Ctrl-Q`, then
 verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
@@ -236,7 +236,7 @@ editor cursor reaches row 1, column 1 before save/quit. It also checks that
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`
 marks the editor dirty after CapsLock is toggled back off, that dirty page
-movement is blocked until save, that
+movement preserves dirty state across the resident page window, that
 matrix `Enter` splits the current line and moves the cursor to the new line,
 that matrix `Backspace` at column 0 joins the line back to the previous row,
 that Ctrl-modified `S` clears dirty, that a clean save leaves the editor clean,
@@ -264,8 +264,9 @@ For an interactive Debug80 UI check:
    backup file. Ctrl-C arms a selected block for copy, Ctrl-X arms a selected
    block for move, and Ctrl-V applies the pending block.
 8. Unknown modified printable keys, for example `Ctrl-W`, should do nothing and
-   should not type `w` or leave status text behind. Page movement while the
-   page is dirty should show `Save first` and stay on the current page.
+   should not type `w` or leave status text behind. Page movement while the page
+   is dirty should keep the resident page window coherent and preserve dirty
+   state; it should not show the old `Save first` status.
 9. The editor code supports Delete through the editor key API and proof suite,
    but the current Debug80 TEC-1G matrix path exposes Backspace as the live
    deletion key. Use Backspace for manual matrix testing until a distinct
@@ -354,9 +355,9 @@ GLCD. Use this exact smoke test:
 
 12. Press `Ctrl+ArrowDown`, then `Ctrl+ArrowUp`.
 
-   Expected: because the page is now dirty, paging is ignored and the display
-   stays on the `R0 LINE ...` page. This prevents accidental loss of unsaved
-   page-buffer edits.
+   Expected: paging is allowed within the resident page window. The display
+   moves to the next page and back, while dirty state is preserved so a later
+   save still writes the edited page.
 
 13. Press `Ctrl-S` or `Ctrl-S`.
 

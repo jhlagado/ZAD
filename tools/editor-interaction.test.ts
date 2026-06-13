@@ -254,7 +254,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyShowErrorAndLoop:\n\s+CALL\s+EditorNavShowError\n\s+RET\s+C\n\s+JP\s+EditorKeyLoop/);
   assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown\n\s+JR\s+C,EditorKeyPageDownErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
   assert.match(source, /EditorKeyPageUp:[\s\S]*?CALL\s+EditorPageUp\n\s+JR\s+C,EditorKeyPageUpErr\n\s+CALL\s+EditorCursorResetState\n\s+CALL\s+EditorInvalidateCursorOverlay/);
-  assert.match(source, /EditorKeyDirtyPageBlocked:\n\s+LD\s+HL,EditorStatusSaveFirstText\n\s+CALL\s+EditorKeyShowStatus/);
+  assert.doesNotMatch(source, /EditorKeyDirtyPageBlocked:/);
+  assert.doesNotMatch(source, /EditorStatusSaveFirstText/);
   assert.match(source, /@EditorKeyShowStatus:\n\s+LD\s+\(EditorStatusTextPtr\),HL\n\s+CALL\s+EditorHideCursor/);
   assert.match(source, /EditorKeyMaybeInsertMode:/);
   assert.match(source, /EditorKeyCursorLeft:/);

@@ -2,7 +2,7 @@
 
 **Purpose:** Actionable plan for a coding agent to improve compactness, structure, and coherence without breaking the proof-driven editor milestone.
 
-**Scope:** 24 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,969 bytes** at `0x4000`, leaving **1,415 bytes** in the 16 KiB bank.
+**Scope:** 26 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,948 bytes** at `0x4000`, leaving **1,436 bytes** in the 16 KiB bank.
 
 **Date:** June 2026 (post editor milestone / block-editing V1 automation)
 
@@ -16,11 +16,11 @@ The main problem is **incremental growth without consolidation**. Features lande
 
 | Symptom | Primary location |
 |--------|-------------------|
-| One file doing too much | `editor-interaction.asm` (747 lines after keymap/cursor/prompt/render/record/line-edit/block extraction) |
+| One file doing too much | `editor-interaction.asm` (741 lines after keymap/cursor/prompt/render/record/line-edit/block extraction) |
 | Copy-pasted TM8 I/O | `editor-storage-loader.asm` |
 | Parallel constant namespaces | `display-model.asm`, `glcd-tile.asm`, `editor-viewport.asm`, `editor-interaction.asm` |
 | Legacy state kept for compatibility | `EditorNavDirty` vs `EditorNavDirtySectors` |
-| Dead code kept alive by tests | `EditorKeyDirtyPageBlocked` |
+| Dead code kept alive by tests | Fixed: `EditorKeyDirtyPageBlocked` removed |
 | Docs describing superseded V1 policy | `docs/editor-design.md`, `docs/codebase.md` |
 | Full shell linked into editor entry | `main.asm` includes all of `shell-commands.asm` |
 
@@ -79,7 +79,7 @@ These are strengths to preserve through refactoring:
 
 ### 1. `editor-interaction.asm` is a monolith (highest priority)
 
-**747 lines, now mostly orchestration but still carrying shared constants/state:**
+**741 lines, now mostly orchestration but still carrying shared constants/state:**
 
 | Approx. lines | Concern |
 |---------------|---------|
@@ -170,17 +170,10 @@ These are **echoes of earlier milestones** (roadmap Phase 2 is largely done in c
 
 ### 10. Dead code kept by test assertion
 
-```asm
-EditorKeyDirtyPageBlocked:
-        LD      HL,EditorStatusSaveFirstText
-        CALL    EditorKeyShowStatus
-        RET     C
-        JP      EditorKeyLoop
-```
-
-(`src/editor-interaction.asm`, label `EditorKeyDirtyPageBlocked`)
-
-**No caller.** `tools/editor-interaction.test.ts` still requires this dead handler to exist. Likely remnant of abandoned “save before page move on dirty page” policy. Either wire it up or delete handler + test + `EditorStatusSaveFirstText` string.
+Fixed in the quality pass: the uncalled `EditorKeyDirtyPageBlocked` handler,
+the stale `EditorStatusSaveFirstText` string, and the source-level test that
+required them were removed. Dirty page movement now follows the resident
+window/cache policy and is covered by navigation/window proofs.
 
 ---
 
@@ -278,7 +271,7 @@ Execute **incrementally**; run `npm run check` (or targeted proof npm scripts) a
 |------|--------|------|
 | D1 | Retire `EditorNavDirty`; add `EditorNavIsDirty` | page-write, window-save proofs |
 | D2 | Done: move block **state** from viewport to `editor-block-state.asm` (viewport keeps projection only) | selection proof |
-| D3 | Delete or wire `EditorKeyDirtyPageBlocked` | update `editor-interaction.test.ts` |
+| D3 | Done: delete `EditorKeyDirtyPageBlocked` and stale save-first text | interaction/navigation tests |
 | D4 | Update `docs/editor-design.md` § Sector-Edge Editing Policy and `docs/codebase.md` L549 | doc review only |
 | D5 | Fix stale comments (“left for B6”, “not an editor”) | — |
 
@@ -332,7 +325,7 @@ Copy this section directly to the implementing agent:
 
 ```text
 [ ] Read docs/azm-style-guide.md and docs/memory-and-code-quality.md
-[ ] Baseline: assemble main.asm, record 14969 bytes and symbol map
+[ ] Baseline: assemble main.asm, record 14948 bytes and symbol map
 [x] Phase A1: create editor-record.asm, move editor-facing record wrappers and line scratch
 [x] Phase B line-edit slice: create editor-line-edit.asm, move fixed-record insert/delete/split/join
 [ ] Phase A2: EditorShiftRecordsDown/Up — replace 9 duplicate loops

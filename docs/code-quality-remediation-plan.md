@@ -9,17 +9,17 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 26 `.asm` modules, 11,371 lines.
+- Z80 source size: 26 `.asm` modules, 11,362 lines.
 - Largest files:
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-commands.asm`: 1,325 lines.
   - `src/editor-navigation.asm`: 1,164 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
   - `src/editor-block.asm`: 760 lines.
-  - `src/editor-interaction.asm`: 747 lines.
+  - `src/editor-interaction.asm`: 741 lines.
   - `src/editor-line-edit.asm`: 595 lines.
-- Current fresh source build: `npm run z80:size` reports 14,969 bytes emitted
-  at `4000h..7A79h`, leaving 1,415 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 14,948 bytes emitted
+  at `4000h..7A64h`, leaving 1,436 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -348,7 +348,7 @@ Actions:
 - Done: add `Tecm8StorageBlockSectorToOffset` for source-page read/write paths
   that convert a resolved TM8 block plus sector-in-block into a MON3 byte
   offset. This is a code-organization helper rather than a size win: the live
-  Debug80 image is now 14,969 bytes, leaving 1,415 bytes free in the current
+  Debug80 image is now 14,948 bytes, leaving 1,436 bytes free in the current
   16K bank. AZM strict contracts caught the first draft because it tried to use
   `A` after calling `Tecm8StorageBlockToOffset`, whose contract clobbers `A`;
   the helper now preserves `AF` across that call.

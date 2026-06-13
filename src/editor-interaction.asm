@@ -351,12 +351,6 @@ EditorKeySelectPageUp:
         CALL    EditorInvalidateCursorOverlay
         JP      EditorKeyLoop
 
-EditorKeyDirtyPageBlocked:
-        LD      HL,EditorStatusSaveFirstText
-        CALL    EditorKeyShowStatus
-        RET     C
-        JP      EditorKeyLoop
-
 EditorKeyNavigationErr:
         CP      TECM8_EDITOR_NAV_ERR_PAGE
         JP      Z,EditorKeyLoop

@@ -1104,9 +1104,6 @@ EditorStatusSavingText:
 EditorStatusCleanText:
         .db     "Clean",0
 
-EditorStatusSaveFirstText:
-        .db     "Save first",0
-
 EditorErrOpenText:
         .db     "ERR OPEN 30",0
 
