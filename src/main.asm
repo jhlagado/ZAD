@@ -70,6 +70,7 @@ MainFailed:
         JP      MainDone
 
         .include "project-config.asm"
+        .include "tecm8-string.asm"
         .include "project-config-loader.asm"
         .include "glcd-tile.asm"
         .include "display-model.asm"

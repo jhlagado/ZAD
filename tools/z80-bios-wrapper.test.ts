@@ -23,9 +23,13 @@ test('TECM8 BIOS storage wrappers are real assembly entry points', () => {
 
 test('project config storage loader calls TECM8 BIOS wrappers', () => {
   const source = readRepoFile('src/project-config-loader.asm');
+  const storageProof = readRepoFile('proofs/project-config/project-config-storage-proof.asm');
 
   assert.match(source, /CALL\s+BiosFileOpen/);
   assert.match(source, /CALL\s+BiosFileReadSector/);
+  assert.match(source, /CALL\s+Tecm8StringMatchBytes/);
+  assert.doesNotMatch(source, /@ProjectLoadMatchBytes:/);
+  assert.match(storageProof, /\.include\s+"..\/..\/src\/tecm8-string\.asm"/);
   assert.doesNotMatch(source, /CALL\s+MON3_(?:OPEN_FILE|READ_SECTOR|WRITE_SECTOR)/);
 });
 

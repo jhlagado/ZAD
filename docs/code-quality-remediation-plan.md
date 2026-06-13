@@ -15,8 +15,8 @@ improved without destabilizing that progress.
   - `src/editor-storage-loader.asm`: 1,628 lines.
   - `src/shell-commands.asm`: 1,380 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
-- Current fresh source build: `npm run z80:size` reports 15,103 bytes emitted
-  at `4000h..7AFFh`, leaving 1,281 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 15,091 bytes emitted
+  at `4000h..7AF3h`, leaving 1,293 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -267,8 +267,10 @@ Actions:
   now delegate to the shared helpers. Replace duplicate split/join/paste/delete
   shift loops in `src/editor-interaction.asm` only after the small record-helper
   boundary is proof-green.
-- Create a small string/path helper module for bounded copy, append, local name
-  lookup, prefix/name split, and sibling backup path derivation.
+- Done: create `src/tecm8-string.asm` for the first shared byte/string helper:
+  bounded byte matching with carry clear on match and carry set on mismatch.
+- Continue the string/path helper extraction with bounded copy, append, local
+  name lookup, prefix/name split, and sibling backup path derivation.
 - Replace duplicated path walks in shell, navigation, and storage code.
 - Keep helper interfaces pointer-based (`HL`, `DE`, `BC`) where practical so
   future overlay/banking work is not tied to hidden globals.

@@ -276,7 +276,7 @@ EditorLoadPageErr:
         LD      HL,DISK_BUFF
         LD      DE,EditorLoadMagic
         LD      B,8
-        CALL    EditorLoadMatchBytes
+        CALL    Tecm8StringMatchBytes
         JP      C,EditorLoadSuperErr
 
         LD      HL,DISK_BUFF + 8
@@ -580,7 +580,7 @@ EditorLoadPrefixEntry:
         LD      DE,(EditorLoadPrefixPtr)
         LD      A,(EditorLoadPrefixLen)
         LD      B,A
-        CALL    EditorLoadMatchBytes
+        CALL    Tecm8StringMatchBytes
         RET     NC
         JP      EditorLoadEntryNo
 
@@ -667,7 +667,7 @@ EditorLoadCatalogEntryMiss:
         LD      DE,(EditorLoadNamePtr)
         LD      A,(EditorLoadNameLen)
         LD      B,A
-        CALL    EditorLoadMatchBytes
+        CALL    Tecm8StringMatchBytes
         JR      C,EditorLoadEntryNo
 
         LD      HL,(EditorLoadEntryBase)
@@ -1491,23 +1491,6 @@ EditorLoadAllocationOk:
         OR      H
         LD      L,A
         LD      H,0
-        RET
-
-;! in B,DE,HL
-;! out A,carry,zero
-;! clobbers sign,parity,halfCarry,B,DE,HL
-@EditorLoadMatchBytes:
-        LD      A,(DE)
-        CP      (HL)
-        JR      NZ,EditorLoadBytesBad
-        INC     DE
-        INC     HL
-        DJNZ    EditorLoadMatchBytes
-        XOR     A
-        RET
-
-EditorLoadBytesBad:
-        SCF
         RET
 
 EditorLoadMagic:

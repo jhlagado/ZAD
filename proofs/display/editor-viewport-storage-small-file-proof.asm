@@ -33,6 +33,7 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
+        .include "../../src/tecm8-string.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/tecm8-bios.asm"
 

@@ -51,16 +51,18 @@ For the fastest orientation, read these files first:
 8. `src/tecm8-record.asm`: shared fixed source-record helpers for masked
    length reads, metadata-preserving length writes, padding zeroing,
    full-record clear, in-record text shifts, and up/down record-window shifts.
-9. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
-10. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
-11. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
+9. `src/tecm8-string.asm`: shared byte/string helpers used by storage and
+   project config loaders.
+10. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
+11. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
+12. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-12. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+13. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
-13. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+14. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
     editor path.
-14. `proofs/display/glcd-tile-proof.asm`,
+15. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer, the current block-editing state, and the fixed-record line
@@ -117,6 +119,16 @@ that must treat that format consistently:
 points as compatibility wrappers, but they now delegate to this shared module.
 Proof bundles include `src/tecm8-record.asm` once before
 `src/editor-interaction.asm`.
+
+### `src/tecm8-string.asm`
+
+This is the first shared byte/string helper module. It currently owns
+`Tecm8StringMatchBytes`, a bounded byte comparison used by
+`src/project-config-loader.asm` and `src/editor-storage-loader.asm` when
+matching TM8 magic bytes, prefix names, and catalog names. The helper keeps the
+existing storage convention: carry clear means match, carry set means mismatch.
+Proof bundles that include either loader directly include `src/tecm8-string.asm`
+before the loader.
 
 ### `src/main.asm`
 

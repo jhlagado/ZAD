@@ -86,7 +86,7 @@ ProjectLoadOpenErr:
         LD      HL,PROJECT_LOAD_DISK_BUFF
         LD      DE,ProjectLoadMagic
         LD      B,8
-        CALL    ProjectLoadMatchBytes
+        CALL    Tecm8StringMatchBytes
         JR      C,ProjectLoadSuperErr
 
         LD      HL,PROJECT_LOAD_DISK_BUFF + 8
@@ -214,7 +214,7 @@ ProjectLoadCatalogEntry:
         INC     HL
         LD      DE,ProjectLoadFileName
         LD      B,PROJECT_LOAD_PROJECT_NAME_LEN
-        CALL    ProjectLoadMatchBytes
+        CALL    Tecm8StringMatchBytes
         JR      C,ProjectLoadEntryNo
 
         LD      HL,(ProjectLoadEntryBase)
@@ -329,26 +329,6 @@ ProjectLoadEmptyText:
         OR      H
         LD      L,A
         LD      H,0
-        RET
-
-; ProjectLoadMatchBytes —
-; Compare B bytes from HL and DE.
-; Output: carry clear on match, carry set on mismatch
-;! in B,DE,HL
-;! out A,carry,zero
-;! clobbers sign,parity,halfCarry,B,DE,HL
-@ProjectLoadMatchBytes:
-        LD      A,(DE)
-        CP      (HL)
-        JR      NZ,ProjectLoadBytesBad
-        INC     DE
-        INC     HL
-        DJNZ    ProjectLoadMatchBytes
-        XOR     A
-        RET
-
-ProjectLoadBytesBad:
-        SCF
         RET
 
 ProjectLoadMagic:

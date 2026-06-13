@@ -50,6 +50,7 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
 
 test('editor storage loader finds /src/main.asm through TM8 prefix and catalog tables', () => {
   const source = readRepoFile('src/editor-storage-loader.asm');
+  const stringSource = readRepoFile('src/tecm8-string.asm');
 
   for (const constant of [
     'TM8_PREFIX_SECTOR',
@@ -70,6 +71,9 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.match(source, /EditorLoadMainPath:\n\s+\.db\s+"\/src\/main\.asm",0/);
   assert.match(source, /CALL\s+EditorLoadFindSourcePrefix/);
   assert.match(source, /CALL\s+EditorLoadFindSource/);
+  assert.match(source, /CALL\s+Tecm8StringMatchBytes/);
+  assert.doesNotMatch(source, /@EditorLoadMatchBytes:/);
+  assert.match(stringSource, /^@Tecm8StringMatchBytes:/m);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
   assert.match(source, /CALL\s+EditorLoadBlockToOffset/);
 });
@@ -124,6 +128,7 @@ test('storage-backed editor viewport proof composes loader, viewport, and displa
   assert.match(source, /CALL\s+EditorLoadMainPage/);
   assert.match(source, /CALL\s+EditorViewportRender/);
   assert.match(source, /CALL\s+GlcdTileFlushFull/);
+  assert.match(source, /\.include\s+"..\/..\/src\/tecm8-string\.asm"/);
   assert.match(source, /\.include\s+"..\/..\/src\/editor-storage-loader\.asm"/);
   assert.match(source, /EditorSourcePage0:\n\s+\.ds\s+512/);
   assert.match(source, /EditorSourcePage1:\n\s+\.ds\s+512/);
