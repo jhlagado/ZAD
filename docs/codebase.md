@@ -487,6 +487,7 @@ proof key stream and the live matrix-key path that polls MON3 through
 - Ctrl-X/Alt-X arm the current selection as a pending move source
 - Ctrl-V/Alt-V paste the pending source before the cursor or replace an
   ordinary destination selection
+- Escape clears ordinary selection and pending copy/move source markers
 - Ctrl-R/Alt-R and Ctrl-W/Alt-W remain reserved for named block read and
   write
 - TAB enters insert mode for the stream
@@ -533,6 +534,8 @@ after the destination copy succeeds. Overlap and self cases are rejected as
 no-ops, and insert paste requires blank tail rows so it cannot silently discard
 existing records. `Delete` on a selected block asks `Delete block? Y/N`, then
 shifts following records up and clears the vacated tail rows on confirmation.
+`Escape` clears ordinary selection and pending copy/move source state without
+mutating source records.
 Ordinary movement and ordinary character editing clear selection and pending
 source state before mutating records.
 
@@ -929,9 +932,9 @@ What exists now:
   discarding unsaved changes.
 - The live Debug80 editor session now rechecks line split and join behavior
   through the matrix-key path, including save and page-return persistence.
-- Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
-  instead of falling through as plain text, and dirty page movement is allowed
-  inside the RAM window.
+- Unknown Ctrl/Alt-modified printable keys are silently ignored instead of
+  falling through as plain text or leaving status text behind, and dirty page
+  movement is allowed inside the RAM window.
 - Page-up at the first page restores the hidden source row without leaving
   stale `Top` text; page-down past the available source leaves visible source
   rows intact instead of overlaying a misleading end-of-file label.

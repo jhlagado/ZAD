@@ -152,9 +152,9 @@ bindings. That avoids forcing a decision while Debug80 and host keyboard
 behavior are still being tested on macOS and other platforms.
 TECM8 normalizes Ctrl-letter chords after MON3 matrix translation, so Ctrl plus
 `A`-`Z` or `a`-`z` produces the traditional ASCII control range `01h`-`1Ah`.
-Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
-instead of inserting the unmodified letter. This prevents failed modifier
-chords such as `Alt-W` from corrupting the source text.
+Unknown Ctrl/Alt-modified printable keys are silently ignored instead of
+inserting the unmodified letter or leaving status text behind. This prevents
+failed modifier chords such as `Alt-W` from corrupting the source text.
 
 The GLCD capture is written as a portable graymap image:
 
@@ -224,9 +224,9 @@ For an interactive Debug80 UI check:
    are intentionally active for now. Ctrl-X/Alt-X are reserved for future block
    move/cut, Ctrl-R/Alt-R for future block read, and Ctrl-W/Alt-W for future
    block write.
-8. Unknown modified printable keys, for example `Alt-W`, should show `KEY`
-   rather than typing `w`. Page movement while the page is dirty should show
-   `Save first` and stay on the current page.
+8. Unknown modified printable keys, for example `Alt-W`, should do nothing and
+   should not type `w` or leave status text behind. Page movement while the
+   page is dirty should show `Save first` and stay on the current page.
 9. The editor code supports Delete through the editor key API and proof suite,
    but the current Debug80 TEC-1G matrix path exposes Backspace as the live
    deletion key. Use Backspace for manual matrix testing until a distinct

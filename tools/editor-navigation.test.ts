@@ -106,7 +106,8 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /EditorStatusSavingText:\n\s+\.db\s+"Saving\.\.\.",0/);
   assert.match(source, /EditorStatusCleanText:\n\s+\.db\s+"Clean",0/);
   assert.match(source, /EditorStatusSaveFirstText:\n\s+\.db\s+"Save first",0/);
-  assert.match(source, /EditorStatusUnknownKeyText:\n\s+\.db\s+"KEY",0/);
+  assert.doesNotMatch(source, /EditorStatusUnknownKeyText/);
+  assert.doesNotMatch(source, /\.db\s+"KEY",0/);
   assert.doesNotMatch(source, /EditorStatusTopText/);
   assert.doesNotMatch(source, /EditorStatusEndText/);
   assert.match(source, /TECM8_EDITOR_NAV_ERR_PAGE\s+\.equ\s+0x50/);

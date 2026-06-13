@@ -826,6 +826,14 @@ function verifyShellEditInteractionProof(runtime: Runtime, platformRuntime: Plat
   if (unknownModifiedDirty !== 0) {
     throw new Error(`shell edit unknown modified dirty ${unknownModifiedDirty}, expected 0`);
   }
+  const unknownModifiedRow0First = runtime.hardware.memory[symbolAddress(symbols, 'UnknownModifiedRow0First')];
+  if (unknownModifiedRow0First !== 'A'.charCodeAt(0)) {
+    throw new Error(`shell edit unknown modified row 0 first byte 0x${unknownModifiedRow0First.toString(16)}, expected "A"`);
+  }
+  const unknownModifiedRow9First = runtime.hardware.memory[symbolAddress(symbols, 'UnknownModifiedRow9First')];
+  if (unknownModifiedRow9First !== 'A'.charCodeAt(0)) {
+    throw new Error(`shell edit unknown modified row 9 first byte 0x${unknownModifiedRow9First.toString(16)}, expected "A"`);
+  }
   verifyShellEditVisibleCursor(runtime, platformRuntime);
 }
 

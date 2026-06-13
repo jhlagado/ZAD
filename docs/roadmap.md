@@ -71,7 +71,7 @@ available.
   commit `040dbf5`: matrix Enter splits a line, split contents save and survive
   page movement, matrix Backspace rejoins, and the joined state saves.
 - Phase 1 input polish is complete enough for the current milestone: unknown
-  Ctrl/Alt-modified printable keys are ignored with `KEY`, dirty page movement
+  Ctrl/Alt-modified printable keys are silently ignored, dirty page movement
   works inside the RAM window, and the live Debug80 smoke covers restore-prompt
   cancel.
 - Phase 15 Debug80 automation is complete at commit `5bcfe80`: the editor can

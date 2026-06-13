@@ -292,6 +292,8 @@ EditorKeyLoop:
         JP      Z,EditorKeyRestorePrompt
         CP      TECM8_EDITOR_KEY_SAVE
         JP      Z,EditorKeySave
+        CP      TECM8_EDITOR_KEY_ESCAPE
+        JP      Z,EditorKeyEscape
         LD      A,(EditorInsertMode)
         OR      A
         JR      NZ,EditorKeyMaybeInsertMode
@@ -723,8 +725,11 @@ EditorKeyPasteBlock:
         JP      EditorKeyLoop
 
 EditorKeyUnknownModifiedPrintable:
-        LD      HL,EditorStatusUnknownKeyText
-        CALL    EditorKeyShowStatus
+        XOR     A
+        JP      EditorKeyLoop
+
+EditorKeyEscape:
+        CALL    EditorBlockStateClearForEdit
         RET     C
         JP      EditorKeyLoop
 

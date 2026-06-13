@@ -165,8 +165,29 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    AssertCursorRenderedAtRowTwo
         JP      C,ProofFailed
 
+        LD      A,20
+        LD      (CaseMarker),A
+        LD      A,TECM8_EDITOR_KEY_ESCAPE
+        LD      B,0
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertBlockStateClear
+        JP      C,ProofFailed
+
         LD      A,11
         LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToTwo
+        JP      C,ProofFailed
+        LD      A,"c"
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,0
         CALL    EditorRunModifiedKey
@@ -476,6 +497,30 @@ ProofFailedDone:
 @AssertSelectionClear:
         LD      A,(EditorBlockSelectionActive)
         OR      A
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,HL
+@AssertBlockStateClear:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor
+        LD      A,(HL)
+        AND     TECM8_DISPLAY_MARKER_SELECTED | TECM8_DISPLAY_MARKER_COPY_SOURCE | TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 3
+        LD      A,(HL)
+        AND     TECM8_DISPLAY_MARKER_SELECTED | TECM8_DISPLAY_MARKER_COPY_SOURCE | TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 6
+        LD      A,(HL)
+        AND     TECM8_DISPLAY_MARKER_SELECTED | TECM8_DISPLAY_MARKER_COPY_SOURCE | TECM8_DISPLAY_MARKER_MOVE_SOURCE
         JP      NZ,AssertFail
         XOR     A
         RET

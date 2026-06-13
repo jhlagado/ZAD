@@ -29,6 +29,10 @@ PROOF_FAIL       .equ     0xE0
         JR      C,ProofFailed
         LD      A,(EditorNavDirty)
         LD      (UnknownModifiedDirty),A
+        LD      A,(EditorRowText0)
+        LD      (UnknownModifiedRow0First),A
+        LD      A,(EditorRowText9)
+        LD      (UnknownModifiedRow9First),A
 
         LD      A,3
         LD      (CaseMarker),A
@@ -189,4 +193,10 @@ ErrorMarker:
         .db     0
 
 UnknownModifiedDirty:
+        .db     0
+
+UnknownModifiedRow0First:
+        .db     0
+
+UnknownModifiedRow9First:
         .db     0

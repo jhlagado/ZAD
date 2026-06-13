@@ -190,7 +190,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_PENDING_BLOCK_MOVE\s+\.equ\s+2/);
   assert.match(source, /CALL\s+EditorShouldIgnoreModifiedPrintable\n\s+RET\s+C\n\s+OR\s+A\n\s+JP\s+NZ,EditorKeyUnknownModifiedPrintable/);
   assert.match(source, /@EditorShouldIgnoreModifiedPrintable:[\s\S]*?AND\s+TECM8_EDITOR_KEY_MOD_PAGE[\s\S]*?LD\s+A,1\n\s+OR\s+A\n\s+RET/);
-  assert.match(source, /EditorKeyUnknownModifiedPrintable:\n\s+LD\s+HL,EditorStatusUnknownKeyText\n\s+CALL\s+EditorKeyShowStatus/);
+  assert.match(source, /EditorKeyUnknownModifiedPrintable:\n\s+XOR\s+A\n\s+JP\s+EditorKeyLoop/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_ESCAPE\n\s+JP\s+Z,EditorKeyEscape/);
+  assert.match(source, /EditorKeyEscape:\n\s+CALL\s+EditorBlockStateClearForEdit/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+15/);
   assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
   assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+30/);

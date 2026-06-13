@@ -484,19 +484,21 @@ Manual script:
 1. Press Shift+Down once. Row 0 should show the thin selection gutter and row
    1 should remain the current cursor row.
 2. Press Alt-C. Row 0 should change to the thick pending-copy gutter.
-3. Press Down three times to move to row 4.
-4. Press Alt-V. Row 0 should be copied before row 4 and the pasted row should
+3. Press Escape. The pending-copy gutter should clear. Select row 0 again with
+   Shift+Down and press Alt-C to re-arm copy.
+4. Press Down three times to move to row 4.
+5. Press Alt-V. Row 0 should be copied before row 4 and the pasted row should
    become the thin selected destination block.
-5. Press Alt-X. The pasted rows should change to the sawtooth pending-move
+6. Press Alt-X. The pasted rows should change to the sawtooth pending-move
    gutter.
-6. Press Down a few rows, then Alt-V. The moved rows should reappear at the new
+7. Press Down a few rows, then Alt-V. The moved rows should reappear at the new
    position and the old source rows should close up.
-7. Select a destination range with Shift+Down, arm another source with Alt-C or
+8. Select a destination range with Shift+Down, arm another source with Alt-C or
    Alt-X, and press Alt-V. Equal-sized resident-page ranges should replace;
    unsafe overlaps should leave the text unchanged.
-8. Select a block and press Delete. Answer N first; the block should remain.
-9. Press Delete again and answer Y; the selected whole-line block should be
+9. Select a block and press Delete. Answer N first; the block should remain.
+10. Press Delete again and answer Y; the selected whole-line block should be
    removed and following lines should shift up.
-10. Press Alt-S. The editor should show saving feedback and return with the
+11. Press Alt-S. The editor should show saving feedback and return with the
     edited rows still visible.
 ```
