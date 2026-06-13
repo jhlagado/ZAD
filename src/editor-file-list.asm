@@ -134,10 +134,7 @@ EditorListCatalogEntry:
         POP     DE
         DJNZ    EditorListCatalogEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(EditorLoadSectorsLeft)
         DEC     A
         LD      (EditorLoadSectorsLeft),A

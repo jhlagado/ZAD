@@ -128,10 +128,7 @@ ProjectLoadCatalogEntry:
         ADD     HL,DE
         DJNZ    ProjectLoadCatalogEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(ProjectLoadCatalogLeft)
         DEC     A
         LD      (ProjectLoadCatalogLeft),A

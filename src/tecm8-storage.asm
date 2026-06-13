@@ -93,6 +93,18 @@ Tecm8StorageCoreSuperErr:
         SCF
         RET
 
+; Tecm8StorageAdvanceSectorOffset -
+; Advance a MON3 byte offset in DE by one TM8 sector.
+;! in DE
+;! out DE
+;! clobbers B,C,H,L,F
+@Tecm8StorageAdvanceSectorOffset:
+        EX      DE,HL
+        LD      BC,TM8_SECTOR_BYTES
+        ADD     HL,BC
+        EX      DE,HL
+        RET
+
 ; Tecm8StorageBlockToOffset —
 ; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
 ;! in HL

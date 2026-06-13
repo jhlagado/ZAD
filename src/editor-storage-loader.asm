@@ -484,10 +484,7 @@ EditorLoadPrefixEntry:
         ADD     HL,DE
         DJNZ    EditorLoadPrefixEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(EditorLoadSectorsLeft)
         DEC     A
         LD      (EditorLoadSectorsLeft),A
@@ -563,10 +560,7 @@ EditorLoadCatalogEntryMiss:
         ADD     HL,DE
         DJNZ    EditorLoadCatalogEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(EditorLoadSectorsLeft)
         DEC     A
         LD      (EditorLoadSectorsLeft),A
@@ -822,10 +816,7 @@ EditorCreateFreeCatalogEntry:
         POP     DE
         DJNZ    EditorCreateFreeCatalogEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(EditorLoadSectorsLeft)
         DEC     A
         LD      (EditorLoadSectorsLeft),A
@@ -891,10 +882,7 @@ EditorCreateFileIdAdvance:
         POP     DE
         DJNZ    EditorCreateFileIdEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(EditorLoadSectorsLeft)
         DEC     A
         LD      (EditorLoadSectorsLeft),A
@@ -934,10 +922,7 @@ EditorCreateCatalogEntry:
         LD      A,(EditorCreateFileId)
         DJNZ    EditorCreateCatalogEntry
 
-        EX      DE,HL
-        LD      BC,TM8_SECTOR_BYTES
-        ADD     HL,BC
-        EX      DE,HL
+        CALL    Tecm8StorageAdvanceSectorOffset
         LD      A,(EditorLoadSectorsLeft)
         DEC     A
         LD      (EditorLoadSectorsLeft),A

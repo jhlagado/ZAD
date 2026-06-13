@@ -79,8 +79,10 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.match(stringSource, /^@Tecm8StringMatchBytes:/m);
   assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
   assert.match(storageSource, /^@Tecm8StorageValidateCoreSuperblock:/m);
+  assert.match(storageSource, /^@Tecm8StorageAdvanceSectorOffset:/m);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
   assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
+  assert.match(source, /CALL\s+Tecm8StorageAdvanceSectorOffset/);
   assert.doesNotMatch(source, /@EditorLoadBlockToOffset:/);
 });
 

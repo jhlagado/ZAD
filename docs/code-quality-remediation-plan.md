@@ -321,6 +321,12 @@ Actions:
   to this helper; editor storage calls it first and then performs the extra
   writer/allocation/prefix/data-block checks it needs. This reduced the live
   Debug80 image to 15,001 bytes, leaving 1,383 bytes in the current 16K bank.
+- Done: add `Tecm8StorageAdvanceSectorOffset`, a shared MON3 `DE` byte-offset
+  step for scanning TM8 sector tables. Project config, editor source lookup,
+  editor file listing, catalog-slot search, and catalog writing now use it.
+  Other `TM8_SECTOR_BYTES` uses remain local because they are buffer copies or
+  allocation math, not the same offset-advance pattern. This reduced the live
+  Debug80 image to 14,990 bytes, leaving 1,394 bytes in the current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and
