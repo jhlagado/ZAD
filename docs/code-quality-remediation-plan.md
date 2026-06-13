@@ -9,11 +9,12 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 21 `.asm` modules, 11,361 lines.
+- Z80 source size: 22 `.asm` modules, 11,363 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 2,566 lines.
+  - `src/editor-interaction.asm`: 2,208 lines.
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-commands.asm`: 1,325 lines.
+  - `src/editor-navigation.asm`: 1,164 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
 - Current fresh source build: `npm run z80:size` reports 14,969 bytes emitted
   at `4000h..7A79h`, leaving 1,415 bytes before the `8000h` bank boundary. The
@@ -398,6 +399,8 @@ Actions:
   - Current checkpoint: status-line yes/no prompt handling now lives in
     `src/editor-prompt.asm`; block deletion itself remains with block mutation
     code for the later block-module extraction.
+  - Current checkpoint: dirty render policy, cursor visibility checks, and
+    dirty-column scratch state now live in `src/editor-render.asm`.
 - After movement is green, collapse duplicated cursor-reset and movement
   handler shapes into shared routines.
 - Move selection state out of viewport if it is not purely projection state.

@@ -119,6 +119,7 @@ CopyRowTextLoop:
         .include "../../src/editor-keymap.asm"
         .include "../../src/editor-cursor.asm"
         .include "../../src/editor-prompt.asm"
+        .include "../../src/editor-render.asm"
         .include "../../src/tecm8-bios.asm"
 
 LongLineKeys:
