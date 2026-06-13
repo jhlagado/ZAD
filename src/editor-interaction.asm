@@ -1431,20 +1431,7 @@ EditorPendingBlockTailNo:
         CALL    EditorKeyRecordAtRow
         LD      DE,EditorNavBackupPageBuffer
         LD      A,(EditorPendingBlockRowCount)
-        LD      B,A
-
-EditorPendingBlockScratchLoop:
-        LD      A,B
-        OR      A
-        JR      Z,EditorPendingBlockScratchDone
-        PUSH    BC
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        POP     BC
-        DJNZ    EditorPendingBlockScratchLoop
-
-EditorPendingBlockScratchDone:
-        XOR     A
+        CALL    Tecm8RecordShiftRecordsUp
         RET
 
 ;! out A,carry,zero
@@ -1462,8 +1449,14 @@ EditorPendingBlockScratchDone:
         LD      A,(EditorPendingBlockShiftRow)
         CP      B
         JR      C,EditorPendingBlockShiftDone
-
-EditorPendingBlockShiftLoop:
+        LD      A,(EditorPendingBlockShiftRow)
+        LD      B,A
+        LD      A,(EditorPendingBlockDestRow)
+        LD      C,A
+        LD      A,B
+        SUB     C
+        INC     A
+        LD      (EditorLineRowsLeft),A
         LD      A,(EditorPendingBlockShiftRow)
         CALL    EditorKeyRecordAtRow
         LD      (EditorLineSrc),HL
@@ -1475,17 +1468,8 @@ EditorPendingBlockShiftLoop:
         LD      D,H
         LD      E,L
         LD      HL,(EditorLineSrc)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      A,(EditorPendingBlockShiftRow)
-        LD      B,A
-        LD      A,(EditorPendingBlockDestRow)
-        CP      B
-        JR      Z,EditorPendingBlockShiftDone
-        LD      A,(EditorPendingBlockShiftRow)
-        DEC     A
-        LD      (EditorPendingBlockShiftRow),A
-        JR      EditorPendingBlockShiftLoop
+        LD      A,(EditorLineRowsLeft)
+        CALL    Tecm8RecordShiftRecordsDown
 
 EditorPendingBlockShiftDone:
         XOR     A
@@ -1501,20 +1485,7 @@ EditorPendingBlockShiftDone:
         LD      E,L
         LD      HL,EditorNavBackupPageBuffer
         LD      A,(EditorPendingBlockRowCount)
-        LD      B,A
-
-EditorPendingBlockCopyDestLoop:
-        LD      A,B
-        OR      A
-        JR      Z,EditorPendingBlockCopyDestDone
-        PUSH    BC
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        POP     BC
-        DJNZ    EditorPendingBlockCopyDestLoop
-
-EditorPendingBlockCopyDestDone:
-        XOR     A
+        CALL    Tecm8RecordShiftRecordsUp
         RET
 
 ;! out A,carry,zero
@@ -1541,12 +1512,14 @@ EditorPendingBlockDeleteStartReady:
         LD      A,(EditorPendingBlockRowCount)
         ADD     A,B
         LD      (EditorPendingBlockShiftRow),A
-
-EditorPendingBlockDeleteLoop:
         LD      A,(EditorPendingBlockShiftRow)
         CP      16
         JR      Z,EditorPendingBlockDeleteClearTail
-        ; expects out HL
+        LD      B,A
+        LD      A,16
+        SUB     B
+        LD      (EditorLineRowsLeft),A
+        LD      A,(EditorPendingBlockShiftRow)
         CALL    EditorKeyRecordAtRow
         LD      (EditorLineSrc),HL
         LD      A,(EditorPendingBlockShiftRow)
@@ -1559,12 +1532,8 @@ EditorPendingBlockDeleteLoop:
         LD      D,H
         LD      E,L
         LD      HL,(EditorLineSrc)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      A,(EditorPendingBlockShiftRow)
-        INC     A
-        LD      (EditorPendingBlockShiftRow),A
-        JR      EditorPendingBlockDeleteLoop
+        LD      A,(EditorLineRowsLeft)
+        CALL    Tecm8RecordShiftRecordsUp
 
 EditorPendingBlockDeleteClearTail:
         LD      A,16

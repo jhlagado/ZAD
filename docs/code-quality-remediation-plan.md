@@ -15,8 +15,8 @@ improved without destabilizing that progress.
   - `src/editor-storage-loader.asm`: 1,628 lines.
   - `src/shell-commands.asm`: 1,380 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
-- Current fresh source build: `npm run z80:size` reports 15,129 bytes emitted
-  at `4000h..7B19h`, leaving 1,255 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 15,103 bytes emitted
+  at `4000h..7AFFh`, leaving 1,281 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -261,8 +261,8 @@ Actions:
   - clearing a 32-byte record,
   - shifting text bytes left or right inside one record,
   - shifting records up/down inside a page or resident window.
-- Continue the record helper extraction by evaluating the remaining
-  block-selection row-shift loops once the helper boundary stays proof-green.
+- Done: route the remaining resident-page block copy, paste, insert-space, and
+  delete-source row-copy loops through those shared record-window helpers.
 - The existing `EditorKey*Record*` labels remain as compatibility wrappers and
   now delegate to the shared helpers. Replace duplicate split/join/paste/delete
   shift loops in `src/editor-interaction.asm` only after the small record-helper

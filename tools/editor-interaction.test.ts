@@ -310,6 +310,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.doesNotMatch(source, /EditorSplitShiftLoop:/);
   assert.doesNotMatch(source, /EditorJoinShiftLoop:/);
+  assert.doesNotMatch(source, /EditorPendingBlockShiftLoop:/);
+  assert.doesNotMatch(source, /EditorPendingBlockScratchLoop:/);
+  assert.doesNotMatch(source, /EditorPendingBlockCopyDestLoop:/);
+  assert.doesNotMatch(source, /EditorPendingBlockDeleteLoop:/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
 });

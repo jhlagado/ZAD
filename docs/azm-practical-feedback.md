@@ -126,11 +126,11 @@ Current concrete evidence:
   15,235 bytes.
 - Current record-helper extraction: adding `src/tecm8-record.asm` moves masked
   source-record length reads, metadata-preserving length writes, padding
-  zeroing, full-record clear, in-record text shifts, and up/down record-window
-  shifts into a shared module. `npm run z80:size` reports 15,129 bytes, a
-  106-byte reduction from the original 15,235-byte baseline while preserving the
-  older `EditorKey*Record*` wrapper entry points where external proof code still
-  expects them.
+  zeroing, full-record clear, in-record text shifts, up/down record-window
+  shifts, and resident-page block row copies into a shared module. `npm run
+  z80:size` reports 15,103 bytes, a 132-byte reduction from the original
+  15,235-byte baseline while preserving the older `EditorKey*Record*` wrapper
+  entry points where external proof code still expects them.
 - Contract annotation experiment: running
   `azm --contracts --fix --rc audit --reg-profile mon3 --interface src/mon3.asmi src/main.asm`
   successfully rewrote contract comments across the included source tree. TECM8
