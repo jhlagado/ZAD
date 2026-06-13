@@ -60,10 +60,10 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
     'TM8_CATALOG_SECTOR',
     'TM8_CATALOG_SECTORS',
     'TM8_CATALOG_ENTRY',
-    'TM8_SOURCE_MIN_BYTES',
   ]) {
-    assert.match(source, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
+    assert.match(storageSource, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
+  assert.match(source, /^TM8_SOURCE_MIN_BYTES\s+\.equ/m);
 
   assert.match(source, /EditorLoadParseSourcePath:/);
   assert.match(source, /EditorLoadRootPrefix:/);
@@ -73,6 +73,8 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.match(source, /CALL\s+EditorLoadFindSourcePrefix/);
   assert.match(source, /CALL\s+EditorLoadFindSource/);
   assert.match(source, /CALL\s+Tecm8StringMatchBytes/);
+  assert.match(source, /LD\s+DE,Tecm8StorageMagic/);
+  assert.doesNotMatch(source, /EditorLoadMagic:/);
   assert.doesNotMatch(source, /@EditorLoadMatchBytes:/);
   assert.match(stringSource, /^@Tecm8StringMatchBytes:/m);
   assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
@@ -83,6 +85,7 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
 
 test('editor storage loader validates the fixed TM8 v1 layout it depends on', () => {
   const source = readRepoFile('src/editor-storage-loader.asm');
+  const storageSource = readRepoFile('src/tecm8-storage.asm');
 
   for (const constant of [
     'TM8_TOTAL_BLOCKS',
@@ -97,7 +100,7 @@ test('editor storage loader validates the fixed TM8 v1 layout it depends on', ()
     'TM8_CATALOG_COUNT',
     'TM8_DATA_START_BLOCK',
   ]) {
-    assert.match(source, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
+    assert.match(storageSource, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
 
   for (const offset of ['12', '14', '16', '20', '22', '26', '28', '30', '34', '36', '38', '40']) {

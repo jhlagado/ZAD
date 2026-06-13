@@ -150,12 +150,12 @@ helper's zero-capacity, exact-fit, and overflow cases through
 
 ### `src/tecm8-storage.asm`
 
-This is the first shared TM8-format helper module. It currently owns
-`Tecm8StorageBlockToOffset`, the 4K TM8 block-number to MON3 `HLDE` byte-offset
-conversion used by both `src/project-config-loader.asm` and
-`src/editor-storage-loader.asm`. The routine is intentionally format-level
-math only: callers still own their own error codes, sector-in-block adjustment,
-and storage read/write policy.
+This is the first shared TM8-format helper module. It owns the canonical v1 TM8
+layout constants, the `TECM8VOL` magic bytes, and `Tecm8StorageBlockToOffset`,
+the 4K TM8 block-number to MON3 `HLDE` byte-offset conversion used by both
+`src/project-config-loader.asm` and `src/editor-storage-loader.asm`. The code is
+intentionally format-level only: callers still own their own error codes,
+sector-in-block adjustment, and storage read/write policy.
 
 Proof bundles that include storage loaders directly include
 `src/tecm8-storage.asm` after `src/tecm8-string.asm` and before the loader.

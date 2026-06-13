@@ -8,14 +8,6 @@
 
 PROJECT_LOAD_DISK_BUFF .equ  0x0600
 
-PROJECT_LOAD_SECTOR_BYTES .equ TECM8_SECTOR_BYTES
-PROJECT_LOAD_BLOCK_BYTES .equ TECM8_SECTOR_BYTES * 8
-PROJECT_LOAD_CATALOG_SECTOR .equ 48
-PROJECT_LOAD_CATALOG_SECTORS .equ 32
-PROJECT_LOAD_CATALOG_ENTRY .equ 64
-PROJECT_LOAD_ENTRIES_SECTOR .equ 8
-
-PROJECT_LOAD_ENTRY_ACTIVE .equ 0x01
 PROJECT_LOAD_ROOT_PREFIX .equ 0x00
 PROJECT_LOAD_PROJECT_NAME_LEN .equ 9
 
@@ -84,7 +76,7 @@ ProjectLoadOpenErr:
         JP      C,ProjectLoadReadErr
 
         LD      HL,PROJECT_LOAD_DISK_BUFF
-        LD      DE,ProjectLoadMagic
+        LD      DE,Tecm8StorageMagic
         LD      B,8
         CALL    Tecm8StringMatchBytes
         JR      C,ProjectLoadSuperErr
@@ -118,7 +110,7 @@ ProjectLoadOpenErr:
 
         LD      HL,PROJECT_LOAD_DISK_BUFF + 36
         LD      A,(HL)
-        CP      PROJECT_LOAD_CATALOG_ENTRY
+        CP      TM8_CATALOG_ENTRY
         JR      NZ,ProjectLoadSuperErr
         INC     HL
         LD      A,(HL)
@@ -143,8 +135,8 @@ ProjectLoadReadErr:
 ;! out HL,A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE
 @ProjectLoadFindConfig:
-        LD      DE,PROJECT_LOAD_CATALOG_SECTOR * PROJECT_LOAD_SECTOR_BYTES
-        LD      A,PROJECT_LOAD_CATALOG_SECTORS
+        LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
+        LD      A,TM8_CATALOG_SECTORS
         LD      (ProjectLoadCatalogLeft),A
 
 ProjectLoadCatalogSector:
@@ -155,7 +147,7 @@ ProjectLoadCatalogSector:
         JP      C,ProjectLoadReadErr
 
         LD      HL,PROJECT_LOAD_DISK_BUFF
-        LD      BC,PROJECT_LOAD_ENTRIES_SECTOR * 256
+        LD      BC,TM8_ENTRIES_SECTOR * 256
 
 ProjectLoadCatalogEntry:
         PUSH    BC
@@ -171,12 +163,12 @@ ProjectLoadCatalogEntry:
         CP      PROJECT_LOAD_ERR_BLOCK
         RET     Z
 
-        LD      DE,PROJECT_LOAD_CATALOG_ENTRY
+        LD      DE,TM8_CATALOG_ENTRY
         ADD     HL,DE
         DJNZ    ProjectLoadCatalogEntry
 
         EX      DE,HL
-        LD      BC,PROJECT_LOAD_SECTOR_BYTES
+        LD      BC,TM8_SECTOR_BYTES
         ADD     HL,BC
         EX      DE,HL
         LD      A,(ProjectLoadCatalogLeft)
@@ -197,7 +189,7 @@ ProjectLoadCatalogEntry:
 @ProjectLoadMatchCatalogEntry:
         LD      (ProjectLoadEntryBase),HL
         LD      A,(HL)
-        CP      PROJECT_LOAD_ENTRY_ACTIVE
+        CP      TM8_ENTRY_ACTIVE
         JR      NZ,ProjectLoadEntryNo
 
         INC     HL
@@ -297,9 +289,6 @@ ProjectLoadEmptyText:
         XOR     A
         LD      (DE),A
         RET
-
-ProjectLoadMagic:
-        .db     "TECM8VOL"
 
 ProjectLoadVolumeName:
         .db     "VOLUME.TM8",0

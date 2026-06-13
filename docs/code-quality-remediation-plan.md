@@ -310,6 +310,11 @@ Actions:
   errors and add sector-in-block offsets locally. This reduced the live
   Debug80 image from 15,090 bytes to 15,060 bytes, leaving 1,324 bytes in the
   current 16K bank.
+- Done: move canonical TM8 v1 layout constants and the `TECM8VOL` magic bytes
+  into `src/tecm8-storage.asm`. The loaders now share those definitions while
+  keeping policy constants such as `TM8_SOURCE_MIN_BYTES` local. Sharing the
+  magic bytes reduced the live Debug80 image to 15,052 bytes, leaving 1,332
+  bytes in the current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and
