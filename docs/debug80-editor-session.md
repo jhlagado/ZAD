@@ -384,8 +384,9 @@ GLCD. Use this exact smoke test:
    Expected: after saving, the generated two-page fixture moves to the second
    source page and the visible rows begin with `R1 LINE 00`, `R1 LINE 01`, and
    later `R1 LINE ...` records. Page movement is tested against this prepared
-   fixture; V1 does not grow the document across source sectors when Enter is
-   pressed at the end of a page.
+   fixture. V1 can grow into the adjacent source sector, including the next 4K
+   allocation block, when the resident page window and conservative size limits
+   allow it.
 
 15. Press `Ctrl+ArrowUp`.
 

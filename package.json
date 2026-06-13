@@ -7,6 +7,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tools/*.test.ts tools/**/*.test.ts",
     "fs": "node --experimental-strip-types tools/fs.ts",
+    "z80:size": "node --experimental-strip-types tools/measure-z80-size.ts",
     "proof:storage:image": "node --experimental-strip-types tools/create-storage-proof-image.ts",
     "proof:storage:image:verify": "node --experimental-strip-types tools/create-storage-proof-image.ts --verify-only",
     "proof:storage": "node --experimental-strip-types tools/run-storage-proof.ts",

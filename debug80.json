@@ -57,6 +57,43 @@
         "sdHighCapacity": true,
         "sdImagePath": "/Users/johnhardy/projects/TECM8/demos/debug80/editor-session-fat32.img"
       }
+    },
+    "keyboard-tester.main": {
+      "outputDir": "build",
+      "platform": "tec1g",
+      "profile": "mon3",
+      "sourceRoots": [
+        "src",
+        "roms/tec1g/mon3"
+      ],
+      "tec1g": {
+        "regions": [
+          {
+            "start": 0,
+            "end": 2047,
+            "kind": "rom"
+          },
+          {
+            "start": 2048,
+            "end": 32767,
+            "kind": "ram"
+          },
+          {
+            "start": 49152,
+            "end": 65535,
+            "kind": "rom"
+          }
+        ],
+        "appStart": 16384,
+        "entry": 0,
+        "romHex": "roms/tec1g/mon3/mon3.bin",
+        "sdEnabled": true,
+        "sdHighCapacity": true,
+        "sdImagePath": "/Users/johnhardy/projects/TECM8/demos/debug80/editor-session-fat32.img"
+      },
+      "sourceFile": "src/keyboard-tester.main.asm",
+      "asm": "src/keyboard-tester.main.asm",
+      "artifactBase": "keyboard-tester.main"
     }
   }
 }

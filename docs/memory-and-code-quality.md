@@ -267,6 +267,23 @@ Once TEC-side code grows beyond early proof stubs, TECM8 should track rough
 code and data size by module. Exact byte accounting is not needed at every
 step, but the project should know when resident code is growing too quickly.
 
+Use this command for the current Z80 binary pressure baseline:
+
+```text
+npm run z80:size
+```
+
+The command performs a fresh AZM strict-contract compile of `src/main.asm`,
+rather than trusting checked-in build artifacts. As of June 14, 2026, the
+fresh source build is 15,235 bytes emitted at `4000h..7B82h`, which fits in
+the `4000h..7FFFh` execution bank with 1,149 bytes remaining. The previously
+checked-in `build/main.bin` was 15,189 bytes and should be treated as stale for
+planning.
+
+The size command also reports D8 source-map coverage by source file. Those
+mapped byte ranges are useful for finding pressure areas, but they are not
+exclusive module byte ownership because include-line mappings can overlap.
+
 Useful recurring measurements:
 
 ```text

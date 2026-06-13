@@ -546,7 +546,10 @@ mutating source records.
 Ordinary movement and ordinary character editing clear selection and pending
 source state before mutating records.
 
-There is not yet sector-crossing insert/delete or multi-page block editing.
+Full multi-page block editing and arbitrary cross-sector compaction are not
+implemented yet. Sector-edge line editing does exist for the common resident
+window cases: row-15 split/growth into the adjacent page and Backspace joining
+into the cached previous page.
 The current live Debug80 smoke now drives the same path through matrix `Enter`,
 `Backspace` at column zero, save, page-away/page-back persistence checks, a
 clean-save no-op, post-save input, and quit. The block-editing acceptance smoke

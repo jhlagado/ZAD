@@ -289,19 +289,22 @@ file.
 
 ## Sector-Edge Editing Policy
 
-The V1 editor edits one loaded 512-byte source sector at a time. Split and join
-operations are deliberately conservative at sector boundaries:
+The current editor is no longer a single-sector toy. It keeps a small resident
+source window: active page, adjacent next page, and cached previous page.
+Within that window it supports the important sector-edge cases:
 
-- Splitting the final record in the loaded sector is a no-op.
-- Joining before the first record in the loaded sector is a no-op.
-- The editor does not shift source records across sectors in V1.
-- The editor does not allocate or free TM8 storage blocks as a side effect of
-  line editing in V1.
+- Enter near the end of a page can push the final record into the adjacent
+  page when that page is resident and has room.
+- Enter on row 15 can create the first record in the adjacent page when the
+  file can grow safely.
+- Backspace at row 0 can join into the cached previous page when the joined
+  record fits.
+- Save can grow the TM8 catalog byte size and, when needed, link a new 4K data
+  block for the extended source file.
 
-This keeps the first Debug80-testable editor predictable and avoids hiding
-multi-sector file mutation behind simple cursor commands. A later editor can
-add explicit sector/page shifting once save, backup, restore, and viewport
-movement are stable.
+The policy remains conservative: the editor should not silently discard source
+records, free TM8 blocks, or pretend the whole document is resident. Broader
+multi-page block editing and full compaction/truncation remain future work.
 
 ## Line Length Policy
 
@@ -311,9 +314,10 @@ Initial policy:
 
 - 20 visible text columns on GLCD, with an optional narrow bitmap gutter.
 - 31 stored characters per line.
-- No horizontal scrolling in v1.
-- Cursor should normally be constrained to the visible region.
-- Later builds can add overflow indicators or a wider-line mode.
+- Horizontal panning exposes the full 31-character record while keeping the
+  gutter fixed.
+- Cursor state tracks both logical source column and visible GLCD column.
+- Later builds can add overflow indicators or a wider-line mode if needed.
 
 This fits assembly code if users keep labels and comments short.
 

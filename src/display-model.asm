@@ -1,7 +1,7 @@
 ; TECM8 structured display model.
 ;
 ; This layer renders editor-style screens through TECM8-owned GLCD tile writes.
-; It is a display proof surface, not an editor.
+; It is the shared render policy used by editor proofs and the live editor.
 
 TECM8_DISPLAY_GLCD_COLUMNS          .equ    20
 TECM8_DISPLAY_GLCD_ROWS             .equ    10

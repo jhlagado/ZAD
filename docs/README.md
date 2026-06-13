@@ -29,6 +29,7 @@ npm install
 Useful project commands:
 
 ```text
+npm run z80:size
 npm run check
 npm run proof:project-config
 npm run proof:project-config:storage
@@ -45,6 +46,7 @@ Start here:
 - [Virtual Filesystem](virtual-filesystem.md)
 - [TEC-Side Shell Command Contract](shell-command-contract.md)
 - [TECM8 AZM Style Guide](azm-style-guide.md)
+- [AZM Adoption Opportunities](azm-adoption-opportunities.md)
 - [Editor Design](editor-design.md)
 - [Editor Block Operations](block-operations.md)
 - [Debug80 Editor Session](debug80-editor-session.md)

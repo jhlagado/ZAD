@@ -45,6 +45,24 @@ Roadmap consequence: editor quality work is not just cleanup. It is the first
 exercise in making a banked TECM8 tool: compact, contract-driven, and cleanly
 separated from resident shell/kernel services.
 
+## Native AZM Quality Track
+
+TECM8 should gradually adopt native AZM features where they improve code
+quality without destabilizing the editor milestone:
+
+- `.import` for routine modules with explicit public `@` entries and private
+  helper labels.
+- layout declarations, `sizeof`, `offset`, and selective layout casts for
+  memory records and on-disk TM8 structures.
+- `.enum` for closed status, command, prompt, marker, and action families.
+- `.cstr` for NUL-terminated strings where the storage convention matters.
+- small `op` declarations only for tiny instruction idioms that remain
+  size-conscious.
+
+The detailed opportunity list lives in
+`docs/azm-adoption-opportunities.md`. The concrete execution sequence is tracked
+as Q2A in `docs/code-quality-remediation-plan.md`.
+
 ## Completed Foundation
 
 - TM8 host volume tooling exists for format, info, list, create, remove, rename,
@@ -122,9 +140,11 @@ save it safely, navigate around it, recover from common mistakes, and return to
 the shell without losing work.
 
 The current editor is past the first proof stage. It can load `/src/main.asm`,
-render records, edit characters, split/join lines inside one page, save, backup,
-restore, and page through the prepared fixture. The remaining work is mostly
-about making it usable as a real editor rather than a proof harness.
+render records, edit characters, split/join lines across the resident adjacent
+page window, grow/save into the next source sector or allocation block when the
+conservative limits allow it, backup, restore, and page through the prepared
+fixture. The remaining work is mostly about making it usable as a real editor
+rather than a proof harness.
 
 ## Phase 1: Editor Reliability And Input Polish
 
@@ -651,8 +671,8 @@ Done when:
 - The shell/editor boundary is documented as a resident-to-banked-tool call
   boundary.
 - The editor remains Debug80-runnable and proof-green after each increment.
-- The post-refactor editor binary size is measured against the current 15,189
-  byte baseline.
+- The post-refactor editor binary size is measured against the current fresh
+  AZM source-build baseline of 15,235 bytes.
 - The roadmap names the next tool project: resident shell completion or
   assembler integration.
 

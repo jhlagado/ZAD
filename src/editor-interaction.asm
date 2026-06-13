@@ -1160,8 +1160,8 @@ EditorPendingBlockArmNoSelection:
 ; EditorPendingBlockPasteInsert -
 ; Insert pending source rows before the cursor when no destination selection is
 ; active. The first version is conservative: source and destination must be in
-; the current resident page, overlap/self cases are left for B6, and empty tail
-; rows must exist so no records are discarded.
+; the current resident page, unsafe overlap/self cases are rejected, and empty
+; tail rows must exist so no records are discarded.
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorPendingBlockPasteInsert:

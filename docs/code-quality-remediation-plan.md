@@ -15,7 +15,10 @@ improved without destabilizing that progress.
   - `src/editor-storage-loader.asm`: 1,626 lines.
   - `src/shell-commands.asm`: 1,362 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
-- Current editor binary: `build/main.bin` is 15,189 bytes.
+- Current fresh source build: `npm run z80:size` reports 15,235 bytes emitted
+  at `4000h..7B82h`, leaving 1,149 bytes before the `8000h` bank boundary. The
+  checked-in `build/main.bin` artifact may be stale; use the size command for
+  baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
   MON3, with storage-backed load/save, multi-page editing, display scheduling,
   and Block Editing V1 automation.
@@ -36,17 +39,20 @@ current binary rather than trusting stale offsets.
    gate, and manual Debug80 behavior must not regress.
 2. Preserve the AZM discipline. New public routines need `;!` contracts, and
    refactors must keep register boundaries clear rather than hiding clobbers.
-3. Prefer compact shared routines when they reduce both bytes and bugs. Do not
+3. Prefer native AZM structure where it improves boundaries, layout safety, or
+   readability: `.import` for routine modules, layout types for records, enums
+   for closed state families, and string directives for explicit storage.
+4. Prefer compact shared routines when they reduce both bytes and bugs. Do not
    chase clever opcode-level savings before the module boundaries are clean.
-4. Do not reintroduce old keyboard conventions. Alphabetic keys are commands or
+5. Do not reintroduce old keyboard conventions. Alphabetic keys are commands or
    text; navigation is by matrix arrow keys and modifiers only.
-5. Preserve the source-record contract. Each line is a 32-byte record; the
+6. Preserve the source-record contract. Each line is a 32-byte record; the
    length byte uses only bits 0-4 for length, so reads must mask with `0x1F`
    and writes must preserve bits 5-7 unless deliberately changing metadata.
-6. Keep resident code honest. Proof-only scaffolding and shell features not used
+7. Keep resident code honest. Proof-only scaffolding and shell features not used
    by the live editor should not be accidentally treated as required resident
    product code.
-7. Use TypeScript for host tooling in this repo. Do not introduce Python helper
+8. Use TypeScript for host tooling in this repo. Do not introduce Python helper
    scripts for code-quality or size measurement.
 
 ## Audit Findings Triage
@@ -65,6 +71,8 @@ Accepted findings:
   become a narrow shared reader/writer layer.
 - Display, editor, TM8, and keyboard constants are spread across modules under
   parallel names. Canonical equates are needed.
+- Native AZM module and layout features are underused. See
+  `docs/azm-adoption-opportunities.md` for the adoption sequence.
 - Record shifts, buffer clears, match-byte loops, and GLCD dirty-row masking are
   good candidates for shared routines.
 - `main.asm` currently links more shell machinery into the live editor image
@@ -106,10 +114,9 @@ Goal: establish the measured state before structural work.
 Actions:
 
 - Run `npm run check` on the current tree.
-- Record the current `build/main.bin` size.
-- Add a TypeScript size-report command or documented command that records the
-  assembled binary size and, if feasible, rough module/symbol ranges from the
-  AZM output.
+- Run `npm run z80:size` and record the fresh assembled binary size and emitted
+  address span. The command also reports non-exclusive D8 source-map coverage
+  ranges where available.
 - Review `docs/roadmap.md`, `docs/codebase.md`, and
   `docs/memory-and-code-quality.md` for obvious contradictions with the current
   code.
@@ -119,6 +126,7 @@ Actions:
 Done when:
 
 - The baseline command output and binary size are recorded.
+- `npm run z80:size` is the canonical measurement surface.
 - The next refactor has a known verification command set.
 - No behavior has changed.
 
@@ -167,6 +175,40 @@ Done when:
 - `npm run check` passes.
 - The binary size is measured before and after; a size drop is welcome but not
   required for this phase.
+
+### Q2A: Native AZM Adoption Pilots
+
+Goal: prove native AZM features in small slices before broad source churn.
+
+Actions:
+
+- Follow the adoption sequence in `docs/azm-adoption-opportunities.md`.
+- Adopt only one new AZM feature per increment. Keep `.import`, layout types,
+  enums, string directives, and ops in separate changes so each feature's value
+  and cost can be measured independently.
+- Pilot `.import` on one low-risk module or proof path. Keep `.include` for
+  equates, layouts, ops, and deliberately textual proof fixtures.
+- Introduce one layout declaration for a real memory record, such as the
+  display row descriptor or source-record shape, then derive size and offset
+  constants from it.
+- Convert one closed constant family to `.enum`, preferably a status/action
+  group whose call sites already treat the values as a set.
+- Convert obvious NUL-terminated strings in one module from `.db "text",0` to
+  `.cstr "text"` where the storage contract is actually a C string.
+- Identify at most a few tiny `op` candidates. Measure the binary before and
+  after each one, and reject any op that increases size without a readability
+  win.
+- Keep ASM80-lowered `.z80` compatibility in mind: `.import` is not suitable
+  for workflows that need that output path until AZM supports it.
+
+Done when:
+
+- The increment contains only one new AZM feature category, unless the exception
+  is explicitly documented.
+- Each pilot has a targeted proof or build command.
+- `npm run z80:size` records the before/after size.
+- Strict register contracts still pass for affected proof/build paths.
+- The successful patterns are folded into the style guide or module templates.
 
 ### Q3: Shared Record, String, And Path Helpers
 
