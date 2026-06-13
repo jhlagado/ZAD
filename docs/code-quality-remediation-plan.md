@@ -9,17 +9,18 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 26 `.asm` modules, 11,362 lines.
+- Z80 source size: 28 `.asm` modules, roughly 11,400 lines.
 - Largest files:
   - `src/editor-storage-loader.asm`: 1,463 lines.
-  - `src/shell-commands.asm`: 1,325 lines.
+  - `src/shell-resolver.asm`: command resolution and executor stubs.
+  - `src/shell-program.asm`: prompt-loop and seeded input skeleton.
   - `src/editor-navigation.asm`: 1,164 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
   - `src/editor-block.asm`: 760 lines.
   - `src/editor-interaction.asm`: 741 lines.
   - `src/editor-line-edit.asm`: 595 lines.
-- Current fresh source build: `npm run z80:size` reports 14,948 bytes emitted
-  at `4000h..7A64h`, leaving 1,436 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 14,549 bytes emitted
+  at `4000h..78D5h`, leaving 1,835 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -81,8 +82,9 @@ Accepted findings:
   `docs/z80-space-saving-opportunities.md` for recommended pilots.
 - Record shifts, buffer clears, match-byte loops, and GLCD dirty-row masking are
   good candidates for shared routines.
-- `main.asm` currently links more shell machinery into the live editor image
-  than that editor bank should need.
+- The first shell split is complete: `main.asm` links the resolver only, while
+  the separate shell program remains available for proofs and the future
+  resident shell.
 - Some docs and comments still describe earlier roadmap states.
 
 Findings to adjust before execution:
@@ -352,6 +354,10 @@ Actions:
   16K bank. AZM strict contracts caught the first draft because it tried to use
   `A` after calling `Tecm8StorageBlockToOffset`, whose contract clobbers `A`;
   the helper now preserves `AF` across that call.
+- Done: split the shell into `shell-resolver.asm` and `shell-program.asm`.
+  `main.asm` now includes only the resolver plus `shell-editor-launch.asm`; the
+  full shell-command proof includes both halves. This reduces the live editor
+  image to 14,549 bytes, leaving 1,835 bytes free in the current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

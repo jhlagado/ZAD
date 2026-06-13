@@ -2,7 +2,7 @@
 
 **Purpose:** Actionable plan for a coding agent to improve compactness, structure, and coherence without breaking the proof-driven editor milestone.
 
-**Scope:** 26 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,948 bytes** at `0x4000`, leaving **1,436 bytes** in the 16 KiB bank.
+**Scope:** 28 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,549 bytes** at `0x4000`, leaving **1,835 bytes** in the 16 KiB bank.
 
 **Date:** June 2026 (post editor milestone / block-editing V1 automation)
 
@@ -22,9 +22,9 @@ The main problem is **incremental growth without consolidation**. Features lande
 | Legacy state kept for compatibility | `EditorNavDirty` vs `EditorNavDirtySectors` |
 | Dead code kept alive by tests | Fixed: `EditorKeyDirtyPageBlocked` removed |
 | Docs describing superseded V1 policy | `docs/editor-design.md`, `docs/codebase.md` |
-| Full shell linked into editor entry | `main.asm` includes all of `shell-commands.asm` |
+| Full shell linked into editor entry | Fixed: `main.asm` now includes `shell-resolver.asm` only |
 
-**Estimated recoverable ROM** from deduplication and module factoring (not splitting features): **~800–1,200 bytes** in the current editor binary, plus substantial maintainability gains. Further savings (~2–4 KiB) require **excluding unused shell-program code** from the live editor link and preparing **banked overlays** (already planned in docs, not implemented).
+**Estimated recoverable ROM** from deduplication and module factoring (not splitting features): **~800–1,200 bytes** in the current editor binary, plus substantial maintainability gains. The first shell split has already removed the unused prompt program from the live editor image; further large savings require preparing **banked overlays** (already planned in docs, not implemented).
 
 ---
 
@@ -45,7 +45,7 @@ These are strengths to preserve through refactoring:
 
 ```text
                     ┌─────────────────────┐
-                    │   shell-commands    │  ← resolver + full shell program (mixed)
+                    │ shell-resolver      │  ← resolver + executor stubs
                     └──────────┬──────────┘
                                │
                     ┌──────────▼──────────┐
@@ -148,15 +148,18 @@ becomes multi-page: viewport should not grow back into the owner of block policy
 
 Six routines repeat the same “row < 8 → low mask table, else high mask table” branch for dirty row scheduling (~15 lines × 6). A single `GlcdTileDirtyRowApply(A)` internal helper would save **~150–200 bytes**.
 
-### 8. Full shell program linked into live editor
+### 8. Done: full shell program no longer linked into live editor
 
-`main.asm` includes all of `shell-commands.asm` (1,362 lines) but `LiveStart` only needs:
+`main.asm` previously included all of `shell-commands.asm`, but `LiveStart` only needs:
 
 - `RunShellCommandLine` → resolver → `ShellRunEditorLine`
 
-Unused in live path: `RunShellProgramEntry`, `RunShellProgramCycles`, `ReadShellInputLine`, stub keyboard providers, executor stubs. All of this is still assembled into the 15 KiB binary.
+The shell has now been split into `shell-resolver.asm` and `shell-program.asm`.
+The live editor image includes only the resolver and launch bridge. The complete
+shell command proof includes both halves so prompt-loop behavior remains tested.
 
-**Recommendation:** Split into `shell-resolver.asm` (path/command resolution) and `shell-program.asm` (interactive loop). `main.asm` should include only resolver + launch.
+Result: `npm run z80:size` reports 14,549 bytes, leaving 1,835 bytes free in the
+current 16K bank.
 
 ### 9. Stale documentation describing superseded behavior
 
@@ -262,8 +265,8 @@ Execute **incrementally**; run `npm run check` (or targeted proof npm scripts) a
 | Step | Action | New file | Gate |
 |------|--------|----------|------|
 | C1 | Catalog/prefix scan helpers | `src/tm8-catalog.asm` | all storage proofs |
-| C2 | Split shell | `shell-resolver.asm`, `shell-program.asm` | shell-commands proof + main.asm size check |
-| C3 | `main.asm` includes resolver only | — | measure ROM drop |
+| C2 | Done: split shell | `shell-resolver.asm`, `shell-program.asm` | shell-commands proof + main.asm size check |
+| C3 | Done: `main.asm` includes resolver only | — | measured ROM drop |
 
 ### Phase D — State and doc cleanup
 
@@ -325,7 +328,7 @@ Copy this section directly to the implementing agent:
 
 ```text
 [ ] Read docs/azm-style-guide.md and docs/memory-and-code-quality.md
-[ ] Baseline: assemble main.asm, record 14948 bytes and symbol map
+[x] Baseline: assemble main.asm, record 14948 bytes and symbol map
 [x] Phase A1: create editor-record.asm, move editor-facing record wrappers and line scratch
 [x] Phase B line-edit slice: create editor-line-edit.asm, move fixed-record insert/delete/split/join
 [ ] Phase A2: EditorShiftRecordsDown/Up — replace 9 duplicate loops
@@ -333,8 +336,9 @@ Copy this section directly to the implementing agent:
 [ ] Phase A5: tecm8-display-equ.asm — unify geometry constants
 [ ] npm run check after each sub-step
 [ ] Phase B: split editor-interaction.asm (B1→B5 order)
-[ ] Phase C: tm8-catalog.asm; split shell-commands.asm
-[ ] Phase C3: main.asm includes shell-resolver only; re-measure ROM
+[ ] Phase C: tm8-catalog.asm
+[x] Phase C shell split: shell-resolver.asm + shell-program.asm
+[x] Phase C3: main.asm includes shell-resolver only; re-measure ROM at 14,549 bytes
 [ ] Phase D: dirty state unification; dead code removal; doc updates
 [ ] Add tools/measure-z80-modules.ts
 [ ] Optional: tools/debug80-proof-runtime.ts for TS dedup

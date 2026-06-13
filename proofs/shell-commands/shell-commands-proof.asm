@@ -1599,7 +1599,8 @@ LoadProjectStubOk:
         RET
 
         .include "../../src/tecm8-string.asm"
-        .include "../../src/shell-commands.asm"
+        .include "../../src/shell-resolver.asm"
+        .include "../../src/shell-program.asm"
 
 CmdEdit:
         .db     "edit",0

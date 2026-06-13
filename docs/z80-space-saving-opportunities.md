@@ -107,7 +107,7 @@ Expected value: moderate readability improvement and small byte reduction.
 ### 4. Replace Repeated Shell Error Tails With Existing Labels
 
 Candidate: inline `SHELL_ERR_SYNTAX` and `SHELL_ERR_LONG` returns in
-`src/shell-commands.asm`.
+`src/shell-resolver.asm`.
 
 The shell already has shared error labels for syntax and long-command errors,
 but some sites still inline the same load-error-and-return sequence.

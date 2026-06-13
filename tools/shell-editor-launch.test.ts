@@ -92,7 +92,8 @@ test('shell edit navigation proof drives shell command into storage-backed edito
   const packageJson = readRepoFile('package.json');
 
   assert.match(proof, /CALL\s+ShellRunEditorLine/);
-  assert.match(proof, /\.include\s+"..\/..\/src\/shell-commands\.asm"/);
+  assert.match(proof, /\.include\s+"..\/..\/src\/shell-resolver\.asm"/);
+  assert.doesNotMatch(proof, /\.include\s+"..\/..\/src\/shell-commands\.asm"/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-interaction\.asm"/);
   assert.match(proof, /\.include\s+"..\/..\/src\/shell-editor-launch\.asm"/);
   assert.match(runner, /shell-edit-navigation-proof/);
@@ -119,24 +120,31 @@ test('shell edit navigation proof drives shell command into storage-backed edito
 });
 
 test('shell command loop proves edit asm run sequence', () => {
-  const source = readRepoFile('src/shell-commands.asm');
+  const resolverSource = readRepoFile('src/shell-resolver.asm');
+  const programSource = readRepoFile('src/shell-program.asm');
   const stringSource = readRepoFile('src/tecm8-string.asm');
   const proof = readRepoFile('proofs/shell-commands/shell-commands-proof.asm');
 
-  assert.match(source, /^@RunShellProgramCycles:/m);
-  assert.match(source, /^@ShellRecordExecAction:/m);
-  assert.match(source, /SHELL_EXEC_LOG_LEN\s+\.equ\s+8/);
-  assert.match(source, /ShellExecActionLog:\n\s+\.ds\s+SHELL_EXEC_LOG_LEN/);
-  assert.match(source, /CALL\s+RunShellPromptCycle/);
-  assert.match(source, /CP\s+SHELL_PROMPT_ERROR/);
-  assert.match(source, /CALL\s+Tecm8StringFindLocalName/);
-  assert.match(source, /CALL\s+Tecm8StringCopyNulBounded/);
-  assert.match(source, /CALL\s+Tecm8StringSkipSpaces/);
-  assert.doesNotMatch(source, /^@ShellFindLocalName:/m);
-  assert.doesNotMatch(source, /^@ShellSkipSpaces:/m);
+  assert.match(programSource, /^@RunShellProgramCycles:/m);
+  assert.match(programSource, /CALL\s+RunShellPromptCycle/);
+  assert.match(programSource, /CP\s+SHELL_PROMPT_ERROR/);
+  assert.match(resolverSource, /^@RunShellCommandLine:/m);
+  assert.match(resolverSource, /^@ShellRecordExecAction:/m);
+  assert.match(resolverSource, /SHELL_EXEC_LOG_LEN\s+\.equ\s+8/);
+  assert.match(resolverSource, /ShellExecActionLog:\n\s+\.ds\s+SHELL_EXEC_LOG_LEN/);
+  assert.match(resolverSource, /CALL\s+Tecm8StringFindLocalName/);
+  assert.match(resolverSource, /CALL\s+Tecm8StringCopyNulBounded/);
+  assert.match(resolverSource, /CALL\s+Tecm8StringSkipSpaces/);
+  assert.doesNotMatch(resolverSource, /^@RunShellProgramCycles:/m);
+  assert.doesNotMatch(resolverSource, /^@ReadShellInputLine:/m);
+  assert.doesNotMatch(resolverSource, /ShellLineBuffer:\n\s+\.ds/);
+  assert.doesNotMatch(resolverSource, /^@ShellFindLocalName:/m);
+  assert.doesNotMatch(resolverSource, /^@ShellSkipSpaces:/m);
   assert.match(stringSource, /^@Tecm8StringFindLocalName:/m);
   assert.match(stringSource, /^@Tecm8StringCopyNulBounded:/m);
   assert.match(stringSource, /^@Tecm8StringSkipSpaces:/m);
+  assert.match(proof, /\.include\s+"..\/..\/src\/shell-resolver\.asm"/);
+  assert.match(proof, /\.include\s+"..\/..\/src\/shell-program\.asm"/);
   assert.match(proof, /\.include\s+"..\/..\/src\/tecm8-string\.asm"/);
   assert.ok(
     proof.indexOf('@Start:') < proof.indexOf('.include "../../src/tecm8-string.asm"'),

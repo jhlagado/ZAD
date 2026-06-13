@@ -56,18 +56,21 @@ For the fastest orientation, read these files first:
 10. `src/tecm8-storage.asm`: shared TM8 format helpers used by storage-backed
     loaders.
 11. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
-12. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
-13. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
+12. `src/shell-resolver.asm`: shell command resolution and executor stubs.
+13. `src/shell-program.asm`: the proof/live prompt loop and input buffer layer.
+14. `src/shell-commands.asm`: compatibility include for code that still wants
+    the complete shell.
+15. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-14. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+16. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
-15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+17. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-block-state.asm`, `src/editor-viewport.asm`,
     `src/editor-record.asm`, `src/editor-line-edit.asm`, `src/editor-block.asm`,
     `src/editor-keymap.asm`, `src/editor-cursor.asm`, `src/editor-prompt.asm`,
     `src/editor-render.asm`, and `src/editor-interaction.asm`: the current editor
     path.
-16. `proofs/display/glcd-tile-proof.asm`,
+18. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer, the current block-editing state, and the fixed-record line
@@ -271,13 +274,12 @@ It relies on the v1 TM8 layout:
 The loader is deliberately narrow. It reads only one sector of project config
 text and is not a general TM8 filesystem implementation.
 
-### `src/shell-commands.asm`
+### `src/shell-resolver.asm`
 
-This is the current shell resolver and prompt-state skeleton. It does not yet
+This is the current shell resolver and executor-stub layer. It does not yet
 launch a real assembler or runner. It does enough to prove the shell command
-contract:
+contract without pulling in the interactive prompt program:
 
-- line input is copied into a bounded command buffer
 - `edit`, `asm`, and `run` are recognized
 - default commands load the cached project main path from `/tecm8.prj`
 - explicit source arguments get `.asm` appended when no extension is present
@@ -293,9 +295,30 @@ Important state:
 - `ShellStepDispatch`: dispatch block used by command execution
 - `ShellLastExecAction` and `ShellLastExecRequestPtr`: proof-visible result
 
-The file depends on an external `LoadProjectConfig` routine. Storage-backed
+The resolver depends on an external `LoadProjectConfig` routine. Storage-backed
 proofs include `project-config-loader.asm`; some command-only proofs stub
 `LoadProjectConfig` so they can test parsing without MON3.
+
+### `src/shell-program.asm`
+
+This is the interactive shell program and prompt/input skeleton. It is included
+after `shell-resolver.asm` when a proof or future live shell needs prompt-loop
+behavior:
+
+- line input is copied into a bounded command buffer
+- `RunShellProgramEntry` initializes the shell state and runs one prompt cycle
+- `RunShellProgramCycles` runs a bounded sequence for proofs
+- `ReadShellKey` is still a seed-stream provider, not the final matrix keyboard
+  shell input implementation
+
+The live editor image currently includes `shell-resolver.asm` directly and does
+not include this prompt layer.
+
+### `src/shell-commands.asm`
+
+This is now only a compatibility include that pulls in `shell-resolver.asm` and
+`shell-program.asm`. New code should include the smaller module it actually
+needs.
 
 ### `src/shell-editor-launch.asm`
 
