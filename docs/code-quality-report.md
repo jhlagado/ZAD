@@ -16,7 +16,7 @@ The main problem is **incremental growth without consolidation**. Features lande
 
 | Symptom | Primary location |
 |--------|-------------------|
-| One file doing too much | `editor-interaction.asm` (1,506 lines after keymap/cursor/prompt/render/record/line-edit extraction) |
+| One file doing too much | `editor-interaction.asm` (747 lines after keymap/cursor/prompt/render/record/line-edit/block extraction) |
 | Copy-pasted TM8 I/O | `editor-storage-loader.asm` |
 | Parallel constant namespaces | `display-model.asm`, `glcd-tile.asm`, `editor-viewport.asm`, `editor-interaction.asm` |
 | Legacy state kept for compatibility | `EditorNavDirty` vs `EditorNavDirtySectors` |
@@ -71,7 +71,7 @@ These are strengths to preserve through refactoring:
                                               └───────────────┘
 ```
 
-**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-record → editor-keymap → editor-cursor → editor-prompt → editor-render → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
+**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-record → editor-line-edit → editor-block → editor-keymap → editor-cursor → editor-prompt → editor-render → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
 
 ---
 
@@ -79,7 +79,7 @@ These are strengths to preserve through refactoring:
 
 ### 1. `editor-interaction.asm` is a monolith (highest priority)
 
-**1,506 lines, still covering too many concerns in one file:**
+**747 lines, now mostly orchestration but still carrying shared constants/state:**
 
 | Approx. lines | Concern |
 |---------------|---------|
@@ -89,9 +89,9 @@ These are strengths to preserve through refactoring:
 | Extracted | Dirty render policy now lives in `editor-render.asm` |
 | Extracted | Editor-facing record helpers and line scratch now live in `editor-record.asm` |
 | Extracted | Character insert/delete, split, join, row-15 growth, and cross-page join now live in `editor-line-edit.asm` |
-| 55–596 | Key dispatch (`EditorRunKeys`, `EditorRunLive`, handlers) |
-| ~620–1354 | Block selection, pending copy/move, paste, delete |
-| ~1356–1506 | Block deletion, remaining state, and strings |
+| Extracted | Block selection, pending copy/move, paste, replace, and delete now live in `editor-block.asm` |
+| ~55–675 | Key dispatch (`EditorRunKeys`, `EditorRunLive`, handlers) |
+| ~677–747 | Remaining shared state and prompt/status strings |
 
 This is the single largest barrier to review, banking, and compactness. A Z80 editor **should** have a key loop module, but not one that also owns TM8 record algebra, block editing, cursor rendering, and GLCD dirty scheduling.
 
@@ -133,7 +133,7 @@ Drift risk is real; this is maintenance debt, not just bytes.
 
 ### 6. Block-editing state split across modules
 
-**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** mostly lives in `editor-interaction.asm`, with line mutation isolated in `editor-line-edit.asm`, status-line prompt control flow isolated in `editor-prompt.asm`, and display scheduling isolated in `editor-render.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`).
+**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** now lives in `editor-block.asm`, with line mutation isolated in `editor-line-edit.asm`, status-line prompt control flow isolated in `editor-prompt.asm`, and display scheduling isolated in `editor-render.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`).
 
 This violates single ownership and makes multi-page block editing (future) harder.
 
@@ -171,9 +171,9 @@ EditorKeyDirtyPageBlocked:
         JP      EditorKeyLoop
 ```
 
-(`src/editor-interaction.asm` L521–525)
+(`src/editor-interaction.asm`, label `EditorKeyDirtyPageBlocked`)
 
-**No caller.** `tools/editor-interaction.test.ts` L241 **requires this dead handler to exist**. Likely remnant of abandoned “save before page move on dirty page” policy. Either wire it up or delete handler + test + `EditorStatusSaveFirstText` string.
+**No caller.** `tools/editor-interaction.test.ts` still requires this dead handler to exist. Likely remnant of abandoned “save before page move on dirty page” policy. Either wire it up or delete handler + test + `EditorStatusSaveFirstText` string.
 
 ---
 
@@ -205,7 +205,7 @@ EditorKeyDirtyPageBlocked:
 **Needs improvement:**
 
 - **No single manifest file** — RAM equates spread across navigation, viewport (320-byte row text buffers), interaction scratch. Add `src/tecm8-memory.asm` or extend [Memory and Code Quality Manifest](memory-and-code-quality.md) with a machine-readable equ block included by all modules.
-- **Implicit buffer aliasing** — block paste uses `EditorNavBackupPageBuffer` as scratch during paste (interaction ~L1426). Safe if operations don’t interleave, but undocumented and risky for future async paths.
+- **Implicit buffer aliasing** — block paste uses `EditorNavBackupPageBuffer` as scratch during paste (`editor-block.asm`). Safe if operations don’t interleave, but undocumented and risky for future async paths.
 - **`TECM8_EDITOR_NAV_CACHE_BASE` == `TECM8_EDITOR_NAV_WORKSPACE_BASE`** (both `0x3000`) — correct sizing, confusing names.
 
 ---

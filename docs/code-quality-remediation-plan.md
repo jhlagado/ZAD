@@ -9,13 +9,14 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 24 `.asm` modules, 11,367 lines.
+- Z80 source size: 25 `.asm` modules, 11,369 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 1,506 lines.
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-commands.asm`: 1,325 lines.
   - `src/editor-navigation.asm`: 1,164 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
+  - `src/editor-block.asm`: 760 lines.
+  - `src/editor-interaction.asm`: 747 lines.
   - `src/editor-line-edit.asm`: 595 lines.
 - Current fresh source build: `npm run z80:size` reports 14,969 bytes emitted
   at `4000h..7A79h`, leaving 1,415 bytes before the `8000h` bank boundary. The
@@ -267,8 +268,8 @@ Actions:
   delete-source row-copy loops through those shared record-window helpers.
 - The existing `EditorKey*Record*` labels remain as compatibility wrappers and
   now delegate to the shared helpers. Replace duplicate split/join/paste/delete
-  shift loops in `src/editor-interaction.asm` only after the small record-helper
-  boundary is proof-green.
+  shift loops in `src/editor-line-edit.asm` and `src/editor-block.asm` only after
+  the small record-helper boundary is proof-green.
 - Done: create `src/tecm8-string.asm` for the first shared byte/string/path
   helpers:
   - bounded byte matching with carry clear on match and carry set on mismatch,
@@ -400,16 +401,17 @@ Actions:
     Ctrl-modified command lookup now live in `src/editor-keymap.asm`;
     `src/editor-interaction.asm` still performs the command dispatch.
   - Current checkpoint: status-line yes/no prompt handling now lives in
-    `src/editor-prompt.asm`; block deletion itself remains with block mutation
-    code for the later block-module extraction.
+    `src/editor-prompt.asm`.
   - Current checkpoint: dirty render policy, cursor visibility checks, and
     dirty-column scratch state now live in `src/editor-render.asm`.
   - Current checkpoint: editor-facing record addressing wrappers, record helper
     wrappers, cursor advance, and line-edit scratch bytes now live in
     `src/editor-record.asm`.
   - Current checkpoint: character insert/delete, split, join, row-15 growth, and
-    cross-page join now live in `src/editor-line-edit.asm`; block mutation remains
-    in `src/editor-interaction.asm`.
+    cross-page join now live in `src/editor-line-edit.asm`.
+  - Current checkpoint: ordinary selection, pending copy/move source, paste,
+    replace, and delete now live in `src/editor-block.asm`; selection marker
+    projection state still lives in `src/editor-viewport.asm`.
 - After movement is green, collapse duplicated cursor-reset and movement
   handler shapes into shared routines.
 - Move selection state out of viewport if it is not purely projection state.

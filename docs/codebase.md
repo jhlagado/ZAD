@@ -63,7 +63,7 @@ For the fastest orientation, read these files first:
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, `src/editor-record.asm`,
-    `src/editor-line-edit.asm`, `src/editor-keymap.asm`,
+    `src/editor-line-edit.asm`, `src/editor-block.asm`, `src/editor-keymap.asm`,
     `src/editor-cursor.asm`, `src/editor-prompt.asm`, `src/editor-render.asm`, and
     `src/editor-interaction.asm`: the current editor path.
 16. `proofs/display/glcd-tile-proof.asm`,
@@ -436,7 +436,8 @@ This module now owns the viewport-facing selection projection. It maps visible
 rows back to absolute page-line numbers, tests whether those lines fall inside
 the current ordinary selection, and layers pending copy or move source markers
 over the same rows. It is still only a viewport and marker surface: selection
-intervals and block-editing commands live in `editor-interaction.asm`.
+interval bytes and pending-source marker bytes remain here, while block-editing
+commands and mutation scratch live in `editor-block.asm`.
 
 ### `src/editor-storage-loader.asm`
 
@@ -625,10 +626,11 @@ avoids moving shared state before the block, prompt, and line-edit modules have
 their own ownership boundaries. The source-level contract is pinned by
 `tools/editor-interaction.test.ts`, and the live editor acceptance proofs now
 include `src/editor-interaction.asm`, then `src/editor-record.asm`, then
-`src/editor-line-edit.asm`, then `src/editor-keymap.asm`, then
-`src/editor-cursor.asm`, then `src/editor-prompt.asm`, then
-`src/editor-render.asm`, so the storage-backed editor runners exercise the same
-normalized command path as the real session target.
+`src/editor-line-edit.asm`, then `src/editor-block.asm`, then
+`src/editor-keymap.asm`, then `src/editor-cursor.asm`, then
+`src/editor-prompt.asm`, then `src/editor-render.asm`, so the storage-backed
+editor runners exercise the same normalized command path as the real session
+target.
 
 ### `src/editor-prompt.asm`
 
@@ -646,8 +648,8 @@ The prompt module reads prompt-active/result/text-pointer state from
 `src/editor-viewport.asm` and the pending prompt action byte from
 `src/editor-interaction.asm`. It also calls back into editor actions such as
 backup restore, dirty rerender, and selected-block deletion. That is intentional
-for this checkpoint: prompt control flow is now isolated, while block mutation
-remains in the future block module.
+for this checkpoint: prompt control flow is isolated, while selected-block
+deletion is dispatched to `src/editor-block.asm`.
 
 ### `src/editor-render.asm`
 
@@ -685,8 +687,8 @@ It owns:
   row-shift paths until block and line mutation have separate modules.
 
 The actual insert/delete/split/join routines now live in
-`src/editor-line-edit.asm`. Block row-shift mutation remains in
-`src/editor-interaction.asm` until the block module extraction.
+`src/editor-line-edit.asm`. Block row-shift mutation lives in
+`src/editor-block.asm`.
 
 ### `src/editor-line-edit.asm`
 
@@ -703,6 +705,22 @@ stack because it uses the editor-facing record wrappers and shared line scratch
 state. It still calls navigation routines for cross-page split/join cases; those
 calls are part of the current resident editor model and are covered by the
 line-editing, mutation-boundary, row-15-growth, and cross-page-join proofs.
+
+### `src/editor-block.asm`
+
+`src/editor-block.asm` owns whole-line block behavior:
+
+- ordinary selection begin/update/clear over absolute line numbers.
+- pending copy/move source arming.
+- current-page insert paste and equal-sized replace paste.
+- selected block delete.
+- gutter marker repaint after selection or pending-source changes.
+
+The viewport still owns marker projection state and helper queries such as
+`EditorBlockSelectionNormalize` and `EditorViewportMarkerForRow`. That split is
+intentional for this checkpoint: block behavior is out of the interaction loop,
+while the later state-ownership cleanup can move selection data without changing
+the editor's behavior.
 
 ### `src/editor-interaction.asm`
 
@@ -761,19 +779,19 @@ backup into the current page buffer, rerenders it, and marks it dirty so the
 user can inspect before saving. Ctrl-Q exits the key stream
 immediately when clean; when dirty, they ask before discarding changes and only
 exit on yes.
-The same key loop now owns whole-line block editing state. `Shift` movement
-captures an absolute-line selection interval. `Ctrl-C` normalizes
-that interval into a pending copy source, while `Ctrl-X` stores the
-same interval as a pending move source. `Ctrl-V` either inserts the
-pending rows before the cursor when no destination selection is active, or
-replace an ordinary destination selection when the source and destination are
-equal-sized resident-page ranges. Move paste deletes the original source only
-after the destination copy succeeds. Overlap and self cases are rejected as
-no-ops, and insert paste requires blank tail rows so it cannot silently discard
-existing records. `Delete` on a selected block asks `Delete block? Y/N`, then
-shifts following records up and clears the vacated tail rows on confirmation.
-`Escape` clears ordinary selection and pending copy/move source state without
-mutating source records.
+The key loop dispatches whole-line block commands into `src/editor-block.asm`.
+`Shift` movement captures an absolute-line selection interval. `Ctrl-C`
+normalizes that interval into a pending copy source, while `Ctrl-X` stores the
+same interval as a pending move source. `Ctrl-V` either inserts the pending rows
+before the cursor when no destination selection is active, or replaces an
+ordinary destination selection when the source and destination are equal-sized
+resident-page ranges. Move paste deletes the original source only after the
+destination copy succeeds. Overlap and self cases are rejected as no-ops, and
+insert paste requires blank tail rows so it cannot silently discard existing
+records. `Delete` on a selected block asks `Delete block? Y/N`, then shifts
+following records up and clears the vacated tail rows on confirmation. `Escape`
+clears ordinary selection and pending copy/move source state without mutating
+source records.
 Ordinary movement and ordinary character editing clear selection and pending
 source state before mutating records.
 
@@ -836,7 +854,7 @@ Prompt state is currently split: `EditorPromptActive`, `EditorPromptResult`, and
 `EditorPromptTextPtr` live with viewport/status-overlay state in
 `src/editor-viewport.asm`, while the pending prompt action byte
 `EditorPromptAction` remains in the interaction state block until prompt actions
-and block mutation have clearer module ownership.
+have clearer module ownership.
 
 `EditorSplitLine` shifts records down within the current 16-record page
 and splits the current record at the cursor. When the current sector is full and
