@@ -327,6 +327,13 @@ Actions:
   Other `TM8_SECTOR_BYTES` uses remain local because they are buffer copies or
   allocation math, not the same offset-advance pattern. This reduced the live
   Debug80 image to 14,990 bytes, leaving 1,394 bytes in the current 16K bank.
+- Done: add `Tecm8StorageReadSectorPreserveOffset`, a shared MON3 sector read
+  wrapper for scan loops that need the current `DE` byte offset after
+  `BiosFileReadSector`. Project config, editor prefix/catalog scans, allocation
+  scans, catalog-slot scans, and file listing now use it. Direct sector reads
+  remain local where the caller does not need `DE` preserved or is writing a
+  sector. This reduced the live Debug80 image to 14,964 bytes, leaving 1,420
+  bytes in the current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

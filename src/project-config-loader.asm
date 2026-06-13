@@ -101,10 +101,7 @@ ProjectLoadReadErr:
         LD      (ProjectLoadCatalogLeft),A
 
 ProjectLoadCatalogSector:
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,ProjectLoadReadErr
 
         LD      HL,PROJECT_LOAD_DISK_BUFF

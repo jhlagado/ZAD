@@ -32,11 +32,13 @@ test('project config storage loader calls TECM8 BIOS wrappers', () => {
   assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
   assert.match(storageSource, /^@Tecm8StorageValidateCoreSuperblock:/m);
   assert.match(storageSource, /^@Tecm8StorageAdvanceSectorOffset:/m);
+  assert.match(storageSource, /^@Tecm8StorageReadSectorPreserveOffset:/m);
   assert.match(storageSource, /Tecm8StorageMagic:\n\s+\.db\s+"TECM8VOL"/);
   assert.match(storageSource, /^TM8_CATALOG_ENTRY\s+\.equ\s+64/m);
   assert.match(source, /CALL\s+Tecm8StorageValidateCoreSuperblock/);
   assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
   assert.match(source, /CALL\s+Tecm8StorageAdvanceSectorOffset/);
+  assert.match(source, /CALL\s+Tecm8StorageReadSectorPreserveOffset/);
   assert.doesNotMatch(source, /@ProjectLoadMatchBytes:/);
   assert.doesNotMatch(source, /@ProjectLoadBlockToOffset:/);
   assert.doesNotMatch(source, /ProjectLoadMagic:/);

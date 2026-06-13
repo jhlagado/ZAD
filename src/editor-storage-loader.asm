@@ -461,10 +461,7 @@ EditorLoadParseStoreNameLen:
         LD      (EditorLoadSectorsLeft),A
 
 EditorLoadPrefixSector:
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -526,10 +523,7 @@ EditorLoadPrefixEntry:
         LD      (EditorLoadSectorsLeft),A
 
 EditorLoadCatalogSector:
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -707,10 +701,7 @@ EditorLoadBlockErr:
 
 EditorCreateFreeBlockSector:
         LD      DE,(EditorCreateAllocOffset)
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
 
         LD      HL,(EditorCreateBlockCandidate)
@@ -797,10 +788,7 @@ EditorCreateMarkOffsetOk:
         LD      (EditorLoadSectorsLeft),A
 
 EditorCreateFreeCatalogSector:
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -856,10 +844,7 @@ EditorCreateNextFileIdOk:
         LD      (EditorLoadSectorsLeft),A
 
 EditorCreateFileIdSector:
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
@@ -902,10 +887,7 @@ EditorCreateFileIdFound:
         LD      (EditorLoadSectorsLeft),A
 
 EditorCreateCatalogSector:
-        PUSH    DE
-        LD      HL,0
-        CALL    BiosFileReadSector
-        POP     DE
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF

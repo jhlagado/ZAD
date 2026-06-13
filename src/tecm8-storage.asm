@@ -105,6 +105,18 @@ Tecm8StorageCoreSuperErr:
         EX      DE,HL
         RET
 
+; Tecm8StorageReadSectorPreserveOffset -
+; Read the current MON3 file sector at byte offset DE, preserving DE for scans.
+;! in DE
+;! out DE,carry
+;! clobbers A,B,C,H,L,F
+@Tecm8StorageReadSectorPreserveOffset:
+        PUSH    DE
+        LD      HL,0
+        CALL    BiosFileReadSector
+        POP     DE
+        RET
+
 ; Tecm8StorageBlockToOffset —
 ; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
 ;! in HL

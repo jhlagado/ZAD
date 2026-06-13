@@ -108,11 +108,8 @@ EditorListPathErr:
         LD      (EditorLoadSectorsLeft),A
 
 EditorListCatalogSector:
-        LD      (EditorListCatalogOffset),DE
-        LD      HL,0
-        CALL    BiosFileReadSector
+        CALL    Tecm8StorageReadSectorPreserveOffset
         JP      C,EditorLoadReadErr
-        LD      DE,(EditorListCatalogOffset)
 
         LD      HL,DISK_BUFF
         LD      B,TM8_ENTRIES_SECTOR
@@ -217,6 +214,3 @@ EditorListOutPtr:
 
 EditorListRemainingCap:
         .db     0
-
-EditorListCatalogOffset:
-        .dw     0
