@@ -749,7 +749,7 @@ EditorLoadBlockErr:
         CALL    EditorLoadResolveSourceBlock
         RET     C
         LD      HL,(EditorLoadResolvedBlock)
-        CALL    EditorLoadBlockToOffset
+        CALL    Tecm8StorageBlockToOffset
         LD      A,(EditorLoadSectorInBlock)
         ADD     A,A
         ADD     A,D
@@ -1163,7 +1163,7 @@ EditorCreateChecksumNoCarry:
         RET     C
         LD      HL,(EditorLoadResolvedBlock)
         ; expects out HL
-        CALL    EditorLoadBlockToOffset
+        CALL    Tecm8StorageBlockToOffset
         LD      A,(EditorLoadSectorInBlock)
         ADD     A,A
         ADD     A,D
@@ -1460,37 +1460,6 @@ EditorLoadAllocationNotEndHigh:
 EditorLoadAllocationOk:
         EX      DE,HL
         XOR     A
-        RET
-
-;! in HL
-;! out DE,HL
-;! clobbers A,F
-@EditorLoadBlockToOffset:
-        LD      A,L
-        AND     0x0F
-        RLCA
-        RLCA
-        RLCA
-        RLCA
-        LD      D,A
-        LD      E,0
-
-        LD      A,H
-        RRCA
-        RRCA
-        RRCA
-        RRCA
-        AND     0xF0
-        LD      H,A
-        LD      A,L
-        RRCA
-        RRCA
-        RRCA
-        RRCA
-        AND     0x0F
-        OR      H
-        LD      L,A
-        LD      H,0
         RET
 
 EditorLoadMagic:

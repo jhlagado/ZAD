@@ -303,6 +303,13 @@ Goal: keep storage behavior identical while removing repeated TM8 walks.
 
 Actions:
 
+- Done: create `src/tecm8-storage.asm` for the first shared TM8 format helper,
+  `Tecm8StorageBlockToOffset`. `project-config-loader` and
+  `editor-storage-loader` now use it instead of carrying duplicate block-offset
+  conversion routines. The helper stays deliberately narrow: callers still map
+  errors and add sector-in-block offsets locally. This reduced the live
+  Debug80 image from 15,090 bytes to 15,060 bytes, leaving 1,324 bytes in the
+  current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

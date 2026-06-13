@@ -61,6 +61,7 @@ AssertStringBad:
         .include "../../src/project-config.asm"
         .include "../../src/tecm8-bios.asm"
         .include "../../src/tecm8-string.asm"
+        .include "../../src/tecm8-storage.asm"
         .include "../../src/project-config-loader.asm"
 
 ExpectedMainPath:

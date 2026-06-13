@@ -71,6 +71,7 @@ MainFailed:
 
         .include "project-config.asm"
         .include "tecm8-string.asm"
+        .include "tecm8-storage.asm"
         .include "project-config-loader.asm"
         .include "glcd-tile.asm"
         .include "display-model.asm"

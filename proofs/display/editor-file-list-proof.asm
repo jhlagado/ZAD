@@ -70,6 +70,7 @@ FillListBufferLoop:
         RET
 
         .include "../../src/tecm8-string.asm"
+        .include "../../src/tecm8-storage.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-file-list.asm"
         .include "../../src/tecm8-bios.asm"

@@ -53,16 +53,18 @@ For the fastest orientation, read these files first:
    full-record clear, in-record text shifts, and up/down record-window shifts.
 9. `src/tecm8-string.asm`: shared byte/string/path helpers used by storage,
    project config, and shell path-resolution code.
-10. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
-11. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
-12. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
+10. `src/tecm8-storage.asm`: shared TM8 format helpers used by storage-backed
+    loaders.
+11. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
+12. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
+13. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-13. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+14. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
-14. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
     editor path.
-15. `proofs/display/glcd-tile-proof.asm`,
+16. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer, the current block-editing state, and the fixed-record line
@@ -145,6 +147,20 @@ standalone proof targets still start at `4000h`.
 `proofs/shared/tecm8-string-proof.asm` directly verifies the bounded-copy
 helper's zero-capacity, exact-fit, and overflow cases through
 `npm run proof:tecm8-string`.
+
+### `src/tecm8-storage.asm`
+
+This is the first shared TM8-format helper module. It currently owns
+`Tecm8StorageBlockToOffset`, the 4K TM8 block-number to MON3 `HLDE` byte-offset
+conversion used by both `src/project-config-loader.asm` and
+`src/editor-storage-loader.asm`. The routine is intentionally format-level
+math only: callers still own their own error codes, sector-in-block adjustment,
+and storage read/write policy.
+
+Proof bundles that include storage loaders directly include
+`src/tecm8-storage.asm` after `src/tecm8-string.asm` and before the loader.
+This keeps the Q4 storage layer narrow while removing duplicated bytecode from
+the two live readers.
 
 ### `src/main.asm`
 

@@ -51,6 +51,7 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
 test('editor storage loader finds /src/main.asm through TM8 prefix and catalog tables', () => {
   const source = readRepoFile('src/editor-storage-loader.asm');
   const stringSource = readRepoFile('src/tecm8-string.asm');
+  const storageSource = readRepoFile('src/tecm8-storage.asm');
 
   for (const constant of [
     'TM8_PREFIX_SECTOR',
@@ -74,8 +75,10 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.match(source, /CALL\s+Tecm8StringMatchBytes/);
   assert.doesNotMatch(source, /@EditorLoadMatchBytes:/);
   assert.match(stringSource, /^@Tecm8StringMatchBytes:/m);
+  assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
-  assert.match(source, /CALL\s+EditorLoadBlockToOffset/);
+  assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
+  assert.doesNotMatch(source, /@EditorLoadBlockToOffset:/);
 });
 
 test('editor storage loader validates the fixed TM8 v1 layout it depends on', () => {

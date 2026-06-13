@@ -281,7 +281,7 @@ ProjectLoadBlockErr:
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ProjectLoadReadConfigText:
         LD      HL,(ProjectLoadFirstBlock)
-        CALL    ProjectLoadBlockToOffset
+        CALL    Tecm8StorageBlockToOffset
         CALL    BiosFileReadSector
         JP      C,ProjectLoadReadErr
 
@@ -296,39 +296,6 @@ ProjectLoadBlockErr:
 ProjectLoadEmptyText:
         XOR     A
         LD      (DE),A
-        RET
-
-; ProjectLoadBlockToOffset —
-; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
-;! in HL
-;! out DE,HL
-;! clobbers A,F
-@ProjectLoadBlockToOffset:
-        LD      A,L
-        AND     0x0F
-        RLCA
-        RLCA
-        RLCA
-        RLCA
-        LD      D,A
-        LD      E,0
-
-        LD      A,H
-        RRCA
-        RRCA
-        RRCA
-        RRCA
-        AND     0xF0
-        LD      H,A
-        LD      A,L
-        RRCA
-        RRCA
-        RRCA
-        RRCA
-        AND     0x0F
-        OR      H
-        LD      L,A
-        LD      H,0
         RET
 
 ProjectLoadMagic:

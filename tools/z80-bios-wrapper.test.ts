@@ -24,13 +24,35 @@ test('TECM8 BIOS storage wrappers are real assembly entry points', () => {
 test('project config storage loader calls TECM8 BIOS wrappers', () => {
   const source = readRepoFile('src/project-config-loader.asm');
   const storageProof = readRepoFile('proofs/project-config/project-config-storage-proof.asm');
+  const storageSource = readRepoFile('src/tecm8-storage.asm');
 
   assert.match(source, /CALL\s+BiosFileOpen/);
   assert.match(source, /CALL\s+BiosFileReadSector/);
   assert.match(source, /CALL\s+Tecm8StringMatchBytes/);
+  assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
+  assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
   assert.doesNotMatch(source, /@ProjectLoadMatchBytes:/);
+  assert.doesNotMatch(source, /@ProjectLoadBlockToOffset:/);
   assert.match(storageProof, /\.include\s+"..\/..\/src\/tecm8-string\.asm"/);
+  assert.match(storageProof, /\.include\s+"..\/..\/src\/tecm8-storage\.asm"/);
   assert.doesNotMatch(source, /CALL\s+MON3_(?:OPEN_FILE|READ_SECTOR|WRITE_SECTOR)/);
+});
+
+test('storage helper includes stay after proof entry trampolines', () => {
+  for (const path of [
+    'proofs/project-config/project-config-storage-proof.asm',
+    'proofs/display/editor-viewport-storage-proof.asm',
+    'proofs/display/editor-file-list-proof.asm',
+  ]) {
+    const source = readRepoFile(path);
+    const startIndex = source.indexOf('@Start:');
+    const storageIndex = source.indexOf('.include "../../src/tecm8-storage.asm"');
+    const loaderIndex = source.search(/\.include "\.\.\/\.\.\/src\/(?:project-config-loader|editor-storage-loader)\.asm"/);
+
+    assert.notEqual(startIndex, -1, `${path} should expose a 4000h entry`);
+    assert.ok(storageIndex > startIndex, `${path} should include storage helper after entry code`);
+    assert.ok(loaderIndex > storageIndex, `${path} should include storage helper before storage loader`);
+  }
 });
 
 test('TECM8 BIOS display API is documented for GLCD wrappers', () => {
