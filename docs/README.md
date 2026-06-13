@@ -42,6 +42,7 @@ Start here:
 - [Editor Block Operations](block-operations.md)
 - [Debug80 Editor Session](debug80-editor-session.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
+- [Code Quality Execution Plan](code-quality-remediation-plan.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
 
 MON3 analysis is intentionally separated from the main TECM8 editor docs:

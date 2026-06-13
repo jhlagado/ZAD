@@ -1,0 +1,321 @@
+# TECM8 Code Quality Execution Plan
+
+This document is the response plan for the external code-quality assessments in
+`docs/code-quality-report.md` and the earlier remediation draft. It turns those
+audits into an execution sequence for TECM8, adjusted for the current roadmap:
+the editor is usable in Debug80 and Block Editing V1 is automation-complete, but
+manual validation and later editor features are still ahead. The code should be
+improved without destabilizing that progress.
+
+## Current Baseline
+
+- Z80 source size: 14 `.asm` modules, 11,336 lines.
+- Largest files:
+  - `src/editor-interaction.asm`: 3,180 lines.
+  - `src/editor-storage-loader.asm`: 1,626 lines.
+  - `src/shell-commands.asm`: 1,362 lines.
+  - `src/glcd-tile.asm`: 1,008 lines.
+- Current editor binary: `build/main.bin` is 15,189 bytes.
+- Current product shape: Debug80-runnable editor at `0x4000`, launched under
+  MON3, with storage-backed load/save, multi-page editing, display scheduling,
+  and Block Editing V1 automation.
+- Current roadmap position: Block Editing V1 needs manual Debug80 validation
+  before named block read/write, character selections, or larger feature work.
+
+The audits are useful, but their line numbers and byte counts are snapshots.
+Every implementation phase below starts by re-grepping symbols and measuring the
+current binary rather than trusting stale offsets.
+
+## Quality Principles
+
+1. Keep the editor runnable after every increment. `npm run check` is the main
+   gate, and manual Debug80 behavior must not regress.
+2. Preserve the AZM discipline. New public routines need `;!` contracts, and
+   refactors must keep register boundaries clear rather than hiding clobbers.
+3. Prefer compact shared routines when they reduce both bytes and bugs. Do not
+   chase clever opcode-level savings before the module boundaries are clean.
+4. Do not reintroduce old keyboard conventions. Alphabetic keys are commands or
+   text; navigation is by matrix arrow keys and modifiers only.
+5. Preserve the source-record contract. Each line is a 32-byte record; the
+   length byte uses only bits 0-4 for length, so reads must mask with `0x1F`
+   and writes must preserve bits 5-7 unless deliberately changing metadata.
+6. Keep resident code honest. Proof-only scaffolding and shell features not used
+   by the live editor should not be accidentally treated as required resident
+   product code.
+7. Use TypeScript for host tooling in this repo. Do not introduce Python helper
+   scripts for code-quality or size measurement.
+
+## Audit Findings Triage
+
+Accepted findings:
+
+- `editor-interaction.asm` is too large and mixes key dispatch, cursor state,
+  block editing, prompt handling, record mutation, and render scheduling.
+- TM8 path/catalog/superblock logic is duplicated across loaders and should
+  become a narrow shared reader/writer layer.
+- Display, editor, TM8, and keyboard constants are spread across modules under
+  parallel names. Canonical equates are needed.
+- Record shifts, buffer clears, match-byte loops, and GLCD dirty-row masking are
+  good candidates for shared routines.
+- `main.asm` currently links more shell machinery than the live editor path
+  needs.
+- Some docs and comments still describe earlier roadmap states.
+
+Findings to adjust before execution:
+
+- Do not make an arbitrary line limit a hard quality gate. File size is a
+  warning sign, not proof of bad design. The target is clearer ownership and
+  smaller reviewable modules.
+- Do not create a broad general-purpose filesystem layer yet. Extract a narrow
+  TM8 layer that serves current project config, file listing, editor loading,
+  editor saving, backup creation, and growth.
+- Do not table-drive every dispatch path before the keymap has a stable module
+  boundary. Keymap extraction should happen first; table dispatch can follow
+  where it measurably reduces code and complexity.
+- Do not delete BIOS wrappers purely because they have no current product
+  callers. First classify them as current product, near-future diagnostic/API,
+  or obsolete MON3-terminal compatibility.
+
+Deferred findings:
+
+- Banked overlays and MON3 BIOS replacement remain future architecture work.
+  This quality plan can prepare module boundaries for overlays, but should not
+  start bank switching.
+- TypeScript proof-runner deduplication is worthwhile, but Z80 organization is
+  the priority for this pass unless TS duplication blocks a Z80 refactor.
+- Named block read/write and anonymous clipboard-file behavior belong after
+  Block Editing V1 manual validation.
+
+## Execution Roadmap
+
+### Q0: Baseline And Guardrails
+
+Goal: establish the measured state before structural work.
+
+Actions:
+
+- Run `npm run check` on the current tree.
+- Record the current `build/main.bin` size.
+- Add a TypeScript size-report command or documented command that records the
+  assembled binary size and, if feasible, rough module/symbol ranges from the
+  AZM output.
+- Review `docs/roadmap.md`, `docs/codebase.md`, and
+  `docs/memory-and-code-quality.md` for obvious contradictions with the current
+  code.
+- Keep `debug80.json` and other local emulator configuration changes out of
+  quality commits unless explicitly requested.
+
+Done when:
+
+- The baseline command output and binary size are recorded.
+- The next refactor has a known verification command set.
+- No behavior has changed.
+
+### Q1: Low-Risk Hygiene Before Refactoring
+
+Goal: remove stale policy and proof friction that would mislead later work.
+
+Actions:
+
+- Update stale comments and docs that still describe superseded editor behavior:
+  sector-edge editing, display-model being proof-only, old block overlap notes,
+  and any lingering alphabet-navigation language.
+- Classify apparently unused BIOS and editor routines into keep, deprecate, or
+  delete candidates. Do not delete until proof and product caller checks agree.
+- Identify test assertions that pin dead labels rather than behavior. Convert
+  them to behavior or contract checks before removing the labels.
+- Ensure the codebase tour describes `@` routine entries, current Control-key
+  command policy, and the no-letter-navigation rule.
+
+Done when:
+
+- Docs no longer encourage outdated implementation decisions.
+- Dead-code candidates are listed with caller evidence.
+- No code behavior changes except removal of proven-unused code.
+
+### Q2: Canonical Equates And Memory Names
+
+Goal: stop constants from drifting across modules.
+
+Actions:
+
+- Introduce `src/tecm8-equates.asm` for shared constants that cost no resident
+  bytes: record sizes, length masks, TM8 sector/block sizes, keyboard modifier
+  bits, display geometry, GLCD buffer addresses, and shared error constants.
+- Keep domain aliases only when they add meaning. For example, a record size of
+  32 and printable ASCII space both have value 32 but should not collapse into
+  one ambiguous name.
+- Replace bare `0x1F` length-mask reads with the canonical length-mask equate.
+- Add or update tests/proofs that confirm length metadata bits survive
+  render/edit/save paths.
+- Reconcile `docs/memory-and-code-quality.md` with the canonical RAM names.
+
+Done when:
+
+- Constants are owned in one place, or aliases clearly derive from one place.
+- `npm run check` passes.
+- The binary size is measured before and after; a size drop is welcome but not
+  required for this phase.
+
+### Q3: Shared Record, String, And Path Helpers
+
+Goal: remove duplicated small algorithms before splitting large modules.
+
+Actions:
+
+- Create a record helper module for:
+  - reading a masked record length,
+  - writing a length while preserving bits 5-7,
+  - clearing a 32-byte record,
+  - shifting records up/down inside a page or resident window,
+  - shifting characters inside one record.
+- Replace duplicate split/join/paste/delete shift loops in
+  `src/editor-interaction.asm` with those helpers.
+- Create a small string/path helper module for bounded copy, append, local name
+  lookup, prefix/name split, and sibling backup path derivation.
+- Replace duplicated path walks in shell, navigation, and storage code.
+- Keep helper interfaces pointer-based (`HL`, `DE`, `BC`) where practical so
+  future overlay/banking work is not tied to hidden globals.
+
+Done when:
+
+- Record and path behavior is unchanged under the existing proofs.
+- The byte delta is recorded.
+- Register contracts are present on each public helper.
+
+### Q4: Narrow TM8 Storage Layer
+
+Goal: keep storage behavior identical while removing repeated TM8 walks.
+
+Actions:
+
+- Extract shared superblock validation, byte matching, prefix scan, catalog
+  scan, allocation-chain follow, and file-relative sector read/write helpers.
+- Route `project-config-loader`, `editor-storage-loader`, and
+  `editor-file-list` through the shared layer.
+- Keep the layer narrow: it should support the operations TECM8 already uses,
+  not become a full remove/rename/truncate/general filesystem API.
+- Preserve current error codes or provide a deliberate mapping layer so
+  user-facing compact status messages remain stable.
+
+Done when:
+
+- Project config, file listing, storage, editor page load/save, backup, and
+  allocation-growth proofs pass.
+- Manual Debug80 editor image preparation still produces the same user-facing
+  fixture.
+- The storage byte delta and any new shared entry points are documented.
+
+### Q5: Editor Interaction Decomposition
+
+Goal: make editor behavior reviewable without changing what it does.
+
+Target ownership:
+
+- `src/editor-keymap.asm`: key normalization, command lookup, and dispatch
+  tables/helpers.
+- `src/editor-cursor.asm`: cursor position, visibility, blink, render/erase.
+- `src/editor-line-edit.asm`: character insert/delete, split, join, fixed-record
+  mutation.
+- `src/editor-block.asm`: ordinary selection, pending copy/move source, paste,
+  replace, delete, and block marker state.
+- `src/editor-prompt.asm`: status-line prompts and modal yes/no handling.
+- `src/editor-render.asm`: dirty render policy that connects editor state to
+  viewport/display scheduling.
+- `src/editor-interaction.asm`: orchestration glue and the live/script loops.
+
+Actions:
+
+- First move code without changing logic. Update include order and tests only as
+  needed for symbol locations.
+- After movement is green, collapse duplicated cursor-reset and movement
+  handler shapes into shared routines.
+- Move selection state out of viewport if it is not purely projection state.
+  The viewport should answer "what marker appears on this visible row?", not
+  own the block editing model.
+- Keep public entry names stable where proofs or docs use them; add wrappers
+  during transition rather than broad rename churn.
+
+Done when:
+
+- The monolith is reduced to orchestration and compatibility wrappers.
+- `npm run check` passes after each sub-step.
+- Manual editor behavior is unchanged.
+
+### Q6: Resident Product Compactness
+
+Goal: separate what the live editor needs from proof and future shell code.
+
+Actions:
+
+- Split shell command resolution from the interactive shell program. The live
+  editor entry should include the resolver and editor launch path, not proof
+  stubs or unused prompt loops.
+- Gate or separate proof-only entry points such as scripted key runners and
+  proof counters if they are not needed in the resident image.
+- Review synchronous GLCD compatibility wrappers. Keep them where a blocking
+  flush is deliberate; otherwise prefer the cooperative stepper.
+- Consider table-driven dispatch in the extracted keymap and shell resolver
+  once behavior and module ownership are stable.
+
+Done when:
+
+- The live editor binary is measurably smaller or the retained resident code is
+  explicitly justified.
+- Proof-only behavior remains testable without bloating the live path.
+- `npm run check` and the manual Debug80 image path still work.
+
+### Q7: Contracts, Documentation, And Acceptance
+
+Goal: make the new organization the documented system.
+
+Actions:
+
+- Audit public labels for AZMDoc `;!` contracts.
+- Update `docs/codebase.md` with the new module map and reading order.
+- Update `docs/memory-and-code-quality.md` with current RAM use and binary size.
+- Update `docs/roadmap.md` with the completed quality phases and the next
+  feature milestone.
+- Run `npm run quality` and decide which TypeScript findings become future work.
+
+Done when:
+
+- `npm run check` passes.
+- `npm run quality` has been reviewed.
+- The current binary size and code-organization state are documented.
+- The user has a short manual Debug80 script for any editor-visible changes.
+
+## Verification Policy
+
+Use targeted proof commands while working, but every committed phase must end
+with:
+
+```text
+npm run check
+```
+
+For doc-only changes, `git diff --check` is sufficient. For Z80 code changes,
+also record:
+
+- `build/main.bin` size,
+- relevant targeted proof commands,
+- whether a manual Debug80 check is recommended,
+- any AZM contract issues encountered.
+
+If a phase affects live editor behavior, prepare the image with:
+
+```text
+npm run debug80:editor-image
+```
+
+and list the exact manual keys to test.
+
+## Immediate Next Goal
+
+The next practical quality goal is **Q0: Baseline And Guardrails**. It should be
+small and non-invasive: verify the current tree, record size, and decide the
+measurement surface before code starts moving. After that, proceed into Q1/Q2
+before attempting the larger `editor-interaction.asm` split.
+
+Do not start named block read/write, character selections, bank switching, or
+MON3 BIOS replacement as part of this quality pass.
