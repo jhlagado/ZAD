@@ -98,6 +98,7 @@ ProofClearPageLoop:
         .include "../../src/editor-interaction.asm"
         .include "../../src/editor-keymap.asm"
         .include "../../src/editor-cursor.asm"
+        .include "../../src/editor-prompt.asm"
         .include "../../src/tecm8-bios.asm"
 
 ProofPreviousLastRecord:

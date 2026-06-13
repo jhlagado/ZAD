@@ -13,6 +13,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
   const keymapSource = readRepoFile('src/editor-keymap.asm');
   const cursorSource = readRepoFile('src/editor-cursor.asm');
+  const promptSource = readRepoFile('src/editor-prompt.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
   const recordSource = readRepoFile('src/tecm8-record.asm');
 
@@ -42,8 +43,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /^@EditorKeyWriteRecordLength:/m);
   assert.match(source, /^@EditorMarkDirty:/m);
   assert.match(source, /^@EditorKeyRenderCurrentLineDirty:/m);
-  assert.match(source, /^@EditorPromptAskYesNo:/m);
-  assert.match(source, /^@EditorPromptDispatch:/m);
+  assert.match(promptSource, /^@EditorPromptAskYesNo:/m);
+  assert.match(promptSource, /^@EditorPromptDispatch:/m);
   assert.match(keymapSource, /^@EditorModifiedCommandFromKey:/m);
   assert.match(keymapSource, /^@EditorShouldIgnoreModifiedPrintable:/m);
   assert.match(source, /^@EditorKeyShowStatus:/m);
@@ -81,9 +82,9 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorSaveCurrentPage/);
   assert.match(source, /CALL\s+EditorPromptHandleKey/);
   assert.match(source, /CALL\s+EditorHideCursor/);
-  assert.match(source, /JP\s+EditorViewportRenderStatusOverlay/);
-  assert.match(source, /JP\s+EditorViewportRestoreStatusRow/);
-  assert.match(source, /CALL\s+EditorLoadCurrentBackupWindow/);
+  assert.match(promptSource, /JP\s+EditorViewportRenderStatusOverlay/);
+  assert.match(promptSource, /JP\s+EditorViewportRestoreStatusRow/);
+  assert.match(promptSource, /CALL\s+EditorLoadCurrentBackupWindow/);
   assert.match(source, /CALL\s+EditorActionFromKey/);
   assert.match(source, /CALL\s+BiosInputPollKey/);
   assert.match(source, /XOR\s+A\n\s+LD\s+\(EditorKeyStreamModifier\),A\n\s+LD\s+\(EditorInsertMode\),A/);
@@ -126,7 +127,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyDelete:[\s\S]*?LD\s+A,\(EditorBlockSelectionActive\)[\s\S]*?JP\s+NZ,EditorKeyDeleteBlockPrompt/);
   assert.match(source, /EditorKeyDelete:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);
   assert.match(source, /EditorKeyDeleteBlockPrompt:[\s\S]*?LD\s+HL,EditorDeleteBlockPromptText[\s\S]*?CALL\s+EditorPromptAskYesNo/);
-  assert.match(source, /EditorPromptDispatch:[\s\S]*?CP\s+TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK[\s\S]*?JR\s+Z,EditorPromptDispatchDeleteBlock/);
+  assert.match(promptSource, /EditorPromptDispatch:[\s\S]*?CP\s+TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK[\s\S]*?JR\s+Z,EditorPromptDispatchDeleteBlock/);
   assert.match(source, /^@EditorDeleteSelectedBlock:/m);
   assert.match(source, /EditorDeleteBlockPromptText:\n\s+\.db\s+"Delete block\? Y\/N",0/);
   assert.match(source, /EditorKeyBackspaceDirty:[\s\S]*?CALL\s+EditorKeyRenderCurrentLineCellsDirty/);

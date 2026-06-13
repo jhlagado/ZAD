@@ -71,7 +71,7 @@ These are strengths to preserve through refactoring:
                                               └───────────────┘
 ```
 
-**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
+**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-keymap → editor-cursor → editor-prompt → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
 
 ---
 
@@ -79,17 +79,18 @@ These are strengths to preserve through refactoring:
 
 ### 1. `editor-interaction.asm` is a monolith (highest priority)
 
-**3,172 lines, ~71 `@` entry points, at least 8 concerns in one file:**
+**2,566 lines, still covering too many concerns in one file:**
 
 | Approx. lines | Concern |
 |---------------|---------|
-| 55–228 | Cursor overlay + cooperative blink |
-| 230–986 | Key dispatch (`EditorRunKeys`, `EditorRunLive`, ~40 handlers) |
-| 1010–1693 | Block selection, pending copy/move, paste, delete |
-| 1717–2408 | Record mutation: insert, backspace, split, join, cross-page |
-| 2410–2750 | Render/dirty policy (full row, cell-range, viewport) |
-| 2752–2894 | Prompt dispatch |
-| 2896–3172 | Record helpers + scratch + strings |
+| Extracted | Key normalization and command lookup now live in `editor-keymap.asm` |
+| Extracted | Cursor overlay and cooperative blink now live in `editor-cursor.asm` |
+| Extracted | Prompt dispatch now lives in `editor-prompt.asm` |
+| 55–596 | Key dispatch (`EditorRunKeys`, `EditorRunLive`, handlers) |
+| 620–1545 | Block selection, pending copy/move, paste, delete |
+| 1569–2260 | Record mutation: insert, backspace, split, join, cross-page |
+| 2262–2400 | Render/dirty policy (full row, cell-range, viewport) |
+| 2402–2566 | Record helpers + scratch + strings |
 
 This is the single largest barrier to review, banking, and compactness. A Z80 editor **should** have a key loop module, but not one that also owns TM8 record algebra, block editing, cursor rendering, and GLCD dirty scheduling.
 
@@ -131,7 +132,7 @@ Drift risk is real; this is maintenance debt, not just bytes.
 
 ### 6. Block-editing state split across modules
 
-**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** lives entirely in `editor-interaction.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`) while prompt logic is in interaction.
+**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** mostly lives in `editor-interaction.asm`, with status-line prompt control flow isolated in `editor-prompt.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`).
 
 This violates single ownership and makes multi-page block editing (future) harder.
 

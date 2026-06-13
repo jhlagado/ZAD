@@ -82,6 +82,7 @@ MainFailed:
         .include "editor-interaction.asm"
         .include "editor-keymap.asm"
         .include "editor-cursor.asm"
+        .include "editor-prompt.asm"
         .include "shell-commands.asm"
         .include "shell-editor-launch.asm"
         .include "tecm8-bios.asm"

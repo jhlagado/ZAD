@@ -9,9 +9,9 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 20 `.asm` modules, 11,359 lines.
+- Z80 source size: 21 `.asm` modules, 11,361 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 2,678 lines.
+  - `src/editor-interaction.asm`: 2,566 lines.
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-commands.asm`: 1,325 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
@@ -395,6 +395,9 @@ Actions:
   - Current checkpoint: key normalization, movement-action lookup, and
     Ctrl-modified command lookup now live in `src/editor-keymap.asm`;
     `src/editor-interaction.asm` still performs the command dispatch.
+  - Current checkpoint: status-line yes/no prompt handling now lives in
+    `src/editor-prompt.asm`; block deletion itself remains with block mutation
+    code for the later block-module extraction.
 - After movement is green, collapse duplicated cursor-reset and movement
   handler shapes into shared routines.
 - Move selection state out of viewport if it is not purely projection state.

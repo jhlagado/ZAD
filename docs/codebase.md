@@ -63,8 +63,8 @@ For the fastest orientation, read these files first:
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, `src/editor-keymap.asm`,
-    `src/editor-cursor.asm`, and `src/editor-interaction.asm`: the current
-    editor path.
+    `src/editor-cursor.asm`, `src/editor-prompt.asm`, and
+    `src/editor-interaction.asm`: the current editor path.
 16. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
@@ -624,8 +624,28 @@ avoids moving shared state before the block, prompt, and line-edit modules have
 their own ownership boundaries. The source-level contract is pinned by
 `tools/editor-interaction.test.ts`, and the live editor acceptance proofs now
 include `src/editor-interaction.asm`, then `src/editor-keymap.asm`, then
-`src/editor-cursor.asm`, so the storage-backed editor runners exercise the same
-normalized command path as the real session target.
+`src/editor-cursor.asm`, then `src/editor-prompt.asm`, so the storage-backed
+editor runners exercise the same normalized command path as the real session
+target.
+
+### `src/editor-prompt.asm`
+
+`src/editor-prompt.asm` owns status-line yes/no prompts and their completion
+dispatch. The public entries are:
+
+- `EditorPromptAskYesNo`: arms a prompt using caller-provided NUL-terminated
+  text and renders it through the status overlay.
+- `EditorPromptHandleKey`: accepts `Y`/`y`, `N`/`n`, or ESC and leaves unknown
+  keys modal.
+- `EditorPromptDispatch`: converts a completed prompt into the pending restore,
+  quit, or delete-block action.
+
+The prompt module reads prompt-active/result/text-pointer state from
+`src/editor-viewport.asm` and the pending prompt action byte from
+`src/editor-interaction.asm`. It also calls back into editor actions such as
+backup restore, dirty rerender, and selected-block deletion. That is intentional
+for this checkpoint: prompt control flow is now isolated, while block mutation
+remains in the future block module.
 
 ### `src/editor-interaction.asm`
 
@@ -754,15 +774,11 @@ backup path, then writes the edited page to the source path. If the backup file
 does not exist, it creates a one-block hidden backup file in the existing
 prefix. Replacement is just the existing page-write path.
 
-The module also owns the early status-line prompt state:
-
-- `EditorPromptAskYesNo` arms a prompt using caller-provided NUL-terminated
-  text.
-- `EditorPromptActive` routes subsequent keys to prompt handling.
-- `EditorPromptResult` records yes/no completion (`1` yes, `2` no).
-- `EditorPromptAction` records whether completion should trigger an editor
-  action such as backup restore or dirty quit.
-- Unknown keys leave the prompt active; `Y`/`y`, `N`/`n`, or ESC complete it.
+Prompt state is currently split: `EditorPromptActive`, `EditorPromptResult`, and
+`EditorPromptTextPtr` live with viewport/status-overlay state in
+`src/editor-viewport.asm`, while the pending prompt action byte
+`EditorPromptAction` remains in the interaction state block until prompt actions
+and block mutation have clearer module ownership.
 
 `EditorSplitLine` shifts records down within the current 16-record page
 and splits the current record at the cursor. When the current sector is full and
