@@ -315,6 +315,12 @@ Actions:
   keeping policy constants such as `TM8_SOURCE_MIN_BYTES` local. Sharing the
   magic bytes reduced the live Debug80 image to 15,052 bytes, leaving 1,332
   bytes in the current 16K bank.
+- Done: add `Tecm8StorageValidateCoreSuperblock` for the TM8 v1 checks shared
+  by all current readers: magic, version, sector size, catalog start, and
+  catalog-entry size. Project config delegates all of its superblock validation
+  to this helper; editor storage calls it first and then performs the extra
+  writer/allocation/prefix/data-block checks it needs. This reduced the live
+  Debug80 image to 15,001 bytes, leaving 1,383 bytes in the current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

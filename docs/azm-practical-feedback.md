@@ -141,6 +141,13 @@ Current concrete evidence:
   bounded-copy edge cases that higher-level editor proofs only cover
   indirectly. This is a useful AZM pattern for small library routines before
   they gain more callers.
+- Register-contract discipline affected the Q4 storage extraction directly.
+  While adding `Tecm8StorageValidateCoreSuperblock`, AZM rejected code that used
+  `HL` after calling `Tecm8StringMatchBytes` because the matcher contract says
+  `HL` is clobbered. The implementation was changed to preserve and rebase the
+  input pointer explicitly instead of relying on the matcher's current internal
+  increment behavior. This was a useful example of the contracts preventing a
+  helper from depending on another helper's undocumented side effect.
 - Contract annotation experiment: running
   `azm --contracts --fix --rc audit --reg-profile mon3 --interface src/mon3.asmi src/main.asm`
   successfully rewrote contract comments across the included source tree. TECM8

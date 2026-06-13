@@ -73,11 +73,12 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.match(source, /CALL\s+EditorLoadFindSourcePrefix/);
   assert.match(source, /CALL\s+EditorLoadFindSource/);
   assert.match(source, /CALL\s+Tecm8StringMatchBytes/);
-  assert.match(source, /LD\s+DE,Tecm8StorageMagic/);
+  assert.match(source, /CALL\s+Tecm8StorageValidateCoreSuperblock/);
   assert.doesNotMatch(source, /EditorLoadMagic:/);
   assert.doesNotMatch(source, /@EditorLoadMatchBytes:/);
   assert.match(stringSource, /^@Tecm8StringMatchBytes:/m);
   assert.match(storageSource, /^@Tecm8StorageBlockToOffset:/m);
+  assert.match(storageSource, /^@Tecm8StorageValidateCoreSuperblock:/m);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
   assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
   assert.doesNotMatch(source, /@EditorLoadBlockToOffset:/);
@@ -103,9 +104,11 @@ test('editor storage loader validates the fixed TM8 v1 layout it depends on', ()
     assert.match(storageSource, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
 
-  for (const offset of ['12', '14', '16', '20', '22', '26', '28', '30', '34', '36', '38', '40']) {
+  for (const offset of ['12', '14', '16', '20', '22', '26', '28', '30', '34', '38', '40']) {
     assert.match(source, new RegExp(`LD\\s+HL,DISK_BUFF \\+ ${offset}`));
   }
+  assert.match(storageSource, /LD\s+DE,21[\s\S]*?CP\s+TM8_CATALOG_START_BLOCK/);
+  assert.match(storageSource, /LD\s+DE,3[\s\S]*?CP\s+TM8_CATALOG_ENTRY/);
 });
 
 test('editor storage loader preserves catalog hard-error carry and non-match state', () => {

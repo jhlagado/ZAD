@@ -249,28 +249,8 @@ EditorLoadPageErr:
         JP      C,EditorLoadReadErr
 
         LD      HL,DISK_BUFF
-        LD      DE,Tecm8StorageMagic
-        LD      B,8
-        CALL    Tecm8StringMatchBytes
+        CALL    Tecm8StorageValidateCoreSuperblock
         JP      C,EditorLoadSuperErr
-
-        LD      HL,DISK_BUFF + 8
-        LD      A,(HL)
-        CP      1
-        JP      NZ,EditorLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JP      NZ,EditorLoadSuperErr
-
-        LD      HL,DISK_BUFF + 10
-        LD      A,(HL)
-        OR      A
-        JP      NZ,EditorLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        CP      2
-        JP      NZ,EditorLoadSuperErr
 
         LD      HL,DISK_BUFF + 12
         LD      A,(HL)
@@ -361,27 +341,9 @@ EditorLoadPageErr:
         OR      A
         JP      NZ,EditorLoadSuperErr
 
-        LD      HL,DISK_BUFF + 32
-        LD      A,(HL)
-        CP      TM8_CATALOG_START_BLOCK
-        JP      NZ,EditorLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,EditorLoadSuperErr
-
         LD      HL,DISK_BUFF + 34
         LD      A,(HL)
         CP      TM8_CATALOG_BLOCKS
-        JR      NZ,EditorLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,EditorLoadSuperErr
-
-        LD      HL,DISK_BUFF + 36
-        LD      A,(HL)
-        CP      TM8_CATALOG_ENTRY
         JR      NZ,EditorLoadSuperErr
         INC     HL
         LD      A,(HL)

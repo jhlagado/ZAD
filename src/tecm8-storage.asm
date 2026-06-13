@@ -29,6 +29,70 @@ TM8_ENTRY_ACTIVE        .equ    0x01
 TM8_CATALOG_NAME_BYTES  .equ    40
 TM8_PREFIX_TEXT_BYTES   .equ    121
 
+; Tecm8StorageValidateCoreSuperblock -
+; Validate the TM8 v1 fields shared by all current readers.
+; Input:
+;   HL = sector-0 buffer
+; Output:
+;   carry clear if the core fields match the fixed v1 layout
+;   carry set if any checked field is invalid
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
+@Tecm8StorageValidateCoreSuperblock:
+        PUSH    HL
+        LD      DE,Tecm8StorageMagic
+        LD      B,8
+        CALL    Tecm8StringMatchBytes
+        POP     HL
+        RET     C
+
+        LD      DE,8
+        ADD     HL,DE
+        LD      A,(HL)
+        CP      1
+        JR      NZ,Tecm8StorageCoreSuperErr
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,Tecm8StorageCoreSuperErr
+
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,Tecm8StorageCoreSuperErr
+        INC     HL
+        LD      A,(HL)
+        CP      2
+        JR      NZ,Tecm8StorageCoreSuperErr
+
+        LD      DE,21
+        ADD     HL,DE
+        LD      A,(HL)
+        CP      TM8_CATALOG_START_BLOCK
+        JR      NZ,Tecm8StorageCoreSuperErr
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,Tecm8StorageCoreSuperErr
+
+        LD      DE,3
+        ADD     HL,DE
+        LD      A,(HL)
+        CP      TM8_CATALOG_ENTRY
+        JR      NZ,Tecm8StorageCoreSuperErr
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JR      NZ,Tecm8StorageCoreSuperErr
+
+        XOR     A
+        RET
+
+Tecm8StorageCoreSuperErr:
+        SCF
+        RET
+
 ; Tecm8StorageBlockToOffset —
 ; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
 ;! in HL

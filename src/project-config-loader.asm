@@ -76,47 +76,8 @@ ProjectLoadOpenErr:
         JP      C,ProjectLoadReadErr
 
         LD      HL,PROJECT_LOAD_DISK_BUFF
-        LD      DE,Tecm8StorageMagic
-        LD      B,8
-        CALL    Tecm8StringMatchBytes
+        CALL    Tecm8StorageValidateCoreSuperblock
         JR      C,ProjectLoadSuperErr
-
-        LD      HL,PROJECT_LOAD_DISK_BUFF + 8
-        LD      A,(HL)
-        CP      1
-        JR      NZ,ProjectLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,ProjectLoadSuperErr
-
-        LD      HL,PROJECT_LOAD_DISK_BUFF + 10
-        LD      A,(HL)
-        OR      A
-        JR      NZ,ProjectLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        CP      2
-        JR      NZ,ProjectLoadSuperErr
-
-        LD      HL,PROJECT_LOAD_DISK_BUFF + 32
-        LD      A,(HL)
-        CP      6
-        JR      NZ,ProjectLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,ProjectLoadSuperErr
-
-        LD      HL,PROJECT_LOAD_DISK_BUFF + 36
-        LD      A,(HL)
-        CP      TM8_CATALOG_ENTRY
-        JR      NZ,ProjectLoadSuperErr
-        INC     HL
-        LD      A,(HL)
-        OR      A
-        JR      NZ,ProjectLoadSuperErr
-
         XOR     A
         RET
 
