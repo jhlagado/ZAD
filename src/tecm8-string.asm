@@ -20,6 +20,37 @@ Tecm8StringMatchBytesBad:
         SCF
         RET
 
+; Tecm8StringCopyNulBounded -
+; Copy a NUL-terminated string from HL to DE with capacity B.
+; Capacity includes the final NUL. On success DE points at the stored NUL and
+; B is the remaining capacity before that NUL byte.
+;! in B,DE,HL
+;! out DE,HL,A,B,carry,zero
+;! clobbers sign,parity,halfCarry
+@Tecm8StringCopyNulBounded:
+        LD      A,B
+        OR      A
+        JR      Z,Tecm8StringCopyNulBoundedErr
+
+Tecm8StringCopyNulBoundedLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        OR      A
+        JR      Z,Tecm8StringCopyNulBoundedDone
+        INC     DE
+        DEC     B
+        JR      Z,Tecm8StringCopyNulBoundedErr
+        JR      Tecm8StringCopyNulBoundedLoop
+
+Tecm8StringCopyNulBoundedDone:
+        XOR     A
+        RET
+
+Tecm8StringCopyNulBoundedErr:
+        SCF
+        RET
+
 ; Tecm8StringFindLocalName -
 ; Return HL pointing at the byte after the last slash in a NUL-terminated path.
 ; If no slash is present, HL returns to the original input pointer.

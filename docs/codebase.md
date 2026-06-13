@@ -129,6 +129,10 @@ This is the first shared byte/string/path helper module. It currently owns:
   matching TM8 magic bytes, prefix names, and catalog names. The helper keeps
   the existing storage convention: carry clear means match, carry set means
   mismatch.
+- `Tecm8StringCopyNulBounded`, a bounded NUL-terminated string copier. It is
+  used behind shell and editor-navigation wrappers so each caller can keep its
+  own error code and saved write-pointer policy without duplicating the byte
+  loop.
 - `Tecm8StringFindLocalName`, a NUL-terminated path scanner that returns `HL`
   at the byte after the final slash. The shell build-output resolver uses it to
   derive `/build/<stem>.bin` and `/build/<stem>.map` from source paths.

@@ -909,19 +909,8 @@ EditorNavPageErr:
 ;! out DE,HL,A,B,carry,zero
 ;! clobbers sign,parity,halfCarry
 @EditorNavCopyPath:
-        LD      A,B
-        OR      A
-        JR      Z,EditorNavPathErr
-
-EditorNavCopyPathLoop:
-        LD      A,(HL)
-        LD      (DE),A
-        INC     HL
-        INC     DE
-        OR      A
-        RET     Z
-        DEC     B
-        JR      NZ,EditorNavCopyPathLoop
+        CALL    Tecm8StringCopyNulBounded
+        RET     NC
 
 EditorNavPathErr:
         LD      A,TECM8_EDITOR_NAV_ERR_PATH

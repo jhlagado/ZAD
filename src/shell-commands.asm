@@ -889,22 +889,8 @@ ShellMatchCommandBad:
 ;! out HL,A,carry,zero
 ;! clobbers sign,parity,halfCarry,B,DE
 @ShellCopyString:
-        LD      A,B
-        OR      A
-        JP      Z,ShellLongErr
-
-ShellCopyStringLoop:
-        LD      A,(HL)
-        LD      (DE),A
-        INC     HL
-        OR      A
-        JR      Z,ShellCopyStringDone
-        INC     DE
-        DEC     B
-        JP      Z,ShellLongErr
-        JR      ShellCopyStringLoop
-
-ShellCopyStringDone:
+        CALL    Tecm8StringCopyNulBounded
+        JP      C,ShellLongErr
         LD      (ShellWritePtr),DE
         LD      A,B
         LD      (ShellRemainingCap),A
