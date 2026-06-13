@@ -129,10 +129,11 @@ Current concrete evidence:
   zeroing, full-record clear, in-record text shifts, up/down record-window
   shifts, and resident-page block row copies into a shared module. Adding
   `src/tecm8-string.asm` moves the duplicated bounded byte matcher shared by the
-  project config and editor storage loaders. `npm run z80:size` reports 15,091
-  bytes, a 144-byte reduction from the original 15,235-byte baseline while
-  preserving the older `EditorKey*Record*` wrapper entry points where external
-  proof code still expects them.
+  project config and editor storage loaders, and now owns the shell's local-name
+  path scanner. `npm run z80:size` reports 15,091 bytes, a 144-byte reduction
+  from the original 15,235-byte baseline while preserving the older
+  `EditorKey*Record*` wrapper entry points where external proof code still
+  expects them.
 - Contract annotation experiment: running
   `azm --contracts --fix --rc audit --reg-profile mon3 --interface src/mon3.asmi src/main.asm`
   successfully rewrote contract comments across the included source tree. TECM8

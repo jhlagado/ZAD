@@ -120,6 +120,7 @@ test('shell edit navigation proof drives shell command into storage-backed edito
 
 test('shell command loop proves edit asm run sequence', () => {
   const source = readRepoFile('src/shell-commands.asm');
+  const stringSource = readRepoFile('src/tecm8-string.asm');
   const proof = readRepoFile('proofs/shell-commands/shell-commands-proof.asm');
 
   assert.match(source, /^@RunShellProgramCycles:/m);
@@ -128,6 +129,14 @@ test('shell command loop proves edit asm run sequence', () => {
   assert.match(source, /ShellExecActionLog:\n\s+\.ds\s+SHELL_EXEC_LOG_LEN/);
   assert.match(source, /CALL\s+RunShellPromptCycle/);
   assert.match(source, /CP\s+SHELL_PROMPT_ERROR/);
+  assert.match(source, /CALL\s+Tecm8StringFindLocalName/);
+  assert.doesNotMatch(source, /^@ShellFindLocalName:/m);
+  assert.match(stringSource, /^@Tecm8StringFindLocalName:/m);
+  assert.match(proof, /\.include\s+"..\/..\/src\/tecm8-string\.asm"/);
+  assert.ok(
+    proof.indexOf('@Start:') < proof.indexOf('.include "../../src/tecm8-string.asm"'),
+    'byte-emitting shared string helpers must not be included before proof entry'
+  );
   assert.match(proof, /AssertShellProgramCommandLoop/);
   assert.match(proof, /AssertShellProgramCyclesInitErr/);
   assert.match(proof, /AssertShellProgramCyclesPromptErr/);

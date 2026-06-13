@@ -51,8 +51,8 @@ For the fastest orientation, read these files first:
 8. `src/tecm8-record.asm`: shared fixed source-record helpers for masked
    length reads, metadata-preserving length writes, padding zeroing,
    full-record clear, in-record text shifts, and up/down record-window shifts.
-9. `src/tecm8-string.asm`: shared byte/string helpers used by storage and
-   project config loaders.
+9. `src/tecm8-string.asm`: shared byte/string/path helpers used by storage,
+   project config, and shell path-resolution code.
 10. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
 11. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
 12. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
@@ -122,13 +122,20 @@ Proof bundles include `src/tecm8-record.asm` once before
 
 ### `src/tecm8-string.asm`
 
-This is the first shared byte/string helper module. It currently owns
-`Tecm8StringMatchBytes`, a bounded byte comparison used by
-`src/project-config-loader.asm` and `src/editor-storage-loader.asm` when
-matching TM8 magic bytes, prefix names, and catalog names. The helper keeps the
-existing storage convention: carry clear means match, carry set means mismatch.
-Proof bundles that include either loader directly include `src/tecm8-string.asm`
-before the loader.
+This is the first shared byte/string/path helper module. It currently owns:
+
+- `Tecm8StringMatchBytes`, a bounded byte comparison used by
+  `src/project-config-loader.asm` and `src/editor-storage-loader.asm` when
+  matching TM8 magic bytes, prefix names, and catalog names. The helper keeps
+  the existing storage convention: carry clear means match, carry set means
+  mismatch.
+- `Tecm8StringFindLocalName`, a NUL-terminated path scanner that returns `HL`
+  at the byte after the final slash. The shell build-output resolver uses it to
+  derive `/build/<stem>.bin` and `/build/<stem>.map` from source paths.
+
+Proof bundles that include loaders or shell code directly include
+`src/tecm8-string.asm` before those modules, but after their entry trampolines so
+standalone proof targets still start at `4000h`.
 
 ### `src/main.asm`
 

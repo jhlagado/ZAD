@@ -1110,7 +1110,7 @@ ShellAddBToDEOverflow:
         LD      (ShellArgPtr),HL
         LD      (ShellWritePtr),DE
         ; expects out HL
-        CALL    ShellFindLocalName
+        CALL    Tecm8StringFindLocalName
         LD      (ShellArgPtr),HL
         ; expects out HL
         CALL    ShellFindStemEnd
@@ -1133,35 +1133,6 @@ ShellAddBToDEOverflow:
         RET     C
         XOR     A
         LD      (DE),A
-        RET
-
-; ShellFindLocalName —
-; Return HL pointing at the byte after the last slash.
-;! in HL
-;! out HL,A,carry
-;! clobbers zero,sign,parity,halfCarry,DE
-@ShellFindLocalName:
-        LD      D,H
-        LD      E,L
-
-ShellFindLocalLoop:
-        LD      A,(HL)
-        OR      A
-        JR      Z,ShellFindLocalDone
-        CP      "/"
-        JR      NZ,ShellFindLocalNext
-        INC     HL
-        LD      D,H
-        LD      E,L
-        JR      ShellFindLocalLoop
-
-ShellFindLocalNext:
-        INC     HL
-        JR      ShellFindLocalLoop
-
-ShellFindLocalDone:
-        LD      H,D
-        LD      L,E
         RET
 
 ; ShellCopyStem —

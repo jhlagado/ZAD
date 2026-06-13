@@ -267,10 +267,13 @@ Actions:
   now delegate to the shared helpers. Replace duplicate split/join/paste/delete
   shift loops in `src/editor-interaction.asm` only after the small record-helper
   boundary is proof-green.
-- Done: create `src/tecm8-string.asm` for the first shared byte/string helper:
-  bounded byte matching with carry clear on match and carry set on mismatch.
-- Continue the string/path helper extraction with bounded copy, append, local
-  name lookup, prefix/name split, and sibling backup path derivation.
+- Done: create `src/tecm8-string.asm` for the first shared byte/string/path
+  helpers:
+  - bounded byte matching with carry clear on match and carry set on mismatch,
+  - local filename lookup by returning the byte after the final slash in a
+    NUL-terminated path.
+- Continue the string/path helper extraction with bounded copy, append,
+  prefix/name split, and sibling backup path derivation.
 - Replace duplicated path walks in shell, navigation, and storage code.
 - Keep helper interfaces pointer-based (`HL`, `DE`, `BC`) where practical so
   future overlay/banking work is not tied to hidden globals.

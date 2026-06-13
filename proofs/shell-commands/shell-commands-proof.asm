@@ -1598,6 +1598,7 @@ LoadProjectStubOk:
         XOR     A
         RET
 
+        .include "../../src/tecm8-string.asm"
         .include "../../src/shell-commands.asm"
 
 CmdEdit:
