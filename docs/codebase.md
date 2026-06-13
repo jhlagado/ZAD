@@ -140,6 +140,9 @@ This is the first shared byte/string/path helper module. It currently owns:
 Proof bundles that include loaders or shell code directly include
 `src/tecm8-string.asm` before those modules, but after their entry trampolines so
 standalone proof targets still start at `4000h`.
+`proofs/shared/tecm8-string-proof.asm` directly verifies the bounded-copy
+helper's zero-capacity, exact-fit, and overflow cases through
+`npm run proof:tecm8-string`.
 
 ### `src/main.asm`
 

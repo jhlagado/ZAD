@@ -135,6 +135,11 @@ Current concrete evidence:
   original 15,235-byte baseline while preserving the older
   `EditorKey*Record*` wrapper entry points where external proof code still
   expects them.
+- Shared helper proofs: `npm run proof:tecm8-string` assembles a standalone
+  `4000h` proof that calls the shared string helpers directly and checks the
+  bounded-copy edge cases that higher-level editor proofs only cover
+  indirectly. This is a useful AZM pattern for small library routines before
+  they gain more callers.
 - Contract annotation experiment: running
   `azm --contracts --fix --rc audit --reg-profile mon3 --interface src/mon3.asmi src/main.asm`
   successfully rewrote contract comments across the included source tree. TECM8

@@ -274,6 +274,9 @@ Actions:
     wrappers,
   - local filename lookup by returning the byte after the final slash in a
     NUL-terminated path.
+- Done: add `proofs/shared/tecm8-string-proof.asm` and
+  `npm run proof:tecm8-string` so the shared bounded-copy helper has direct
+  boundary coverage for zero capacity, exact fit, and overflow.
 - Continue the string/path helper extraction with append, prefix/name split,
   and sibling backup path derivation.
 - Replace duplicated path walks in shell, navigation, and storage code.
