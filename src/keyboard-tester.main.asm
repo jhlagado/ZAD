@@ -1,8 +1,8 @@
 ; TECM8 keyboard tester.
 ;
 ; Standalone diagnostic target for Debug80/TEC-1G matrix keyboard testing.
-; Load at 4000h and GO from MON3. It displays compact key tokens on the GLCD:
-; plain keys as themselves, Ctrl chords as ^X, and Alt chords as \X.
+; Load at 4000h and GO from MON3. It displays each accepted key event as
+; raw secondary/primary bytes followed by the interpreted token.
 
         .org    0x4000
 
@@ -95,7 +95,12 @@ KbdTestClearScreenDone:
         LD      (KbdTestRawSecondary),A
         LD      A,E
         LD      (KbdTestRawPrimary),A
-        CALL    KbdTestRenderRawLine
+
+        LD      A,(KbdTestRawSecondary)
+        CALL    KbdTestAppendHexByte
+        RET     C
+        LD      A,(KbdTestRawPrimary)
+        CALL    KbdTestAppendHexByte
         RET     C
 
         LD      A,(KbdTestKeyMods)
@@ -317,24 +322,6 @@ KbdTestClearHistoryDone:
         CALL    GlcdTileFlushFull
         RET
 
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
-@KbdTestRenderRawLine:
-        LD      A,(KbdTestRawSecondary)
-        LD      HL,KbdTestRawLine + 4
-        CALL    KbdTestWriteHexByte
-        LD      A,(KbdTestRawPrimary)
-        LD      HL,KbdTestRawLine + 7
-        CALL    KbdTestWriteHexByte
-        LD      B,1
-        CALL    GlcdTileClearTextRow
-        RET     C
-        LD      HL,KbdTestRawLine
-        LD      B,1
-        LD      C,0
-        CALL    GlcdTileDrawTextRun
-        RET
-
 ;!      in        A,HL
 ;!      out       HL
 ;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
@@ -352,6 +339,19 @@ KbdTestClearHistoryDone:
         AND     0x0F
         CALL    KbdTestHexNibble
         LD      (HL),A
+        RET
+
+;!      in        A
+;!      out       carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@KbdTestAppendHexByte:
+        LD      HL,KbdTestHexBuffer
+        CALL    KbdTestWriteHexByte
+        LD      A,(KbdTestHexBuffer)
+        CALL    KbdTestAppendChar
+        RET     C
+        LD      A,(KbdTestHexBuffer + 1)
+        CALL    KbdTestAppendChar
         RET
 
 ;!      in        A
@@ -374,10 +374,7 @@ KbdTestTitle:
         .db     "KEYBOARD TEST",0
 
 KbdTestLegend:
-        .db     "RAW -- --",0
-
-KbdTestRawLine:
-        .db     "RAW -- --",0
+        .db     "RAW+TOKEN STREAM",0
 
 KbdTestRow:
         .db     0
@@ -405,6 +402,9 @@ KbdTestRawPrimary:
 
 KbdTestRawSecondary:
         .db     0
+
+KbdTestHexBuffer:
+        .db     0,0
 
         .include "glcd-tile.asm"
         .include "tecm8-bios.asm"
