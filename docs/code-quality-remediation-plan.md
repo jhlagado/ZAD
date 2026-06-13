@@ -278,9 +278,16 @@ Actions:
 - Done: add `proofs/shared/tecm8-string-proof.asm` and
   `npm run proof:tecm8-string` so the shared bounded-copy helper has direct
   boundary coverage for zero capacity, exact fit, and overflow.
-- Continue the string/path helper extraction with append, prefix/name split,
-  and sibling backup path derivation.
-- Replace duplicated path walks in shell, navigation, and storage code.
+- Leave the shell-local append helper local for now. A trial extraction into
+  `src/tecm8-string.asm` increased the live image by 8 bytes because the helper
+  has only shell-local callers and still needs shell-specific error mapping.
+- Defer prefix/name split and sibling backup path derivation until the narrow
+  TM8 layer exists. The current backup path builder has editor-specific error
+  codes and saved-pointer state, so extracting it prematurely would add API
+  surface without reducing real duplication.
+- Continue replacing duplicated path walks in shell, navigation, and storage
+  code only where the helper is shared across modules or measurably reduces
+  resident bytes.
 - Keep helper interfaces pointer-based (`HL`, `DE`, `BC`) where practical so
   future overlay/banking work is not tied to hidden globals.
 
