@@ -10,8 +10,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         CALL    DisplayInit
         JR      C,ProofFailed
@@ -49,9 +49,9 @@ ProofFailedDone:
 
 ; Stub LoadProjectConfig for shell-to-editor proof. This proof uses the real
 ; storage path for the source file but keeps project config out of the proof.
-;!      in        B,DE
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! in B,DE
+;! out DE,HL,A,C,carry,zero
+;! clobbers B
 @LoadProjectConfig:
         LD      HL,ExpectedMain
         LD      C,B
@@ -78,6 +78,7 @@ LoadProjectStubOk:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
         .include "../../src/shell-commands.asm"
         .include "../../src/shell-editor-launch.asm"

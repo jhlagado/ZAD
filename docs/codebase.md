@@ -48,16 +48,19 @@ For the fastest orientation, read these files first:
 6. `docs/tecm8-bios-api.md`: the BIOS wrapper vocabulary used by Z80 code.
 7. `src/tecm8-equates.asm`: shared source-record, sector, display, GLCD, and
    keyboard modifier constants used by the Z80 modules.
-8. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
-9. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
-10. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
+8. `src/tecm8-record.asm`: shared fixed source-record helpers for masked
+   length reads, metadata-preserving length writes, padding zeroing, and
+   full-record clear.
+9. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
+10. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
+11. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-11. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+12. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
-12. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+13. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
     editor path.
-13. `proofs/display/glcd-tile-proof.asm`,
+14. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer, the current block-editing state, and the fixed-record line
@@ -95,6 +98,23 @@ Module-local names such as `TECM8_EDITOR_RECORD_BYTES`,
 `TECM8_GLCD_TILE_ROWS`, and `TECM8_BIOS_KEY_MOD_CTRL` remain where they clarify
 the domain, but they derive from this shared file rather than repeating the
 literal values.
+
+### `src/tecm8-record.asm`
+
+This is the shared byte-level helper module for fixed source records. A source
+line is a 32-byte record: byte 0 stores a 5-bit text length and 3 metadata bits,
+followed by up to 31 text bytes. The helper module owns the small operations
+that must treat that format consistently:
+
+- read an effective length by masking with `TECM8_SOURCE_RECORD_LENGTH_MASK`
+- write an effective length while preserving metadata bits 5-7
+- zero padding bytes after a record's effective length
+- clear a full 32-byte record
+
+`src/editor-interaction.asm` still exposes the older `EditorKey*Record*` entry
+points as compatibility wrappers, but they now delegate to this shared module.
+Proof bundles include `src/tecm8-record.asm` once before
+`src/editor-interaction.asm`.
 
 ### `src/main.asm`
 

@@ -13,8 +13,8 @@ MON3_VPORT      .equ     0x0E13
 CursorAdjacentMarker .equ     0x13E4
 CursorFarRightMarker .equ     0x13F0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         CALL    DisplayInit
         JR      C,ProofFailed
@@ -80,8 +80,8 @@ ProofFailedDone:
 ; DrainDisplayWork -
 ; Structured proofs do not run the live idle loop, so drain queued GLCD bytes
 ; before host-side visible-pixel assertions.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @DrainDisplayWork:
         CALL    GlcdTileStep
         RET     C

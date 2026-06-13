@@ -12,13 +12,13 @@ TECM8_MAIN_FAIL        .equ     0xE0
 
         .include "tecm8-equates.asm"
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers sign,parity,halfCarry,A,BC,DE,HL
 @Start:
         JP      LiveStart
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers sign,parity,halfCarry,A,BC,DE,HL
 @ScriptStart:
         CALL    DisplayInit
         JP      C,MainFailed
@@ -51,8 +51,8 @@ MainFailed:
         LD      (MainResultMarker),A
         JP      MainDone
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers sign,parity,halfCarry,A,BC,DE,HL
 @LiveStart:
         CALL    DisplayInit
         JP      C,MainFailed
@@ -76,6 +76,7 @@ MainFailed:
         .include "editor-viewport.asm"
         .include "editor-storage-loader.asm"
         .include "editor-navigation.asm"
+        .include "tecm8-record.asm"
         .include "editor-interaction.asm"
         .include "shell-commands.asm"
         .include "shell-editor-launch.asm"

@@ -10,8 +10,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         CALL    DisplayInit
         JR      C,ProofFailed
@@ -79,9 +79,9 @@ ProofFailedDone:
         JP      ProofDone
 
 ; Stub LoadProjectConfig for shell-to-editor interaction proof.
-;!      in        B,DE
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! in B,DE
+;! out DE,HL,A,C,carry,zero
+;! clobbers B
 @LoadProjectConfig:
         LD      HL,ExpectedMain
         LD      C,B
@@ -106,8 +106,8 @@ LoadProjectStubOk:
 ; DrainDisplayWork -
 ; Scripted proofs do not run the live idle loop, so drain queued GLCD rows
 ; before host-side visible-pixel assertions.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @DrainDisplayWork:
         CALL    GlcdTileStep
         RET     C
@@ -121,6 +121,7 @@ LoadProjectStubOk:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
         .include "../../src/shell-commands.asm"
         .include "../../src/shell-editor-launch.asm"

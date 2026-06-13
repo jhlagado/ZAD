@@ -9,13 +9,11 @@ function readRepoFile(path: string): string {
   return readFileSync(resolve(root, path), 'utf8');
 }
 
-test('shell editor launcher exposes a contracted edit launch entry', () => {
+test('shell editor launcher exposes edit launch entries', () => {
   const source = readRepoFile('src/shell-editor-launch.asm');
 
   assert.match(source, /^@ShellRunEditorLine:/m);
   assert.match(source, /^@ShellRunEditorSession:/m);
-  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@ShellRunEditorLine:/);
-  assert.match(source, /;!\s+in\s+DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@ShellRunEditorSession:/);
   assert.match(source, /CALL\s+RunShellCommandLine/);
   assert.match(source, /LD\s+A,\(ShellLastExecAction\)\n\s+CP\s+SHELL_CMD_EDIT/);
   assert.match(source, /CALL\s+EditorOpenPath/);

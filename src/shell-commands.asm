@@ -41,8 +41,8 @@ SHELL_PROJECT_ERROR .equ     2
 ; to the prompt-ready state.
 ; Output:
 ;   carry clear, A=SHELL_PROGRAM_READY
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @RunShellProgramEntry:
         CALL    InitShellProgramState
 
@@ -60,7 +60,8 @@ ShellProgramPromptReady:
 
 ; InitShellProgramState —
 ; Clear prompt-visible shell state before entering the input cycle.
-;!      out       A,carry,zero
+;! out DE,HL,A,C,zero,carry
+;! clobbers sign,parity,halfCarry
 @InitShellProgramState:
         XOR     A
         LD      (ShellProgramState),A
@@ -84,9 +85,9 @@ ShellProgramPromptReady:
 ; Output:
 ;   carry clear, A=SHELL_PROGRAM_READY
 ;   carry set, A=shell error from the failing prompt cycle
-;!      in        B
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in B
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @RunShellProgramCycles:
         LD      A,B
         LD      (ShellProgramCyclesLeft),A
@@ -131,8 +132,8 @@ ShellProgramCycleErr:
 ; Output:
 ;   HL = entered line bytes
 ;   C  = entered byte count, including the CR terminator
-;!      out       C,HL
-;!      clobbers  A,B,DE
+;! out BC,DE,HL,carry
+;! clobbers zero,sign,parity,halfCarry,A
 @ReadShellInputLine:
         CALL    FillShellLineBuffer
         LD      HL,ShellLineBuffer + 1
@@ -145,13 +146,14 @@ ShellProgramCycleErr:
 ; Minimal editable line routine. It reads key events from the current key
 ; source, appends printable characters, handles backspace, stops on CR, and
 ; appends the CR terminator.
-;!      out       A,B,DE,HL
-;!      clobbers  C
+;! out carry,A,B,DE,HL
+;! clobbers zero,sign,parity,halfCarry,C
 @FillShellLineBuffer:
         LD      DE,ShellLineBuffer + 1
         LD      B,0
 
 ShellLineEditLoop:
+        ; expects out A
         CALL    ReadShellKey
         CP      0x0D
         JR      Z,ShellLineFillTerminator
@@ -191,8 +193,8 @@ ShellLineFillTerminator:
 ; ReadShellKey —
 ; Stubbed key source. Real monitor input will replace this provider; proofs seed
 ; ShellKeySeedPtr with a byte stream ending in CR.
-;!      out       A
-;!      clobbers  HL
+;! out A
+;! clobbers HL,F
 @ReadShellKey:
         LD      HL,(ShellKeySeedPtr)
         LD      A,H
@@ -216,9 +218,9 @@ ShellKeySeedReady:
 ;   C  = entered byte count
 ; Output:
 ;   carry clear, A=SHELL_PROMPT_OK or SHELL_PROMPT_ERROR
-;!      in        C,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in C,HL
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @RunShellPromptCycle:
         CALL    RunShellInputLine
         JR      C,ShellPromptCycleError
@@ -244,9 +246,9 @@ ShellPromptCycleError:
 ; Output:
 ;   carry clear, A=SHELL_OK after a stub handles the command
 ;   carry set, A=SHELL_ERR_* if normalization, dispatch, or execution fails
-;!      in        C,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in C,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @RunShellInputLine:
         LD      DE,ShellInputCommand
         LD      B,SHELL_INPUT_LEN
@@ -265,9 +267,9 @@ ShellPromptCycleError:
 ; Output:
 ;   carry clear, A=SHELL_OK, output buffer is NUL-terminated
 ;   carry set, A=SHELL_ERR_LONG when no byte remains for the final NUL
-;!      in        B,C,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in BC,DE,HL
+;! out BC,HL,carry,zero,A
+;! clobbers sign,parity,halfCarry,DE
 @NormalizeShellInputLine:
         LD      A,B
         OR      A
@@ -305,9 +307,9 @@ ShellNormalizeEnd:
 ; Output:
 ;   carry clear, A=SHELL_OK after a stub handles the command
 ;   carry set, A=SHELL_ERR_* if dispatch or execution fails
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @RunShellCommandLine:
         LD      DE,ShellStepDispatch
         LD      B,SHELL_MAIN_PATH_LEN
@@ -327,9 +329,9 @@ ShellNormalizeEnd:
 ; Output:
 ;   carry clear, A=SHELL_CMD_* invoked
 ;   carry set, A=SHELL_ERR_UNKNOWN for an unsupported dispatch action
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  B,C,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ExecuteShellDispatch:
         LD      A,(HL)
         INC     HL
@@ -354,9 +356,9 @@ ShellExecuteRun:
 
 ; ShellExecEditor —
 ; Stub editor entry point. HL points at edit payload: mode byte, then path.
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  B,C,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,HL
 @ShellExecEditor:
         LD      (ShellLastExecRequestPtr),HL
         LD      A,SHELL_CMD_EDIT
@@ -364,9 +366,9 @@ ShellExecuteRun:
 
 ; ShellExecAssembler —
 ; Stub assembler entry point. HL points at asm payload: source, output, map.
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  B,C,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,HL
 @ShellExecAssembler:
         LD      (ShellLastExecRequestPtr),HL
         LD      A,SHELL_CMD_ASM
@@ -374,9 +376,9 @@ ShellExecuteRun:
 
 ; ShellExecRunner —
 ; Stub runner entry point. HL points at run payload: mode byte, then path.
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  B,C,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,HL
 @ShellExecRunner:
         LD      (ShellLastExecRequestPtr),HL
         LD      A,SHELL_CMD_RUN
@@ -386,9 +388,9 @@ ShellExecuteRun:
 ; Record the latest executor action and append it to a bounded action log.
 ; Input: A = SHELL_CMD_* action
 ; Output: A = input action, carry clear
-;!      in        A
-;!      out       A,carry,zero
-;!      clobbers  B,C,HL
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,HL
 @ShellRecordExecAction:
         LD      (ShellLastExecAction),A
         LD      B,A
@@ -426,9 +428,9 @@ ShellRecordExecDone:
 ; Output:
 ;   carry clear, A=SHELL_CMD_*, dispatch block is populated
 ;   carry set, A=SHELL_ERR_* or project loader error
-;!      in        B,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in B,DE,HL
+;! out zero,A,carry
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @DispatchShellCommand:
         LD      (ShellDispatchPtr),DE
         LD      (ShellDispatchCommandPtr),HL
@@ -497,9 +499,9 @@ ShellDispatchOk:
 ; Output:
 ;   carry clear, A=edit mode, request path is NUL-terminated
 ;   carry set, A=SHELL_ERR_* or project loader error
-;!      in        B,DE,HL
-;!      out       carry,A,zero
-;!      clobbers  BC,DE,HL
+;! in B,DE,HL
+;! out carry,A,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ResolveShellEditRequest:
         LD      (ShellRequestPtr),DE
         LD      A,B
@@ -514,6 +516,7 @@ ShellDispatchOk:
         RET
 
 ShellEditRequestCommandOk:
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      A,(HL)
         OR      A
@@ -556,13 +559,14 @@ ShellEditRequestOk:
 ; Output:
 ;   carry clear, A=run mode, request path is NUL-terminated
 ;   carry set, A=SHELL_ERR_* or project loader error
-;!      in        B,DE,HL
-;!      out       carry,A,zero
-;!      clobbers  BC,DE,HL
+;! in B,DE,HL
+;! out carry,A,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ResolveShellRunRequest:
         LD      (ShellRequestPtr),DE
         LD      A,B
         LD      (ShellOutCap),A
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      (ShellRequestCommandPtr),HL
         LD      DE,ShellRunText
@@ -573,6 +577,7 @@ ShellEditRequestOk:
         RET
 
 ShellRunRequestCommandOk:
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      A,(HL)
         OR      A
@@ -616,13 +621,14 @@ ShellRunRequestOk:
 ; Output:
 ;   carry clear, A=SHELL_CMD_ASM, request block paths are NUL-terminated
 ;   carry set, A=SHELL_ERR_* or project loader error
-;!      in        B,DE,HL
-;!      out       A,H,zero,carry
-;!      clobbers  BC,DE,L
+;! in B,DE,HL
+;! out A,H,zero,carry
+;! clobbers sign,parity,halfCarry,BC,DE,L
 @ResolveShellAsmRequest:
         LD      (ShellRequestPtr),DE
         LD      A,B
         LD      (ShellOutCap),A
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      (ShellRequestCommandPtr),HL
         LD      DE,ShellAsmText
@@ -671,14 +677,15 @@ ShellAsmRequestCommandOk:
 ; Output:
 ;   carry clear, A=SHELL_CMD_*, destination path is NUL-terminated
 ;   carry set, A=SHELL_ERR_* or project loader error
-;!      in        B,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in B,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ResolveShellCommand:
         LD      (ShellOutPath),DE
         LD      A,B
         LD      (ShellOutCap),A
 
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      (ShellCommandPtr),HL
         LD      DE,ShellEditText
@@ -709,6 +716,7 @@ ShellResolveAsm:
 
 ShellResolveRun:
         LD      (ShellAction),A
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      (ShellArgPtr),HL
         LD      HL,(ShellArgPtr)
@@ -721,11 +729,12 @@ ShellResolveRun:
 ; Resolve edit/asm to project main when no argument is present, otherwise to a
 ; source path under the default source prefix.
 ; Input: A = command action, HL = text after command
-;!      in        A,HL
-;!      out       A,B,zero,carry
-;!      clobbers  C,DE,HL
+;! in A,HL
+;! out A,B,zero,carry
+;! clobbers sign,parity,halfCarry,C,DE,HL
 @ShellResolveSourceCommand:
         LD      (ShellAction),A
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      (ShellArgPtr),HL
         LD      HL,(ShellArgPtr)
@@ -799,8 +808,8 @@ ShellCopyExplicitPath:
 
 ; ShellLoadProjectMain —
 ; Ensure /tecm8.prj has been loaded, then expose the cached project main path.
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! out DE,HL,A,C,carry,zero
+;! clobbers sign,parity,halfCarry,B
 @ShellLoadProjectMain:
         LD      A,(ShellProjectStatus)
         CP      SHELL_PROJECT_READY
@@ -814,8 +823,8 @@ ShellProjectReady:
 
 ; ShellReloadProjectConfig —
 ; Load and validate /tecm8.prj into the resident project main cache.
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! out A,carry,zero,DE,HL,C
+;! clobbers sign,parity,halfCarry,B
 @ShellReloadProjectConfig:
         LD      DE,ShellMainPath
         LD      B,SHELL_MAIN_PATH_LEN
@@ -837,9 +846,9 @@ ShellProjectErr:
 ; ShellMatchCommand —
 ; Match command literal at DE against HL. The next char must be space or NUL.
 ; Output: carry clear on match with HL after command; carry set on mismatch.
-;!      in        DE,HL
-;!      out       DE,A,carry,zero
-;!      clobbers  HL
+;! in DE,HL
+;! out DE,A,carry,zero
+;! clobbers sign,parity,halfCarry,HL
 @ShellMatchCommand:
         LD      A,(DE)
         OR      A
@@ -863,8 +872,9 @@ ShellMatchCommandBad:
 
 ; ShellSkipSpaces —
 ; Advance HL past ASCII spaces.
-;!      in        HL
-;!      out       HL,A,carry
+;! in HL
+;! out HL,A,carry
+;! clobbers zero,sign,parity,halfCarry
 @ShellSkipSpaces:
         LD      A,(HL)
         CP      0x20
@@ -875,9 +885,9 @@ ShellMatchCommandBad:
 ; ShellCopyString —
 ; Copy NUL-terminated string from HL to DE with capacity B.
 ; Stores ShellWritePtr and ShellRemainingCap on success.
-;!      in        B,DE,HL
-;!      out       HL,A,carry,zero
-;!      clobbers  B,DE
+;! in B,DE,HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE
 @ShellCopyString:
         LD      A,B
         OR      A
@@ -904,9 +914,9 @@ ShellCopyStringDone:
 ; ShellCopyArgument —
 ; Copy one argument from HL to DE. Spaces after the argument are accepted only
 ; when followed by NUL.
-;!      in        B,DE,HL
-;!      out       B,carry,zero
-;!      clobbers  A,DE,HL
+;! in B,DE,HL
+;! out B,carry,zero
+;! clobbers sign,parity,halfCarry,A,DE,HL
 @ShellCopyArgument:
         LD      A,B
         OR      A
@@ -946,9 +956,9 @@ ShellCopyArgumentEnd:
 
 ; ShellCopyArgWithAsmDefault —
 ; Copy one argument and append .asm when no dot appears before the terminator.
-;!      in        B,DE,HL
-;!      out       HL,B,carry,zero
-;!      clobbers  A,C,DE
+;! in B,DE,HL
+;! out HL,B,carry,zero
+;! clobbers sign,parity,halfCarry,A,C,DE
 @ShellCopyArgWithAsmDefault:
         LD      A,B
         OR      A
@@ -980,6 +990,7 @@ ShellCopyAsmArgByte:
         JR      ShellCopyAsmArgLoop
 
 ShellCopyAsmArgSpace:
+        ; expects out HL
         CALL    ShellSkipSpaces
         LD      A,(HL)
         OR      A
@@ -1008,8 +1019,9 @@ ShellCopyAsmArgNul:
 
 ; ShellAppendString —
 ; Append NUL-terminated HL text before the final NUL. B is remaining capacity.
-;!      in        B,DE,HL
-;!      out       DE,HL,A,B,carry,zero
+;! in B,DE,HL
+;! out DE,HL,A,B,carry,zero
+;! clobbers sign,parity,halfCarry
 @ShellAppendString:
         LD      A,(HL)
         OR      A
@@ -1023,8 +1035,9 @@ ShellCopyAsmArgNul:
 
 ; ShellArgHasSlash —
 ; Return carry set when the argument contains '/' before space or NUL.
-;!      in        HL
-;!      out       HL,A,carry,zero
+;! in HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry
 @ShellArgHasSlash:
         LD      A,(HL)
         OR      A
@@ -1046,9 +1059,9 @@ ShellArgNoSlash:
 
 ; ShellAddBToDE —
 ; Add unsigned B to DE. Carry set if the 16-bit pointer wraps.
-;!      in        B,DE
-;!      out       DE,A,carry,zero
-;!      clobbers  HL
+;! in B,DE
+;! out DE,A,carry,zero
+;! clobbers sign,parity,halfCarry,HL
 @ShellAddBToDE:
         LD      H,0
         LD      L,B
@@ -1066,9 +1079,9 @@ ShellAddBToDEOverflow:
 
 ; ShellDeriveBuildBin —
 ; Derive /build/<local-stem>.bin from an absolute source path.
-;!      in        B,DE,HL
-;!      out       HL,carry,B,zero
-;!      clobbers  A,C,DE
+;! in B,DE,HL
+;! out HL,carry,B,zero
+;! clobbers sign,parity,halfCarry,A,C,DE
 @ShellDeriveBuildBin:
         LD      (ShellArgPtr),HL
         LD      HL,ShellBinExt
@@ -1078,9 +1091,9 @@ ShellAddBToDEOverflow:
 
 ; ShellDeriveBuildMap —
 ; Derive /build/<local-stem>.map from an absolute source path.
-;!      in        B,DE,HL
-;!      out       HL,carry,B,zero
-;!      clobbers  A,C,DE
+;! in B,DE,HL
+;! out HL,carry,B,zero
+;! clobbers sign,parity,halfCarry,A,C,DE
 @ShellDeriveBuildMap:
         LD      (ShellArgPtr),HL
         LD      HL,ShellMapExt
@@ -1090,14 +1103,16 @@ ShellAddBToDEOverflow:
 
 ; ShellDeriveBuildPath —
 ; Derive /build/<local-stem><extension> from an absolute source path.
-;!      in        B,DE,HL
-;!      out       HL,B,carry,zero
-;!      clobbers  A,C,DE
+;! in B,DE,HL
+;! out HL,B,carry,zero
+;! clobbers sign,parity,halfCarry,A,C,DE
 @ShellDeriveBuildPath:
         LD      (ShellArgPtr),HL
         LD      (ShellWritePtr),DE
+        ; expects out HL
         CALL    ShellFindLocalName
         LD      (ShellArgPtr),HL
+        ; expects out HL
         CALL    ShellFindStemEnd
         LD      (ShellStemEnd),HL
 
@@ -1122,9 +1137,9 @@ ShellAddBToDEOverflow:
 
 ; ShellFindLocalName —
 ; Return HL pointing at the byte after the last slash.
-;!      in        HL
-;!      out       HL,A,carry
-;!      clobbers  DE
+;! in HL
+;! out HL,A,carry
+;! clobbers zero,sign,parity,halfCarry,DE
 @ShellFindLocalName:
         LD      D,H
         LD      E,L
@@ -1151,9 +1166,9 @@ ShellFindLocalDone:
 
 ; ShellCopyStem —
 ; Copy a filename stem from HL to DE until dot or NUL.
-;!      in        B,DE,HL
-;!      out       DE,HL,A,B,carry,zero
-;!      clobbers  C
+;! in B,DE,HL
+;! out DE,HL,A,B,carry,zero
+;! clobbers sign,parity,halfCarry,C
 @ShellCopyStem:
         LD      C,0
 
@@ -1201,8 +1216,9 @@ ShellCopyStemLongErr:
 
 ; ShellFindStemEnd —
 ; Return HL pointing at the final dot in a local filename, or at NUL if none.
-;!      in        HL
-;!      out       A,DE,HL
+;! in HL
+;! out A,DE,HL
+;! clobbers F
 @ShellFindStemEnd:
         LD      D,0
         LD      E,0
@@ -1230,7 +1246,8 @@ ShellFindStemDone:
 
 ; ShellSyntaxErr —
 ; Return a shell syntax error.
-;!      out       A,carry
+;! out A,carry
+;! clobbers halfCarry
 @ShellSyntaxErr:
         LD      A,SHELL_ERR_SYNTAX
         SCF
@@ -1238,7 +1255,8 @@ ShellFindStemDone:
 
 ; ShellLongErr —
 ; Return a shell buffer-too-long error.
-;!      out       A,carry
+;! out A,carry
+;! clobbers halfCarry
 @ShellLongErr:
         LD      A,SHELL_ERR_LONG
         SCF

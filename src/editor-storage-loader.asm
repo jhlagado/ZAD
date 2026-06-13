@@ -47,9 +47,9 @@ EDITOR_LOAD_ERR_CREATE  .equ    0x39
 
 ; EditorLoadMainSector -
 ; Load the first sector of /src/main.asm into caller buffer HL.
-;!      in        HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorLoadMainSector:
         XOR     A
         JP      EditorLoadMainPage
@@ -57,9 +57,9 @@ EDITOR_LOAD_ERR_CREATE  .equ    0x39
 ; EditorLoadMainPage -
 ; Load one 512-byte sector page of /src/main.asm into caller buffer HL.
 ; Page A is limited to 0..127.
-;!      in        A,HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,HL
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorLoadMainPage:
         LD      DE,EditorLoadMainPath
         JP      EditorLoadSourcePage
@@ -70,9 +70,9 @@ EDITOR_LOAD_ERR_CREATE  .equ    0x39
 ;   A  = page index, limited to 0..127
 ;   DE = NUL-terminated TM8 path, e.g. /src/main.asm
 ;   HL = caller destination buffer
-;!      in        A,DE,HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorLoadSourcePage:
         PUSH    AF
         XOR     A
@@ -130,9 +130,9 @@ EditorLoadPrefixReady:
 ;   A  = page index, limited to 0..127
 ;   DE = NUL-terminated TM8 path, e.g. /src/main.asm
 ;   HL = caller source buffer
-;!      in        A,DE,HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,DE,HL
+;! out A,carry
+;! clobbers BC,DE,HL,zero,sign,parity,halfCarry
 @EditorSaveSourcePage:
         PUSH    AF
         LD      A,1
@@ -142,9 +142,9 @@ EditorLoadPrefixReady:
 
 ; EditorSaveSourcePageNoGrow -
 ; Save one sector without catalog-size growth. Used by fixed-size backup files.
-;!      in        A,DE,HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorSaveSourcePageNoGrow:
         PUSH    AF
         XOR     A
@@ -216,9 +216,9 @@ EditorSaveSourcePageClean:
 ; Create a one-block source file for an already-existing TM8 prefix.
 ; Input:
 ;   DE = NUL-terminated TM8 path, e.g. /src/.main.asm.b
-;!      in        DE
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in DE
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateSourceFile:
         LD      (EditorLoadSourcePathPtr),DE
         CALL    EditorLoadParseSourcePath
@@ -265,8 +265,8 @@ EditorLoadPageErr:
         SCF
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  B,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorLoadReadSuperblock:
         LD      HL,0
         LD      DE,0
@@ -454,8 +454,8 @@ EditorLoadCreateErr:
         SCF
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorLoadParseSourcePath:
         LD      HL,(EditorLoadSourcePathPtr)
         LD      A,(HL)
@@ -516,8 +516,8 @@ EditorLoadParseStoreNameLen:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE
 @EditorLoadFindSourcePrefix:
         LD      DE,TM8_PREFIX_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_PREFIX_SECTORS
@@ -560,9 +560,9 @@ EditorLoadPrefixEntry:
         SCF
         RET
 
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  B,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorLoadMatchPrefixEntry:
         LD      A,(HL)
         CP      TM8_ENTRY_ACTIVE
@@ -584,8 +584,8 @@ EditorLoadPrefixEntry:
         RET     NC
         JP      EditorLoadEntryNo
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE
 @EditorLoadFindSource:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
@@ -639,9 +639,9 @@ EditorLoadCatalogEntryMiss:
         SCF
         RET
 
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  B,DE,HL
+;! in HL
+;! out A,E,carry,zero
+;! clobbers sign,parity,halfCarry,B,D,HL
 @EditorLoadMatchCatalogEntry:
         LD      (EditorLoadEntryBase),HL
         PUSH    HL
@@ -742,8 +742,8 @@ EditorLoadBlockErr:
         SCF
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorLoadReadSourceSector:
         LD      HL,(EditorLoadFirstBlock)
         CALL    EditorLoadResolveSourceBlock
@@ -764,8 +764,8 @@ EditorLoadBlockErr:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateFindFreeBlock:
         LD      DE,TM8_ALLOC_START_BLOCK * TM8_BLOCK_BYTES
         LD      (EditorCreateAllocOffset),DE
@@ -821,8 +821,8 @@ EditorCreateFreeBlockFound:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateMarkAllocatedBlock:
         LD      HL,(EditorCreateFreeBlock)
         LD      A,H
@@ -858,8 +858,8 @@ EditorCreateMarkOffsetOk:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateFindCatalogSlot:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
@@ -899,8 +899,8 @@ EditorCreateFreeCatalogFound:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateNextFileId:
         XOR     A
         LD      (EditorCreateFileId),A
@@ -920,8 +920,8 @@ EditorCreateNextFileIdOk:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE
 @EditorCreateFileIdUsed:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
@@ -969,8 +969,8 @@ EditorCreateFileIdFound:
         LD      A,1
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateWriteCatalogEntry:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
@@ -1064,8 +1064,8 @@ EditorCreateCatalogNameLoop:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,DE,HL
 @EditorCreateUpdateSuperblock:
         LD      HL,0
         LD      DE,0
@@ -1093,8 +1093,8 @@ EditorCreateFreeCountOk:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateBlankCreatedSource:
         XOR     A
         LD      (EditorCreateBlankPageIndex),A
@@ -1113,8 +1113,8 @@ EditorCreateBlankCreatedSourceLoop:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCreateRecomputeSuperblockChecksum:
         LD      HL,DISK_BUFF + 72
         XOR     A
@@ -1155,13 +1155,14 @@ EditorCreateChecksumNoCarry:
         LD      (HL),A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorLoadWriteSourceSector:
         LD      HL,(EditorLoadFirstBlock)
         CALL    EditorLoadResolveSourceBlock
         RET     C
         LD      HL,(EditorLoadResolvedBlock)
+        ; expects out HL
         CALL    EditorLoadBlockToOffset
         LD      A,(EditorLoadSectorInBlock)
         ADD     A,A
@@ -1190,8 +1191,8 @@ EditorCreateChecksumNoCarry:
 ; EditorSaveExtendCatalogSize -
 ; Grow the matched source file's catalog byte size to include the just-written
 ; sector. This is monotonic and preserves already-large 32-bit catalog sizes.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorSaveExtendCatalogSize:
         CALL    EditorLoadFindSource
         RET     C
@@ -1262,9 +1263,9 @@ EditorSaveCatalogSizeOk:
         XOR     A
         RET
 
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorLoadResolveSourceBlock:
         LD      (EditorLoadResolvedBlock),HL
         LD      A,(EditorLoadBlockSteps)
@@ -1276,6 +1277,7 @@ EditorLoadResolveLoop:
         JR      Z,EditorLoadResolveOk
 
         LD      HL,(EditorLoadResolvedBlock)
+        ; expects out HL
         CALL    EditorLoadResolveNextBlock
         RET     C
         LD      (EditorLoadResolvedBlock),HL
@@ -1289,18 +1291,18 @@ EditorLoadResolveOk:
         XOR     A
         RET
 
-;!      in        HL
-;!      out       HL,A,carry,zero
-;!      clobbers  A,BC,DE
+;! in HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE
 @EditorLoadResolveNextBlock:
         LD      A,(EditorSaveGrowMode)
         OR      A
         JP      NZ,EditorSaveReadOrGrowAllocationEntry
         JP      EditorLoadReadAllocationEntry
 
-;!      in        HL
-;!      out       HL,A,carry,zero
-;!      clobbers  A,BC,DE
+;! in HL
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE
 @EditorSaveReadOrGrowAllocationEntry:
         LD      (EditorSavePreviousBlock),HL
         LD      (EditorLoadCurrentBlock),HL
@@ -1366,9 +1368,9 @@ EditorSaveGrowAllocateBlock:
         XOR     A
         RET
 
-;!      in        DE,HL
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! in DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorSaveWriteAllocationEntryValue:
         LD      (EditorLoadCurrentBlock),HL
         LD      (EditorSaveAllocationValue),DE
@@ -1408,9 +1410,9 @@ EditorSaveWriteAllocOffsetOk:
         XOR     A
         RET
 
-;!      in        HL
-;!      out       HL,A,carry,zero
-;!      clobbers  BC,DE
+;! in HL
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry,BC,DE
 @EditorLoadReadAllocationEntry:
         LD      (EditorLoadCurrentBlock),HL
         LD      A,H
@@ -1460,9 +1462,9 @@ EditorLoadAllocationOk:
         XOR     A
         RET
 
-;!      in        HL
-;!      out       DE,HL
-;!      clobbers  A
+;! in HL
+;! out DE,HL
+;! clobbers A,F
 @EditorLoadBlockToOffset:
         LD      A,L
         AND     0x0F
@@ -1491,9 +1493,9 @@ EditorLoadAllocationOk:
         LD      H,0
         RET
 
-;!      in        B,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  B,DE,HL
+;! in B,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorLoadMatchBytes:
         LD      A,(DE)
         CP      (HL)

@@ -10,8 +10,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         CALL    DisplayInit
         JP      C,ProofFailed
@@ -157,8 +157,8 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @BoundaryInitRecords:
         LD      HL,BoundaryRecord0
         LD      DE,EditorNavPageBuffer
@@ -187,17 +187,17 @@ ProofFailedDone:
         XOR     A
         RET
 
-;!      in        DE,HL
-;!      out       A,BC,DE,HL,carry,zero
+;! in DE,HL
+;! out A,BC,DE,HL,carry,zero
 @BoundaryCopyRecord:
         LD      BC,32
         LDIR
         XOR     A
         RET
 
-;!      in        HL
-;!      out       A,HL,carry,zero
-;!      clobbers  A
+;! in HL
+;! out A,HL,carry,zero
+;! clobbers A
 @BoundarySaveCursor:
         LD      A,(EditorCursorRow)
         LD      (HL),A
@@ -208,9 +208,9 @@ ProofFailedDone:
         RET
 
 ; Stub LoadProjectConfig for included shell command code.
-;!      in        B,DE
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! in B,DE
+;! out DE,HL,A,C,carry,zero
+;! clobbers B
 @LoadProjectConfig:
         LD      HL,BoundaryExpectedMain
         LD      C,B
@@ -237,6 +237,7 @@ LoadProjectStubOk:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
         .include "../../src/shell-commands.asm"
         .include "../../src/shell-editor-launch.asm"

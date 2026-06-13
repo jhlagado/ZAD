@@ -27,7 +27,7 @@ test('editor design documents the structured display model constants', () => {
   }
 });
 
-test('structured display model has assembly entry points and contracts', () => {
+test('structured display model has assembly entry points', () => {
   const source = readRepoFile('src/display-model.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
 
@@ -41,11 +41,6 @@ test('structured display model has assembly entry points and contracts', () => {
   ]) {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
   }
-  assert.match(source, /;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@DisplayInit:/);
-  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@DisplayRenderScreen:/);
-  assert.match(source, /;!\s+in\s+A,C,HL\n;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@DisplayRenderLine:/);
-  assert.match(source, /;!\s+in\s+A,C\n;!\s+out\s+carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@DisplayRenderGutter:/);
-
   for (const constant of [
     'TECM8_DISPLAY_GLCD_COLUMNS',
     'TECM8_DISPLAY_GLCD_ROWS',

@@ -54,8 +54,8 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
 
 ; EditorCursorReset -
 ; Reset the visible cursor to the top-left source cell.
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry
 @EditorCursorReset:
         XOR     A
         LD      (EditorCursorRow),A
@@ -78,8 +78,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
 
 ; EditorCursorResetState -
 ; Reset cursor state after a page render has already reset the viewport.
-;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A
+;! out A,carry,zero,sign,parity,halfCarry
 @EditorCursorResetState:
         XOR     A
         LD      (EditorCursorRow),A
@@ -95,8 +94,7 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
 
 ; EditorCursorResetStateKeepSelection -
 ; Reset cursor state after a page render while preserving block selection.
-;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A
+;! out carry,zero,A,sign,parity,halfCarry
 @EditorCursorResetStateKeepSelection:
         XOR     A
         LD      (EditorCursorRow),A
@@ -111,8 +109,8 @@ TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS    .equ    0x0600
 
 ; EditorRenderCursor -
 ; Overlay the logical cursor when it is inside the visible edit pane.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorRenderCursor:
         LD      A,(EditorCursorRendered)
         OR      A
@@ -148,8 +146,8 @@ EditorCursorRenderDone:
 
 ; EditorHideCursor -
 ; Erase any rendered cursor without drawing a replacement.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorHideCursor:
         LD      A,(EditorCursorRendered)
         OR      A
@@ -168,8 +166,8 @@ EditorHideCursorDone:
 
 ; EditorCursorBlinkReset -
 ; Restart the idle blink countdown after a key event or explicit cursor render.
-;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A,HL
+;! out A,carry,zero,sign,parity,halfCarry
+;! clobbers HL
 @EditorCursorBlinkReset:
         LD      HL,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS
         LD      (EditorCursorBlinkCounter),HL
@@ -178,8 +176,8 @@ EditorHideCursorDone:
 
 ; EditorCursorBlinkStep -
 ; Advance the cooperative cursor blink state once from the live idle path.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorCursorBlinkStep:
         LD      A,(EditorPromptActive)
         OR      A
@@ -220,8 +218,7 @@ EditorCursorBlinkNoop:
 
 ; EditorInvalidateCursorOverlay -
 ; Mark the cursor overlay absent after a full redraw replaces the pixels under it.
-;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A
+;! out carry,zero,A,sign,parity,halfCarry
 @EditorInvalidateCursorOverlay:
         XOR     A
         LD      (EditorCursorRendered),A
@@ -235,9 +232,9 @@ EditorCursorBlinkNoop:
 ; unknown keys are ignored.
 ; Input:
 ;   HL = NUL-terminated key stream
-;!      in        HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorRunKeys:
         LD      (EditorKeyStreamPtr),HL
         XOR     A
@@ -251,9 +248,9 @@ EditorCursorBlinkNoop:
 ; Input:
 ;   A = translated key
 ;   B = modifier flags
-;!      in        A,B
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,B
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorRunModifiedKey:
         LD      C,A
         LD      A,(BiosInputRawSecondary)
@@ -611,6 +608,7 @@ EditorKeySelectDownAtBottom:
         RET     C
         LD      A,(EditorCursorRow)
         LD      (EditorCursorPreviousRow),A
+        ; expects out HL
         CALL    EditorBlockSelectionCurrentLine
         INC     HL
         LD      A,L
@@ -778,9 +776,9 @@ EditorKeyEscape:
         RET     C
         JP      EditorKeyLoop
 
-;!      in        HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyShowStatus:
         LD      (EditorStatusTextPtr),HL
         CALL    EditorHideCursor
@@ -809,8 +807,8 @@ EditorKeyDoneNoCursor:
 ; Poll TECM8 key events from the MON3-backed matrix scanner until the editor
 ; requests quit. A/B carry the editor-facing translated key and modifier flags;
 ; raw D/E remains available at the BIOS layer for diagnostics.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorRunLive:
         XOR     A
         LD      (EditorQuitRequested),A
@@ -855,9 +853,9 @@ EditorLiveDone:
 ;   A = raw key byte
 ; Output:
 ;   A = TECM8_EDITOR_ACTION_* or TECM8_EDITOR_ACTION_NONE
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry
 @EditorActionFromKey:
         CP      TECM8_EDITOR_KEY_ARROW_UP
         JR      Z,EditorActionArrowUp
@@ -912,8 +910,8 @@ EditorActionCursorRight:
 ; flags instead of an ASCII control byte.
 ; Input: EditorPendingChar, EditorPendingModifier
 ; Output: A = TECM8_EDITOR_KEY_* command or 0
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry
 @EditorModifiedCommandFromKey:
         LD      A,(EditorPendingModifier)
         AND     TECM8_EDITOR_KEY_MOD_CTRL
@@ -996,8 +994,8 @@ EditorModifiedCommandDeleteLine:
 ; EditorShouldIgnoreModifiedPrintable -
 ; Return A=1 when a Ctrl-modified printable key did not match a known command.
 ; This prevents a failed host modifier chord from inserting text.
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorShouldIgnoreModifiedPrintable:
         LD      A,(EditorPendingModifier)
         AND     TECM8_EDITOR_KEY_MOD_CTRL
@@ -1018,8 +1016,8 @@ EditorShouldIgnoreModifiedPrintableNo:
 ; EditorBlockSelectionBeginIfNeeded -
 ; Start an exclusive-endpoint whole-line block selection at the current
 ; absolute line if no ordinary selection is already active.
-;!      out       A,carry
-;!      clobbers  A,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,HL
 @EditorBlockSelectionBeginIfNeeded:
         LD      A,(EditorBlockSelectionActive)
         OR      A
@@ -1038,11 +1036,12 @@ EditorShouldIgnoreModifiedPrintableNo:
 
 ; EditorBlockSelectionCapturePageAnchor -
 ; Save the current absolute line and active state before a page-selection move.
-;!      out       A,carry
-;!      clobbers  A,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,HL
 @EditorBlockSelectionCapturePageAnchor:
         LD      A,(EditorBlockSelectionActive)
         LD      (EditorBlockSelectionPageWasActive),A
+        ; expects out HL
         CALL    EditorBlockSelectionCurrentLine
         LD      A,L
         LD      (EditorBlockSelectionPageAnchorLo),A
@@ -1054,8 +1053,8 @@ EditorShouldIgnoreModifiedPrintableNo:
 ; EditorBlockSelectionRestorePageAnchor -
 ; Ensure a successful page-selection move has an anchor. Existing selections
 ; keep their original anchor; fresh page selections anchor at the old line.
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorBlockSelectionRestorePageAnchor:
         LD      A,(EditorBlockSelectionPageWasActive)
         OR      A
@@ -1073,9 +1072,10 @@ EditorBlockSelectionRestoreExisting:
 
 ; EditorBlockSelectionUpdateActive -
 ; Move the active end of the ordinary selection to the current absolute line.
-;!      out       A,carry
-;!      clobbers  A,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,HL
 @EditorBlockSelectionUpdateActive:
+        ; expects out HL
         CALL    EditorBlockSelectionCurrentLine
         LD      A,L
         LD      (EditorBlockSelectionActiveLo),A
@@ -1100,8 +1100,7 @@ EditorBlockSelectionUpdateStillActive:
 ; EditorBlockSelectionClearState -
 ; Clear ordinary selection state without repainting. Used before full page
 ; renders and cursor resets.
-;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A
+;! out carry,zero,A,sign,parity,halfCarry
 @EditorBlockSelectionClearState:
         XOR     A
         LD      (EditorBlockSelectionActive),A
@@ -1109,8 +1108,7 @@ EditorBlockSelectionUpdateStillActive:
 
 ; EditorPendingBlockClearState -
 ; Clear the pending copy/move source without repainting.
-;!      out       A,zero,sign,parity,halfCarry
-;!      clobbers  A
+;! out carry,zero,A,sign,parity,halfCarry
 @EditorPendingBlockClearState:
         XOR     A
         LD      (EditorPendingBlockMode),A
@@ -1119,9 +1117,9 @@ EditorBlockSelectionUpdateStillActive:
 ; EditorPendingBlockArm -
 ; Convert the ordinary selected range into a pending copy/move source.
 ; Input: A = TECM8_EDITOR_PENDING_BLOCK_COPY or *_MOVE.
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out BC,DE,A,carry,zero
+;! clobbers sign,parity,halfCarry,HL
 @EditorPendingBlockArm:
         LD      (EditorPendingBlockRequestedMode),A
         LD      A,(EditorBlockSelectionActive)
@@ -1162,8 +1160,8 @@ EditorPendingBlockArmNoSelection:
 ; active. The first version is conservative: source and destination must be in
 ; the current resident page, unsafe overlap/self cases are rejected, and empty
 ; tail rows must exist so no records are discarded.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockPasteInsert:
         LD      A,(EditorPendingBlockMode)
         OR      A
@@ -1205,8 +1203,8 @@ EditorPendingBlockPasteNoop:
 ; Replace an ordinary destination selection with a pending copy or move source.
 ; This first B6 slice is intentionally narrow: current page only, equal-sized
 ; ranges only, and no overlap.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockPasteReplace:
         CALL    EditorPendingBlockRowsForCurrentPage
         JP      C,EditorPendingBlockPasteNoop
@@ -1235,8 +1233,8 @@ EditorPendingBlockPasteReplaceSelect:
         LD      A,1
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+;! out A,L,carry,zero
+;! clobbers sign,parity,halfCarry,BC,H
 @EditorPendingBlockRowsForCurrentPage:
         CALL    EditorPendingBlockPageBaseForCurrentPage
         LD      A,(EditorPendingBlockStartHi)
@@ -1271,8 +1269,8 @@ EditorPendingBlockPasteReplaceSelect:
         XOR     A
         RET
 
-;!      out       A,HL,carry
-;!      clobbers  A,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry
 @EditorPendingBlockPageBaseForCurrentPage:
         LD      A,(EditorNavCurrentPage)
         LD      H,0
@@ -1292,8 +1290,8 @@ EditorPendingBlockRowsErr:
         SCF
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out DE,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,HL
 @EditorPendingBlockDestinationRowsForCurrentPage:
         CALL    EditorBlockSelectionNormalize
         LD      A,(EditorBlockSelectionStartHi)
@@ -1332,8 +1330,8 @@ EditorPendingBlockDestinationRowsErr:
         SCF
         RET
 
-;!      out       A,carry
-;!      clobbers  A,B,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B
 @EditorPendingBlockRejectInsertOverlap:
         LD      A,(EditorCursorRow)
         LD      (EditorPendingBlockDestRow),A
@@ -1355,8 +1353,8 @@ EditorPendingBlockRejectOverlap:
         SCF
         RET
 
-;!      out       A,carry
-;!      clobbers  A,B,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B
 @EditorPendingBlockRejectReplaceOverlap:
         LD      A,(EditorPendingBlockDestEndRow)
         LD      B,A
@@ -1379,8 +1377,8 @@ EditorPendingBlockReplaceOverlap:
         SCF
         RET
 
-;!      out       A,zero
-;!      clobbers  A,B,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B
 @EditorPendingBlockReplaceSameSize:
         LD      A,(EditorPendingBlockDestRowCount)
         LD      B,A
@@ -1388,8 +1386,8 @@ EditorPendingBlockReplaceOverlap:
         CP      B
         RET
 
-;!      out       A,zero,carry
-;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,HL
 @EditorPendingBlockTailAvailable:
         LD      A,16
         LD      B,A
@@ -1426,8 +1424,8 @@ EditorPendingBlockTailNo:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockCopySourceToScratch:
         LD      A,(EditorPendingBlockSourceStartRow)
         CALL    EditorKeyRecordAtRow
@@ -1449,8 +1447,8 @@ EditorPendingBlockScratchDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockShiftRowsDown:
         LD      A,16
         LD      B,A
@@ -1493,10 +1491,11 @@ EditorPendingBlockShiftDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockCopyScratchToDest:
         LD      A,(EditorPendingBlockDestRow)
+        ; expects out HL
         CALL    EditorKeyRecordAtRow
         LD      D,H
         LD      E,L
@@ -1518,8 +1517,8 @@ EditorPendingBlockCopyDestDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockDeleteMovedSource:
         LD      A,(EditorPendingBlockSourceStartRow)
         LD      B,A
@@ -1547,6 +1546,7 @@ EditorPendingBlockDeleteLoop:
         LD      A,(EditorPendingBlockShiftRow)
         CP      16
         JR      Z,EditorPendingBlockDeleteClearTail
+        ; expects out HL
         CALL    EditorKeyRecordAtRow
         LD      (EditorLineSrc),HL
         LD      A,(EditorPendingBlockShiftRow)
@@ -1579,6 +1579,7 @@ EditorPendingBlockDeleteClearLoop:
         LD      A,(EditorPendingBlockTailCheckRow)
         CP      16
         JR      Z,EditorPendingBlockDeleteDone
+        ; expects out HL
         CALL    EditorKeyRecordAtRow
         CALL    EditorKeyClearRecord
         LD      A,(EditorPendingBlockTailCheckRow)
@@ -1590,14 +1591,14 @@ EditorPendingBlockDeleteDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockDeleteOriginalSource:
         LD      A,(EditorPendingBlockSourceStartRow)
         JP      EditorPendingBlockDeleteStartReady
 
-;!      out       A,carry
-;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,HL
 @EditorPendingBlockSelectInsertedRows:
         LD      A,(EditorPendingBlockDestRow)
         LD      B,A
@@ -1650,8 +1651,8 @@ EditorPendingBlockCursorRowReady:
 
 ; EditorBlockSelectionClearIfActive -
 ; Clear ordinary selection state and repaint visible gutter markers when needed.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorBlockSelectionClearIfActive:
         LD      A,(EditorBlockSelectionActive)
         OR      A
@@ -1663,8 +1664,8 @@ EditorPendingBlockCursorRowReady:
 
 ; EditorBlockStateClearForEdit -
 ; Clear ordinary selection and pending source before mutating source records.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorBlockStateClearForEdit:
         LD      A,(EditorBlockSelectionActive)
         LD      B,A
@@ -1679,8 +1680,8 @@ EditorPendingBlockCursorRowReady:
 
 ; EditorBlockSelectionRenderMarkers -
 ; Repaint all visible gutter markers after a selection range change.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorBlockSelectionRenderMarkers:
         XOR     A
         LD      (EditorBlockSelectionMarkerRow),A
@@ -1702,8 +1703,8 @@ EditorBlockSelectionRenderMarkerLoop:
 
 ; EditorBlockSelectionCurrentLine -
 ; Compute the current absolute source line as page * 16 + current row.
-;!      out       HL,A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorBlockSelectionCurrentLine:
         LD      A,(EditorNavCurrentPage)
         LD      H,0
@@ -1725,9 +1726,9 @@ EditorBlockSelectionCurrentLineDone:
 ; EditorInsertChar -
 ; Insert printable A into the current fixed-width source record.
 ; Returns A=1 when the buffer changed, A=0 when insertion was a no-op.
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorInsertChar:
         LD      (EditorPendingChar),A
         CALL    EditorKeyCurrentRecord
@@ -1796,8 +1797,8 @@ EditorInsertDone:
 ; EditorBackspaceChar -
 ; Delete the character before the cursor in the current source record.
 ; Returns A=1 when the buffer changed, A=0 when backspace was a no-op.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorBackspaceChar:
         LD      A,(EditorCursorCol)
         OR      A
@@ -1815,8 +1816,8 @@ EditorBackspaceDone:
 ; Split the current fixed-width source record at the cursor. The split is a
 ; no-op when the cursor is on the final page row or the final record is in use.
 ; Returns A=1 when the buffer changed, A=0 when the split was a no-op.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorSplitLine:
         LD      A,(EditorCursorRow)
         CP      15
@@ -1825,6 +1826,7 @@ EditorBackspaceDone:
 
         LD      A,15
         CALL    EditorKeyRecordAtRow
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         OR      A
         JR      Z,EditorSplitTailAvailable
@@ -1834,8 +1836,10 @@ EditorBackspaceDone:
 
 EditorSplitTailAvailable:
 
+        ; expects out HL
         CALL    EditorKeyCurrentRecord
         LD      (EditorRecordBase),HL
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         LD      (EditorLineLength),A
         LD      B,A
@@ -1857,6 +1861,7 @@ EditorSplitCursorReady:
         CALL    EditorKeyRecordAtRow
         LD      (EditorLineSrc),HL
         LD      A,15
+        ; expects out HL
         CALL    EditorKeyRecordAtRow
         LD      (EditorLineDest),HL
 
@@ -1942,8 +1947,8 @@ EditorSplitDone:
 ; EditorSplitFinalRow -
 ; Split active row 15 into adjacent next-sector row 0, shifting the adjacent
 ; sector down first. The next sector must be resident and have a free tail row.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorSplitFinalRow:
         LD      A,(EditorNavNextPageValid)
         OR      A
@@ -1953,8 +1958,10 @@ EditorSplitDone:
         OR      A
         JP      NZ,EditorSplitFinalDone
 
+        ; expects out HL
         CALL    EditorKeyCurrentRecord
         LD      (EditorRecordBase),HL
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         LD      (EditorLineLength),A
         LD      B,A
@@ -2081,8 +2088,8 @@ EditorSplitFinalDone:
 ; Move current sector row 15 into next sector row 0, shifting the next sector
 ; down one record. Returns A=1 on success, A=0 when the next sector cannot
 ; accept the pushed record.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorSplitPushLastRecordToNextPage:
         LD      A,(EditorNavNextPageValid)
         OR      A
@@ -2142,8 +2149,8 @@ EditorSplitPushNextDone:
 ; Join the current record into the previous one when the cursor is at column 0.
 ; The join is a no-op on row 0 or when the combined text would exceed 31 bytes.
 ; Returns A=1 when the buffer changed, A=0 when the join was a no-op.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorJoinPreviousLine:
         LD      A,(EditorCursorCol)
         OR      A
@@ -2152,6 +2159,7 @@ EditorSplitPushNextDone:
         OR      A
         JP      Z,EditorJoinPreviousPageLine
         LD      (EditorLineCurrentRow),A
+        ; expects out HL
         CALL    EditorKeyCurrentRecord
         LD      (EditorLineCurrentBase),HL
         CALL    EditorKeyReadRecordLength
@@ -2160,6 +2168,7 @@ EditorSplitPushNextDone:
         DEC     A
         CALL    EditorKeyRecordAtRow
         LD      (EditorLinePrevBase),HL
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         LD      (EditorLinePrevLength),A
         LD      B,A
@@ -2230,6 +2239,7 @@ EditorJoinShiftLoop:
 
 EditorJoinClearLast:
         LD      A,15
+        ; expects out HL
         CALL    EditorKeyRecordAtRow
         CALL    EditorKeyClearRecord
         LD      A,(EditorCursorRow)
@@ -2248,8 +2258,8 @@ EditorJoinDone:
 ; Join current row 0 into cached previous-page row 15, then make the previous
 ; page active. Returns A=1 on success, A=0 when the cached previous page cannot
 ; accept the join.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorJoinPreviousPageLine:
         LD      A,(EditorNavCacheValid)
         OR      A
@@ -2264,10 +2274,12 @@ EditorJoinDone:
 
         LD      HL,EditorNavPageBuffer
         LD      (EditorLineCurrentBase),HL
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         LD      (EditorLineCurrentLength),A
         LD      HL,EditorNavCachePageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
         LD      (EditorLinePrevBase),HL
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         LD      (EditorLinePrevLength),A
         LD      B,A
@@ -2366,10 +2378,11 @@ EditorJoinPreviousPageClearLast:
 ; EditorDeleteChar -
 ; Delete the character at the cursor in the current source record.
 ; Returns A=1 when the buffer changed, A=0 when delete was a no-op.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorDeleteChar:
         CALL    EditorKeyCurrentRecord
+        ; expects out A
         CALL    EditorKeyReadRecordLength
         LD      (EditorLineLength),A
         LD      B,A
@@ -2415,8 +2428,8 @@ EditorDeleteDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderDirty:
         CALL    EditorMarkDirty
         CALL    EditorHideCursor
@@ -2430,8 +2443,8 @@ EditorDeleteDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderCurrentLineDirty:
         CALL    EditorMarkDirty
         CALL    EditorHideCursor
@@ -2454,8 +2467,8 @@ EditorDeleteDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderCurrentLineCellsDirty:
         CALL    EditorMarkDirty
         CALL    EditorHideCursor
@@ -2540,8 +2553,8 @@ EditorKeyRenderCurrentLineCellsDone:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderCursorRowMarkers:
         CALL    EditorHideCursor
         RET     C
@@ -2565,6 +2578,7 @@ EditorKeyRenderCursorRowMarkersNeeded:
         CALL    EditorViewportSetCurrentRow
         RET     C
         LD      A,(EditorCursorPreviousRow)
+        ; expects out A
         CALL    EditorLogicalRowVisible
         JR      C,EditorKeyRenderCursorNewOnly
         LD      (EditorCursorPreviousVisibleRow),A
@@ -2587,8 +2601,8 @@ EditorKeyRenderCursorFlushCurrent:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderCursorMove:
         CALL    EditorEnsureCursorVisible
         RET     C
@@ -2600,8 +2614,8 @@ EditorKeyRenderCursorFlushCurrent:
         JP      NZ,EditorKeyRenderViewport
         JP      EditorKeyRenderCursorRowMarkers
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderCursorColumnMove:
         CALL    EditorEnsureCursorVisibleColumn
         RET     C
@@ -2610,8 +2624,8 @@ EditorKeyRenderCursorFlushCurrent:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyRenderViewport:
         CALL    EditorRenderPageBuffer
         RET     C
@@ -2620,8 +2634,8 @@ EditorKeyRenderCursorFlushCurrent:
 ; EditorEnsureCursorVisible -
 ; Keep the 16-row logical cursor inside the 10-row GLCD viewport.
 ; Returns A=1 when the viewport top changed, A=0 when it did not.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC
 @EditorEnsureCursorVisible:
         LD      A,(EditorCursorRow)
         LD      B,A
@@ -2676,8 +2690,8 @@ EditorEnsureCursorScrollDown:
 ; EditorEnsureCursorVisibleColumn -
 ; Keep the 31-column logical cursor inside the 20-column GLCD text viewport.
 ; Returns A=1 when the horizontal viewport changed, A=0 when it did not.
-;!      out       A,carry,zero
-;!      clobbers  A,BC,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC
 @EditorEnsureCursorVisibleColumn:
         LD      A,(EditorCursorCol)
         LD      B,A
@@ -2723,9 +2737,9 @@ EditorEnsureCursorColumnScrollRight:
         OR      A
         RET
 
-;!      in        A
-;!      out       A,carry,zero
-;!      clobbers  A,BC,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC
 @EditorLogicalRowVisible:
         LD      B,A
         LD      A,(EditorNavViewportTopRow)
@@ -2755,16 +2769,16 @@ EditorLogicalRowHidden:
         SCF
         RET
 
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry
 @EditorMarkDirty:
         JP      EditorMarkCurrentSectorDirty
 
 ; EditorPromptAskYesNo -
 ; Activate a status-line yes/no prompt using the NUL-terminated text at HL.
-;!      in        HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorPromptAskYesNo:
         LD      (EditorPromptTextPtr),HL
         CALL    EditorHideCursor
@@ -2775,9 +2789,9 @@ EditorLogicalRowHidden:
         LD      (EditorPromptActive),A
         JP      EditorViewportRenderStatusOverlay
 
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorPromptHandleKey:
         CP      "y"
         JR      Z,EditorPromptYes
@@ -2805,8 +2819,8 @@ EditorPromptComplete:
         LD      (EditorPromptActive),A
         JP      EditorViewportRestoreStatusRow
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPromptDispatch:
         LD      A,(EditorPromptActive)
         OR      A
@@ -2872,8 +2886,8 @@ EditorDeleteBlockConfirmed:
         XOR     A
         RET
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorDeleteSelectedBlock:
         LD      A,(EditorBlockSelectionActive)
         OR      A
@@ -2901,8 +2915,8 @@ EditorDeleteSelectedBlockNoop:
         XOR     A
         RET
 
-;!      out       A,HL,carry,zero
-;!      clobbers  A,B,DE,sign,parity,halfCarry
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry,B,DE
 @EditorKeyCurrentRecord:
         LD      HL,EditorNavPageBuffer
         LD      A,(EditorCursorRow)
@@ -2917,9 +2931,9 @@ EditorRecordOffsetLoop:
         XOR     A
         RET
 
-;!      in        A
-;!      out       A,HL,carry,zero
-;!      clobbers  A,B,DE,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry,B,DE
 @EditorKeyRecordAtRow:
         LD      HL,EditorNavPageBuffer
         OR      A
@@ -2933,67 +2947,32 @@ EditorRecordAtRowOffsetLoop:
         XOR     A
         RET
 
-;!      in        A,HL
-;!      out       A,carry,zero
-;!      clobbers  A,B,C,DE,HL,sign,parity,halfCarry
+;! in A,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorKeyZeroRecordPadding:
-        LD      C,A
-        LD      A,TECM8_EDITOR_EDIT_RECORD_TEXT_MAX
-        SUB     C
-        JR      Z,EditorKeyZeroRecordPaddingDone
-        LD      B,A
-        INC     HL
-        LD      D,0
-        LD      E,C
-        ADD     HL,DE
-        XOR     A
+        JP      Tecm8RecordZeroPadding
 
-EditorKeyZeroRecordPaddingLoop:
-        LD      (HL),A
-        INC     HL
-        DJNZ    EditorKeyZeroRecordPaddingLoop
-
-EditorKeyZeroRecordPaddingDone:
-        XOR     A
-        RET
-
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorKeyReadRecordLength:
-        LD      A,(HL)
-        AND     TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK
-        RET
+        JP      Tecm8RecordReadLength
 
-;!      in        A,HL
-;!      out       A,carry,zero
-;!      clobbers  A,B,zero,sign,parity,halfCarry
+;! in A,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B
 @EditorKeyWriteRecordLength:
-        AND     TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK
-        LD      B,A
-        LD      A,(HL)
-        AND     TECM8_EDITOR_EDIT_RECORD_METADATA_MASK
-        OR      B
-        LD      (HL),A
-        XOR     A
-        RET
+        JP      Tecm8RecordWriteLength
 
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  A,B,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,HL
 @EditorKeyClearRecord:
-        LD      B,TECM8_EDITOR_EDIT_RECORD_BYTES
-        XOR     A
+        JP      Tecm8RecordClear
 
-EditorKeyClearRecordLoop:
-        LD      (HL),A
-        INC     HL
-        DJNZ    EditorKeyClearRecordLoop
-        XOR     A
-        RET
-
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorKeyAdvanceCursor:
         LD      A,(EditorCursorCol)
         CP      TECM8_EDITOR_CURSOR_MAX_COL

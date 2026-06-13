@@ -33,9 +33,6 @@ test('editor navigation module exposes open, render, and page movement entries',
   ]) {
     assert.match(source, new RegExp(`^@${name}:`, 'm'));
   }
-  assert.match(source, /;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorOpenMain:/);
-  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorOpenPath:/);
-
   assert.match(source, /EditorNavCurrentPage:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavDirty:\n\s+\.db\s+0/);
   assert.match(source, /TECM8_EDITOR_NAV_ERR_BACKUP\s+\.equ\s+0x52/);

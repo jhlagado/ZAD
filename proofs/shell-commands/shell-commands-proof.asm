@@ -11,8 +11,8 @@ PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 PATH_OUT_LEN      .equ     64
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         LD      A,1
         LD      (CaseMarker),A
@@ -463,9 +463,9 @@ ProofFailed:
 ; AssertCommand —
 ; Resolve one command and compare action plus resolved path.
 ; Input: HL = command text, A = expected action, DE = expected path
-;!      in        A,DE,HL
-;!      out       DE,HL,A,carry,zero
-;!      clobbers  BC
+;! in A,DE,HL
+;! out DE,HL,A,carry,zero
+;! clobbers BC
 @AssertCommand:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -492,9 +492,9 @@ AssertCommandBad:
 ; Resolve one asm command and compare source, output, and map paths.
 ; Input: HL = command text, DE = expected source, BC = expected output,
 ;        IX = expected map
-;!      in        BC,DE,HL,IX
-;!      out       DE,HL,A,carry,zero
-;!      clobbers  BC,IX
+;! in BC,DE,HL,IX
+;! out DE,HL,A,carry,zero
+;! clobbers BC,IX
 @AssertAsmRequest:
         LD      (ExpectedPathPtr),DE
         LD      (ExpectedOutputPtr),BC
@@ -522,9 +522,9 @@ AssertCommandBad:
 ; AssertAsmRequestSyntaxErr —
 ; Resolve one non-asm command and require an immediate syntax error.
 ; Input: HL = command text
-;!      in        HL
-;!      out       A,H,carry,zero
-;!      clobbers  BC,DE,L
+;! in HL
+;! out A,H,carry,zero
+;! clobbers BC,DE,L
 @AssertAsmRequestSyntaxErr:
         LD      DE,BuildRequest
         LD      B,PATH_OUT_LEN
@@ -540,9 +540,9 @@ AssertAsmRequestSyntaxBad:
 ; AssertRunRequest —
 ; Resolve one run command and compare mode plus runnable path.
 ; Input: HL = command text, A = expected mode, DE = expected path
-;!      in        A,DE,HL
-;!      out       DE,HL,A,carry,zero
-;!      clobbers  BC
+;! in A,DE,HL
+;! out DE,HL,A,carry,zero
+;! clobbers BC
 @AssertRunRequest:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -574,9 +574,9 @@ AssertRunRequestBad:
 ; AssertRunRequestSyntaxErr —
 ; Resolve one non-run command and require an immediate syntax error.
 ; Input: HL = command text
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertRunRequestSyntaxErr:
         LD      DE,RunRequest
         LD      B,PATH_OUT_LEN
@@ -592,9 +592,9 @@ AssertRunRequestSyntaxBad:
 ; AssertEditRequest —
 ; Resolve one edit command and compare mode plus source path.
 ; Input: HL = command text, A = expected mode, DE = expected path
-;!      in        A,DE,HL
-;!      out       DE,HL,A,carry,zero
-;!      clobbers  BC
+;! in A,DE,HL
+;! out DE,HL,A,carry,zero
+;! clobbers BC
 @AssertEditRequest:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -626,9 +626,9 @@ AssertEditRequestBad:
 ; AssertEditRequestSyntaxErr —
 ; Resolve one non-edit command and require an immediate syntax error.
 ; Input: HL = command text
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertEditRequestSyntaxErr:
         LD      DE,EditRequest
         LD      B,PATH_OUT_LEN
@@ -645,9 +645,9 @@ AssertEditRequestSyntaxBad:
 ; Dispatch edit/run and compare action, mode, and single path payload.
 ; Input: HL = command text, A = expected action, B = expected mode,
 ;        DE = expected path
-;!      in        A,B,DE,HL
-;!      out       DE,HL,A,carry,zero
-;!      clobbers  BC
+;! in A,B,DE,HL
+;! out DE,HL,A,carry,zero
+;! clobbers BC
 @AssertDispatchModePath:
         LD      (ExpectedAction),A
         LD      A,B
@@ -688,9 +688,9 @@ AssertDispatchModePathBad:
 ; Dispatch asm and compare action, source, output, and map payload paths.
 ; Input: HL = command text, DE = expected source, BC = expected output,
 ;        IX = expected map
-;!      in        BC,DE,HL,IX
-;!      out       DE,HL,A,carry,zero
-;!      clobbers  BC,IX
+;! in BC,DE,HL,IX
+;! out DE,HL,A,carry,zero
+;! clobbers BC,IX
 @AssertDispatchAsm:
         LD      (ExpectedPathPtr),DE
         LD      (ExpectedOutputPtr),BC
@@ -729,9 +729,9 @@ AssertDispatchAsmBad:
 ; AssertDispatchUnknownErr —
 ; Dispatch one unknown command and require SHELL_ERR_UNKNOWN.
 ; Input: HL = command text
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertDispatchUnknownErr:
         LD      DE,DispatchRequest
         LD      B,PATH_OUT_LEN
@@ -747,9 +747,9 @@ AssertDispatchUnknownBad:
 ; AssertExecuteDispatch —
 ; Dispatch a command, execute the dispatch block, and verify the invoked stub.
 ; Input: HL = command text, A = expected action
-;!      in        A,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertExecuteDispatch:
         LD      (ExpectedAction),A
         LD      DE,DispatchRequest
@@ -784,8 +784,8 @@ AssertExecuteDispatchBad:
 
 ; AssertExecuteDispatchUnknownErr —
 ; Execute a dispatch block with an invalid action and require unknown-command.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertExecuteDispatchUnknownErr:
         LD      A,SHELL_ERR_UNKNOWN
         LD      (DispatchRequest),A
@@ -802,9 +802,9 @@ AssertExecuteDispatchUnknownBad:
 ; AssertShellStepOk —
 ; Run one shell command line and verify status plus invoked stub.
 ; Input: HL = command text, A = expected action
-;!      in        A,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellStepOk:
         LD      (ExpectedAction),A
         CALL    RunShellCommandLine
@@ -825,9 +825,9 @@ AssertShellStepBad:
 ; AssertShellStepUnknownErr —
 ; Run one unknown shell command line and require SHELL_ERR_UNKNOWN.
 ; Input: HL = command text
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellStepUnknownErr:
         CALL    RunShellCommandLine
         JR      NC,AssertShellStepUnknownBad
@@ -842,9 +842,9 @@ AssertShellStepUnknownBad:
 ; Normalize one entered line, run it, and verify the command buffer plus stub.
 ; Input: HL = entered bytes, C = byte count, DE = expected normalized text,
 ;        A = expected action
-;!      in        A,C,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,C,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellInputOk:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -867,9 +867,9 @@ AssertShellStepUnknownBad:
 ; AssertShellInputErr —
 ; Normalize one entered line, run it, and require a specific shell error.
 ; Input: HL = entered bytes, C = byte count, A = expected error
-;!      in        A,C,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,C,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellInputErr:
         LD      (ExpectedAction),A
         CALL    RunShellInputLine
@@ -886,9 +886,9 @@ AssertShellInputBad:
 ; AssertShellPromptOk —
 ; Run one prompt cycle and require OK status plus invoked stub action.
 ; Input: HL = entered bytes, C = byte count, A = expected action
-;!      in        A,C,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,C,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellPromptOk:
         LD      (ExpectedAction),A
         CALL    RunShellPromptCycle
@@ -917,9 +917,9 @@ AssertShellPromptBad:
 ; AssertShellPromptErr —
 ; Run one prompt cycle and require ERROR status plus stored shell error.
 ; Input: HL = entered bytes, C = byte count, A = expected error
-;!      in        A,C,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,C,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellPromptErr:
         LD      (ExpectedAction),A
         CALL    RunShellPromptCycle
@@ -947,9 +947,9 @@ AssertShellPromptBad:
 ; Seed the line-input provider, run entry, and require prompt-ready success.
 ; Input: HL = key stream, C = expected text length, DE = expected text,
 ;        A = expected action
-;!      in        A,C,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,C,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramEntryOk:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -1014,9 +1014,9 @@ AssertShellProgramEntryBad:
 ; Seed the line-input provider, run entry, and require prompt-ready error state.
 ; Input: HL = key stream, C = expected text length, DE = expected text,
 ;        A = expected error
-;!      in        A,C,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in A,C,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramEntryErr:
         LD      (ExpectedAction),A
         LD      (ExpectedPathPtr),DE
@@ -1077,8 +1077,8 @@ AssertShellProgramEntryBad:
 
 ; AssertShellProgramEntryDefaultCr —
 ; Unseeded input falls back to a default CR key event and returns ready.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramEntryDefaultCr:
         LD      HL,0
         LD      (ShellKeySeedPtr),HL
@@ -1123,8 +1123,8 @@ AssertShellProgramEntryDefaultBad:
 
 ; AssertShellLineSeedClamped —
 ; A too-long edited seed is clamped to the max text length before CR append.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellLineSeedClamped:
         LD      HL,KeyInputLong
         LD      (ShellKeySeedPtr),HL
@@ -1159,8 +1159,8 @@ AssertShellLineSeedClampedBad:
 ; AssertProjectLoadAtStartup —
 ; Program initialization loads /tecm8.prj once, and default resolution reuses
 ; the cached main path.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertProjectLoadAtStartup:
         XOR     A
         LD      (ProjectLoadMode),A
@@ -1198,8 +1198,8 @@ AssertProjectLoadAtStartupBad:
 
 ; AssertExplicitCommandSkipsProjectLoad —
 ; Explicit edit/asm/run targets do not need project config state.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertExplicitCommandSkipsProjectLoad:
         LD      A,1
         LD      (ProjectLoadMode),A
@@ -1238,8 +1238,8 @@ AssertExplicitCommandSkipsProjectLoadBad:
 ; AssertDefaultCommandReloadsAfterFailure —
 ; A default command fails when /tecm8.prj cannot be loaded, then retries and
 ; recovers after the project config becomes readable.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertDefaultCommandReloadsAfterFailure:
         LD      A,1
         LD      (ProjectLoadMode),A
@@ -1287,8 +1287,8 @@ AssertDefaultCommandReloadsAfterFailureBad:
 
 ; AssertShellProgramCommandLoop —
 ; Run edit, asm, and run through one initialized shell session.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramCommandLoop:
         XOR     A
         LD      (ProjectLoadMode),A
@@ -1352,8 +1352,8 @@ AssertShellProgramCommandLoopBad:
 
 ; AssertShellProgramCyclesInitErr —
 ; A project-config failure at shell startup is visible to the bounded loop.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramCyclesInitErr:
         LD      A,1
         LD      (ProjectLoadMode),A
@@ -1379,8 +1379,8 @@ AssertShellProgramCyclesInitBad:
 
 ; AssertShellProgramCyclesPromptErr —
 ; The bounded loop stops on a prompt-level command error.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramCyclesPromptErr:
         XOR     A
         LD      (ProjectLoadMode),A
@@ -1418,8 +1418,8 @@ AssertShellProgramCyclesPromptBad:
 
 ; AssertShellProgramCyclesZero —
 ; Zero requested cycles initializes and returns ready without consuming input.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellProgramCyclesZero:
         XOR     A
         LD      (ProjectLoadMode),A
@@ -1452,8 +1452,8 @@ AssertShellProgramCyclesZeroBad:
 ; AssertShellExecLogSaturates —
 ; More executor calls than the action log can hold do not grow the count past
 ; the bounded log capacity.
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! out A,carry,zero
+;! clobbers BC,DE,HL
 @AssertShellExecLogSaturates:
         XOR     A
         LD      (ShellExecCount),A
@@ -1487,9 +1487,9 @@ AssertShellExecLogSaturatesBad:
 ; AssertDerivedMap —
 ; Derive a map path from one source path and compare it.
 ; Input: HL = source path, DE = expected map path
-;!      in        DE,HL
-;!      out       DE,HL,A,carry,zero,B
-;!      clobbers  C
+;! in DE,HL
+;! out DE,HL,A,carry,zero,B
+;! clobbers C
 @AssertDerivedMap:
         LD      (ExpectedPathPtr),DE
         LD      DE,PathOut
@@ -1506,8 +1506,8 @@ AssertShellExecLogSaturatesBad:
 ; Compare two NUL-terminated strings.
 ; Input: HL = expected, DE = actual
 ; Output: carry clear on match, carry set on mismatch
-;!      in        DE,HL
-;!      out       DE,HL,A,carry,zero
+;! in DE,HL
+;! out DE,HL,A,carry,zero
 @AssertString:
         LD      A,(DE)
         CP      (HL)
@@ -1525,8 +1525,8 @@ AssertStringBad:
 ; AssertBytes —
 ; Compare C bytes from HL to DE.
 ; Input: HL = expected, DE = actual, C = byte count
-;!      in        C,DE,HL
-;!      out       A,C,DE,HL,carry,zero
+;! in C,DE,HL
+;! out A,C,DE,HL,carry,zero
 @AssertBytes:
         LD      A,C
         OR      A
@@ -1545,9 +1545,9 @@ AssertBytesBad:
 
 ; AddBToDE —
 ; Add unsigned B to DE for proof assertions.
-;!      in        B,DE
-;!      out       DE,A,carry,zero
-;!      clobbers  HL
+;! in B,DE
+;! out DE,A,carry,zero
+;! clobbers HL
 @AddBToDE:
         LD      H,0
         LD      L,B
@@ -1563,9 +1563,9 @@ AddBToDEBad:
         RET
 
 ; Stub LoadProjectConfig for command resolver proof.
-;!      in        B,DE
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! in B,DE
+;! out DE,HL,A,C,carry,zero
+;! clobbers B
 @LoadProjectConfig:
         LD      A,(ProjectLoadCount)
         INC     A

@@ -37,9 +37,9 @@ PROJECT_CFG_TEXT_BUF    .equ 0x0A00
 ; Output:
 ;   carry clear, A=PROJECT_LOAD_OK, destination is NUL-terminated main path
 ;   carry set, A=PROJECT_LOAD_ERR_* or PROJECT_CFG_ERR_*
-;!      in        B,DE
-;!      out       A,carry,zero
-;!      clobbers  BC,DE,HL
+;! in B,DE
+;! out A,C,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @LoadProjectConfig:
         LD      (ProjectLoadMainDest),DE
         LD      A,B
@@ -75,8 +75,8 @@ ProjectLoadOpenErr:
 
 ; ProjectLoadReadSuperblock —
 ; Read sector 0 of VOLUME.TM8 and validate the fixed v1 fields needed here.
-;!      out       A,carry,zero
-;!      clobbers  DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,DE,HL
 @ProjectLoadReadSuperblock:
         LD      HL,0
         LD      DE,0
@@ -140,8 +140,8 @@ ProjectLoadReadErr:
 
 ; ProjectLoadFindConfig —
 ; Scan the v1 file catalog for root file tecm8.prj.
-;!      out       HL,A,carry,zero
-;!      clobbers  BC,DE
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE
 @ProjectLoadFindConfig:
         LD      DE,PROJECT_LOAD_CATALOG_SECTOR * PROJECT_LOAD_SECTOR_BYTES
         LD      A,PROJECT_LOAD_CATALOG_SECTORS
@@ -191,9 +191,9 @@ ProjectLoadCatalogEntry:
 ; ProjectLoadMatchCatalogEntry —
 ; Check one 64-byte catalog entry at HL for root tecm8.prj.
 ; Output: carry clear on match and ProjectLoadFirstBlock/Size set.
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  DE,HL
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,DE,HL
 @ProjectLoadMatchCatalogEntry:
         LD      (ProjectLoadEntryBase),HL
         LD      A,(HL)
@@ -277,8 +277,8 @@ ProjectLoadBlockErr:
 ; ProjectLoadReadConfigText —
 ; Read the first sector of the config file's first block and NUL-terminate the
 ; exact byte count in PROJECT_CFG_TEXT_BUF.
-;!      out       carry,zero,A
-;!      clobbers  BC,DE,HL
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ProjectLoadReadConfigText:
         LD      HL,(ProjectLoadFirstBlock)
         CALL    ProjectLoadBlockToOffset
@@ -300,9 +300,9 @@ ProjectLoadEmptyText:
 
 ; ProjectLoadBlockToOffset —
 ; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
-;!      in        HL
-;!      out       DE,HL
-;!      clobbers  A
+;! in HL
+;! out DE,HL
+;! clobbers A,F
 @ProjectLoadBlockToOffset:
         LD      A,L
         AND     0x0F
@@ -334,9 +334,9 @@ ProjectLoadEmptyText:
 ; ProjectLoadMatchBytes —
 ; Compare B bytes from HL and DE.
 ; Output: carry clear on match, carry set on mismatch
-;!      in        B,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  B,DE,HL
+;! in B,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @ProjectLoadMatchBytes:
         LD      A,(DE)
         CP      (HL)

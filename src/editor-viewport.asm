@@ -15,11 +15,12 @@ TECM8_EDITOR_ERR_ROW               .equ    0x02
 ; Render ten 32-byte source records in the sector/window at HL, starting at
 ; EditorViewportTopRow.
 ; Input: HL = source record window
-;!      in        HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out carry,A
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorViewportRender:
         LD      (EditorRecordBasePtr),HL
+        ; expects out HL
         CALL    EditorViewportTopRecordPtr
         LD      (EditorRecordPtr),HL
         LD      HL,EditorRowText0
@@ -44,9 +45,9 @@ EditorViewportBuildLoop:
 ; EditorViewportRenderRecordRow -
 ; Copy one source record into its row text buffer and redraw that display row.
 ; Input: A = visible row (0-9), HL = source record
-;!      in        A,HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,HL
+;! out carry,A
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorViewportRenderRecordRow:
         LD      (EditorViewportRenderRecordRowInput),A
         LD      A,(EditorViewportRenderRecordRowCount)
@@ -57,6 +58,7 @@ EditorViewportBuildLoop:
         JP      NC,EditorViewportRowError
         LD      (EditorRowIndex),A
         LD      (EditorRecordPtr),HL
+        ; expects out HL
         CALL    EditorViewportRowTextPtr
         LD      (EditorTextPtr),HL
         CALL    EditorViewportCopyRecord
@@ -73,9 +75,9 @@ EditorViewportBuildLoop:
 ; EditorViewportRenderRowMarker -
 ; Redraw only the gutter marker for one visible row.
 ; Input: A = visible row (0-9)
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out carry,A
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorViewportRenderRowMarker:
         LD      (EditorViewportRenderRowMarkerInput),A
         LD      A,(EditorViewportRenderRowMarkerCount)
@@ -94,9 +96,9 @@ EditorViewportBuildLoop:
 ; EditorViewportSetTopRow -
 ; Select the first logical source row rendered at visible row 0.
 ; Input: A = logical row 0-6
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorViewportSetTopRow:
         CP      7
         JP      NC,EditorViewportRowError
@@ -107,9 +109,9 @@ EditorViewportBuildLoop:
 ; EditorViewportSetColOffset -
 ; Select the first logical source column rendered at visible column 0.
 ; Input: A = logical column 0-11
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorViewportSetColOffset:
         CP      12
         JP      NC,EditorViewportRowError
@@ -120,16 +122,16 @@ EditorViewportBuildLoop:
 ; EditorViewportSetCurrentPage -
 ; Select the source page used when mapping visible rows to absolute lines.
 ; Input: A = current 16-record page number
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorViewportSetCurrentPage:
         LD      (EditorViewportCurrentPage),A
         XOR     A
         RET
 
-;!      out       HL,A,carry,zero
-;!      clobbers  A,B,DE,zero,sign,parity,halfCarry
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry,B,DE
 @EditorViewportTopRecordPtr:
         LD      HL,(EditorRecordBasePtr)
         LD      A,(EditorViewportTopRow)
@@ -144,9 +146,9 @@ EditorViewportTopRecordPtrLoop:
         XOR     A
         RET
 
-;!      in        A
-;!      out       HL,carry
-;!      clobbers  A,B,DE,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry,B,DE
 @EditorViewportRowTextPtr:
         LD      HL,EditorRowText0
         OR      A
@@ -163,9 +165,9 @@ EditorViewportRowTextPtrLoop:
 ; EditorViewportSetCurrentRow -
 ; Select the visible source row for cursor and viewport bookkeeping.
 ; Input: A = visible row (0-9)
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
 @EditorViewportSetCurrentRow:
         CP      TECM8_EDITOR_VISIBLE_ROWS
         JP      NC,EditorViewportRowError
@@ -173,9 +175,9 @@ EditorViewportRowTextPtrLoop:
         XOR     A
         RET
 
-;!      in        A
-;!      out       C,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out A,C,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorViewportMarkerForRow:
         LD      (EditorViewportMarkerInput),A
         CALL    EditorBlockSelectionVisibleRowSelected
@@ -210,15 +212,16 @@ EditorViewportMarkerDone:
 ; Return A=1 when visible row A is inside the ordinary selection interval.
 ; The viewport owns this query because selection is a marker-rendering concern;
 ; editor interaction code only updates the interval endpoints.
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out A,C,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorBlockSelectionVisibleRowSelected:
         LD      (EditorBlockSelectionVisibleRow),A
         LD      A,(EditorBlockSelectionActive)
         OR      A
         JR      Z,EditorBlockSelectionVisibleNo
         CALL    EditorBlockSelectionNormalize
+        ; expects out HL
         CALL    EditorBlockSelectionVisibleLine
         LD      A,L
         LD      (EditorBlockSelectionLineLo),A
@@ -260,15 +263,16 @@ EditorBlockSelectionVisibleNo:
 
 ; EditorPendingBlockVisibleRowMode -
 ; Return the pending block mode when visible row A is inside the pending source.
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorPendingBlockVisibleRowMode:
         LD      (EditorBlockSelectionVisibleRow),A
         LD      A,(EditorPendingBlockMode)
         OR      A
         JR      Z,EditorPendingBlockVisibleNo
         LD      (EditorPendingBlockVisibleMode),A
+        ; expects out HL
         CALL    EditorBlockSelectionVisibleLine
         LD      A,L
         LD      (EditorBlockSelectionLineLo),A
@@ -308,8 +312,8 @@ EditorPendingBlockVisibleNo:
         XOR     A
         RET
 
-;!      out       HL,A,carry
-;!      clobbers  A,B,zero,sign,parity,halfCarry
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,B
 @EditorBlockSelectionVisibleLine:
         LD      A,(EditorViewportCurrentPage)
         LD      H,0
@@ -334,8 +338,8 @@ EditorBlockSelectionVisibleLineDone:
 ; EditorBlockSelectionNormalize -
 ; Return the inclusive selected range in BC and DE from exclusive selection
 ; endpoints. The cursor/current endpoint is outside the selected block.
-;!      out       BC,DE,A,carry
-;!      clobbers  A,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero,BC,DE
+;! clobbers sign,parity,halfCarry,HL
 @EditorBlockSelectionNormalize:
         LD      A,(EditorBlockSelectionAnchorHi)
         LD      B,A
@@ -382,9 +386,9 @@ EditorBlockSelectionNormalizeStore:
 
 ; EditorBlockSelectionCompareHlDe -
 ; Set carry or zero when HL <= DE.
-;!      in        DE,HL
-;!      out       A,carry,zero
-;!      clobbers  A,zero,sign,parity,halfCarry
+;! in DE,HL
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry
 @EditorBlockSelectionCompareHlDe:
         LD      A,H
         CP      D
@@ -404,9 +408,9 @@ EditorBlockSelectionCompareYes:
         RET
 
 ; Uses EditorViewportRenderRowMarkerInput as the validated row.
-;!      in        C
-;!      out       A,carry
-;!      clobbers  A,B,DE,HL,zero,sign,parity,halfCarry
+;! in C
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,DE,HL
 @EditorViewportStoreDescriptorMarker:
         LD      HL,EditorScreenDescriptor
         LD      A,(EditorViewportRenderRowMarkerInput)
@@ -426,8 +430,8 @@ EditorViewportDescriptorReady:
 
 ; EditorViewportRefreshMarkers -
 ; Rebuild descriptor gutter markers from the current viewport state.
-;!      out       A,carry
-;!      clobbers  A,BC,HL,zero,sign,parity,halfCarry
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC
 @EditorViewportRefreshMarkers:
         LD      HL,EditorScreenDescriptor
         XOR     A
@@ -457,8 +461,8 @@ EditorViewportRowError:
 
 ; EditorViewportRenderStatusOverlay -
 ; Temporarily render the active prompt over the last visible source row.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out carry,A
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorViewportRenderStatusOverlay:
         LD      HL,(EditorPromptTextPtr)
         LD      A,TECM8_DISPLAY_STATUS_ROW
@@ -471,10 +475,11 @@ EditorViewportRowError:
 
 ; EditorViewportRestoreStatusRow -
 ; Redraw the source row hidden by a transient prompt/status overlay.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out carry,A
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @EditorViewportRestoreStatusRow:
         LD      A,TECM8_DISPLAY_STATUS_ROW
+        ; expects out C
         CALL    EditorViewportMarkerForRow
         LD      HL,EditorRowText9
         LD      A,TECM8_DISPLAY_STATUS_ROW
@@ -486,8 +491,8 @@ EditorViewportRowError:
 
 ; EditorViewportCopyRecord -
 ; Copy one Pascal-string record to the next NUL-terminated row text buffer.
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorViewportCopyRecord:
         LD      HL,(EditorRecordPtr)
         LD      A,(HL)

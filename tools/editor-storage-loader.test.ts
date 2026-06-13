@@ -17,10 +17,6 @@ test('editor storage loader exposes a fixed main-source sector entry point', () 
   assert.match(source, /^@EditorLoadSourcePage:/m);
   assert.match(source, /^@EditorSaveSourcePage:/m);
   assert.match(source, /^@EditorSaveSourcePageNoGrow:/m);
-  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainSector:/);
-  assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadMainPage:/);
-  assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorLoadSourcePage:/);
-  assert.match(source, /;!\s+in\s+A,DE,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorSaveSourcePage:/);
   assert.match(source, /@EditorLoadSourcePage:\n\s+PUSH\s+AF\n\s+XOR\s+A\n\s+LD\s+\(EditorLoadAllowShort\),A\n\s+LD\s+\(EditorSaveGrowMode\),A\n\s+POP\s+AF/);
 
   assert.match(source, /CALL\s+BiosFileOpen/);

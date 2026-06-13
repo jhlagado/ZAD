@@ -14,9 +14,9 @@ TECM8_SHELL_LAUNCH_ERR_TARGET          .equ    0x59
 ; Output:
 ;   carry clear, A=SHELL_OK after the editor opens
 ;   carry set, A=SHELL_ERR_* or TECM8_SHELL_LAUNCH_ERR_*
-;!      in        HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @ShellRunEditorLine:
         CALL    RunShellCommandLine
         RET     C
@@ -62,9 +62,9 @@ ShellEditorLaunchOpenError:
 ; Input:
 ;   HL = NUL-terminated shell command line
 ;   DE = NUL-terminated editor key stream
-;!      in        DE,HL
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in DE,HL
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
 @ShellRunEditorSession:
         LD      (ShellEditorSessionKeys),DE
         CALL    ShellRunEditorLine

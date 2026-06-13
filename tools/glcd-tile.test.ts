@@ -9,7 +9,7 @@ function readRepoFile(path: string): string {
   return readFileSync(resolve(root, path), 'utf8');
 }
 
-test('GLCD tile layer exposes direct cell primitives and contracts', () => {
+test('GLCD tile layer exposes direct cell primitives', () => {
   const source = readRepoFile('src/glcd-tile.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
 

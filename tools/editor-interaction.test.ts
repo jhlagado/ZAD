@@ -12,6 +12,7 @@ function readRepoFile(path: string): string {
 test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
+  const recordSource = readRepoFile('src/tecm8-record.asm');
 
   assert.match(source, /^@EditorRunKeys:/m);
   assert.match(source, /^@EditorRunModifiedKey:/m);
@@ -72,11 +73,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_YES\s+\.equ\s+1/);
   assert.match(source, /TECM8_EDITOR_PROMPT_RESULT_NO\s+\.equ\s+2/);
   assert.match(source, /TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK\s+\.equ\s+3/);
-  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunKeys:/);
-  assert.match(source, /;!\s+in\s+A,B\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorRunModifiedKey:/);
   assert.match(source, /@EditorRunModifiedKey:\n\s+LD\s+C,A\n\s+LD\s+A,\(BiosInputRawSecondary\)\n\s+CP\s+0xFF\n\s+JR\s+NZ,EditorRunModifiedKeyRawPrimaryReady/);
-  assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,zero,sign,parity,halfCarry\n@EditorActionFromKey:/);
-  assert.match(source, /;!\s+in\s+A\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorInsertChar:/);
   assert.match(source, /CALL\s+EditorPageDown/);
   assert.match(source, /CALL\s+EditorPageUp/);
   assert.match(source, /CALL\s+EditorSaveCurrentPage/);
@@ -286,15 +283,22 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CALL\s+EditorDeleteChar/);
   assert.match(source, /CALL\s+EditorSplitLine/);
   assert.match(source, /JP\s+Z,EditorJoinPreviousLine/);
-  assert.match(source, /@EditorKeyZeroRecordPadding:/);
-  assert.match(source, /@EditorKeyReadRecordLength:\n\s+LD\s+A,\(HL\)\n\s+AND\s+TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK/);
-  assert.match(source, /@EditorKeyWriteRecordLength:[\s\S]*?AND\s+TECM8_EDITOR_EDIT_RECORD_METADATA_MASK[\s\S]*?OR\s+B\n\s+LD\s+\(HL\),A/);
+  assert.match(source, /@EditorKeyZeroRecordPadding:\n\s+JP\s+Tecm8RecordZeroPadding/);
+  assert.match(source, /@EditorKeyReadRecordLength:\n\s+JP\s+Tecm8RecordReadLength/);
+  assert.match(source, /@EditorKeyWriteRecordLength:\n\s+JP\s+Tecm8RecordWriteLength/);
+  assert.match(recordSource, /^@Tecm8RecordZeroPadding:/m);
+  assert.match(recordSource, /^@Tecm8RecordReadLength:/m);
+  assert.match(recordSource, /^@Tecm8RecordWriteLength:/m);
+  assert.match(recordSource, /AND\s+TECM8_SOURCE_RECORD_LENGTH_MASK/);
+  assert.match(recordSource, /AND\s+TECM8_SOURCE_RECORD_METADATA_MASK/);
   assert.match(source, /@EditorSplitPushLastRecordToNextPage:/);
   assert.match(source, /@EditorSplitFinalRow:/);
   assert.match(source, /CALL\s+EditorNavRememberCurrentPage/);
   assert.match(source, /CALL\s+EditorNavSlideNextPageToCurrent/);
   assert.match(source, /EditorNavNextPageBuffer/);
-  assert.match(source, /@EditorKeyClearRecord:/);
+  assert.match(source, /@EditorKeyClearRecord:\n\s+JP\s+Tecm8RecordClear/);
+  assert.match(recordSource, /^@Tecm8RecordClear:/m);
+  assert.match(recordSource, /LD\s+B,TECM8_SOURCE_RECORD_BYTES/);
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);

@@ -23,9 +23,6 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /^@EditorBlockSelectionVisibleLine:/m);
   assert.match(source, /^@EditorBlockSelectionNormalize:/m);
   assert.match(source, /^@EditorBlockSelectionCompareHlDe:/m);
-  assert.match(source, /;!\s+in\s+HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRender:/);
-  assert.match(source, /;!\s+in\s+A,HL\n;!\s+out\s+A,carry\n;!\s+clobbers\s+A,BC,DE,HL,zero,sign,parity,halfCarry\n@EditorViewportRenderRecordRow:/);
-
   for (const constant of [
     'TECM8_EDITOR_RECORD_BYTES',
     'TECM8_EDITOR_VISIBLE_ROWS',

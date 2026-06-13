@@ -9,8 +9,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         LD      DE,ListPrefix
         LD      HL,ListOut
@@ -56,9 +56,9 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
-;!      in        B,HL
-;!      out       carry,zero
-;!      clobbers  A,B,HL
+;! in B,HL
+;! out carry,zero
+;! clobbers A,B,HL
 @FillListBuffer:
         LD      A,0xA5
 

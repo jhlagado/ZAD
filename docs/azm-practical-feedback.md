@@ -9,6 +9,95 @@ written for two audiences:
 It should stay evidence-based. When TECM8 adopts a feature, add the commit,
 proof command, size result, and any discomfort or bug found during the work.
 
+## Executive Conclusions
+
+AZM has been a net positive for TECM8 because it makes hand-written Z80 code
+more reviewable without hiding the machine. The strongest feature is register
+contract checking: it catches real risks, encourages cleaner routine shape, and
+turns vague calling-convention assumptions into compiler-checked facts.
+
+The main limitation is that AZM's most useful discipline currently depends on
+simple source-structure signals, especially `@` routine boundaries. That is a
+reasonable first model, but real programs sometimes need non-local control
+flow, jump-table dispatch, shared exits, or deliberate tail jumps. When those
+patterns appear, AZM needs a way to express intent locally without weakening
+strict checking for the rest of the file.
+
+The second broad conclusion is that AZM's diagnostics and library/API surfaces
+matter as much as the assembly syntax. TECM8 uses AZM from TypeScript proof
+tools, not only from a shell command, and depends on D8/D8M artifacts, source
+maps, external `.asmi` contracts, and stable compiler options. For projects
+like TECM8, AZM is both an assembler and a verification library.
+
+The third conclusion is that AZM should teach a diagnostics-first workflow.
+Report files are useful for debugging and CI evidence, but the normal workflow
+should be compiler diagnostics plus source comments. The persistent contract is
+the source, not generated side files.
+
+## Feature Scorecard
+
+This is a practical scorecard from TECM8's current usage, not a general ranking
+of every AZM feature.
+
+| Feature | TECM8 experience | Keep using? | Main feedback |
+|---|---|---:|---|
+| AZMDoc register contracts | Very high value; changed code shape for the better | Yes | Add local suppressions/hints for non-local control flow |
+| `--rc` modes | Useful development ladder from audit to strict | Yes | Document diagnostics-first workflow more prominently |
+| `.asmi` external interfaces | Good fit for MON3 ROM calls | Yes | Provide more external ROM/API examples |
+| D8/D8M artifacts | Essential for Debug80 proofs and size work | Yes | Add clearer byte ownership/routine range metadata |
+| `.include` | Simple and reliable, but scales poorly | Yes, selectively | Add include-once/guard guidance for declarations |
+| Shared `.equ` declarations | Worked well and was byte-neutral in first pilot | Yes | Expose resolved equates in machine-readable output |
+| `.import` | Attractive, not adopted in production yet | Pilot carefully | Clarify source-map/contracts/output compatibility |
+| Layout types | Strong candidate for record/disk structures | Pilot soon | Provide fixed-record and runtime-index examples |
+| `.enum` | Useful for closed state families | Pilot later | Document value pinning and duplicate behavior |
+| String directives | Low-risk readability win for NUL strings | Use locally | Document exact emitted bytes and non-use cases |
+| `op` | Potentially useful but code-size risky | Rarely | Show expansion counts/byte costs in listings |
+
+## Feedback For The AZM Team
+
+The following are the highest-value product or documentation improvements from
+TECM8's point of view.
+
+1. Add routine-boundary and stack-effect hints.
+
+   Strict register contracts are worth preserving, but AZM needs a way to mark
+   deliberate non-local control-flow patterns: shared exits, tail jumps,
+   jump-table dispatch, and routines that intentionally never return. A local
+   annotation is preferable to disabling strict checking for a wider region.
+
+2. Improve diagnostics around inferred routine boundaries.
+
+   When AZM reports an unknown boundary, asymmetrical stack effect, or unsafe
+   jump, the diagnostic should state the exact `@` region it inferred, the edge
+   that crossed it, and the register/stack fact it could not prove. That would
+   make the checker easier to trust during refactors.
+
+3. Keep report files out of the default learning path.
+
+   Teach `azm --rc audit program.asm`, `--rc warn`, `--rc error`, and
+   `--rc strict` as the normal workflow. Mention `--reg-report` only as an
+   advanced/export option for CI, large audits, or debugging AZM itself.
+
+4. Provide an include-once or declaration-file pattern.
+
+   Shared equate/layout files are useful, but textual `.include` makes every
+   proof responsible for include order and duplicate prevention. AZM should
+   either provide an include-once mechanism or document a canonical guard
+   pattern for byte-free declarations.
+
+5. Emit richer machine-readable metadata.
+
+   TECM8 needs host tools to compare TypeScript and Z80 layout agreement,
+   measure resident size, and reason about byte ownership. Resolved equates,
+   layout offsets, routine ranges, and op expansion counts would all be useful
+   as artifacts.
+
+6. Treat TypeScript/library users as first-class.
+
+   TECM8 assembles from Node-based proof runners. Stable compile APIs,
+   documented options, and compatibility notes are important because the
+   assembler sits inside a larger test harness.
+
 ## Current Evidence Base
 
 TECM8 already depends heavily on these AZM surfaces:
@@ -27,6 +116,27 @@ The first concrete quality increment added `src/tecm8-equates.asm` and made
 module-local constants alias shared canonical constants. That change was
 byte-neutral: `npm run z80:size` still reports 15,235 bytes emitted at
 `4000h..7B82h`.
+
+Current concrete evidence:
+
+- `7cac5c8 Add Z80 size baseline tooling`: added the `npm run z80:size`
+  measurement surface and confirmed the fresh assembled editor image size.
+- `a001409 Centralize shared Z80 equates`: added
+  `src/tecm8-equates.asm`; proof and typecheck gates passed; size remained
+  15,235 bytes.
+- Current record-helper extraction: adding `src/tecm8-record.asm` moves masked
+  source-record length reads, metadata-preserving length writes, padding
+  zeroing, and full-record clear into a shared module. `npm run z80:size`
+  reports 15,247 bytes, a 12-byte increase caused by preserving the older
+  `EditorKey*Record*` wrapper entry points while the helper boundary settles.
+- Contract annotation experiment: running
+  `azm --contracts --fix --rc audit --reg-profile mon3 --interface src/mon3.asmi src/main.asm`
+  successfully rewrote contract comments across the included source tree. TECM8
+  normalized those comments to one compact clause per `;!` line because that is
+  easier to diff and review in dense assembly. During this work I briefly saw
+  strict-check diagnostics after a broad generated rewrite, but I do not yet
+  have an isolated repro proving an AZM parser or checker defect. Treat that as
+  a local caution, not an actionable AZM bug report.
 
 ## Register Contracts
 

@@ -12,8 +12,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         CALL    DisplayInit
         JR      C,ProofFailed
@@ -46,8 +46,8 @@ ProofPageDownLoop:
 ProofDone:
         JP      ProofDone
 
-;!      out       A,carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @RunSyntheticControlArrowUp:
         LD      A,TECM8_EDITOR_KEY_ARROW_UP
         LD      (BiosInputRawPrimary),A
@@ -84,6 +84,7 @@ ProofFailedDone:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
         .include "../../src/tecm8-bios.asm"
 

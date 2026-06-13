@@ -11,8 +11,8 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         LD      A,1
         LD      (CaseMarker),A
@@ -75,9 +75,9 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
-;!      in        DE,HL
-;!      out       A,DE,HL,carry,zero
-;!      clobbers  A,BC
+;! in DE,HL
+;! out A,DE,HL,carry,zero
+;! clobbers A,BC
 @CopyRowText:
         LD      B,32
 
@@ -97,6 +97,7 @@ CopyRowTextLoop:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
         .include "../../src/tecm8-bios.asm"
 

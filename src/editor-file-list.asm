@@ -16,9 +16,9 @@ EDITOR_LIST_ERR_LONG       .equ    0x61
 ;   carry clear, destination contains newline-separated names and final NUL
 ;   carry set, A=EDITOR_LOAD_ERR_*, EDITOR_LIST_ERR_PATH, or
 ;                EDITOR_LIST_ERR_LONG
-;!      in        B,DE,HL
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in B,DE,HL
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorListVisibleFiles:
         LD      A,B
         OR      A
@@ -54,8 +54,8 @@ EditorListPrefixReady:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorListParsePrefixPath:
         LD      HL,(EditorListPrefixPathPtr)
         LD      A,(HL)
@@ -100,8 +100,8 @@ EditorListPathErr:
         SCF
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorListCatalog:
         LD      DE,TM8_CATALOG_SECTOR * TM8_SECTOR_BYTES
         LD      A,TM8_CATALOG_SECTORS
@@ -145,9 +145,9 @@ EditorListCatalogEntry:
         XOR     A
         RET
 
-;!      in        HL
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorListMaybeCopyEntry:
         LD      A,(HL)
         CP      TM8_ENTRY_ACTIVE
@@ -175,9 +175,9 @@ EditorListEntryDone:
         XOR     A
         RET
 
-;!      in        B,HL
-;!      out       A,carry,zero
-;!      clobbers  A,B,C,DE,HL,zero,sign,parity,halfCarry
+;! in B,HL
+;! out A,carry,zero
+;! clobbers A,B,C,DE,HL,zero,sign,parity,halfCarry
 @EditorListCopyName:
         LD      DE,(EditorListOutPtr)
 

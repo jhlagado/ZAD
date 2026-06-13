@@ -27,8 +27,8 @@ MON3_TGBUF                          .equ    TECM8_MON3_GLCD_TGBUF
 
 ; DisplayInit -
 ; Initialize and clear the current display.
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out carry
+;! clobbers zero,sign,parity,halfCarry,A,BC,DE,HL
 @DisplayInit:
         CALL    BiosDisplayInit
         RET     C
@@ -39,9 +39,9 @@ MON3_TGBUF                          .equ    TECM8_MON3_GLCD_TGBUF
 ; Render a fixed structured screen descriptor.
 ; Input: HL = descriptor:
 ;        ten records of db marker, dw source text
-;!      in        HL
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in HL
+;! out carry
+;! clobbers zero,sign,parity,halfCarry,A,BC,DE,HL
 @DisplayRenderScreen:
         LD      A,(DisplayRenderScreenCount)
         INC     A
@@ -79,9 +79,9 @@ DisplayScreenLoop:
 ; DisplayRenderLine -
 ; Render one screen row with gutter marker and text.
 ; Input: A = display row, C = marker flags, HL = NUL-terminated text
-;!      in        A,C,HL
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,C,HL
+;! out carry
+;! clobbers zero,sign,parity,halfCarry,A,BC,DE,HL
 @DisplayRenderLine:
         LD      (DisplayText),HL
         LD      (DisplayRow),A
@@ -101,9 +101,9 @@ DisplayScreenLoop:
 ; DisplayRenderGutter -
 ; Draw a 4-pixel marker in the left gutter for one display row.
 ; Input: A = display row, C = marker flags
-;!      in        A,C
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,C
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @DisplayRenderGutter:
         LD      (DisplayRow),A
         XOR     A
@@ -190,9 +190,9 @@ DisplayGutterWritePatternReady:
         XOR     A
         RET
 
-;!      in        A
-;!      out       A,carry
-;!      clobbers  A,DE,HL,zero,sign,parity,halfCarry
+;! in A
+;! out A,carry
+;! clobbers zero,sign,parity,halfCarry,DE,HL
 @DisplaySawtoothPatternForRow:
         LD      E,A
         LD      D,0
@@ -204,9 +204,9 @@ DisplayGutterWritePatternReady:
 ; DisplayRenderCursorCell -
 ; Overlay an XOR insertion cursor bar one pixel before the active cell.
 ; Input: A = edit row (0-9), C = text column (0-19)
-;!      in        A,C
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,C
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @DisplayRenderCursorCell:
         CP      TECM8_DISPLAY_EDIT_ROWS
         JP      NC,DisplayCursorNoop
@@ -343,9 +343,9 @@ DisplayCursorNoop:
 ; DisplayEraseCursorCell -
 ; Restore the bytes saved before the XOR insertion cursor bar was overlaid.
 ; Input: A = edit row (0-9), C = text column (0-19)
-;!      in        A,C
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! in A,C
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
 @DisplayEraseCursorCell:
         CP      TECM8_DISPLAY_EDIT_ROWS
         JP      NC,DisplayCursorEraseNoop
@@ -460,8 +460,8 @@ DisplayCursorEraseNoop:
 ; DisplayMarkCursorDirty -
 ; Mark the insertion bar byte range dirty. The bar is drawn one pixel before
 ; the active text cell, so byte-boundary columns also need the previous cell.
-;!      out       carry
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out carry
+;! clobbers zero,sign,parity,halfCarry,A,BC,DE,HL
 @DisplayMarkCursorDirty:
         LD      A,(DisplayCursorCellRow)
         LD      B,A
@@ -483,9 +483,9 @@ DisplayCursorEraseNoop:
 ; Convert a 0-9 display row to a Y pixel coordinate.
 ; Input: A = row
 ; Output: C = row * 6 + TECM8_DISPLAY_Y_ORIGIN
-;!      in        A
-;!      out       C,zero
-;!      clobbers  A
+;! in A
+;! out C,zero
+;! clobbers carry,sign,parity,halfCarry,A
 @DisplayRowToPixel:
         LD      C,A
         ADD     A,A

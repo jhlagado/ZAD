@@ -12,8 +12,8 @@ PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 MAIN_PATH_OUT_LEN  .equ     64
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         LD      HL,GoodProjectConfig
         LD      DE,MainPathOut
@@ -39,8 +39,8 @@ ProofFailed:
 ; Compare two NUL-terminated strings.
 ; Input: HL = expected, DE = actual
 ; Output: carry clear on match, carry set on mismatch
-;!      in        DE,HL
-;!      out       DE,HL,A,carry,zero
+;! in DE,HL
+;! out DE,HL,A,carry,zero
 @AssertString:
         LD      A,(DE)
         CP      (HL)

@@ -12,8 +12,8 @@ PROOF_FAIL       .equ     0xE0
 PROOF_MOD_SHIFT  .equ     0x01
 PROOF_MOD_CTRL   .equ     0x02
 
-;!      out       carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out carry,zero
+;! clobbers A,BC,DE,HL
 @Start:
         CALL    DisplayInit
         JP      C,ProofFailed
@@ -94,15 +94,15 @@ ProofFailed:
 ProofFailedDone:
         JP      ProofDone
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @SelectRowsZeroToOne:
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,PROOF_MOD_SHIFT
         JP      EditorRunModifiedKey
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL
 @AssertDeleteBlockNoCancelled:
         LD      A,(EditorBlockSelectionActive)
         CP      1
@@ -127,8 +127,8 @@ ProofFailedDone:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL
 @AssertDeleteBlockYesRows:
         LD      A,(EditorBlockSelectionActive)
         OR      A
@@ -174,8 +174,8 @@ ProofFailedDone:
         XOR     A
         RET
 
-;!      out       A,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! out A,carry,zero
+;! clobbers A,BC,DE,HL
 @AssertDeleteCurrentLineRows:
         LD      A,(EditorBlockSelectionActive)
         OR      A
@@ -218,9 +218,9 @@ ProofFailedDone:
         XOR     A
         RET
 
-;!      in        DE,HL
-;!      out       A,BC,DE,HL,carry,zero
-;!      clobbers  A,BC,DE,HL
+;! in DE,HL
+;! out A,BC,DE,HL,carry,zero
+;! clobbers A,BC,DE,HL
 @AssertRecordEquals:
         LD      A,(HL)
         LD      B,A
@@ -236,9 +236,9 @@ AssertRecordEqualsLoop:
         XOR     A
         RET
 
-;!      in        HL
-;!      out       A,B,HL,carry,zero
-;!      clobbers  A,B,HL
+;! in HL
+;! out A,B,HL,carry,zero
+;! clobbers A,B,HL
 @AssertRecordZeroed:
         LD      B,32
 
@@ -256,9 +256,9 @@ AssertFail:
         RET
 
 ; Stub LoadProjectConfig for shell-to-editor proof.
-;!      in        B,DE
-;!      out       DE,HL,A,C,carry,zero
-;!      clobbers  B
+;! in B,DE
+;! out DE,HL,A,C,carry,zero
+;! clobbers B
 @LoadProjectConfig:
         LD      HL,ExpectedMain
         LD      C,B
@@ -285,6 +285,7 @@ LoadProjectStubOk:
         .include "../../src/editor-viewport.asm"
         .include "../../src/editor-storage-loader.asm"
         .include "../../src/editor-navigation.asm"
+        .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
         .include "../../src/shell-commands.asm"
         .include "../../src/shell-editor-launch.asm"

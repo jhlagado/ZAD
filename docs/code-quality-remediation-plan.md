@@ -9,14 +9,14 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 14 `.asm` modules, 11,336 lines.
+- Z80 source size: 16 `.asm` modules, 11,453 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 3,180 lines.
-  - `src/editor-storage-loader.asm`: 1,626 lines.
-  - `src/shell-commands.asm`: 1,362 lines.
+  - `src/editor-interaction.asm`: 3,159 lines.
+  - `src/editor-storage-loader.asm`: 1,628 lines.
+  - `src/shell-commands.asm`: 1,380 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
-- Current fresh source build: `npm run z80:size` reports 15,235 bytes emitted
-  at `4000h..7B82h`, leaving 1,149 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 15,247 bytes emitted
+  at `4000h..7B8Fh`, leaving 1,137 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -222,14 +222,19 @@ Goal: remove duplicated small algorithms before splitting large modules.
 
 Actions:
 
-- Create a record helper module for:
+- Done: create `src/tecm8-record.asm` for the first shared source-record
+  operations:
   - reading a masked record length,
   - writing a length while preserving bits 5-7,
-  - clearing a 32-byte record,
+  - zeroing padding bytes after the effective length,
+  - clearing a 32-byte record.
+- Continue the record helper extraction with:
   - shifting records up/down inside a page or resident window,
   - shifting characters inside one record.
-- Replace duplicate split/join/paste/delete shift loops in
-  `src/editor-interaction.asm` with those helpers.
+- The existing `EditorKey*Record*` labels remain as compatibility wrappers and
+  now delegate to the shared helpers. Replace duplicate split/join/paste/delete
+  shift loops in `src/editor-interaction.asm` only after the small record-helper
+  boundary is proof-green.
 - Create a small string/path helper module for bounded copy, append, local name
   lookup, prefix/name split, and sibling backup path derivation.
 - Replace duplicated path walks in shell, navigation, and storage code.
