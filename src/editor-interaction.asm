@@ -459,8 +459,9 @@ EditorKeyPageUpErr:
         JR      EditorKeyNavigationErr
 
 EditorKeyPageUpTop:
-        LD      HL,EditorStatusTopText
-        CALL    EditorKeyShowStatus
+        CALL    EditorHideCursor
+        RET     C
+        CALL    EditorViewportRestoreStatusRow
         RET     C
         JP      EditorKeyLoop
 
@@ -559,7 +560,7 @@ EditorKeyCursorUp:
 EditorKeySelectDown:
         LD      A,(EditorCursorRow)
         CP      TECM8_EDITOR_CURSOR_MAX_ROW
-        JP      Z,EditorKeyLoop
+        JP      Z,EditorKeySelectDownAtBottom
         CALL    EditorBlockSelectionBeginIfNeeded
         RET     C
         LD      A,(EditorCursorRow)
@@ -568,6 +569,25 @@ EditorKeySelectDown:
         LD      (EditorCursorRow),A
         CALL    EditorBlockSelectionUpdateActive
         RET     C
+        CALL    EditorKeyRenderCursorMove
+        RET     C
+        CALL    EditorBlockSelectionRenderMarkers
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeySelectDownAtBottom:
+        CALL    EditorBlockSelectionBeginIfNeeded
+        RET     C
+        LD      A,(EditorCursorRow)
+        LD      (EditorCursorPreviousRow),A
+        CALL    EditorBlockSelectionCurrentLine
+        INC     HL
+        LD      A,L
+        LD      (EditorBlockSelectionActiveLo),A
+        LD      A,H
+        LD      (EditorBlockSelectionActiveHi),A
+        LD      A,1
+        LD      (EditorBlockSelectionActive),A
         CALL    EditorKeyRenderCursorMove
         RET     C
         CALL    EditorBlockSelectionRenderMarkers
@@ -927,8 +947,8 @@ EditorShouldIgnoreModifiedPrintableNo:
         RET
 
 ; EditorBlockSelectionBeginIfNeeded -
-; Start an inclusive whole-line block selection at the current absolute line if
-; no ordinary selection is already active.
+; Start an exclusive-endpoint whole-line block selection at the current
+; absolute line if no ordinary selection is already active.
 ;!      out       A,carry
 ;!      clobbers  A,HL,zero,sign,parity,halfCarry
 @EditorBlockSelectionBeginIfNeeded:
@@ -992,6 +1012,19 @@ EditorBlockSelectionRestoreExisting:
         LD      (EditorBlockSelectionActiveLo),A
         LD      A,H
         LD      (EditorBlockSelectionActiveHi),A
+        LD      A,(EditorBlockSelectionAnchorHi)
+        CP      H
+        JR      NZ,EditorBlockSelectionUpdateStillActive
+        LD      A,(EditorBlockSelectionAnchorLo)
+        CP      L
+        JR      NZ,EditorBlockSelectionUpdateStillActive
+        XOR     A
+        LD      (EditorBlockSelectionActive),A
+        RET
+
+EditorBlockSelectionUpdateStillActive:
+        LD      A,1
+        LD      (EditorBlockSelectionActive),A
         XOR     A
         RET
 
@@ -1024,6 +1057,16 @@ EditorBlockSelectionRestoreExisting:
         LD      (EditorPendingBlockRequestedMode),A
         LD      A,(EditorBlockSelectionActive)
         OR      A
+        JR      Z,EditorPendingBlockArmNoSelection
+        LD      A,(EditorBlockSelectionAnchorHi)
+        LD      H,A
+        LD      A,(EditorBlockSelectionAnchorLo)
+        LD      L,A
+        LD      A,(EditorBlockSelectionActiveHi)
+        LD      D,A
+        LD      A,(EditorBlockSelectionActiveLo)
+        LD      E,A
+        CALL    EditorBlockSelectionCompareHlDe
         JR      Z,EditorPendingBlockArmNoSelection
         CALL    EditorBlockSelectionNormalize
         LD      A,(EditorBlockSelectionStartLo)
@@ -1514,17 +1557,23 @@ EditorPendingBlockSelectStartReady:
         LD      (EditorBlockSelectionAnchorHi),A
         LD      (EditorBlockSelectionActiveHi),A
         LD      A,(EditorPendingBlockRowCount)
-        DEC     A
         ADD     A,B
         LD      B,A
         LD      A,(EditorPendingBlockPageBaseLo)
         ADD     A,B
         LD      (EditorBlockSelectionActiveLo),A
+        LD      C,A
         LD      A,(EditorPendingBlockPageBaseHi)
+        ADC     A,0
         LD      (EditorBlockSelectionActiveHi),A
         LD      A,1
         LD      (EditorBlockSelectionActive),A
-        LD      A,B
+        LD      A,C
+        CP      16
+        JR      C,EditorPendingBlockCursorRowReady
+        LD      A,15
+
+EditorPendingBlockCursorRowReady:
         LD      (EditorCursorRow),A
         XOR     A
         LD      (EditorCursorCol),A

@@ -137,7 +137,7 @@ DisplayGutterCheckCopySource:
 DisplayGutterCheckCurrent:
         BIT     1,C
         JR      Z,DisplayGutterCheckSelected
-        LD      A,0x80
+        LD      A,0x10
         JR      DisplayGutterPatternReady
 
 DisplayGutterCheckSelected:

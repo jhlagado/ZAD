@@ -129,25 +129,21 @@ ProofFailedDone:
         LD      A,(EditorCursorCol)
         OR      A
         JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line02
+        LD      HL,ExpectedP0Line01
         LD      DE,EditorNavPageBuffer
         CALL    AssertRecordEquals
         JP      C,AssertFail
-        LD      HL,ExpectedP0Line03
+        LD      HL,ExpectedP0Line02
         LD      DE,EditorNavPageBuffer + 32
         CALL    AssertRecordEquals
         JP      C,AssertFail
-        LD      HL,ExpectedP0Line04
+        LD      HL,ExpectedP0Line03
         LD      DE,EditorNavPageBuffer + (2 * 32)
         CALL    AssertRecordEquals
         JP      C,AssertFail
         LD      HL,ExpectedP0Line15
-        LD      DE,EditorNavPageBuffer + (13 * 32)
+        LD      DE,EditorNavPageBuffer + (14 * 32)
         CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      A,14
-        CALL    EditorKeyRecordAtRow
-        CALL    AssertRecordZeroed
         JP      C,AssertFail
         LD      A,15
         CALL    EditorKeyRecordAtRow

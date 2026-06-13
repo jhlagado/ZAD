@@ -141,23 +141,26 @@ decide whether paste is legal.
 
 ## Selection Semantics
 
-The first implementation is whole-line only. A selected range is inclusive and
-is represented by an anchor and an active end.
+The first implementation is whole-line only. The live selection uses an anchor
+and an exclusive cursor endpoint. The cursor line is the place where the cursor
+has arrived; it is not itself selected until the cursor moves past it with
+Shift held.
 
 Example:
 
 ```text
 cursor line 4
-Shift+Down       selects 4..5
-Shift+Down       selects 4..6
-Shift+Up         selects 4..5
+Shift+Down       selects 4, cursor line 5
+Shift+Down       selects 4..5, cursor line 6
+Shift+Up         selects 4, cursor line 5
 ```
 
-If the active end crosses above the anchor, the selected range is normalized
-for operations:
+For operations, the anchor and exclusive endpoint are normalized to an
+inclusive selected range:
 
 ```text
-anchor 8, active 5 => range 5..8
+anchor 8, endpoint 5 => range 6..8
+anchor 4, endpoint 6 => range 4..5
 ```
 
 Movement without Shift clears the ordinary selection unless a command is
@@ -358,8 +361,10 @@ Done when Debug80 live smoke covers the new quit and restore bindings.
 
 ### Phase B2: Selection State And Gutter Markers
 
-- Done: line selection state is stored as an inclusive absolute-line interval.
-- Done: `Shift+Up` and `Shift+Down` extend or shrink the ordinary selection.
+- Done: line selection state uses an anchor plus exclusive cursor endpoint,
+  then normalizes to an inclusive range for operations.
+- Done: `Shift+Up` and `Shift+Down` extend or shrink the ordinary selection;
+  one `Shift+Down` selects only the line the cursor just left.
 - Done in Phase B3: `Shift+Ctrl/Alt+Up` and `Shift+Ctrl/Alt+Down` page
   selection.
 - Done: selected visible rows render with the thin gutter marker.
@@ -476,11 +481,12 @@ demo image, so insertion has room to shift records down.
 Manual script:
 
 ```text
-1. Press Shift+Down once. Rows 0..1 should show the thin selection gutter.
-2. Press Alt-C. Rows 0..1 should change to the thick pending-copy gutter.
+1. Press Shift+Down once. Row 0 should show the thin selection gutter and row
+   1 should remain the current cursor row.
+2. Press Alt-C. Row 0 should change to the thick pending-copy gutter.
 3. Press Down three times to move to row 4.
-4. Press Alt-V. Rows 0..1 should be copied before row 4 and the pasted rows
-   should become the thin selected destination block.
+4. Press Alt-V. Row 0 should be copied before row 4 and the pasted row should
+   become the thin selected destination block.
 5. Press Alt-X. The pasted rows should change to the sawtooth pending-move
    gutter.
 6. Press Down a few rows, then Alt-V. The moved rows should reappear at the new

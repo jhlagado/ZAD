@@ -237,7 +237,7 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   const textColumnByte = 1;
   const expectedMarkers = [
     { row: 0, pattern: 0xf0, name: 'breakpoint' },
-    { row: 1, pattern: 0x80, name: 'current' },
+    { row: 1, pattern: 0x10, name: 'current' },
     { row: 2, pattern: 0x80, name: 'selected' },
     { row: 3, pattern: 0xc0, name: 'copy source' },
     { row: 5, pattern: 0xf0, name: 'breakpoint-current' },
@@ -341,7 +341,7 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
 
   const mon3Tgbuf = 0x13c0;
   const rowBytes = 16;
-  const expectedMarker = { row: 9, pattern: 0x80 };
+  const expectedMarker = { row: 9, pattern: 0x10 };
   for (let row = 0; row < 10; row += 1) {
     for (let y = 0; y < 6; y += 1) {
       const address = mon3Tgbuf + (row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;

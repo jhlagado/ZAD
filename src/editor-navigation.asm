@@ -1120,9 +1120,6 @@ EditorStatusSaveFirstText:
 EditorStatusUnknownKeyText:
         .db     "KEY",0
 
-EditorStatusTopText:
-        .db     "Top",0
-
 EditorErrOpenText:
         .db     "ERR OPEN 30",0
 

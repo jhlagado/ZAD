@@ -904,7 +904,7 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
   }
 
   const glcd = getGlcdBytes(platformRuntime);
-  assertGlcdGutterHighNibble(glcd, 0, 0x80);
+  assertGlcdGutterHighNibble(glcd, 0, 0x10);
   assertGlcdGutterHighNibble(glcd, 1, 0x00);
 
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');
@@ -1354,12 +1354,17 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
       throw new Error(`editor page write ${symbol} ${value}, expected 0`);
     }
   }
-  const topStatus = readWord(runtime.hardware.memory, symbolAddress(symbols, 'TopStatusPtrAfterPageUp'));
-  const topText = symbolAddress(symbols, 'EditorStatusTopText');
-  if (topStatus !== topText) {
-    throw new Error(`editor page write top status ptr 0x${topStatus.toString(16)}, expected 0x${topText.toString(16)}`);
-  }
   const initialRow9 = readMemoryBytes(runtime.hardware.memory, symbolAddress(symbols, 'InitialRow9Bytes'), 6);
+  const pageUpBoundaryRow9 = readMemoryBytes(
+    runtime.hardware.memory,
+    symbolAddress(symbols, 'PageUpBoundaryRow9Bytes'),
+    6,
+  );
+  if (pageUpBoundaryRow9.join(',') !== initialRow9.join(',')) {
+    throw new Error(
+      `editor page write page-up boundary row 9 [${pageUpBoundaryRow9.join(',')}], expected restored source row [${initialRow9.join(',')}]`,
+    );
+  }
   const pageDownBoundaryRow9 = readMemoryBytes(
     runtime.hardware.memory,
     symbolAddress(symbols, 'PageDownBoundaryRow9Bytes'),

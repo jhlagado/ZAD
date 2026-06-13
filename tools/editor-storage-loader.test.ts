@@ -167,10 +167,11 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(runner, /DirtyAfterNoopDelete/);
   assert.match(runner, /DirtyAfterNoopSplit/);
   assert.match(runner, /DirtyAfterNoopInsert/);
-  assert.match(runner, /TopStatusPtrAfterPageUp/);
   assert.match(runner, /InitialRow9Bytes/);
+  assert.match(runner, /PageUpBoundaryRow9Bytes/);
   assert.match(runner, /PageDownBoundaryRow9Bytes/);
-  assert.match(runner, /EditorStatusTopText/);
+  assert.doesNotMatch(runner, /TopStatusPtrAfterPageUp/);
+  assert.doesNotMatch(runner, /EditorStatusTopText/);
   assert.doesNotMatch(runner, /EditorStatusEndText/);
   assert.match(runner, /DirtyAfterEdit/);
   assert.match(runner, /DirtyAfterSave/);

@@ -33,8 +33,8 @@ PROOF_FAIL       .equ     0xE0
         LD      B,TECM8_EDITOR_KEY_MOD_ALT
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
-        LD      HL,(EditorPromptTextPtr)
-        LD      (TopStatusPtrAfterPageUp),HL
+        LD      HL,PageUpBoundaryRow9Bytes
+        CALL    CaptureStatusRowTextByte
 
         CALL    EditorRenderCursor
         JP      C,ProofFailed
@@ -289,8 +289,8 @@ EditorPromptProofText:
 DirtyAfterNoopDelete:
         .db     0
 
-TopStatusPtrAfterPageUp:
-        .dw     0
+PageUpBoundaryRow9Bytes:
+        .ds     TECM8_DISPLAY_ROW_HEIGHT
 
 InitialRow9Bytes:
         .ds     TECM8_DISPLAY_ROW_HEIGHT

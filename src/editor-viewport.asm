@@ -185,6 +185,20 @@ EditorViewportRowTextPtrLoop:
         LD      C,TECM8_DISPLAY_MARKER_SELECTED
 
 EditorViewportMarkerCheckCurrent:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JR      Z,EditorViewportMarkerCheckCursorRow
+        LD      A,(EditorViewportMarkerInput)
+        CALL    EditorBlockSelectionVisibleLine
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      L
+        JR      NZ,EditorViewportMarkerAddPending
+        LD      A,(EditorBlockSelectionActiveHi)
+        CP      H
+        JR      Z,EditorViewportMarkerCurrent
+        JR      EditorViewportMarkerAddPending
+
+EditorViewportMarkerCheckCursorRow:
         LD      A,(EditorViewportMarkerInput)
         LD      HL,EditorViewportCurrentRow
         CP      (HL)
@@ -344,7 +358,8 @@ EditorBlockSelectionVisibleLineDone:
         RET
 
 ; EditorBlockSelectionNormalize -
-; Return the inclusive selection start in BC and end in DE.
+; Return the inclusive selected range in BC and DE from exclusive selection
+; endpoints. The cursor/current endpoint is outside the selected block.
 ;!      out       BC,DE,A,carry
 ;!      clobbers  A,HL,zero,sign,parity,halfCarry
 @EditorBlockSelectionNormalize:
@@ -359,14 +374,25 @@ EditorBlockSelectionVisibleLineDone:
         LD      H,B
         LD      L,C
         CALL    EditorBlockSelectionCompareHlDe
-        JR      C,EditorBlockSelectionNormalizeStore
-        JR      Z,EditorBlockSelectionNormalizeStore
+        JR      Z,EditorBlockSelectionNormalizeZero
+        JR      C,EditorBlockSelectionNormalizeForward
+
+        INC     DE
         LD      H,B
         LD      L,C
         LD      B,D
         LD      C,E
         LD      D,H
         LD      E,L
+        JR      EditorBlockSelectionNormalizeStore
+
+EditorBlockSelectionNormalizeForward:
+        DEC     DE
+        JR      EditorBlockSelectionNormalizeStore
+
+EditorBlockSelectionNormalizeZero:
+        LD      D,B
+        LD      E,C
 
 EditorBlockSelectionNormalizeStore:
         LD      A,C

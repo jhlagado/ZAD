@@ -232,7 +232,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyPageDownErr:[\s\S]*?CP\s+EDITOR_LOAD_ERR_SIZE[\s\S]*?JR\s+Z,EditorKeyPageDownEnd/);
   assert.match(source, /EditorKeyPageDownEnd:\n\s+CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+RET\s+C\n\s+JP\s+EditorKeyLoop/);
   assert.doesNotMatch(source, /EditorStatusEndText/);
-  assert.match(source, /EditorKeyPageUpErr:[\s\S]*?LD\s+HL,EditorStatusTopText[\s\S]*?CALL\s+EditorKeyShowStatus/);
+  assert.match(source, /EditorKeyPageUpTop:\n\s+CALL\s+EditorHideCursor\n\s+RET\s+C\n\s+CALL\s+EditorViewportRestoreStatusRow\n\s+RET\s+C\n\s+JP\s+EditorKeyLoop/);
+  assert.doesNotMatch(source, /EditorStatusTopText/);
   assert.match(source, /@EditorEnsureCursorVisible:[\s\S]*?LD\s+A,\(EditorNavViewportTopRow\)[\s\S]*?EditorEnsureCursorScrollDown:/);
   assert.match(source, /@EditorKeyRenderCursorMove:[\s\S]*?CALL\s+EditorEnsureCursorVisible[\s\S]*?JP\s+NZ,EditorKeyRenderViewport/);
   assert.match(source, /EditorKeyPageDown:[\s\S]*?CALL\s+EditorPageDown[\s\S]*?CALL\s+EditorCursorReset/);
@@ -298,11 +299,12 @@ test('editor line selection proof is wired into package checks', () => {
   assert.match(proof, /AssertPasteNoopPendingCopyRowsZeroToOne:/);
   assert.match(proof, /AssertCopyPasteReplaceRows:/);
   assert.match(proof, /AssertMovePasteReplaceRows:/);
-  assert.match(proof, /ExpectedP0Line00:/);
-  assert.match(proof, /ExpectedP0Line04:/);
+  assert.doesNotMatch(proof, /AssertRecordEquals:/);
+  assert.doesNotMatch(proof, /ExpectedP0Line00:/);
   assert.match(proof, /TECM8_DISPLAY_MARKER_COPY_SOURCE/);
   assert.match(proof, /TECM8_DISPLAY_MARKER_MOVE_SOURCE/);
-  assert.match(proof, /TECM8_DISPLAY_MARKER_CURRENT \| TECM8_DISPLAY_MARKER_SELECTED/);
+  assert.match(proof, /CP\s+TECM8_DISPLAY_MARKER_CURRENT/);
+  assert.match(proof, /CP\s+TECM8_DISPLAY_MARKER_SELECTED/);
   assert.match(runner, /editor-selection-proof/);
   assert.match(packageJson, /"proof:display:editor-selection"/);
   assert.match(packageJson, /proof:display:editor-selection/);

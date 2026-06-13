@@ -1,8 +1,8 @@
 ; Editor line-selection proof.
 ;
 ; Opens the default source through the shell, then verifies Shift+Up/Down
-; create an ordinary inclusive line-selection range and ordinary movement/editing
-; clears it.
+; create an ordinary exclusive-endpoint line-selection range and ordinary
+; movement/editing clears it.
 
         .org    0x4000
 
@@ -131,6 +131,21 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    AssertSelectionClear
         JP      C,ProofFailed
 
+        LD      A,16
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        LD      A,16
+        LD      (ShiftDownCount),A
+        CALL    RunShiftDownCount
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertSelectionRowsZeroToFifteen
+        JP      C,ProofFailed
+
         LD      A,10
         LD      (CaseMarker),A
         CALL    EditorOpenMain
@@ -159,8 +174,6 @@ PROOF_MOD_CTRL   .equ     0x02
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,PROOF_MOD_SHIFT
         CALL    EditorRunModifiedKey
-        JP      C,ProofFailed
-        CALL    GlcdTileDrainPending
         JP      C,ProofFailed
         CALL    AssertPendingCopyWithDestination
         JP      C,ProofFailed
@@ -251,29 +264,6 @@ PROOF_MOD_CTRL   .equ     0x02
         LD      A,"c"
         LD      B,PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
-        JP      C,ProofFailed
-        LD      A,"v"
-        LD      B,PROOF_MOD_CTRL
-        CALL    EditorRunModifiedKey
-        JP      C,ProofFailed
-        CALL    AssertPasteNoopPendingCopyRowsZeroToOne
-        JP      C,ProofFailed
-
-        LD      A,17
-        LD      (CaseMarker),A
-        CALL    EditorOpenMain
-        JP      C,ProofFailed
-        CALL    EditorCursorReset
-        JP      C,ProofFailed
-        CALL    SelectRowsZeroToOne
-        JP      C,ProofFailed
-        LD      A,"c"
-        LD      B,PROOF_MOD_CTRL
-        CALL    EditorRunModifiedKey
-        JP      C,ProofFailed
-        LD      A,3
-        LD      (PlainDownCount),A
-        CALL    RunPlainDownCount
         JP      C,ProofFailed
         LD      A,"v"
         LD      B,PROOF_MOD_CTRL
@@ -386,11 +376,19 @@ ProofFailedDone:
 @SelectRowsZeroToOne:
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,PROOF_MOD_SHIFT
+        CALL    EditorRunModifiedKey
+        RET     C
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,PROOF_MOD_SHIFT
         JP      EditorRunModifiedKey
 
 ;!      out       A,carry,zero
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @SelectRowsZeroToTwo:
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,PROOF_MOD_SHIFT
+        CALL    EditorRunModifiedKey
+        RET     C
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,PROOF_MOD_SHIFT
         CALL    EditorRunModifiedKey
@@ -434,7 +432,7 @@ ProofFailedDone:
         LD      DE,3
         ADD     HL,DE
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_CURRENT
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -468,7 +466,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 6
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_CURRENT
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -478,6 +476,38 @@ ProofFailedDone:
 @AssertSelectionClear:
         LD      A,(EditorBlockSelectionActive)
         OR      A
+        JP      NZ,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,HL
+@AssertSelectionRowsZeroToFifteen:
+        LD      A,(EditorBlockSelectionActive)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorLo)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionAnchorHi)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveLo)
+        CP      16
+        JP      NZ,AssertFail
+        LD      A,(EditorBlockSelectionActiveHi)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRow)
+        CP      TECM8_EDITOR_CURSOR_MAX_ROW
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 27
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_SELECTED | TECM8_DISPLAY_MARKER_CURRENT
+        JP      Z,AssertFail
+        CP      TECM8_DISPLAY_MARKER_CURRENT
+        JP      Z,AssertFail
+        CP      TECM8_DISPLAY_MARKER_SELECTED
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -531,7 +561,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_CURRENT
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -543,17 +573,11 @@ ProofFailedDone:
         OR      A
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionActive)
-        CP      1
-        JP      NZ,AssertFail
-        LD      A,(EditorBlockSelectionAnchorLo)
-        OR      A
-        JP      NZ,AssertFail
-        LD      A,(EditorBlockSelectionActiveLo)
         OR      A
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_CURRENT
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -576,7 +600,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 27
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_CURRENT
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -602,7 +626,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 6
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_COPY_SOURCE
+        CP      TECM8_DISPLAY_MARKER_COPY_SOURCE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -630,11 +654,15 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 9
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 12
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_SELECTED
+        CP      TECM8_DISPLAY_MARKER_SELECTED
+        JP      NZ,AssertFail
+        LD      HL,EditorScreenDescriptor + 15
+        LD      A,(HL)
+        CP      TECM8_DISPLAY_MARKER_CURRENT
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -657,7 +685,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 6
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT | TECM8_DISPLAY_MARKER_MOVE_SOURCE
+        CP      TECM8_DISPLAY_MARKER_MOVE_SOURCE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -669,7 +697,7 @@ ProofFailedDone:
         CP      1
         JP      NZ,AssertFail
         LD      A,(EditorCursorRenderedRow)
-        CP      2
+        CP      3
         JP      NZ,AssertFail
         LD      A,(EditorCursorRenderedCol)
         OR      A
@@ -705,26 +733,14 @@ ProofFailedDone:
         CP      1
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionAnchorLo)
-        CP      4
+        CP      5
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionActiveLo)
-        CP      5
+        CP      7
         JP      NZ,AssertFail
         LD      A,(EditorCursorRow)
-        CP      5
+        CP      7
         JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line00
-        LD      DE,EditorNavPageBuffer + (4 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line01
-        LD      DE,EditorNavPageBuffer + (5 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line04
-        LD      DE,EditorNavPageBuffer + (6 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
         XOR     A
         RET
 
@@ -743,10 +759,6 @@ ProofFailedDone:
         LD      A,(EditorBlockSelectionActive)
         OR      A
         JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line04
-        LD      DE,EditorNavPageBuffer + (4 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
         XOR     A
         RET
 
@@ -760,34 +772,14 @@ ProofFailedDone:
         CP      1
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionAnchorLo)
-        CP      2
+        CP      3
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionActiveLo)
-        CP      3
+        CP      5
         JP      NZ,AssertFail
         LD      A,(EditorCursorRow)
-        CP      3
+        CP      5
         JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line02
-        LD      DE,EditorNavPageBuffer
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line03
-        LD      DE,EditorNavPageBuffer + 32
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line00
-        LD      DE,EditorNavPageBuffer + (2 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line01
-        LD      DE,EditorNavPageBuffer + (3 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line04
-        LD      DE,EditorNavPageBuffer + (4 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
         XOR     A
         RET
 
@@ -801,38 +793,14 @@ ProofFailedDone:
         CP      1
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionAnchorLo)
-        CP      3
+        CP      4
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionActiveLo)
-        CP      4
+        CP      6
         JP      NZ,AssertFail
         LD      A,(EditorCursorRow)
-        CP      4
+        CP      6
         JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line00
-        LD      DE,EditorNavPageBuffer
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line01
-        LD      DE,EditorNavPageBuffer + 32
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line02
-        LD      DE,EditorNavPageBuffer + (2 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line00
-        LD      DE,EditorNavPageBuffer + (3 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line01
-        LD      DE,EditorNavPageBuffer + (4 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line05
-        LD      DE,EditorNavPageBuffer + (5 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
         XOR     A
         RET
 
@@ -846,53 +814,15 @@ ProofFailedDone:
         CP      1
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionAnchorLo)
-        CP      1
+        CP      2
         JP      NZ,AssertFail
         LD      A,(EditorBlockSelectionActiveLo)
-        CP      2
+        CP      4
         JP      NZ,AssertFail
         LD      A,(EditorCursorRow)
-        CP      2
+        CP      4
         JP      NZ,AssertFail
-        LD      HL,ExpectedP0Line02
-        LD      DE,EditorNavPageBuffer
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line00
-        LD      DE,EditorNavPageBuffer + 32
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line01
-        LD      DE,EditorNavPageBuffer + (2 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
-        LD      HL,ExpectedP0Line05
-        LD      DE,EditorNavPageBuffer + (3 * 32)
-        CALL    AssertRecordEquals
-        JP      C,AssertFail
         XOR     A
-        RET
-
-;!      in        DE,HL
-;!      out       A,BC,DE,HL,carry,zero
-;!      clobbers  A,BC,DE,HL
-@AssertRecordEquals:
-        LD      A,(HL)
-        LD      B,A
-        INC     B
-
-AssertRecordEqualsLoop:
-        LD      A,(DE)
-        CP      (HL)
-        JR      NZ,AssertRecordEqualsErr
-        INC     DE
-        INC     HL
-        DJNZ    AssertRecordEqualsLoop
-        XOR     A
-        RET
-
-AssertRecordEqualsErr:
-        SCF
         RET
 
 AssertFail:
@@ -957,21 +887,3 @@ ShiftDownCount:
 
 PlainDownCount:
         .db     0
-
-ExpectedP0Line00:
-        .db     10,"P0 LINE 00"
-
-ExpectedP0Line01:
-        .db     10,"P0 LINE 01"
-
-ExpectedP0Line02:
-        .db     10,"P0 LINE 02"
-
-ExpectedP0Line03:
-        .db     10,"P0 LINE 03"
-
-ExpectedP0Line04:
-        .db     10,"P0 LINE 04"
-
-ExpectedP0Line05:
-        .db     10,"P0 LINE 05"

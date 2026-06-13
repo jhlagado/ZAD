@@ -540,12 +540,11 @@ There is not yet sector-crossing insert/delete or multi-page block editing.
 The current live Debug80 smoke now drives the same path through matrix `Enter`,
 `Backspace` at column zero, save, page-away/page-back persistence checks, a
 clean-save no-op, post-save input, and quit. The block-editing acceptance smoke
-boots the live matrix-key path, selects a line block, arms copy, pastes it,
+boots the live matrix-key path, selects a single line, arms copy, pastes it,
 saves, and validates the reshaped TM8 source records from the host side.
-Page-boundary movement uses the same transient status overlay for the top
-boundary: page-up at the first page shows `Top`. Page-down past the available
-source restores the hidden source row instead of drawing an `End` label over
-the last visible line.
+Page-boundary movement no longer leaves `Top` or `End` status text behind:
+page-up at the first page and page-down past the available source both restore
+the hidden source row.
 
 The mutation primitives return a small change result in `A`: `1` means the
 buffer changed, `0` means the operation was a no-op, and carry still reports
@@ -933,9 +932,9 @@ What exists now:
 - Unknown Ctrl/Alt-modified printable keys are ignored with a `KEY` status
   instead of falling through as plain text, and dirty page movement is allowed
   inside the RAM window.
-- Page-up at the first page reports `Top`; page-down past the available source
-  leaves the visible source rows intact instead of overlaying a misleading
-  end-of-file label.
+- Page-up at the first page restores the hidden source row without leaving
+  stale `Top` text; page-down past the available source leaves visible source
+  rows intact instead of overlaying a misleading end-of-file label.
 - Logical cursor movement can traverse all 16 records of a source page. The
   GLCD viewport scrolls within that page, with `EditorCursorVisibleRow` tracking
   the physical row used for cursor and marker rendering.
