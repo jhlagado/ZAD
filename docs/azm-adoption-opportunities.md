@@ -5,6 +5,10 @@ features more deliberately. It complements the live roadmap and the code-quality
 execution plan: the roadmap names the direction, while this document explains
 why the features are useful and where to try them first.
 
+Practical conclusions and feedback intended for the AZM team are recorded in
+[AZM Practical Feedback](azm-practical-feedback.md). Update that document after
+each pilot with the observed tradeoffs, proof commands, and size results.
+
 ## Current State
 
 TECM8 already uses a strong part of AZM: public routine entries use `@` labels

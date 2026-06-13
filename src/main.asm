@@ -10,6 +10,8 @@
 TECM8_MAIN_PASS        .equ     0x42
 TECM8_MAIN_FAIL        .equ     0xE0
 
+        .include "tecm8-equates.asm"
+
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
 @Start:

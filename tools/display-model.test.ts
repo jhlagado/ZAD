@@ -29,6 +29,7 @@ test('editor design documents the structured display model constants', () => {
 
 test('structured display model has assembly entry points and contracts', () => {
   const source = readRepoFile('src/display-model.asm');
+  const equates = readRepoFile('src/tecm8-equates.asm');
 
   for (const label of [
     'DisplayInit',
@@ -56,11 +57,14 @@ test('structured display model has assembly entry points and contracts', () => {
   ]) {
     assert.match(source, new RegExp(`^${constant}\\s+\\.equ`, 'm'));
   }
-  assert.match(source, /^TECM8_DISPLAY_Y_ORIGIN\s+\.equ\s+2$/m);
-  assert.match(source, /^TECM8_DISPLAY_EDIT_ROWS\s+\.equ\s+10$/m);
+  assert.match(source, /^TECM8_DISPLAY_Y_ORIGIN\s+\.equ\s+TECM8_GLCD_Y_ORIGIN$/m);
+  assert.match(source, /^TECM8_DISPLAY_EDIT_ROWS\s+\.equ\s+TECM8_GLCD_ROWS$/m);
   assert.match(source, /^TECM8_DISPLAY_STATUS_ROW\s+\.equ\s+9$/m);
   assert.match(source, /^TECM8_DISPLAY_Y_ORIGIN_BYTES\s+\.equ\s+TECM8_DISPLAY_Y_ORIGIN \* TECM8_DISPLAY_ROW_BYTES$/m);
-  assert.match(source, /^MON3_TGBUF\s+\.equ\s+0x13C0$/m);
+  assert.match(source, /^MON3_TGBUF\s+\.equ\s+TECM8_MON3_GLCD_TGBUF$/m);
+  assert.match(equates, /^TECM8_GLCD_Y_ORIGIN\s+\.equ\s+2$/m);
+  assert.match(equates, /^TECM8_GLCD_ROWS\s+\.equ\s+10$/m);
+  assert.match(equates, /^TECM8_MON3_GLCD_TGBUF\s+\.equ\s+0x13C0$/m);
   assert.match(source, /@DisplayRenderGutter:\n\s+LD\s+\(DisplayRow\),A/);
   assert.match(source, /@DisplayRenderScreen:\n\s+LD\s+A,\(DisplayRenderScreenCount\)\n\s+INC\s+A\n\s+LD\s+\(DisplayRenderScreenCount\),A\n\s+LD\s+\(DisplayCursor\),HL\n\s+LD\s+A,TECM8_DISPLAY_EDIT_ROWS/);
   assert.match(source, /@DisplayInit:\n\s+CALL\s+BiosDisplayInit\n\s+RET\s+C\n\s+CALL\s+BiosDisplayClear/);

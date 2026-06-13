@@ -46,16 +46,18 @@ For the fastest orientation, read these files first:
 4. `docs/shell-command-contract.md`: how `edit`, `asm`, and `run` resolve.
 5. `docs/editor-design.md`: 32-byte source records and GLCD viewport model.
 6. `docs/tecm8-bios-api.md`: the BIOS wrapper vocabulary used by Z80 code.
-7. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
-8. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
-9. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
+7. `src/tecm8-equates.asm`: shared source-record, sector, display, GLCD, and
+   keyboard modifier constants used by the Z80 modules.
+8. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
+9. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
+10. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
    editor.
-10. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
+11. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
-11. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
+12. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
     editor path.
-12. `proofs/display/glcd-tile-proof.asm`,
+13. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
     cell renderer, the current block-editing state, and the fixed-record line
@@ -74,6 +76,25 @@ entries and ordinary labels are PascalCase, while `.equ` constants use
 uppercase names with underscores. The TECM8 modules should not create duplicate
 `.asmi` manifests for code in this repository; AZM can read the local `;!`
 contract blocks from the included source.
+
+### `src/tecm8-equates.asm`
+
+This is the byte-free shared equate surface. Top-level programs and proof
+bundles include it once before including TECM8 modules. It owns values that must
+not drift across modules:
+
+- source record geometry: 32-byte records, 31 text characters, `0x1F` length
+  mask, `0xE0` metadata mask, and 16 records per 512-byte page
+- shared sector size
+- GLCD tile/display geometry: 20 columns, 10 rows, 6x6 cells, 2-pixel vertical
+  origin, and 16-byte bitmap rows
+- MON3 GLCD `VPORT` and `TGBUF` addresses
+- matrix keyboard modifier bits
+
+Module-local names such as `TECM8_EDITOR_RECORD_BYTES`,
+`TECM8_GLCD_TILE_ROWS`, and `TECM8_BIOS_KEY_MOD_CTRL` remain where they clarify
+the domain, but they derive from this shared file rather than repeating the
+literal values.
 
 ### `src/main.asm`
 

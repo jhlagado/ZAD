@@ -19,14 +19,14 @@ MON3_MATRIX_SCAN_ASCII       .equ     0xD0CB
 MON3_PARSE_MATRIX_SCAN       .equ     0xD142
 MON3_GET_CAPS                .equ     0xCFCA
 MON3_TOGGLE_CAPS             .equ     0xD02B
-MON3_GLCD_VPORT              .equ     0x0E13
-MON3_GLCD_TGBUF              .equ     0x13C0
+MON3_GLCD_VPORT              .equ     TECM8_MON3_GLCD_VPORT
+MON3_GLCD_TGBUF              .equ     TECM8_MON3_GLCD_TGBUF
 TECM8_BIOS_DISPLAY_ERR_RANGE .equ     0x01
-TECM8_BIOS_KEY_MOD_SHIFT     .equ     0x01
-TECM8_BIOS_KEY_MOD_CTRL      .equ     0x02
-TECM8_BIOS_KEY_MOD_FN        .equ     0x04
-TECM8_BIOS_KEY_MOD_ALT       .equ     0x08
-TECM8_BIOS_KEY_MOD_CAPS      .equ     0x10
+TECM8_BIOS_KEY_MOD_SHIFT     .equ     TECM8_KEY_MOD_SHIFT
+TECM8_BIOS_KEY_MOD_CTRL      .equ     TECM8_KEY_MOD_CTRL
+TECM8_BIOS_KEY_MOD_FN        .equ     TECM8_KEY_MOD_FN
+TECM8_BIOS_KEY_MOD_ALT       .equ     TECM8_KEY_MOD_ALT
+TECM8_BIOS_KEY_MOD_CAPS      .equ     TECM8_KEY_MOD_CAPS
 
 ; BiosFileOpen -
 ; Open a MON3/FAT32 file by NUL-terminated name.

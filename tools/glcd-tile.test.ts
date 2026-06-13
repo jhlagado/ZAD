@@ -11,6 +11,7 @@ function readRepoFile(path: string): string {
 
 test('GLCD tile layer exposes direct cell primitives and contracts', () => {
   const source = readRepoFile('src/glcd-tile.asm');
+  const equates = readRepoFile('src/tecm8-equates.asm');
 
   for (const label of [
     'GlcdTileClearCell',
@@ -31,14 +32,22 @@ test('GLCD tile layer exposes direct cell primitives and contracts', () => {
     assert.match(source, new RegExp(`^@${label}:`, 'm'));
   }
 
-  assert.match(source, /^TECM8_GLCD_TILE_COLUMNS\s+\.equ\s+20$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_ROWS\s+\.equ\s+10$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_WIDTH\s+\.equ\s+6$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_HEIGHT\s+\.equ\s+6$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_TEXT_X\s+\.equ\s+6$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_Y_ORIGIN\s+\.equ\s+2$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_TGBUF\s+\.equ\s+0x13C0$/m);
-  assert.match(source, /^TECM8_GLCD_TILE_VPORT\s+\.equ\s+0x0E13$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_COLUMNS\s+\.equ\s+TECM8_GLCD_COLUMNS$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_ROWS\s+\.equ\s+TECM8_GLCD_ROWS$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_WIDTH\s+\.equ\s+TECM8_GLCD_CELL_WIDTH$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_HEIGHT\s+\.equ\s+TECM8_GLCD_CELL_HEIGHT$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_TEXT_X\s+\.equ\s+TECM8_GLCD_TEXT_X$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_Y_ORIGIN\s+\.equ\s+TECM8_GLCD_Y_ORIGIN$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_TGBUF\s+\.equ\s+TECM8_MON3_GLCD_TGBUF$/m);
+  assert.match(source, /^TECM8_GLCD_TILE_VPORT\s+\.equ\s+TECM8_MON3_GLCD_VPORT$/m);
+  assert.match(equates, /^TECM8_GLCD_COLUMNS\s+\.equ\s+20$/m);
+  assert.match(equates, /^TECM8_GLCD_ROWS\s+\.equ\s+10$/m);
+  assert.match(equates, /^TECM8_GLCD_CELL_WIDTH\s+\.equ\s+6$/m);
+  assert.match(equates, /^TECM8_GLCD_CELL_HEIGHT\s+\.equ\s+6$/m);
+  assert.match(equates, /^TECM8_GLCD_TEXT_X\s+\.equ\s+6$/m);
+  assert.match(equates, /^TECM8_GLCD_Y_ORIGIN\s+\.equ\s+2$/m);
+  assert.match(equates, /^TECM8_MON3_GLCD_TGBUF\s+\.equ\s+0x13C0$/m);
+  assert.match(equates, /^TECM8_MON3_GLCD_VPORT\s+\.equ\s+0x0E13$/m);
   assert.match(source, /^TECM8_GLCD_TILE_FONT_DATA\s+\.equ\s+0xDD9B$/m);
   assert.match(source, /^TECM8_GLCD_TILE_PORT_CMD\s+\.equ\s+0x07$/m);
   assert.match(source, /^TECM8_GLCD_TILE_PORT_DATA\s+\.equ\s+0x87$/m);

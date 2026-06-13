@@ -11,6 +11,7 @@ function readRepoFile(path: string): string {
 
 test('editor viewport module exposes a source-record render entry point', () => {
   const source = readRepoFile('src/editor-viewport.asm');
+  const equates = readRepoFile('src/tecm8-equates.asm');
 
   assert.match(source, /^@EditorViewportRender:/m);
   assert.match(source, /^@EditorViewportRenderRecordRow:/m);
@@ -36,8 +37,10 @@ test('editor viewport module exposes a source-record render entry point', () => 
   }
 
   assert.match(source, /AND\s+TECM8_EDITOR_RECORD_LENGTH_MASK/);
-  assert.match(source, /^TECM8_EDITOR_VISIBLE_ROWS\s+\.equ\s+10$/m);
-  assert.match(source, /^TECM8_EDITOR_VISIBLE_COLS\s+\.equ\s+20$/m);
+  assert.match(source, /^TECM8_EDITOR_VISIBLE_ROWS\s+\.equ\s+TECM8_GLCD_ROWS$/m);
+  assert.match(source, /^TECM8_EDITOR_VISIBLE_COLS\s+\.equ\s+TECM8_GLCD_COLUMNS$/m);
+  assert.match(equates, /^TECM8_GLCD_ROWS\s+\.equ\s+10$/m);
+  assert.match(equates, /^TECM8_GLCD_COLUMNS\s+\.equ\s+20$/m);
   assert.match(source, /EditorViewportTopRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorViewportColOffset:\n\s+\.db\s+0/);
   assert.match(source, /EditorViewportCurrentPage:\n\s+\.db\s+0/);

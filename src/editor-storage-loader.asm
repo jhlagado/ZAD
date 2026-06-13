@@ -6,8 +6,8 @@
 
 DISK_BUFF               .equ    0x0600
 
-TM8_SECTOR_BYTES        .equ    512
-TM8_BLOCK_BYTES         .equ    4096
+TM8_SECTOR_BYTES        .equ    TECM8_SECTOR_BYTES
+TM8_BLOCK_BYTES         .equ    TECM8_SECTOR_BYTES * 8
 TM8_TOTAL_BLOCKS        .equ    1024
 TM8_VOLUME_BYTE_2       .equ    0x40
 TM8_ALLOC_START_BLOCK   .equ    1

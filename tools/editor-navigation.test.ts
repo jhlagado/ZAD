@@ -11,6 +11,7 @@ function readRepoFile(path: string): string {
 
 test('editor navigation module exposes open, render, and page movement entries', () => {
   const source = readRepoFile('src/editor-navigation.asm');
+  const equates = readRepoFile('src/tecm8-equates.asm');
 
   for (const name of [
     'EditorOpenMain',
@@ -48,7 +49,8 @@ test('editor navigation module exposes open, render, and page movement entries',
   assert.match(source, /TECM8_EDITOR_NAV_WORKSPACE_END\s+\.equ\s+0x3800/);
   assert.match(source, /EditorNavCachePageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_CACHE_BASE/);
   assert.match(source, /EditorNavPageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_PAGE_BASE/);
-  assert.match(source, /TECM8_EDITOR_NAV_WINDOW_BYTES\s+\.equ\s+1024/);
+  assert.match(source, /TECM8_EDITOR_NAV_WINDOW_BYTES\s+\.equ\s+TECM8_SECTOR_BYTES \* 2/);
+  assert.match(equates, /TECM8_SECTOR_BYTES\s+\.equ\s+512/);
   assert.match(source, /EditorNavNextPageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_NEXT_BASE/);
   assert.match(source, /EditorNavBackupPageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_BACKUP_BASE/);
   assert.match(source, /EditorNavDirtySectors:\n\s+\.db\s+0/);

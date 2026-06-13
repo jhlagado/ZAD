@@ -3,12 +3,12 @@
 ; Converts fixed 32-byte Pascal-string source records into the structured
 ; display descriptor consumed by DisplayRenderScreen.
 
-TECM8_EDITOR_RECORD_BYTES          .equ    32
-TECM8_EDITOR_VISIBLE_ROWS          .equ    10
-TECM8_EDITOR_VISIBLE_COLS          .equ    20
-TECM8_EDITOR_MAX_RECORD_TEXT       .equ    31
-TECM8_EDITOR_RECORD_LENGTH_MASK    .equ    0x1F
-TECM8_EDITOR_ROW_TEXT_BYTES        .equ    32
+TECM8_EDITOR_RECORD_BYTES          .equ    TECM8_SOURCE_RECORD_BYTES
+TECM8_EDITOR_VISIBLE_ROWS          .equ    TECM8_GLCD_ROWS
+TECM8_EDITOR_VISIBLE_COLS          .equ    TECM8_GLCD_COLUMNS
+TECM8_EDITOR_MAX_RECORD_TEXT       .equ    TECM8_SOURCE_RECORD_TEXT_MAX
+TECM8_EDITOR_RECORD_LENGTH_MASK    .equ    TECM8_SOURCE_RECORD_LENGTH_MASK
+TECM8_EDITOR_ROW_TEXT_BYTES        .equ    TECM8_SOURCE_RECORD_BYTES
 TECM8_EDITOR_ERR_ROW               .equ    0x02
 
 ; EditorViewportRender -

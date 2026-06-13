@@ -11,6 +11,7 @@ function readRepoFile(path: string): string {
 
 test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
+  const equates = readRepoFile('src/tecm8-equates.asm');
 
   assert.match(source, /^@EditorRunKeys:/m);
   assert.match(source, /^@EditorRunModifiedKey:/m);
@@ -51,8 +52,10 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_DOWN\s+\.equ\s+0x04/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_LEFT\s+\.equ\s+0x05/);
   assert.match(source, /TECM8_EDITOR_KEY_ARROW_RIGHT\s+\.equ\s+0x06/);
-  assert.match(source, /TECM8_EDITOR_KEY_MOD_CTRL\s+\.equ\s+0x02/);
-  assert.match(source, /TECM8_EDITOR_KEY_MOD_SHIFT\s+\.equ\s+0x01/);
+  assert.match(source, /TECM8_EDITOR_KEY_MOD_CTRL\s+\.equ\s+TECM8_KEY_MOD_CTRL/);
+  assert.match(source, /TECM8_EDITOR_KEY_MOD_SHIFT\s+\.equ\s+TECM8_KEY_MOD_SHIFT/);
+  assert.match(equates, /TECM8_KEY_MOD_CTRL\s+\.equ\s+0x02/);
+  assert.match(equates, /TECM8_KEY_MOD_SHIFT\s+\.equ\s+0x01/);
   assert.doesNotMatch(source, /TECM8_EDITOR_KEY_MOD_ALT/);
   assert.doesNotMatch(source, /TECM8_EDITOR_KEY_MOD_PAGE/);
   assert.match(source, /TECM8_EDITOR_KEY_ESCAPE\s+\.equ\s+27/);
@@ -213,11 +216,16 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorKeyUnknownModifiedPrintable:\n\s+XOR\s+A\n\s+JP\s+EditorKeyLoop/);
   assert.match(source, /CP\s+TECM8_EDITOR_KEY_ESCAPE\n\s+JP\s+Z,EditorKeyEscape/);
   assert.match(source, /EditorKeyEscape:\n\s+CALL\s+EditorBlockStateClearForEdit/);
-  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+15/);
-  assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+10/);
-  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+30/);
-  assert.match(source, /TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK\s+\.equ\s+0x1F/);
-  assert.match(source, /TECM8_EDITOR_EDIT_RECORD_METADATA_MASK\s+\.equ\s+0xE0/);
+  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_ROW\s+\.equ\s+TECM8_SOURCE_RECORDS_PER_PAGE - 1/);
+  assert.match(source, /TECM8_EDITOR_CURSOR_VISIBLE_ROWS\s+\.equ\s+TECM8_GLCD_ROWS/);
+  assert.match(source, /TECM8_EDITOR_CURSOR_MAX_COL\s+\.equ\s+TECM8_SOURCE_RECORD_TEXT_MAX - 1/);
+  assert.match(source, /TECM8_EDITOR_EDIT_RECORD_LENGTH_MASK\s+\.equ\s+TECM8_SOURCE_RECORD_LENGTH_MASK/);
+  assert.match(source, /TECM8_EDITOR_EDIT_RECORD_METADATA_MASK\s+\.equ\s+TECM8_SOURCE_RECORD_METADATA_MASK/);
+  assert.match(equates, /TECM8_SOURCE_RECORDS_PER_PAGE\s+\.equ\s+16/);
+  assert.match(equates, /TECM8_GLCD_ROWS\s+\.equ\s+10/);
+  assert.match(equates, /TECM8_SOURCE_RECORD_TEXT_MAX\s+\.equ\s+TECM8_SOURCE_RECORD_BYTES - 1/);
+  assert.match(equates, /TECM8_SOURCE_RECORD_LENGTH_MASK\s+\.equ\s+0x1F/);
+  assert.match(equates, /TECM8_SOURCE_RECORD_METADATA_MASK\s+\.equ\s+0xE0/);
   assert.match(source, /TECM8_EDITOR_KEY_BACKSPACE\s+\.equ\s+8/);
   assert.match(source, /TECM8_EDITOR_KEY_INSERT_MODE\s+\.equ\s+9/);
   assert.match(source, /TECM8_EDITOR_KEY_NEWLINE\s+\.equ\s+13/);

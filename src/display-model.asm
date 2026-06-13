@@ -3,19 +3,19 @@
 ; This layer renders editor-style screens through TECM8-owned GLCD tile writes.
 ; It is the shared render policy used by editor proofs and the live editor.
 
-TECM8_DISPLAY_GLCD_COLUMNS          .equ    20
-TECM8_DISPLAY_GLCD_ROWS             .equ    10
-TECM8_DISPLAY_EDIT_ROWS             .equ    10
+TECM8_DISPLAY_GLCD_COLUMNS          .equ    TECM8_GLCD_COLUMNS
+TECM8_DISPLAY_GLCD_ROWS             .equ    TECM8_GLCD_ROWS
+TECM8_DISPLAY_EDIT_ROWS             .equ    TECM8_GLCD_ROWS
 TECM8_DISPLAY_GUTTER_PIXELS         .equ    4
-TECM8_DISPLAY_TEXT_X                .equ    6
-TECM8_DISPLAY_Y_ORIGIN              .equ    2
+TECM8_DISPLAY_TEXT_X                .equ    TECM8_GLCD_TEXT_X
+TECM8_DISPLAY_Y_ORIGIN              .equ    TECM8_GLCD_Y_ORIGIN
 TECM8_DISPLAY_STATUS_ROW            .equ    9
-TECM8_DISPLAY_ROW_HEIGHT            .equ    6
-TECM8_DISPLAY_ROW_BYTES             .equ    16
+TECM8_DISPLAY_ROW_HEIGHT            .equ    TECM8_GLCD_CELL_HEIGHT
+TECM8_DISPLAY_ROW_BYTES             .equ    TECM8_GLCD_BITMAP_ROW_BYTES
 TECM8_DISPLAY_Y_ORIGIN_BYTES        .equ    TECM8_DISPLAY_Y_ORIGIN * TECM8_DISPLAY_ROW_BYTES
-TECM8_DISPLAY_ROW_STRIDE            .equ    TECM8_DISPLAY_ROW_HEIGHT * TECM8_DISPLAY_ROW_BYTES
+TECM8_DISPLAY_ROW_STRIDE            .equ    TECM8_GLCD_CELL_ROW_STRIDE
 TECM8_DISPLAY_GUTTER_ROWS           .equ    TECM8_DISPLAY_ROW_HEIGHT
-TECM8_DISPLAY_MAX_TEXT_CHARS        .equ    20
+TECM8_DISPLAY_MAX_TEXT_CHARS        .equ    TECM8_GLCD_COLUMNS
 TECM8_DISPLAY_MARKER_NONE           .equ    0
 TECM8_DISPLAY_MARKER_BREAKPOINT     .equ    1
 TECM8_DISPLAY_MARKER_SELECTED       .equ    4
@@ -23,7 +23,7 @@ TECM8_DISPLAY_MARKER_COPY_SOURCE    .equ    8
 TECM8_DISPLAY_MARKER_MOVE_SOURCE    .equ    16
 TECM8_DISPLAY_CURSOR_SAVED_BYTES    .equ    TECM8_DISPLAY_ROW_HEIGHT * 2
 
-MON3_TGBUF                          .equ    0x13C0
+MON3_TGBUF                          .equ    TECM8_MON3_GLCD_TGBUF
 
 ; DisplayInit -
 ; Initialize and clear the current display.

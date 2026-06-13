@@ -6,6 +6,8 @@
 
         .org    0x4000
 
+        .include "tecm8-equates.asm"
+
 KbdTestHistoryFirstRow              .equ    2
 KbdTestHistoryLastRow               .equ    TECM8_GLCD_TILE_ROWS - 1
 KbdTestKeyArrowUp                   .equ    0x03

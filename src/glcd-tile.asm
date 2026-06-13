@@ -4,16 +4,16 @@
 ; still use MON3 for full-screen flushes, but it does not call MON3's terminal
 ; glyph policy.
 
-TECM8_GLCD_TILE_COLUMNS             .equ    20
-TECM8_GLCD_TILE_ROWS                .equ    10
-TECM8_GLCD_TILE_WIDTH               .equ    6
-TECM8_GLCD_TILE_HEIGHT              .equ    6
-TECM8_GLCD_TILE_TEXT_X              .equ    6
-TECM8_GLCD_TILE_Y_ORIGIN            .equ    2
-TECM8_GLCD_TILE_ROW_BYTES           .equ    16
-TECM8_GLCD_TILE_ROW_STRIDE          .equ    TECM8_GLCD_TILE_HEIGHT * TECM8_GLCD_TILE_ROW_BYTES
-TECM8_GLCD_TILE_TGBUF               .equ    0x13C0
-TECM8_GLCD_TILE_VPORT               .equ    0x0E13
+TECM8_GLCD_TILE_COLUMNS             .equ    TECM8_GLCD_COLUMNS
+TECM8_GLCD_TILE_ROWS                .equ    TECM8_GLCD_ROWS
+TECM8_GLCD_TILE_WIDTH               .equ    TECM8_GLCD_CELL_WIDTH
+TECM8_GLCD_TILE_HEIGHT              .equ    TECM8_GLCD_CELL_HEIGHT
+TECM8_GLCD_TILE_TEXT_X              .equ    TECM8_GLCD_TEXT_X
+TECM8_GLCD_TILE_Y_ORIGIN            .equ    TECM8_GLCD_Y_ORIGIN
+TECM8_GLCD_TILE_ROW_BYTES           .equ    TECM8_GLCD_BITMAP_ROW_BYTES
+TECM8_GLCD_TILE_ROW_STRIDE          .equ    TECM8_GLCD_CELL_ROW_STRIDE
+TECM8_GLCD_TILE_TGBUF               .equ    TECM8_MON3_GLCD_TGBUF
+TECM8_GLCD_TILE_VPORT               .equ    TECM8_MON3_GLCD_VPORT
 TECM8_GLCD_TILE_FONT_DATA           .equ    0xDD9B
 TECM8_GLCD_TILE_PORT_CMD            .equ    0x07
 TECM8_GLCD_TILE_PORT_DATA           .equ    0x87

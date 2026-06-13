@@ -158,16 +158,22 @@ Goal: stop constants from drifting across modules.
 
 Actions:
 
-- Introduce `src/tecm8-equates.asm` for shared constants that cost no resident
-  bytes: record sizes, length masks, TM8 sector/block sizes, keyboard modifier
-  bits, display geometry, GLCD buffer addresses, and shared error constants.
+- Done: introduce `src/tecm8-equates.asm` for shared constants that cost no
+  resident bytes: source-record sizes, source length masks, sector size,
+  keyboard modifier bits, display geometry, and GLCD buffer addresses.
 - Keep domain aliases only when they add meaning. For example, a record size of
   32 and printable ASCII space both have value 32 but should not collapse into
   one ambiguous name.
-- Replace bare `0x1F` length-mask reads with the canonical length-mask equate.
+- Done: keep domain aliases in modules such as `TECM8_EDITOR_RECORD_BYTES`,
+  `TECM8_GLCD_TILE_ROWS`, and `TECM8_BIOS_KEY_MOD_CTRL`, but derive those
+  aliases from the canonical names.
+- Done: audit bare `0x1F` uses. The remaining bare uses are not source-record
+  length masks: storage uses one for page-to-block steps, and BIOS uses one for
+  Ctrl-letter normalization.
 - Add or update tests/proofs that confirm length metadata bits survive
   render/edit/save paths.
-- Reconcile `docs/memory-and-code-quality.md` with the canonical RAM names.
+- Done: update structural tests so literal shared values are pinned in
+  `src/tecm8-equates.asm` and modules are checked as aliases.
 
 Done when:
 

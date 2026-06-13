@@ -6,6 +6,8 @@
 
         .org    0x4000
 
+        .include "../../src/tecm8-equates.asm"
+
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 PROOF_MOD_SHIFT  .equ     0x01

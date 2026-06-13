@@ -50,6 +50,7 @@ test('TECM8 BIOS display contract is documented for GLCD wrappers', () => {
 
 test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
   const source = readRepoFile('src/tecm8-bios.asm');
+  const equates = readRepoFile('src/tecm8-equates.asm');
 
   for (const label of [
     'BiosDisplayInit',
@@ -76,10 +77,14 @@ test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
   assert.match(source, /MON3_PARSE_MATRIX_SCAN\s+\.equ\s+0xD142/);
   assert.match(source, /MON3_GET_CAPS\s+\.equ\s+0xCFCA/);
   assert.match(source, /MON3_TOGGLE_CAPS\s+\.equ\s+0xD02B/);
-  assert.match(source, /TECM8_BIOS_KEY_MOD_SHIFT\s+\.equ\s+0x01/);
-  assert.match(source, /TECM8_BIOS_KEY_MOD_CTRL\s+\.equ\s+0x02/);
-  assert.match(source, /TECM8_BIOS_KEY_MOD_FN\s+\.equ\s+0x04/);
-  assert.match(source, /TECM8_BIOS_KEY_MOD_ALT\s+\.equ\s+0x08/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_SHIFT\s+\.equ\s+TECM8_KEY_MOD_SHIFT/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_CTRL\s+\.equ\s+TECM8_KEY_MOD_CTRL/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_FN\s+\.equ\s+TECM8_KEY_MOD_FN/);
+  assert.match(source, /TECM8_BIOS_KEY_MOD_ALT\s+\.equ\s+TECM8_KEY_MOD_ALT/);
+  assert.match(equates, /TECM8_KEY_MOD_SHIFT\s+\.equ\s+0x01/);
+  assert.match(equates, /TECM8_KEY_MOD_CTRL\s+\.equ\s+0x02/);
+  assert.match(equates, /TECM8_KEY_MOD_FN\s+\.equ\s+0x04/);
+  assert.match(equates, /TECM8_KEY_MOD_ALT\s+\.equ\s+0x08/);
   assert.match(source, /CALL\s+MON3_MATRIX_SCAN\n\s+CALL\s+MON3_PARSE_MATRIX_SCAN/);
   assert.match(source, /@BiosInputPollKey:/);
   assert.match(source, /CP\s+0x07\n\s+JR\s+Z,BiosInputPollKeyToggleCaps/);
