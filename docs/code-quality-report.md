@@ -342,10 +342,12 @@ Copy this section directly to the implementing agent:
 [ ] Phase C: tm8-catalog.asm
 [x] Phase C shell split: shell-resolver.asm + shell-program.asm
 [x] Phase C3: main.asm includes shell-resolver plus launch bridge only; re-measure ROM at 14,477 bytes
-[ ] Phase D: dirty state unification; dead code removal; doc updates
+[ ] Phase D: `EditorNavDirty` unification remains open; dead code removal and
+    doc updates are complete
 [ ] Add tools/measure-z80-modules.ts
 [ ] Optional: tools/debug80-proof-runtime.ts for TS dedup
-[ ] Final: npm run check; document new byte count in memory-and-code-quality.md
+[x] Q7 final verification: npm run check; document new byte count in
+    memory-and-code-quality.md
 ```
 
 **Acceptance criteria for the refactor milestone:**

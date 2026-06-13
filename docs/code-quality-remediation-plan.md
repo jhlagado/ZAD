@@ -25,7 +25,9 @@ improved without destabilizing that progress.
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
   MON3, with storage-backed load/save, multi-page editing, display scheduling,
-  and Block Editing V1 automation.
+  and Block Editing V1 automation. The live image now links only the shell
+  resolver plus editor-launch bridge; scripted Debug80 sessions use the
+  separate `src/editor-session-script.main.asm` target.
 - Current roadmap position: Block Editing V1 needs manual Debug80 validation
   before named block read/write, character selections, or larger feature work.
 - System context: TECM8 is becoming a small ROM-based operating system. The
@@ -85,7 +87,9 @@ Accepted findings:
 - The first shell split is complete: `main.asm` links the resolver only, while
   the separate shell program remains available for proofs and the future
   resident shell.
-- Some docs and comments still describe earlier roadmap states.
+- The first bank-readiness pass is complete through the resident-shell split;
+  remaining stale docs should be treated as ordinary maintenance, not blockers
+  for the editor image.
 
 Findings to adjust before execution:
 
@@ -478,15 +482,17 @@ Goal: make the new organization the documented system.
 
 Actions:
 
-- Audit public labels for AZMDoc `;!` contracts.
-- Update `docs/codebase.md` with the new module map and reading order.
-- Update `docs/memory-and-code-quality.md` with current RAM use and binary size.
-- Update `docs/roadmap.md` with the completed quality phases and the next
-  feature milestone.
-- Run `npm run quality` and decide which TypeScript findings become future work.
-- Reconcile this plan with `docs/typescript-code-quality.md`: host-tooling
-  cleanup should follow the Z80 bank-readiness pass unless duplicated proof
-  harness code blocks the Z80 work.
+- Done: audited public `@` labels for AZMDoc `;!` contracts and added the
+  missing standalone keyboard-tester entry contract.
+- Done: updated `docs/codebase.md` with the split module map and reading order.
+- Done: updated `docs/memory-and-code-quality.md` with current RAM use and
+  binary size.
+- Done: updated `docs/roadmap.md` with the completed quality phases and the
+  next feature milestone.
+- Done: ran `npm run quality`; the remaining Fallow findings are TypeScript
+  host-tooling work, not Z80 bank-readiness blockers.
+- Done: reconciled this plan with `docs/typescript-code-quality.md`: host
+  tooling cleanup should follow this Z80 pass unless it blocks proof work.
 
 Done when:
 
@@ -522,12 +528,19 @@ and list the exact manual keys to test.
 
 ## Immediate Next Goal
 
-The next practical quality goal is **Q0: Baseline And Guardrails**. It should be
-small and non-invasive: verify the current tree, record size, and decide the
-measurement surface before code starts moving. After that, proceed into Q1/Q2
-before attempting the larger `editor-interaction.asm` split. The architectural
-goal behind the quality pass is a bank-ready editor and a clean resident shell
-boundary, not a standalone editor detached from TECM8 OS.
+The Bank-Ready Editor V1 quality pass has reached its planned stopping point:
+the live editor path is smaller than the 15,235-byte baseline, proof-only script
+support is out of the live image, and the shell/editor boundary is documented as
+a resident-to-banked-tool boundary.
 
-Do not start named block read/write, character selections, bank switching, or
-MON3 BIOS replacement as part of this quality pass.
+The next practical goal should be chosen explicitly from the roadmap rather than
+continued automatically. The two strongest candidates are:
+
+- return to the editor feature roadmap and complete manual Block Editing V1
+  validation before named block read/write; or
+- run one measured space-saving pilot from
+  `docs/z80-space-saving-opportunities.md`, starting with
+  `EditorNavErrorTextForCode`.
+
+Do not start character selections, bank switching, or MON3 BIOS replacement as a
+continuation of this quality pass.

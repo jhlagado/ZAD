@@ -20,6 +20,8 @@ KbdTestKeyEnter                     .equ    0x0D
 KbdTestKeyEscape                    .equ    0x1B
 KbdTestKeyDelete                    .equ    0x7F
 
+;! out carry
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
 @Start:
         CALL    BiosDisplayInit
         JP      C,KbdTestFatal

@@ -671,16 +671,19 @@ Work:
 
 Done when:
 
-- The live editor path no longer carries unnecessary resident shell or
-  proof-only scaffolding.
-- The shell/editor boundary is documented as a resident-to-banked-tool call
-  boundary.
-- The editor remains Debug80-runnable and proof-green after each increment.
-- The post-refactor editor binary size is measured against the original
-  quality-phase baseline of 15,235 bytes and the latest fresh AZM source-build
-  size recorded in the code-quality plan.
-- The roadmap names the next tool project: resident shell completion or
-  assembler integration.
+- Done: the live editor path no longer carries the shell prompt loop or
+  proof-only scripted key-session scaffolding.
+- Done: the shell/editor boundary is documented as a resident-to-banked-tool
+  call boundary.
+- Done: the editor remains Debug80-runnable and proof-green after each
+  increment.
+- Done: the post-refactor editor binary size is measured against the original
+  quality-phase baseline of 15,235 bytes. The fresh source build is 14,477
+  bytes, leaving 1,907 bytes in the current 16K bank.
+- Done: the next tool-project direction is resident shell completion and later
+  assembler integration; the immediate editor-facing roadmap returns to Block
+  Editing V1 manual validation unless a measured space-saving pilot is chosen
+  first.
 
 ## Future Phase: Block Operations
 

@@ -13,9 +13,10 @@ reduce bytes while keeping the behavior and contracts easier to understand?
 
 ## Baseline And Guardrails
 
-Recent source-size checks have put the editor image at roughly 15 KB, leaving
-about 1 KB inside the current 16K bank. Treat that as a snapshot only. Every
-space-saving increment should record a fresh before/after result from:
+The current source-size check puts the live editor image at 14,477 bytes emitted
+at `4000h..788Dh`, leaving 1,907 bytes inside the current 16K bank. Treat that
+as a snapshot only. Every space-saving increment should record a fresh
+before/after result from:
 
 ```text
 npm run z80:size
