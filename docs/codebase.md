@@ -623,9 +623,9 @@ from the interaction state block. That keeps this checkpoint behavior-only and
 avoids moving shared state before the block, prompt, and line-edit modules have
 their own ownership boundaries. The source-level contract is pinned by
 `tools/editor-interaction.test.ts`, and the live editor acceptance proofs now
-include `src/editor-keymap.asm` before `src/editor-cursor.asm` and
-`src/editor-interaction.asm`, so the storage-backed editor runners exercise the
-same normalized command path as the real session target.
+include `src/editor-interaction.asm`, then `src/editor-keymap.asm`, then
+`src/editor-cursor.asm`, so the storage-backed editor runners exercise the same
+normalized command path as the real session target.
 
 ### `src/editor-interaction.asm`
 

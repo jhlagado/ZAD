@@ -125,6 +125,7 @@ LoadProjectStubOk:
         .include "../../src/editor-navigation.asm"
         .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
+        .include "../../src/editor-keymap.asm"
         .include "../../src/editor-cursor.asm"
         .include "../../src/shell-commands.asm"
         .include "../../src/shell-editor-launch.asm"

@@ -143,7 +143,7 @@ because storage bootstrapping code must remain very predictable.
 
 ### 6. Normalize Editor Modified Commands Before Dispatch
 
-Candidate: `EditorModifiedCommandFromKey` in `src/editor-interaction.asm`.
+Candidate: `EditorModifiedCommandFromKey` in `src/editor-keymap.asm`.
 
 The Ctrl-modified command decoder has uppercase/lowercase duplication and a few
 special ambiguous inputs. This may be smaller as normalization plus a compact
