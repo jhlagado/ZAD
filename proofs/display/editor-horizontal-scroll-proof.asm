@@ -116,6 +116,7 @@ CopyRowTextLoop:
         .include "../../src/editor-navigation.asm"
         .include "../../src/tecm8-record.asm"
         .include "../../src/editor-interaction.asm"
+        .include "../../src/editor-cursor.asm"
         .include "../../src/tecm8-bios.asm"
 
 LongLineKeys:

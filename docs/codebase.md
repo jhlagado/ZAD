@@ -62,8 +62,8 @@ For the fastest orientation, read these files first:
 14. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
-    `src/editor-viewport.asm`, and `src/editor-interaction.asm`: the current
-    editor path.
+    `src/editor-viewport.asm`, `src/editor-cursor.asm`, and
+    `src/editor-interaction.asm`: the current editor path.
 16. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
@@ -569,6 +569,38 @@ window is resident, it also reloads `EditorNavNextPageBuffer` from backup and
 marks both restored sectors dirty so a later save writes the restored content
 back to the source file.
 
+### `src/editor-cursor.asm`
+
+`src/editor-cursor.asm` owns the editor cursor overlay and blink behavior.
+It keeps the public cursor entry points stable while removing that logic from
+the interaction monolith:
+
+- `EditorCursorReset`
+- `EditorCursorResetState`
+- `EditorCursorResetStateKeepSelection`
+- `EditorRenderCursor`
+- `EditorHideCursor`
+- `EditorCursorBlinkReset`
+- `EditorCursorBlinkStep`
+- `EditorInvalidateCursorOverlay`
+
+The cursor is a one-pixel XOR insertion bar drawn one pixel before the active
+6x6 cell, with a cooperative blink state.
+`EditorCursorBlinkReset` arms a 16-bit idle countdown after key handling
+renders the cursor. The live idle path first runs one `GlcdTileStep`; only when
+that reports no remaining queued display work does it call
+`EditorCursorBlinkStep`. When the countdown expires, blink hides or restores
+the cursor through the same dirty cell byte-range path used by ordinary cursor
+movement. The countdown is intentionally long enough to avoid the cursor
+blending into a grey high-speed flicker in Debug80. The proof-visible
+`EditorCursorBlinkToggleCount` lets emulator proofs assert that blink toggles do
+not use row or full-screen flushes.
+
+The cursor module still uses cursor state bytes currently stored with the
+interaction state block. Later Q5 decomposition can move those bytes beside the
+cursor routines once the larger block, line-edit, render, and prompt slices are
+also separated.
+
 ### `src/editor-interaction.asm`
 
 This is the early editor interaction loop. It supports both a NUL-terminated
@@ -670,18 +702,6 @@ paths.
 Horizontal cursor movement only redraws the cursor overlay cell range.
 Non-scrolling vertical cursor movement updates only the cursor overlay cell
 range; the gutter is reserved for selection and pending copy/move markers.
-
-The cursor is a one-pixel XOR insertion bar drawn one pixel before the active
-6x6 cell, with a cooperative blink state.
-`EditorCursorBlinkReset` arms a 16-bit idle countdown after key handling
-renders the cursor. The live idle path first runs one `GlcdTileStep`; only when
-that reports no remaining queued display work does it call
-`EditorCursorBlinkStep`. When the countdown expires, blink hides or restores
-the cursor through the same dirty cell byte-range path used by ordinary cursor
-movement. The countdown is intentionally long enough to avoid the cursor
-blending into a grey high-speed flicker in Debug80. The proof-visible
-`EditorCursorBlinkToggleCount` lets emulator proofs assert that blink toggles do
-not use row or full-screen flushes.
 
 Dirty row and cell transfers write ST7920 command/data ports directly and do
 not reissue the MON3 bitmap-mode setup call for every small transfer. The live

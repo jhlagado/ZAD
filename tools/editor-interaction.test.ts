@@ -11,23 +11,24 @@ function readRepoFile(path: string): string {
 
 test('editor interaction module exposes a key-stream runner', () => {
   const source = readRepoFile('src/editor-interaction.asm');
+  const cursorSource = readRepoFile('src/editor-cursor.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
   const recordSource = readRepoFile('src/tecm8-record.asm');
 
   assert.match(source, /^@EditorRunKeys:/m);
   assert.match(source, /^@EditorRunModifiedKey:/m);
   assert.match(source, /^@EditorRunLive:/m);
-  assert.match(source, /^@EditorCursorReset:/m);
-  assert.match(source, /^@EditorCursorResetState:/m);
-  assert.match(source, /^@EditorCursorResetStateKeepSelection:/m);
-  assert.match(source, /^@EditorRenderCursor:/m);
-  assert.match(source, /^@EditorHideCursor:/m);
-  assert.match(source, /^@EditorCursorBlinkReset:/m);
-  assert.match(source, /^@EditorCursorBlinkStep:/m);
+  assert.match(cursorSource, /^@EditorCursorReset:/m);
+  assert.match(cursorSource, /^@EditorCursorResetState:/m);
+  assert.match(cursorSource, /^@EditorCursorResetStateKeepSelection:/m);
+  assert.match(cursorSource, /^@EditorRenderCursor:/m);
+  assert.match(cursorSource, /^@EditorHideCursor:/m);
+  assert.match(cursorSource, /^@EditorCursorBlinkReset:/m);
+  assert.match(cursorSource, /^@EditorCursorBlinkStep:/m);
   assert.match(source, /^@EditorEnsureCursorVisible:/m);
   assert.match(source, /^@EditorEnsureCursorVisibleColumn:/m);
   assert.match(source, /^@EditorKeyRenderViewport:/m);
-  assert.match(source, /^@EditorInvalidateCursorOverlay:/m);
+  assert.match(cursorSource, /^@EditorInvalidateCursorOverlay:/m);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /^@EditorActionFromKey:/m);
   assert.match(source, /^@EditorInsertChar:/m);
@@ -107,15 +108,16 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_CURSOR_LEFT_LOWER/);
   assert.doesNotMatch(source, /CP\s+TECM8_EDITOR_PROOF_KEY_[A-Z_]+\n\s+JP\s+Z,EditorKey/);
   assert.doesNotMatch(source, /EditorActionPageDownLower/);
-  assert.match(source, /CALL\s+DisplayRenderCursorCell/);
-  assert.match(source, /CALL\s+DisplayEraseCursorCell/);
+  assert.match(cursorSource, /CALL\s+DisplayRenderCursorCell/);
+  assert.match(cursorSource, /CALL\s+DisplayEraseCursorCell/);
   assert.match(source, /TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS\s+\.equ\s+0x0600/);
-  assert.match(source, /@EditorCursorBlinkReset:\n\s+LD\s+HL,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS\n\s+LD\s+\(EditorCursorBlinkCounter\),HL/);
-  assert.match(source, /@EditorCursorBlinkStep:[\s\S]*?CALL\s+EditorHideCursor[\s\S]*?CALL\s+EditorRenderCursor/);
+  assert.match(cursorSource, /@EditorCursorBlinkReset:\n\s+LD\s+HL,TECM8_EDITOR_CURSOR_BLINK_IDLE_TICKS\n\s+LD\s+\(EditorCursorBlinkCounter\),HL/);
+  assert.match(cursorSource, /@EditorCursorBlinkStep:[\s\S]*?CALL\s+EditorHideCursor/);
+  assert.match(cursorSource, /@EditorCursorBlinkStep:[\s\S]*?CALL\s+EditorRenderCursor/);
   assert.match(source, /EditorCursorBlinkCounter:\n\s+\.db\s+0\n\nEditorCursorBlinkCounterHi:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorBlinkToggleCount:\n\s+\.db\s+0/);
-  assert.match(source, /CALL\s+DisplayRenderCursorCell[\s\S]*?LD\s+A,\(EditorCursorVisibleCol\)\n\s+LD\s+\(EditorCursorRenderedCol\),A/);
-  assert.match(source, /@EditorInvalidateCursorOverlay:\n\s+XOR\s+A\n\s+LD\s+\(EditorCursorRendered\),A\n\s+RET/);
+  assert.match(cursorSource, /CALL\s+DisplayRenderCursorCell[\s\S]*?LD\s+A,\(EditorCursorVisibleCol\)\n\s+LD\s+\(EditorCursorRenderedCol\),A/);
+  assert.match(cursorSource, /@EditorInvalidateCursorOverlay:\n\s+XOR\s+A\n\s+LD\s+\(EditorCursorRendered\),A\n\s+RET/);
   assert.match(source, /CALL\s+EditorRenderPageBuffer/);
   assert.match(source, /CALL\s+EditorViewportRenderRecordRow/);
   assert.match(source, /CALL\s+EditorViewportRenderRowMarker/);
@@ -135,8 +137,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /EditorCursorVisibleCol:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorCol:\n\s+\.db\s+0/);
   assert.match(source, /EditorCursorRendered:\n\s+\.db\s+0/);
-  assert.match(source, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorVisibleRow\),A\n\s+LD\s+\(EditorCursorVisibleCol\),A\n\s+LD\s+\(EditorNavCurrentRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?CALL\s+EditorNavResetViewport/);
-  assert.match(source, /CALL\s+EditorViewportSetCurrentRow/);
+  assert.match(cursorSource, /LD\s+\(EditorCursorRow\),A\n\s+LD\s+\(EditorCursorVisibleRow\),A\n\s+LD\s+\(EditorCursorVisibleCol\),A\n\s+LD\s+\(EditorNavCurrentRow\),A\n\s+LD\s+\(EditorCursorCol\),A[\s\S]*?CALL\s+EditorNavResetViewport/);
+  assert.match(cursorSource, /JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /^@EditorKeyRenderCursorRowMarkers:/m);
   assert.match(source, /^@EditorBlockSelectionBeginIfNeeded:/m);
   assert.match(source, /^@EditorBlockSelectionCapturePageAnchor:/m);

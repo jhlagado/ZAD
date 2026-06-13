@@ -9,14 +9,14 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 16 `.asm` modules, 11,451 lines.
+- Z80 source size: 19 `.asm` modules, 11,357 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 3,048 lines.
-  - `src/editor-storage-loader.asm`: 1,628 lines.
-  - `src/shell-commands.asm`: 1,380 lines.
+  - `src/editor-interaction.asm`: 2,845 lines.
+  - `src/editor-storage-loader.asm`: 1,463 lines.
+  - `src/shell-commands.asm`: 1,325 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
-- Current fresh source build: `npm run z80:size` reports 15,090 bytes emitted
-  at `4000h..7AF2h`, leaving 1,294 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 14,969 bytes emitted
+  at `4000h..7A79h`, leaving 1,415 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -388,6 +388,10 @@ Actions:
 
 - First move code without changing logic. Update include order and tests only as
   needed for symbol locations.
+  - Current checkpoint: cursor reset, render/erase, blink, and invalidate
+    routines now live in `src/editor-cursor.asm`; `src/editor-interaction.asm`
+    still owns the shared editor constants and state bytes during the
+    transition.
 - After movement is green, collapse duplicated cursor-reset and movement
   handler shapes into shared routines.
 - Move selection state out of viewport if it is not purely projection state.
