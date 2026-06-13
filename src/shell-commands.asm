@@ -506,7 +506,7 @@ ShellDispatchOk:
         LD      (ShellRequestPtr),DE
         LD      A,B
         LD      (ShellOutCap),A
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      (ShellRequestCommandPtr),HL
         LD      DE,ShellEditText
         CALL    ShellMatchCommand
@@ -517,7 +517,7 @@ ShellDispatchOk:
 
 ShellEditRequestCommandOk:
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      A,(HL)
         OR      A
         JR      Z,ShellEditRequestDefault
@@ -567,7 +567,7 @@ ShellEditRequestOk:
         LD      A,B
         LD      (ShellOutCap),A
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      (ShellRequestCommandPtr),HL
         LD      DE,ShellRunText
         CALL    ShellMatchCommand
@@ -578,7 +578,7 @@ ShellEditRequestOk:
 
 ShellRunRequestCommandOk:
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      A,(HL)
         OR      A
         JR      Z,ShellRunRequestDefault
@@ -629,7 +629,7 @@ ShellRunRequestOk:
         LD      A,B
         LD      (ShellOutCap),A
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      (ShellRequestCommandPtr),HL
         LD      DE,ShellAsmText
         CALL    ShellMatchCommand
@@ -686,7 +686,7 @@ ShellAsmRequestCommandOk:
         LD      (ShellOutCap),A
 
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      (ShellCommandPtr),HL
         LD      DE,ShellEditText
         CALL    ShellMatchCommand
@@ -717,7 +717,7 @@ ShellResolveAsm:
 ShellResolveRun:
         LD      (ShellAction),A
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      (ShellArgPtr),HL
         LD      HL,(ShellArgPtr)
         LD      A,(HL)
@@ -735,7 +735,7 @@ ShellResolveRun:
 @ShellResolveSourceCommand:
         LD      (ShellAction),A
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      (ShellArgPtr),HL
         LD      HL,(ShellArgPtr)
         LD      A,(HL)
@@ -870,18 +870,6 @@ ShellMatchCommandBad:
         SCF
         RET
 
-; ShellSkipSpaces —
-; Advance HL past ASCII spaces.
-;! in HL
-;! out HL,A,carry
-;! clobbers zero,sign,parity,halfCarry
-@ShellSkipSpaces:
-        LD      A,(HL)
-        CP      0x20
-        RET     NZ
-        INC     HL
-        JR      ShellSkipSpaces
-
 ; ShellCopyString —
 ; Copy NUL-terminated string from HL to DE with capacity B.
 ; Stores ShellWritePtr and ShellRemainingCap on success.
@@ -924,7 +912,7 @@ ShellCopyArgumentLoop:
         JR      ShellCopyArgumentLoop
 
 ShellCopyArgumentSpace:
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      A,(HL)
         OR      A
         JR      Z,ShellCopyArgumentEnd
@@ -977,7 +965,7 @@ ShellCopyAsmArgByte:
 
 ShellCopyAsmArgSpace:
         ; expects out HL
-        CALL    ShellSkipSpaces
+        CALL    Tecm8StringSkipSpaces
         LD      A,(HL)
         OR      A
         JR      Z,ShellCopyAsmArgEnd

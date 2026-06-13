@@ -272,6 +272,7 @@ Actions:
   - bounded byte matching with carry clear on match and carry set on mismatch,
   - bounded NUL-terminated string copy used behind shell and editor-navigation
     wrappers,
+  - ASCII-space skipping used by shell command parsing,
   - local filename lookup by returning the byte after the final slash in a
     NUL-terminated path.
 - Done: add `proofs/shared/tecm8-string-proof.asm` and

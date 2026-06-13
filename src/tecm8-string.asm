@@ -51,6 +51,18 @@ Tecm8StringCopyNulBoundedErr:
         SCF
         RET
 
+; Tecm8StringSkipSpaces -
+; Advance HL past ASCII spaces.
+;! in HL
+;! out HL,A,carry
+;! clobbers zero,sign,parity,halfCarry
+@Tecm8StringSkipSpaces:
+        LD      A,(HL)
+        CP      0x20
+        RET     NZ
+        INC     HL
+        JR      Tecm8StringSkipSpaces
+
 ; Tecm8StringFindLocalName -
 ; Return HL pointing at the byte after the last slash in a NUL-terminated path.
 ; If no slash is present, HL returns to the original input pointer.

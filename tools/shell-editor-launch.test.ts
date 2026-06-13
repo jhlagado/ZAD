@@ -131,9 +131,12 @@ test('shell command loop proves edit asm run sequence', () => {
   assert.match(source, /CP\s+SHELL_PROMPT_ERROR/);
   assert.match(source, /CALL\s+Tecm8StringFindLocalName/);
   assert.match(source, /CALL\s+Tecm8StringCopyNulBounded/);
+  assert.match(source, /CALL\s+Tecm8StringSkipSpaces/);
   assert.doesNotMatch(source, /^@ShellFindLocalName:/m);
+  assert.doesNotMatch(source, /^@ShellSkipSpaces:/m);
   assert.match(stringSource, /^@Tecm8StringFindLocalName:/m);
   assert.match(stringSource, /^@Tecm8StringCopyNulBounded:/m);
+  assert.match(stringSource, /^@Tecm8StringSkipSpaces:/m);
   assert.match(proof, /\.include\s+"..\/..\/src\/tecm8-string\.asm"/);
   assert.ok(
     proof.indexOf('@Start:') < proof.indexOf('.include "../../src/tecm8-string.asm"'),
