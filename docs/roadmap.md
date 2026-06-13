@@ -12,6 +12,39 @@ proof harness. The remaining validation is human-facing: run the manual Debug80
 script in the UI, then defer Phase 14 real-hardware checks until a TEC-1G is
 available.
 
+## System Vision: TECM8 As A ROM-Based OS
+
+TECM8 is more than the editor. The long-term shape is a small ROM-based
+operating system for the TEC-1G, initially layered on MON3 and later able to
+ship as a MON3-compatible TECM8 ROM profile.
+
+The shell is the resident system personality. It owns project state, command
+dispatch, tool launch/return, status/error display, and eventually bank
+selection. This is the Turbo Pascal-style flow TECM8 is aiming for:
+
+```text
+shell -> edit source -> return to shell -> asm -> run -> return to shell
+```
+
+The editor, assembler, runner, and later debugger should be treated as separate
+tool projects launched by the shell. The preferred implementation is ROM-based:
+the fixed ROM contains MON3-compatible BIOS services and the resident shell,
+while the 16K expansion window holds banked tools. The currently modeled system
+has a fixed 16K ROM plus two 16K expansion banks, giving a 48K first ROM budget
+with 32K addressable at one time. Future hardware may add more banks, but the
+current roadmap should prove the 48K model first.
+
+The MON3 direction is evolutionary, not a clean break. TECM8 should keep as much
+of MON3's useful hardware service surface as practical: SD/FAT32, matrix
+keyboard, serial, display primitives, bank control, sound/device helpers, and
+familiar service naming where it helps compatibility. Optional monitor UI,
+PATA-oriented storage paths, and GLCD terminal assumptions can be reduced or
+replaced as TECM8 takes over the shell and tool workflow.
+
+Roadmap consequence: editor quality work is not just cleanup. It is the first
+exercise in making a banked TECM8 tool: compact, contract-driven, and cleanly
+separated from resident shell/kernel services.
+
 ## Completed Foundation
 
 - TM8 host volume tooling exists for format, info, list, create, remove, rename,
@@ -586,6 +619,42 @@ Done criteria:
 Status: automated Debug80 milestone complete at commit `5bcfe80`. The manual
 Debug80 script remains the human acceptance check, and Phase 14 is intentionally
 skipped until a human can test real hardware.
+
+## Quality Phase: Bank-Ready Editor And Resident Shell Boundary
+
+Detailed execution plan: [Code Quality Execution Plan](code-quality-remediation-plan.md).
+
+Goal: turn the current proof-grown editor into a compact bank-ready tool while
+preserving the shell as the resident TECM8 operating-system personality.
+
+Work:
+
+- Baseline current Z80 size and verification commands.
+- Update stale docs/comments that make the shell look accidental or describe
+  superseded editor behavior.
+- Centralize shared equates for records, TM8 layout, keyboard modifiers,
+  display geometry, and memory names.
+- Extract record, string, path, and narrow TM8 helpers before splitting large
+  modules.
+- Decompose `editor-interaction.asm` into keymap, cursor, line-edit, block,
+  prompt, render, and orchestration modules.
+- Separate proof-only/editor-bank code from resident shell/kernel code.
+- Keep the shell as a standalone resident project: command loop, project state,
+  tool launch/return, and bank-call boundary.
+- Keep the editor as a standalone banked tool project with a 16K-bank pressure
+  target. Named block read/write remains optional future work.
+
+Done when:
+
+- The live editor path no longer carries unnecessary resident shell or
+  proof-only scaffolding.
+- The shell/editor boundary is documented as a resident-to-banked-tool call
+  boundary.
+- The editor remains Debug80-runnable and proof-green after each increment.
+- The post-refactor editor binary size is measured against the current 15,189
+  byte baseline.
+- The roadmap names the next tool project: resident shell completion or
+  assembler integration.
 
 ## Future Phase: Block Operations
 

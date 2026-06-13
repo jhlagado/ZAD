@@ -21,6 +21,10 @@ improved without destabilizing that progress.
   and Block Editing V1 automation.
 - Current roadmap position: Block Editing V1 needs manual Debug80 validation
   before named block read/write, character selections, or larger feature work.
+- System context: TECM8 is becoming a small ROM-based operating system. The
+  shell is the resident personality that owns project context and launches
+  tools; the editor, assembler, runner, and debugger are separate banked tool
+  projects.
 
 The audits are useful, but their line numbers and byte counts are snapshots.
 Every implementation phase below starts by re-grepping symbols and measuring the
@@ -47,6 +51,12 @@ current binary rather than trusting stale offsets.
 
 ## Audit Findings Triage
 
+The audit agents did not have the full TECM8 system context. In particular, the
+shell is not accidental baggage. It is the intended replacement for the classic
+monitor UI as the normal front door of the machine. Quality work should separate
+resident shell/kernel code from editor-bank code, not remove or minimize the
+shell as if it were merely a proof harness.
+
 Accepted findings:
 
 - `editor-interaction.asm` is too large and mixes key dispatch, cursor state,
@@ -57,8 +67,8 @@ Accepted findings:
   parallel names. Canonical equates are needed.
 - Record shifts, buffer clears, match-byte loops, and GLCD dirty-row masking are
   good candidates for shared routines.
-- `main.asm` currently links more shell machinery than the live editor path
-  needs.
+- `main.asm` currently links more shell machinery into the live editor image
+  than that editor bank should need.
 - Some docs and comments still describe earlier roadmap states.
 
 Findings to adjust before execution:
@@ -81,7 +91,8 @@ Deferred findings:
 - Banked overlays and MON3 BIOS replacement remain future architecture work.
   This quality plan can prepare module boundaries for overlays, but should not
   start bank switching.
-- TypeScript proof-runner deduplication is worthwhile, but Z80 organization is
+- TypeScript proof-runner deduplication is tracked separately in
+  `docs/typescript-code-quality.md`. It is worthwhile, but Z80 organization is
   the priority for this pass unless TS duplication blocks a Z80 refactor.
 - Named block read/write and anonymous clipboard-file behavior belong after
   Block Editing V1 manual validation.
@@ -244,13 +255,20 @@ Done when:
 
 ### Q6: Resident Product Compactness
 
-Goal: separate what the live editor needs from proof and future shell code.
+Goal: separate resident shell/kernel code from the live editor bank while
+preserving the shell as the TECM8 operating-system personality.
 
 Actions:
 
 - Split shell command resolution from the interactive shell program. The live
   editor entry should include the resolver and editor launch path, not proof
   stubs or unused prompt loops.
+- Treat the shell as its own project with resident APIs: project config,
+  command dispatch, tool launch/return, bank switching, and compact status/error
+  output.
+- Treat the editor as a banked tool project. Its code-quality target is to fit
+  comfortably in one 16K bank, calling resident services rather than owning
+  shell state.
 - Gate or separate proof-only entry points such as scripted key runners and
   proof counters if they are not needed in the resident image.
 - Review synchronous GLCD compatibility wrappers. Keep them where a blocking
@@ -262,6 +280,8 @@ Done when:
 
 - The live editor binary is measurably smaller or the retained resident code is
   explicitly justified.
+- The shell/editor boundary is documented as a resident-to-banked-tool call
+  boundary, not as a temporary proof convenience.
 - Proof-only behavior remains testable without bloating the live path.
 - `npm run check` and the manual Debug80 image path still work.
 
@@ -277,6 +297,9 @@ Actions:
 - Update `docs/roadmap.md` with the completed quality phases and the next
   feature milestone.
 - Run `npm run quality` and decide which TypeScript findings become future work.
+- Reconcile this plan with `docs/typescript-code-quality.md`: host-tooling
+  cleanup should follow the Z80 bank-readiness pass unless duplicated proof
+  harness code blocks the Z80 work.
 
 Done when:
 
@@ -315,7 +338,9 @@ and list the exact manual keys to test.
 The next practical quality goal is **Q0: Baseline And Guardrails**. It should be
 small and non-invasive: verify the current tree, record size, and decide the
 measurement surface before code starts moving. After that, proceed into Q1/Q2
-before attempting the larger `editor-interaction.asm` split.
+before attempting the larger `editor-interaction.asm` split. The architectural
+goal behind the quality pass is a bank-ready editor and a clean resident shell
+boundary, not a standalone editor detached from TECM8 OS.
 
 Do not start named block read/write, character selections, bank switching, or
 MON3 BIOS replacement as part of this quality pass.

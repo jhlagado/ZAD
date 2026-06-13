@@ -5,6 +5,13 @@ first customer-facing target is an early Turbo Pascal-style project workflow on
 the machine itself: a remembered main file, direct named-file editing, short
 `edit`/`asm`/`run` commands, and return to the prompt.
 
+The long-term product shape is a small TECM8 operating system layered first on
+MON3 and later on a MON3-compatible TECM8 BIOS profile. The shell is the system
+personality and front door: it owns the project context and launches banked ROM
+tools such as the editor, assembler, runner, and later debugger. MON3 remains
+the hardware service layer for now, while TECM8 gradually replaces optional
+monitor UI and peripheral code with resident shell and tool-support services.
+
 The preferred source extension is `.ASM`. `.Z80` remains supported for imported
 ASM80-era code, but TECM8 examples should lead with `.ASM`. The advanced goal is
 a source-aware debugger with source maps, breakpoints, stepping, and register
@@ -43,6 +50,7 @@ Start here:
 - [Debug80 Editor Session](debug80-editor-session.md)
 - [Memory and Code Quality Manifest](memory-and-code-quality.md)
 - [Code Quality Execution Plan](code-quality-remediation-plan.md)
+- [TypeScript Code Quality Report](typescript-code-quality.md)
 - [TECM8 BIOS API Draft](tecm8-bios-api.md)
 
 MON3 analysis is intentionally separated from the main TECM8 editor docs:

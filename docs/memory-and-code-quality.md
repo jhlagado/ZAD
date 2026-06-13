@@ -12,7 +12,7 @@ working assumption is:
 
 ```text
 64K address space
-16K MON3 ROM mapped at C000h-FFFFh
+16K MON3/TECM8 fixed ROM mapped at C000h-FFFFh
 16K expansion window at 8000h-BFFFh
 32K expansion potential, exposed as two 16K banks
 24K realistic working RAM target
@@ -24,10 +24,12 @@ other hardware will consume RAM. A GLCD bitmap, a TMS9918-style VDU buffer, or
 other graphics work areas can make the practical programming workspace feel
 closer to 24K than the raw address map suggests.
 
-Mass storage through SD/FAT32 and TM8 volumes helps by making overlays,
-scratch files, and reloadable tools practical. It does not remove the need to
-fit live code, data, editor state, buffers, and build state into a small working
-set.
+Mass storage through SD/FAT32 and TM8 volumes helps by making scratch files,
+project files, and exported artifacts practical. The preferred TECM8 direction
+is still ROM-based rather than CP/M-style disk-resident transient programs:
+editor, assembler, runner, and debugger code should live in fixed or banked ROM
+where possible, with disk used for user projects, backups, build output, maps,
+and optional large data.
 
 ## TEC-1G Memory Map
 
@@ -123,12 +125,16 @@ bit 7  CAPSLOCK
 The expansion window is the natural place to think about editor, assembler,
 runner, debugger, help text, and table overlays. It exposes 16K at a time, and
 the currently modeled bank select gives two 16K banks for 32K of expansion
-content.
+content. Together with the fixed 16K ROM, the practical first ROM budget is
+therefore 48K total, with only 32K addressable at one time.
 
 Some less central MON3 utilities may eventually be candidates for relocation or
 replacement if TECM8 controls a modified ROM image and needs that space. The
-first implementation should use MON3 services rather than duplicating working
-hardware drivers.
+initial target is not to discard MON3, but to keep its useful BIOS-like service
+surface while replacing optional monitor UI, PATA support, and unsuitable GLCD
+terminal assumptions with TECM8 resident shell and display/storage services.
+The first implementation should use MON3 services rather than duplicating
+working hardware drivers.
 
 Further expansion memory may exist later, but the first design should prove
 useful inside the classic machine model before depending on it.
@@ -142,38 +148,50 @@ banked tools. The callable service surface is tracked in
 
 ## Resident Versus Overlay Code
 
-The system should separate always-resident code from tool code that can be
-loaded, banked, or replaced.
+The system should separate always-resident code from banked tool code. TECM8's
+shell is not a disposable utility; it is the operating-system personality that
+replaces the classic monitor as the normal front door of the TEC-1G. The editor,
+assembler, runner, and debugger are separate projects launched by that shell.
 
 Likely resident code:
 
 ```text
+boot-to-shell entry
 shell prompt and command loop
 line input and command dispatch
 project config reader
 current volume/path state
 basic error/status display
 MON3 storage wrapper
+matrix keyboard and display service wrappers
 bank-call or overlay-call trampoline
 small shared string/path helpers
+stable TECM8 BIOS jump table
 ```
 
 Likely overlay or banked code:
 
 ```text
-source editor
-assembler
-program runner/loader
-source-aware debugger
+editor bank
+assembler bank
+program runner/loader bank or resident loader helper
+source-aware debugger bank
 help text and UI tables
 assembler opcode tables
 larger map/debug readers
 ```
 
-The design preference is that banked tools call resident services, not that the
-resident shell depends deeply on banked tool internals. That keeps the shell
-small and makes it possible to swap editor, assembler, runner, and debugger
-code without rewriting the control flow.
+The design preference is that banked tools call resident services through a
+stable API, not that the resident shell depends deeply on banked tool internals.
+That keeps the shell small and makes it possible to swap editor, assembler,
+runner, and debugger code without rewriting the control flow. It also lets a
+future trimmed MON3/TECM8 ROM boot straight into the shell while preserving the
+MON3-compatible service names that existing code and habits rely on.
+
+The first concrete bank target is the editor. It is already large enough to
+stress a 16K bank, so editor quality work should focus on proving whether a
+compact, bank-ready editor can fit cleanly before adding optional features such
+as named block read/write.
 
 ## RAM Discipline
 
