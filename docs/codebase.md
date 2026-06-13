@@ -62,10 +62,11 @@ For the fastest orientation, read these files first:
 14. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
-    `src/editor-viewport.asm`, `src/editor-record.asm`,
-    `src/editor-line-edit.asm`, `src/editor-block.asm`, `src/editor-keymap.asm`,
-    `src/editor-cursor.asm`, `src/editor-prompt.asm`, `src/editor-render.asm`, and
-    `src/editor-interaction.asm`: the current editor path.
+    `src/editor-block-state.asm`, `src/editor-viewport.asm`,
+    `src/editor-record.asm`, `src/editor-line-edit.asm`, `src/editor-block.asm`,
+    `src/editor-keymap.asm`, `src/editor-cursor.asm`, `src/editor-prompt.asm`,
+    `src/editor-render.asm`, and `src/editor-interaction.asm`: the current editor
+    path.
 16. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
@@ -435,9 +436,10 @@ used by ordinary in-line editor mutations.
 This module now owns the viewport-facing selection projection. It maps visible
 rows back to absolute page-line numbers, tests whether those lines fall inside
 the current ordinary selection, and layers pending copy or move source markers
-over the same rows. It is still only a viewport and marker surface: selection
-interval bytes and pending-source marker bytes remain here, while block-editing
-commands and mutation scratch live in `editor-block.asm`.
+over the same rows. It is still only a viewport and marker surface: persistent
+selection intervals and pending-source state live in `editor-block-state.asm`,
+with mutation in `editor-block.asm`; viewport keeps only normalized/projection
+scratch needed to answer visible-row marker queries.
 
 ### `src/editor-storage-loader.asm`
 
@@ -668,8 +670,8 @@ the direct GLCD tile layer. It contains:
   `EditorLogicalRowVisible`, and `EditorMarkDirty`.
 
 The module still calls editor-record helpers such as `EditorKeyCurrentRecord`
-and still reads cursor/block state that has not yet been moved into smaller
-ownership modules.
+and still reads cursor state that has not yet been moved beside the cursor
+module.
 
 ### `src/editor-record.asm`
 
@@ -708,6 +710,11 @@ line-editing, mutation-boundary, row-15-growth, and cross-page-join proofs.
 
 ### `src/editor-block.asm`
 
+`src/editor-block-state.asm` owns the persistent selection interval and pending
+copy/move source bytes. It is intentionally separate from `src/editor-block.asm`
+so viewport-only proofs can project markers without linking all block mutation
+code.
+
 `src/editor-block.asm` owns whole-line block behavior:
 
 - ordinary selection begin/update/clear over absolute line numbers.
@@ -718,9 +725,9 @@ line-editing, mutation-boundary, row-15-growth, and cross-page-join proofs.
 
 The viewport still owns marker projection state and helper queries such as
 `EditorBlockSelectionNormalize` and `EditorViewportMarkerForRow`. That split is
-intentional for this checkpoint: block behavior is out of the interaction loop,
-while the later state-ownership cleanup can move selection data without changing
-the editor's behavior.
+intentional for this checkpoint: persistent selection data is already outside
+the viewport, while viewport-local normalization scratch remains with the code
+that answers visible-row marker queries.
 
 ### `src/editor-interaction.asm`
 

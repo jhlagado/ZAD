@@ -614,21 +614,6 @@ EditorViewportCurrentRow:
 EditorViewportCurrentPage:
         .db     0
 
-EditorBlockSelectionActive:
-        .db     0
-
-EditorBlockSelectionAnchorLo:
-        .db     0
-
-EditorBlockSelectionAnchorHi:
-        .db     0
-
-EditorBlockSelectionActiveLo:
-        .db     0
-
-EditorBlockSelectionActiveHi:
-        .db     0
-
 EditorBlockSelectionStartLo:
         .db     0
 
@@ -648,21 +633,6 @@ EditorBlockSelectionLineHi:
         .db     0
 
 EditorBlockSelectionVisibleRow:
-        .db     0
-
-EditorPendingBlockMode:
-        .db     0
-
-EditorPendingBlockStartLo:
-        .db     0
-
-EditorPendingBlockStartHi:
-        .db     0
-
-EditorPendingBlockEndLo:
-        .db     0
-
-EditorPendingBlockEndHi:
         .db     0
 
 EditorPendingBlockVisibleMode:

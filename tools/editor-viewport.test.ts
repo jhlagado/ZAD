@@ -11,6 +11,7 @@ function readRepoFile(path: string): string {
 
 test('editor viewport module exposes a source-record render entry point', () => {
   const source = readRepoFile('src/editor-viewport.asm');
+  const blockStateSource = readRepoFile('src/editor-block-state.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
 
   assert.match(source, /^@EditorViewportRender:/m);
@@ -41,14 +42,22 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /EditorViewportTopRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorViewportColOffset:\n\s+\.db\s+0/);
   assert.match(source, /EditorViewportCurrentPage:\n\s+\.db\s+0/);
-  assert.match(source, /EditorBlockSelectionActive:\n\s+\.db\s+0/);
-  assert.match(source, /EditorBlockSelectionAnchorLo:\n\s+\.db\s+0/);
-  assert.match(source, /EditorBlockSelectionAnchorHi:\n\s+\.db\s+0/);
-  assert.match(source, /EditorBlockSelectionActiveLo:\n\s+\.db\s+0/);
-  assert.match(source, /EditorBlockSelectionActiveHi:\n\s+\.db\s+0/);
-  assert.match(source, /EditorPendingBlockMode:\n\s+\.db\s+0/);
-  assert.match(source, /EditorPendingBlockStartLo:\n\s+\.db\s+0/);
-  assert.match(source, /EditorPendingBlockEndLo:\n\s+\.db\s+0/);
+  for (const stateByte of [
+    'EditorBlockSelectionActive',
+    'EditorBlockSelectionAnchorLo',
+    'EditorBlockSelectionAnchorHi',
+    'EditorBlockSelectionActiveLo',
+    'EditorBlockSelectionActiveHi',
+    'EditorPendingBlockMode',
+    'EditorPendingBlockStartLo',
+    'EditorPendingBlockEndLo',
+  ]) {
+    assert.match(blockStateSource, new RegExp(`${stateByte}:\\n\\s+\\.db\\s+0`));
+    assert.doesNotMatch(source, new RegExp(`${stateByte}:\\n\\s+\\.db\\s+0`));
+  }
+  assert.match(source, /EditorBlockSelectionStartLo:\n\s+\.db\s+0/);
+  assert.match(source, /EditorBlockSelectionVisibleRow:\n\s+\.db\s+0/);
+  assert.match(source, /EditorPendingBlockVisibleMode:\n\s+\.db\s+0/);
   assert.match(source, /EditorRecordBasePtr:\n\s+\.dw\s+0/);
   assert.match(source, /CALL\s+EditorViewportTopRecordPtr/);
   assert.match(source, /LD\s+A,\(EditorViewportColOffset\)/);
@@ -88,6 +97,7 @@ test('editor viewport proof builds records and renders through the display model
 
   assert.match(source, /CALL\s+EditorViewportRender/);
   assert.match(source, /\.include\s+"..\/..\/src\/editor-viewport\.asm"/);
+  assert.match(source, /\.include\s+"..\/..\/src\/editor-block-state\.asm"/);
   assert.match(source, /EditorSourceRecords:/);
   assert.match(source, /\.db\s+9,"ORG 4000H"\n\s+\.ds\s+22/);
 });
@@ -114,6 +124,7 @@ test('editor viewport metadata-record proof is wired into package checks', () =>
   assert.match(packageJson, /"proof:display:editor-viewport:metadata-record"/);
   assert.match(packageJson, /proof:display:editor-viewport:metadata-record/);
   assert.match(source, /CALL\s+EditorViewportRender/);
+  assert.match(source, /\.include\s+"..\/..\/src\/editor-block-state\.asm"/);
   assert.match(source, /\.db\s+0xA8,"META ROW"/);
   assert.match(source, /\.db\s+0xFF,"ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"/);
 });

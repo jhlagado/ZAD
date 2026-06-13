@@ -71,7 +71,7 @@ These are strengths to preserve through refactoring:
                                               └───────────────┘
 ```
 
-**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-record → editor-line-edit → editor-block → editor-keymap → editor-cursor → editor-prompt → editor-render → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
+**Include order in proofs and `main.asm`:** glcd-tile → display-model → editor-block-state → editor-viewport → editor-storage-loader → editor-navigation → editor-interaction → editor-record → editor-line-edit → editor-block → editor-keymap → editor-cursor → editor-prompt → editor-render → shell-* → tecm8-bios. This order is consistent across ~25 proofs but **always pulls the full stack**, even for proofs that only need viewport rendering.
 
 ---
 
@@ -131,11 +131,18 @@ Three namespaces define the same screen:
 
 Drift risk is real; this is maintenance debt, not just bytes.
 
-### 6. Block-editing state split across modules
+### 6. Block-editing projection remains split from mutation
 
-**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** now lives in `editor-block.asm`, with line mutation isolated in `editor-line-edit.asm`, status-line prompt control flow isolated in `editor-prompt.asm`, and display scheduling isolated in `editor-render.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`).
+Persistent block state now lives outside viewport in `editor-block-state.asm`
+(selection interval and pending copy/move source), while mutation lives in
+`editor-block.asm`. Viewport keeps marker projection scratch because it answers
+the visible-row question for display rendering. Line mutation is isolated in
+`editor-line-edit.asm`, status-line prompt control flow is isolated in
+`editor-prompt.asm`, and display scheduling is isolated in `editor-render.asm`.
+Viewport also holds **prompt flags** (`EditorPromptActive`).
 
-This violates single ownership and makes multi-page block editing (future) harder.
+The remaining split is intentional for now but should be watched as block editing
+becomes multi-page: viewport should not grow back into the owner of block policy.
 
 ### 7. `glcd-tile.asm` dirty-bit boilerplate
 
@@ -270,7 +277,7 @@ Execute **incrementally**; run `npm run check` (or targeted proof npm scripts) a
 | Step | Action | Gate |
 |------|--------|------|
 | D1 | Retire `EditorNavDirty`; add `EditorNavIsDirty` | page-write, window-save proofs |
-| D2 | Move block **state** from viewport to `editor-block.asm` (viewport keeps projection only) | selection proof |
+| D2 | Done: move block **state** from viewport to `editor-block-state.asm` (viewport keeps projection only) | selection proof |
 | D3 | Delete or wire `EditorKeyDirtyPageBlocked` | update `editor-interaction.test.ts` |
 | D4 | Update `docs/editor-design.md` § Sector-Edge Editing Policy and `docs/codebase.md` L549 | doc review only |
 | D5 | Fix stale comments (“left for B6”, “not an editor”) | — |
@@ -307,7 +314,8 @@ editor-navigation.asm     → editor-storage-loader, editor-viewport
 editor-line-edit.asm      → editor-record, editor-navigation
 editor-cursor.asm         → display-model, glcd-tile
 editor-render.asm         → editor-cursor, editor-viewport, glcd-tile
-editor-block.asm          → editor-record, editor-viewport
+editor-block-state.asm    → data only
+editor-block.asm          → editor-block-state, editor-record, editor-viewport
 editor-keys.asm           → editor-navigation, editor-interaction glue
 editor-interaction.asm    → keys, block, render, navigation (orchestration)
 shell-resolver.asm        → project-config-loader

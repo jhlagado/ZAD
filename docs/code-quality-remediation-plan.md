@@ -9,7 +9,7 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 25 `.asm` modules, 11,369 lines.
+- Z80 source size: 26 `.asm` modules, 11,371 lines.
 - Largest files:
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-commands.asm`: 1,325 lines.
@@ -382,8 +382,9 @@ Target ownership:
   record-operation scratch state shared by line-edit and block-edit paths.
 - `src/editor-line-edit.asm`: character insert/delete, split, join, fixed-record
   mutation.
-- `src/editor-block.asm`: ordinary selection, pending copy/move source, paste,
-  replace, delete, and block marker state.
+- `src/editor-block-state.asm`: persistent ordinary selection and pending
+  copy/move source bytes.
+- `src/editor-block.asm`: paste, replace, delete, and mutation scratch.
 - `src/editor-prompt.asm`: status-line prompts and modal yes/no handling.
 - `src/editor-render.asm`: dirty render policy that connects editor state to
   viewport/display scheduling.
@@ -409,14 +410,15 @@ Actions:
     `src/editor-record.asm`.
   - Current checkpoint: character insert/delete, split, join, row-15 growth, and
     cross-page join now live in `src/editor-line-edit.asm`.
-  - Current checkpoint: ordinary selection, pending copy/move source, paste,
-    replace, and delete now live in `src/editor-block.asm`; selection marker
-    projection state still lives in `src/editor-viewport.asm`.
+  - Current checkpoint: persistent ordinary selection and pending copy/move
+    source state now live in `src/editor-block-state.asm`; paste, replace, and
+    delete live in `src/editor-block.asm`; selection marker projection scratch
+    still lives in `src/editor-viewport.asm`.
 - After movement is green, collapse duplicated cursor-reset and movement
   handler shapes into shared routines.
-- Move selection state out of viewport if it is not purely projection state.
-  The viewport should answer "what marker appears on this visible row?", not
-  own the block editing model.
+- Done: move persistent selection and pending-source state out of viewport into
+  `src/editor-block-state.asm`. The viewport now answers "what marker appears on
+  this visible row?" while retaining only projection scratch.
 - Keep public entry names stable where proofs or docs use them; add wrappers
   during transition rather than broad rename churn.
 

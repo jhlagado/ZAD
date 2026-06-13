@@ -109,6 +109,7 @@ CopyRowTextLoop:
 
         .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
+        .include "../../src/editor-block-state.asm"
         .include "../../src/editor-viewport.asm"
         .include "../../src/tecm8-string.asm"
         .include "../../src/tecm8-storage.asm"

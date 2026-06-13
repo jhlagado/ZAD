@@ -75,6 +75,7 @@ MainFailed:
         .include "project-config-loader.asm"
         .include "glcd-tile.asm"
         .include "display-model.asm"
+        .include "editor-block-state.asm"
         .include "editor-viewport.asm"
         .include "editor-storage-loader.asm"
         .include "editor-navigation.asm"

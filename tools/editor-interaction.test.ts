@@ -18,6 +18,7 @@ test('editor interaction module exposes a key-stream runner', () => {
   const editorRecordSource = readRepoFile('src/editor-record.asm');
   const lineEditSource = readRepoFile('src/editor-line-edit.asm');
   const blockSource = readRepoFile('src/editor-block.asm');
+  const blockStateSource = readRepoFile('src/editor-block-state.asm');
   const equates = readRepoFile('src/tecm8-equates.asm');
   const recordSource = readRepoFile('src/tecm8-record.asm');
 
@@ -208,6 +209,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(blockSource, /EditorPendingBlockPasteMode:\n\s+\.db\s+0/);
   assert.match(blockSource, /EditorPendingBlockRowCount:\n\s+\.db\s+0/);
   assert.match(blockSource, /EditorPendingBlockDestRowCount:\n\s+\.db\s+0/);
+  assert.match(blockStateSource, /EditorBlockSelectionActive:\n\s+\.db\s+0/);
+  assert.match(blockStateSource, /EditorPendingBlockMode:\n\s+\.db\s+0/);
   assert.match(blockSource, /EditorPendingBlockPasteInsert:[\s\S]*?CALL\s+EditorPendingBlockRejectInsertOverlap[\s\S]*?CALL\s+EditorPendingBlockTailAvailable/);
   assert.match(blockSource, /EditorPendingBlockPasteReplace:[\s\S]*?CALL\s+EditorPendingBlockRejectReplaceOverlap[\s\S]*?CALL\s+EditorPendingBlockReplaceSameSize/);
   assert.doesNotMatch(source, /EditorKeyCopyBlock:[\s\S]*?CALL\s+EditorInvalidateCursorOverlay[\s\S]*?EditorKeyMoveBlock:/);
