@@ -62,8 +62,9 @@ For the fastest orientation, read these files first:
 14. `src/glcd-tile.asm` and `src/display-model.asm`: the current direct GLCD
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
-    `src/editor-viewport.asm`, `src/editor-cursor.asm`, and
-    `src/editor-interaction.asm`: the current editor path.
+    `src/editor-viewport.asm`, `src/editor-keymap.asm`,
+    `src/editor-cursor.asm`, and `src/editor-interaction.asm`: the current
+    editor path.
 16. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
     `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
@@ -600,6 +601,31 @@ The cursor module still uses cursor state bytes currently stored with the
 interaction state block. Later Q5 decomposition can move those bytes beside the
 cursor routines once the larger block, line-edit, render, and prompt slices are
 also separated.
+
+### `src/editor-keymap.asm`
+
+`src/editor-keymap.asm` owns translated key normalization and modified-command
+lookup. It keeps alphabetic navigation out of the editor: movement comes from
+matrix arrow key bytes, while Ctrl-modified printable letters are mapped to
+editor commands before printable insertion.
+
+The public entries are:
+
+- `EditorActionFromKey`: maps arrow keys, with Ctrl+ArrowUp and
+  Ctrl+ArrowDown converted to page actions.
+- `EditorModifiedCommandFromKey`: maps Ctrl-S, Ctrl-Q, Ctrl-Z, Ctrl-C,
+  Ctrl-X, Ctrl-V, and Ctrl-Y into editor command bytes.
+- `EditorShouldIgnoreModifiedPrintable`: suppresses unknown Ctrl-modified
+  printable letters so a failed command chord does not insert text.
+
+The keymap module still reads `EditorPendingChar` and `EditorPendingModifier`
+from the interaction state block. That keeps this checkpoint behavior-only and
+avoids moving shared state before the block, prompt, and line-edit modules have
+their own ownership boundaries. The source-level contract is pinned by
+`tools/editor-interaction.test.ts`, and the live editor acceptance proofs now
+include `src/editor-keymap.asm` before `src/editor-cursor.asm` and
+`src/editor-interaction.asm`, so the storage-backed editor runners exercise the
+same normalized command path as the real session target.
 
 ### `src/editor-interaction.asm`
 
