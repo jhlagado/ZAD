@@ -125,10 +125,7 @@ EditorListCatalogEntry:
         POP     BC
         RET     C
 
-        PUSH    DE
-        LD      DE,TM8_CATALOG_ENTRY
-        ADD     HL,DE
-        POP     DE
+        CALL    Tecm8StorageAdvanceCatalogEntryPtr
         DJNZ    EditorListCatalogEntry
 
         CALL    Tecm8StorageAdvanceSectorOffset

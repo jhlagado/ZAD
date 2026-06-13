@@ -117,6 +117,30 @@ Tecm8StorageCoreSuperErr:
         POP     DE
         RET
 
+; Tecm8StorageAdvancePrefixEntryPtr -
+; Advance a prefix-entry pointer in HL while preserving the scan offset in DE.
+;! in DE,HL
+;! out DE,HL
+;! clobbers F
+@Tecm8StorageAdvancePrefixEntryPtr:
+        PUSH    DE
+        LD      DE,TM8_PREFIX_ENTRY
+        ADD     HL,DE
+        POP     DE
+        RET
+
+; Tecm8StorageAdvanceCatalogEntryPtr -
+; Advance a catalog-entry pointer in HL while preserving the scan offset in DE.
+;! in DE,HL
+;! out DE,HL
+;! clobbers F
+@Tecm8StorageAdvanceCatalogEntryPtr:
+        PUSH    DE
+        LD      DE,TM8_CATALOG_ENTRY
+        ADD     HL,DE
+        POP     DE
+        RET
+
 ; Tecm8StorageBlockToOffset —
 ; Convert a 4K TM8 block number in HL to MON3 HLDE byte offset.
 ;! in HL

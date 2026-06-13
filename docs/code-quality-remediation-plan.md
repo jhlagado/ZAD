@@ -334,6 +334,14 @@ Actions:
   remain local where the caller does not need `DE` preserved or is writing a
   sector. This reduced the live Debug80 image to 14,964 bytes, leaving 1,420
   bytes in the current 16K bank.
+- Done: add `Tecm8StorageAdvancePrefixEntryPtr` and
+  `Tecm8StorageAdvanceCatalogEntryPtr` for table-entry walks that must preserve
+  the current scan offset in `DE`. This replaces both duplicated preserved-add
+  sequences and older scratch-`DE` entry advances in project config and editor
+  storage. The new `editor-nonfirst-catalog-save-proof` seeds a preceding
+  `/src/first.asm` catalog entry and proves `/src/main.asm` still saves back to
+  the correct catalog entry. This leaves the live Debug80 image at 14,966 bytes,
+  with 1,418 bytes free in the current 16K bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

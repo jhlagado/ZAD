@@ -81,10 +81,14 @@ test('editor storage loader finds /src/main.asm through TM8 prefix and catalog t
   assert.match(storageSource, /^@Tecm8StorageValidateCoreSuperblock:/m);
   assert.match(storageSource, /^@Tecm8StorageAdvanceSectorOffset:/m);
   assert.match(storageSource, /^@Tecm8StorageReadSectorPreserveOffset:/m);
+  assert.match(storageSource, /^@Tecm8StorageAdvancePrefixEntryPtr:/m);
+  assert.match(storageSource, /^@Tecm8StorageAdvanceCatalogEntryPtr:/m);
   assert.match(source, /LD\s+\(EditorLoadFirstBlock\),DE/);
   assert.match(source, /CALL\s+Tecm8StorageBlockToOffset/);
   assert.match(source, /CALL\s+Tecm8StorageAdvanceSectorOffset/);
   assert.match(source, /CALL\s+Tecm8StorageReadSectorPreserveOffset/);
+  assert.match(source, /CALL\s+Tecm8StorageAdvancePrefixEntryPtr/);
+  assert.match(source, /CALL\s+Tecm8StorageAdvanceCatalogEntryPtr/);
   assert.doesNotMatch(source, /@EditorLoadBlockToOffset:/);
 });
 
@@ -172,12 +176,16 @@ test('storage-backed editor viewport runner verifies storage records and GLCD ou
   assert.match(packageJson, /"proof:display:editor-viewport:storage:invalid-page"/);
   assert.match(packageJson, /"proof:display:editor-viewport:storage:small-file"/);
   assert.match(packageJson, /"proof:display:editor-page-write"/);
+  assert.match(packageJson, /"proof:display:editor-nonfirst-catalog-save"/);
   assert.match(packageJson, /proof:display:editor-viewport:storage/);
   assert.match(packageJson, /proof:display:editor-page-write/);
+  assert.match(packageJson, /proof:display:editor-nonfirst-catalog-save/);
   assert.match(runner, /importFileIntoVolumeImage\(volume, '\/src\/main\.asm', sourceRecords\)/);
   assert.doesNotMatch(runner, /importFileIntoVolumeImage\(volume, '\/src\/\.main\.asm\.b', sourceRecords\)/);
   assert.match(runner, /editor-page-write-proof/);
+  assert.match(runner, /editor-nonfirst-catalog-save-proof/);
   assert.match(runner, /verifyEditorPageWriteProof/);
+  assert.match(runner, /verifyEditorNonFirstCatalogSaveProof/);
   assert.match(runner, /DirtyAfterNoopDelete/);
   assert.match(runner, /DirtyAfterNoopSplit/);
   assert.match(runner, /DirtyAfterNoopInsert/);

@@ -121,8 +121,7 @@ ProjectLoadCatalogEntry:
         CP      PROJECT_LOAD_ERR_BLOCK
         RET     Z
 
-        LD      DE,TM8_CATALOG_ENTRY
-        ADD     HL,DE
+        CALL    Tecm8StorageAdvanceCatalogEntryPtr
         DJNZ    ProjectLoadCatalogEntry
 
         CALL    Tecm8StorageAdvanceSectorOffset

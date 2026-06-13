@@ -203,6 +203,13 @@ const PROOF_CASES = {
     lines: makeSmallFileLines(),
     verify: verifyEditorPageWriteProof,
   },
+  'editor-nonfirst-catalog-save-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-nonfirst-catalog-save-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-nonfirst-catalog-save-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-nonfirst-catalog-save-fat32.img'),
+    lines: makeSmallFileLines(),
+    verify: verifyEditorNonFirstCatalogSaveProof,
+  },
   'editor-error-handling-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-error-handling-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-error-handling-proof-last-run.json'),
@@ -414,6 +421,9 @@ function ensureImage(proofCase: ProofCase): string {
   const rootRecords = encodeSourceRecords(makeRootLines());
   const notesRecords = encodeSourceRecords(makeNotesLines());
   let volume = createVolumeImage() as Buffer;
+  if (proofCase === PROOF_CASES['editor-nonfirst-catalog-save-proof']) {
+    volume = importFileIntoVolumeImage(volume, '/src/first.asm', encodeSourceRecords(['FIRST']));
+  }
   volume = importFileIntoVolumeImage(volume, '/src/main.asm', sourceRecords);
   volume = importFileIntoVolumeImage(volume, '/projects/demo/app.asm', appRecords);
   volume = importFileIntoVolumeImage(volume, '/root.asm', rootRecords);
@@ -529,7 +539,7 @@ function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; 
 }
 
 function runUntil(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: number): number {
-  const maxInstructions = 80_000_000;
+  const maxInstructions = 100_000_000;
   for (let i = 0; i < maxInstructions; i += 1) {
     if ((runtime.cpu.pc & 0xffff) === doneAddr) {
       return i;
@@ -1461,6 +1471,38 @@ function verifyEditorPageWriteProof(runtime: Runtime, _platformRuntime: Platform
   const backupText = backup.subarray(1, 1 + backupLength).toString('ascii');
   if (backupText !== 'SMALL 00') {
     throw new Error(`editor backup persisted record 0 "${backupText}", expected "SMALL 00"`);
+  }
+}
+
+function verifyEditorNonFirstCatalogSaveProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const catalogSector = readWord(runtime.hardware.memory, symbolAddress(symbols, 'CatalogSectorAfterOpen'));
+  if (catalogSector !== 0x6000) {
+    throw new Error(
+      `editor non-first catalog sector after open 0x${catalogSector.toString(16)}, expected 0x6000`,
+    );
+  }
+  const catalogEntry = readWord(runtime.hardware.memory, symbolAddress(symbols, 'CatalogEntryAfterOpen'));
+  if (catalogEntry !== 0x0040) {
+    throw new Error(
+      `editor non-first catalog entry after open 0x${catalogEntry.toString(16)}, expected 0x0040`,
+    );
+  }
+
+  const dirtyAfterSave = runtime.hardware.memory[symbolAddress(symbols, 'DirtyAfterSave')];
+  if (dirtyAfterSave !== 0) {
+    throw new Error(`editor non-first catalog save dirty after save ${dirtyAfterSave}, expected 0`);
+  }
+
+  const stored = readFileFromProofImage(PROOF_CASES['editor-nonfirst-catalog-save-proof'], '/src/main.asm');
+  const text = readSourceRecord(stored, 0, 0);
+  if (text !== 'ZSMALL 00') {
+    throw new Error(`editor non-first catalog save persisted record 0 "${text}", expected "ZSMALL 00"`);
+  }
+
+  const fixture = readFileFromProofImage(PROOF_CASES['editor-nonfirst-catalog-save-proof'], '/src/first.asm');
+  const fixtureText = readSourceRecord(fixture, 0, 0);
+  if (fixtureText !== 'FIRST') {
+    throw new Error(`editor non-first catalog fixture record 0 "${fixtureText}", expected "FIRST"`);
   }
 }
 

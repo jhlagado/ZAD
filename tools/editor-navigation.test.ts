@@ -128,7 +128,7 @@ test('editor navigation proof drives page state over storage-backed source', () 
   assert.match(runner, /editor-navigation-proof/);
   assert.match(runner, /verifyNavigationProof/);
   assert.match(runner, /EditorNavCacheHitCount/);
-  assert.match(runner, /maxInstructions = 80_000_000/);
+  assert.match(runner, /maxInstructions = 100_000_000/);
   assert.match(runner, /P8 LINE 07/);
   assert.match(packageJson, /"proof:display:editor-navigation"/);
   assert.match(packageJson, /proof:display:editor-navigation/);

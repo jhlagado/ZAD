@@ -155,6 +155,9 @@ layout constants, the `TECM8VOL` magic bytes,
 `Tecm8StorageValidateCoreSuperblock`, `Tecm8StorageAdvanceSectorOffset`, and
 `Tecm8StorageReadSectorPreserveOffset`, the narrow MON3 sector-scan helpers used
 by project config, editor storage, and file listing. It also owns
+`Tecm8StorageAdvancePrefixEntryPtr` and
+`Tecm8StorageAdvanceCatalogEntryPtr`, which advance table entry pointers while
+preserving the current scan offset in `DE`. It also owns
 `Tecm8StorageBlockToOffset`, the 4K TM8 block-number to MON3 `HLDE` byte-offset
 conversion used by both `src/project-config-loader.asm` and
 `src/editor-storage-loader.asm`. The code is intentionally format-level only:
@@ -818,6 +821,10 @@ The display proofs build up the editor stack incrementally:
   prompt yes/no state works through the key loop, and the pre-existing hidden
   backup file receives the previous on-disk page before the source page is
   replaced.
+- `proofs/display/editor-nonfirst-catalog-save-proof.asm`: opens and saves
+  `/src/main.asm` when another `/src` file appears earlier in the TM8 catalog,
+  proving catalog entry walks preserve the sector offset needed by later
+  write-back.
 - `proofs/display/editor-error-handling-proof.asm`: tests compact editor
   error-code to status-text mappings and records the last surfaced error
   diagnostic state.
@@ -894,15 +901,16 @@ glyph rows against the MON3 font table, and that the flush path reaches the
 visible GLCD image.
 
 `tools/run-editor-viewport-storage-proof.ts` is the main editor proof runner.
-It now includes `editor-line-editing-proof` and `editor-page-write-proof` cases
-and verifies not just result markers, but also source-record text, zeroed
-padding, cursor positions after split/join operations, dirty/prompt state, and
-persisted TM8 image bytes after save. Backup proof coverage starts without
-`/src/.main.asm.b`, verifies that the Z80 save path creates that hidden backup,
-and checks that resident-window saves preserve the old on-disk text for both
-the active page and dirty adjacent next page before the edited source pages are
-written. It also runs the selection and block-delete proofs, checking visible
-marker state, selected-row intervals, paste reshaping and prompted delete
+It now includes `editor-line-editing-proof`, `editor-page-write-proof`, and
+`editor-nonfirst-catalog-save-proof` cases and verifies not just result markers,
+but also source-record text, zeroed padding, cursor positions after split/join
+operations, dirty/prompt state, and persisted TM8 image bytes after save. Backup
+proof coverage starts without `/src/.main.asm.b`, verifies that the Z80 save
+path creates that hidden backup, and checks that resident-window saves preserve
+the old on-disk text for both the active page and dirty adjacent next page
+before the edited source pages are written. It also runs the selection and
+block-delete proofs, checking visible marker state, selected-row intervals,
+paste reshaping and prompted delete
 behavior through the same storage-backed editor path.
 
 `tools/run-debug80-editor-session.ts` is the milestone runner for the first

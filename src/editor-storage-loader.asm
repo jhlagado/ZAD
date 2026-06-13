@@ -477,8 +477,7 @@ EditorLoadPrefixEntry:
         POP     BC
         RET     NC
 
-        LD      DE,TM8_PREFIX_ENTRY
-        ADD     HL,DE
+        CALL    Tecm8StorageAdvancePrefixEntryPtr
         DJNZ    EditorLoadPrefixEntry
 
         CALL    Tecm8StorageAdvanceSectorOffset
@@ -550,8 +549,7 @@ EditorLoadCatalogEntryMiss:
         CP      EDITOR_LOAD_ERR_PAGE
         JP      Z,EditorLoadReturnErr
 
-        LD      DE,TM8_CATALOG_ENTRY
-        ADD     HL,DE
+        CALL    Tecm8StorageAdvanceCatalogEntryPtr
         DJNZ    EditorLoadCatalogEntry
 
         CALL    Tecm8StorageAdvanceSectorOffset
@@ -798,10 +796,7 @@ EditorCreateFreeCatalogEntry:
         LD      A,(HL)
         OR      A
         JR      Z,EditorCreateFreeCatalogFound
-        PUSH    DE
-        LD      DE,TM8_CATALOG_ENTRY
-        ADD     HL,DE
-        POP     DE
+        CALL    Tecm8StorageAdvanceCatalogEntryPtr
         DJNZ    EditorCreateFreeCatalogEntry
 
         CALL    Tecm8StorageAdvanceSectorOffset
@@ -861,10 +856,7 @@ EditorCreateFileIdEntry:
         DEC     HL
 
 EditorCreateFileIdAdvance:
-        PUSH    DE
-        LD      DE,TM8_CATALOG_ENTRY
-        ADD     HL,DE
-        POP     DE
+        CALL    Tecm8StorageAdvanceCatalogEntryPtr
         DJNZ    EditorCreateFileIdEntry
 
         CALL    Tecm8StorageAdvanceSectorOffset
@@ -897,10 +889,7 @@ EditorCreateCatalogEntry:
         LD      A,(HL)
         OR      A
         JR      Z,EditorCreateCatalogFound
-        PUSH    DE
-        LD      DE,TM8_CATALOG_ENTRY
-        ADD     HL,DE
-        POP     DE
+        CALL    Tecm8StorageAdvanceCatalogEntryPtr
         LD      A,(EditorCreateFileId)
         DJNZ    EditorCreateCatalogEntry
 
