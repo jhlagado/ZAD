@@ -620,10 +620,17 @@ async function main(): Promise<void> {
 
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 1 }, 200_000, 200_000); // Alt+V
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pasteModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const pasteTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
     const pendingAfterPaste = readRuntimeByte(runtime, pendingBlockModeAddr);
     const selectionAfterPaste = readRuntimeByte(runtime, selectionActiveAddr);
     const selectionAnchorAfterPaste = readRuntimeByte(runtime, selectionAnchorLoAddr);
     const selectionEndAfterPaste = readRuntimeByte(runtime, selectionActiveLoAddr);
+    if (pasteModifierBits !== 0x08 || (pasteTranslatedKey !== 0x76 && pasteTranslatedKey !== 0x56)) {
+      throw new Error(
+        `block smoke Alt-V modifier=0x${pasteModifierBits.toString(16)} translated=0x${pasteTranslatedKey.toString(16)}, expected alt-modified V/v`,
+      );
+    }
     if (
       pendingAfterPaste !== 0 ||
       selectionAfterPaste !== 1 ||
@@ -661,6 +668,8 @@ async function main(): Promise<void> {
       bootInstructions,
       copyModifierBits,
       copyTranslatedKey,
+      pasteModifierBits,
+      pasteTranslatedKey,
       savedRows,
     };
     writeFileSync(SUMMARY_PATH, `${JSON.stringify(summary, null, 2)}\n`);

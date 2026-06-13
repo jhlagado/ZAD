@@ -84,6 +84,8 @@ test('TECM8 BIOS GLCD display wrappers are real assembly entry points', () => {
   assert.match(source, /@BiosInputPollKey:/);
   assert.match(source, /CP\s+0x07\n\s+JR\s+Z,BiosInputPollKeyToggleCaps/);
   assert.match(source, /CP\s+3\n\s+JR\s+NZ,BiosInputPollKeyNoRaw/);
+  assert.match(source, /CALL\s+BiosInputIgnoreStandaloneModifier\n\s+RET\s+NC/);
+  assert.match(source, /^@BiosInputIgnoreStandaloneModifier:/m);
   assert.match(source, /CALL\s+MON3_MATRIX_SCAN_ASCII/);
   assert.match(source, /CALL\s+BiosInputNormalizeControlKey/);
   assert.match(source, /^@BiosInputNormalizeControlKey:/m);

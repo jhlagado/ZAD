@@ -209,10 +209,13 @@ BiosInputPollKeyNew:
         LD      A,E
         CP      0x07
         JR      Z,BiosInputPollKeyToggleCaps
+        CALL    BiosInputIgnoreStandaloneModifier
+        RET     NC
         LD      A,D
         CALL    BiosInputModifierFlags
         LD      (BiosInputModifierBits),A
         LD      A,(BiosInputRawSecondary)
+        LD      (BiosInputLastChordModifier),A
         LD      D,A
         LD      A,(BiosInputRawPrimary)
         LD      E,A
@@ -253,9 +256,42 @@ BiosInputPollKeyNoRaw:
         LD      A,0xFF
         LD      (BiosInputLastPrimary),A
         LD      (BiosInputLastSecondary),A
+        LD      (BiosInputLastChordModifier),A
         LD      D,0xFF
         LD      E,0xFF
         XOR     A
+        RET
+
+; BiosInputIgnoreStandaloneModifier -
+; Modifier keys pressed alone are state, not editor actions. Alt shares raw
+; primary 03h with ArrowUp in the current matrix path, so Alt is suppressed
+; only when it is the modifier left held after a real chord.
+;!      out       A,carry
+;!      clobbers  A,zero,sign,parity,halfCarry
+@BiosInputIgnoreStandaloneModifier:
+        LD      A,(BiosInputRawSecondary)
+        CALL    BiosInputModifierFlags
+        OR      A
+        JR      NZ,BiosInputIgnoreStandaloneModifierRealKey
+        LD      A,(BiosInputRawPrimary)
+        CP      3
+        JR      C,BiosInputIgnoreStandaloneModifierUnambiguous
+        JR      NZ,BiosInputIgnoreStandaloneModifierRealKey
+        LD      A,(BiosInputLastChordModifier)
+        CP      3
+        JR      NZ,BiosInputIgnoreStandaloneModifierRealKey
+
+BiosInputIgnoreStandaloneModifierUnambiguous:
+        CALL    BiosInputModifierFlags
+        OR      A
+        JR      Z,BiosInputIgnoreStandaloneModifierRealKey
+        LD      A,0xFF
+        LD      (BiosInputLastChordModifier),A
+        XOR     A
+        RET
+
+BiosInputIgnoreStandaloneModifierRealKey:
+        SCF
         RET
 
 ;!      in        A
@@ -328,6 +364,9 @@ BiosInputLastPrimary:
         .db     0xFF
 
 BiosInputLastSecondary:
+        .db     0xFF
+
+BiosInputLastChordModifier:
         .db     0xFF
 
 BiosInputRawPrimary:
