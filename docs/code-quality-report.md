@@ -2,7 +2,7 @@
 
 **Purpose:** Actionable plan for a coding agent to improve compactness, structure, and coherence without breaking the proof-driven editor milestone.
 
-**Scope:** 14 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) assembles to **15,225 bytes** at `0x4000`.
+**Scope:** 24 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,969 bytes** at `0x4000`, leaving **1,415 bytes** in the 16 KiB bank.
 
 **Date:** June 2026 (post editor milestone / block-editing V1 automation)
 
@@ -16,7 +16,7 @@ The main problem is **incremental growth without consolidation**. Features lande
 
 | Symptom | Primary location |
 |--------|-------------------|
-| One file doing too much | `editor-interaction.asm` (2,100 lines after keymap/cursor/prompt/render/record extraction) |
+| One file doing too much | `editor-interaction.asm` (1,506 lines after keymap/cursor/prompt/render/record/line-edit extraction) |
 | Copy-pasted TM8 I/O | `editor-storage-loader.asm` |
 | Parallel constant namespaces | `display-model.asm`, `glcd-tile.asm`, `editor-viewport.asm`, `editor-interaction.asm` |
 | Legacy state kept for compatibility | `EditorNavDirty` vs `EditorNavDirtySectors` |
@@ -79,7 +79,7 @@ These are strengths to preserve through refactoring:
 
 ### 1. `editor-interaction.asm` is a monolith (highest priority)
 
-**2,100 lines, still covering too many concerns in one file:**
+**1,506 lines, still covering too many concerns in one file:**
 
 | Approx. lines | Concern |
 |---------------|---------|
@@ -88,10 +88,10 @@ These are strengths to preserve through refactoring:
 | Extracted | Prompt dispatch now lives in `editor-prompt.asm` |
 | Extracted | Dirty render policy now lives in `editor-render.asm` |
 | Extracted | Editor-facing record helpers and line scratch now live in `editor-record.asm` |
+| Extracted | Character insert/delete, split, join, row-15 growth, and cross-page join now live in `editor-line-edit.asm` |
 | 55–596 | Key dispatch (`EditorRunKeys`, `EditorRunLive`, handlers) |
-| 620–1545 | Block selection, pending copy/move, paste, delete |
-| 1569–1948 | Record mutation: insert, backspace, split, join, cross-page |
-| 1950–2100 | Block deletion, remaining state, and strings |
+| ~620–1354 | Block selection, pending copy/move, paste, delete |
+| ~1356–1506 | Block deletion, remaining state, and strings |
 
 This is the single largest barrier to review, banking, and compactness. A Z80 editor **should** have a key loop module, but not one that also owns TM8 record algebra, block editing, cursor rendering, and GLCD dirty scheduling.
 
@@ -133,7 +133,7 @@ Drift risk is real; this is maintenance debt, not just bytes.
 
 ### 6. Block-editing state split across modules
 
-**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** mostly lives in `editor-interaction.asm`, with status-line prompt control flow isolated in `editor-prompt.asm` and display scheduling isolated in `editor-render.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`).
+**State** lives in `editor-viewport.asm` (selection interval, pending block mode, marker projection). **Mutation** mostly lives in `editor-interaction.asm`, with line mutation isolated in `editor-line-edit.asm`, status-line prompt control flow isolated in `editor-prompt.asm`, and display scheduling isolated in `editor-render.asm`. Viewport also holds **prompt flags** (`EditorPromptActive`).
 
 This violates single ownership and makes multi-page block editing (future) harder.
 
@@ -156,9 +156,8 @@ Unused in live path: `RunShellProgramEntry`, `RunShellProgramCycles`, `ReadShell
 | Document | Says | Code actually does |
 |----------|------|-------------------|
 | `docs/editor-design.md` L292–299 | V1 does **not** shift records across sectors | `EditorSplitFinalRow`, `EditorSplitPushLastRecordToNextPage`, `EditorJoinPreviousPageLine` implement cross-page split/join |
-| `docs/codebase.md` L549 | “Not yet sector-crossing insert/delete” | Same; proofs `editor-cross-page-join-proof`, `editor-row15-growth-proof` exist |
 | `display-model.asm` L4 | “display proof surface, not an editor” | Core production render path |
-| `editor-interaction.asm` L1154–1155 | “overlap/self cases left for B6” | B6 paste/replace is implemented (L1159+) |
+| Earlier block-edit notes | “overlap/self cases left for B6” | B6 paste/replace and overlap rejection are implemented |
 
 These are **echoes of earlier milestones** (roadmap Phase 2 is largely done in code but not fully reflected in design docs).
 
@@ -305,6 +304,7 @@ display-model.asm         → glcd-tile
 editor-viewport.asm       → display-model, editor-record
 editor-storage-loader.asm → tm8-path, tm8-catalog
 editor-navigation.asm     → editor-storage-loader, editor-viewport
+editor-line-edit.asm      → editor-record, editor-navigation
 editor-cursor.asm         → display-model, glcd-tile
 editor-render.asm         → editor-cursor, editor-viewport, glcd-tile
 editor-block.asm          → editor-record, editor-viewport
@@ -324,8 +324,9 @@ Copy this section directly to the implementing agent:
 
 ```text
 [ ] Read docs/azm-style-guide.md and docs/memory-and-code-quality.md
-[ ] Baseline: assemble main.asm, record 15225 bytes and symbol map
+[ ] Baseline: assemble main.asm, record 14969 bytes and symbol map
 [x] Phase A1: create editor-record.asm, move editor-facing record wrappers and line scratch
+[x] Phase B line-edit slice: create editor-line-edit.asm, move fixed-record insert/delete/split/join
 [ ] Phase A2: EditorShiftRecordsDown/Up — replace 9 duplicate loops
 [ ] Phase A3–A4: tm8-bytes.asm + tm8-path.asm — collapse 3× prefix-open blocks
 [ ] Phase A5: tecm8-display-equ.asm — unify geometry constants

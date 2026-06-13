@@ -63,8 +63,8 @@ For the fastest orientation, read these files first:
    cell layer and the structured screen renderer built on top of it.
 15. `src/editor-storage-loader.asm`, `src/editor-navigation.asm`,
     `src/editor-viewport.asm`, `src/editor-record.asm`,
-    `src/editor-keymap.asm`, `src/editor-cursor.asm`, `src/editor-prompt.asm`,
-    `src/editor-render.asm`, and
+    `src/editor-line-edit.asm`, `src/editor-keymap.asm`,
+    `src/editor-cursor.asm`, `src/editor-prompt.asm`, `src/editor-render.asm`, and
     `src/editor-interaction.asm`: the current editor path.
 16. `proofs/display/glcd-tile-proof.asm`,
     `proofs/display/editor-selection-proof.asm`, and
@@ -625,10 +625,10 @@ avoids moving shared state before the block, prompt, and line-edit modules have
 their own ownership boundaries. The source-level contract is pinned by
 `tools/editor-interaction.test.ts`, and the live editor acceptance proofs now
 include `src/editor-interaction.asm`, then `src/editor-record.asm`, then
-`src/editor-keymap.asm`, then `src/editor-cursor.asm`, then
-`src/editor-prompt.asm`, then `src/editor-render.asm`, so the storage-backed
-editor runners exercise the same normalized command path as the real session
-target.
+`src/editor-line-edit.asm`, then `src/editor-keymap.asm`, then
+`src/editor-cursor.asm`, then `src/editor-prompt.asm`, then
+`src/editor-render.asm`, so the storage-backed editor runners exercise the same
+normalized command path as the real session target.
 
 ### `src/editor-prompt.asm`
 
@@ -684,9 +684,25 @@ It owns:
   length temporaries. Some of this scratch is still shared by block-edit
   row-shift paths until block and line mutation have separate modules.
 
-The actual insert/delete/split/join and block row-shift mutation routines still
-live in `src/editor-interaction.asm`; this module only isolates their shared
-record addressing and scratch storage for later block and line-edit extraction.
+The actual insert/delete/split/join routines now live in
+`src/editor-line-edit.asm`. Block row-shift mutation remains in
+`src/editor-interaction.asm` until the block module extraction.
+
+### `src/editor-line-edit.asm`
+
+`src/editor-line-edit.asm` owns fixed-record text mutations for ordinary editor
+typing:
+
+- `EditorInsertChar`, `EditorBackspaceChar`, and `EditorDeleteChar`.
+- `EditorSplitLine`, including final-row split/growth into the adjacent resident
+  page.
+- `EditorJoinPreviousLine` and `EditorJoinPreviousPageLine`.
+
+This module is deliberately placed after `src/editor-record.asm` in every include
+stack because it uses the editor-facing record wrappers and shared line scratch
+state. It still calls navigation routines for cross-page split/join cases; those
+calls are part of the current resident editor model and are covered by the
+line-editing, mutation-boundary, row-15-growth, and cross-page-join proofs.
 
 ### `src/editor-interaction.asm`
 
@@ -719,8 +735,9 @@ through `BiosInputPollKey`. In command mode:
 - delete removes the character at the cursor, or prompts before deleting a
   selected whole-line block
 
-The public interface now exposes the primitive edit operations as separate
-entry points, the translated-key fixture runner, and the live polling loop:
+The editor interface now exposes the translated-key fixture runner and the live
+polling loop from `src/editor-interaction.asm`, plus primitive line-edit entries
+from `src/editor-line-edit.asm`:
 
 - `EditorRunLive`
 - `EditorInsertChar`

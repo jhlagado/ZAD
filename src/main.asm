@@ -81,6 +81,7 @@ MainFailed:
         .include "tecm8-record.asm"
         .include "editor-interaction.asm"
         .include "editor-record.asm"
+        .include "editor-line-edit.asm"
         .include "editor-keymap.asm"
         .include "editor-cursor.asm"
         .include "editor-prompt.asm"
