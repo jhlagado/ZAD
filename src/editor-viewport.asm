@@ -161,7 +161,7 @@ EditorViewportRowTextPtrLoop:
         RET
 
 ; EditorViewportSetCurrentRow -
-; Select the visible source row that should receive the current-line gutter mark.
+; Select the visible source row for cursor and viewport bookkeeping.
 ; Input: A = visible row (0-9)
 ;!      in        A
 ;!      out       A,carry
@@ -181,34 +181,8 @@ EditorViewportRowTextPtrLoop:
         CALL    EditorBlockSelectionVisibleRowSelected
         LD      C,TECM8_DISPLAY_MARKER_NONE
         OR      A
-        JR      Z,EditorViewportMarkerCheckCurrent
+        JR      Z,EditorViewportMarkerAddPending
         LD      C,TECM8_DISPLAY_MARKER_SELECTED
-
-EditorViewportMarkerCheckCurrent:
-        LD      A,(EditorBlockSelectionActive)
-        OR      A
-        JR      Z,EditorViewportMarkerCheckCursorRow
-        LD      A,(EditorViewportMarkerInput)
-        CALL    EditorBlockSelectionVisibleLine
-        LD      A,(EditorBlockSelectionActiveLo)
-        CP      L
-        JR      NZ,EditorViewportMarkerAddPending
-        LD      A,(EditorBlockSelectionActiveHi)
-        CP      H
-        JR      Z,EditorViewportMarkerCurrent
-        JR      EditorViewportMarkerAddPending
-
-EditorViewportMarkerCheckCursorRow:
-        LD      A,(EditorViewportMarkerInput)
-        LD      HL,EditorViewportCurrentRow
-        CP      (HL)
-        JR      Z,EditorViewportMarkerCurrent
-        JR      EditorViewportMarkerAddPending
-
-EditorViewportMarkerCurrent:
-        LD      A,C
-        OR      TECM8_DISPLAY_MARKER_CURRENT
-        LD      C,A
 
 EditorViewportMarkerAddPending:
         LD      A,(EditorViewportMarkerInput)

@@ -8,6 +8,7 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 PROOF_MOD_SHIFT  .equ     0x01
+PROOF_MOD_CTRL   .equ     0x02
 
 ;!      out       carry,zero
 ;!      clobbers  A,BC,DE,HL
@@ -55,6 +56,25 @@ PROOF_MOD_SHIFT  .equ     0x01
         CALL    GlcdTileDrainPending
         JP      C,ProofFailed
         CALL    AssertDeleteBlockYesRows
+        JP      C,ProofFailed
+
+        LD      A,3
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,0
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        LD      A,TECM8_EDITOR_KEY_CTRL_Y
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertDeleteCurrentLineRows
         JP      C,ProofFailed
 
         LD      A,PROOF_PASS
@@ -130,6 +150,50 @@ ProofFailedDone:
         OR      A
         JP      NZ,AssertFail
         LD      HL,ExpectedP0Line01
+        LD      DE,EditorNavPageBuffer
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line02
+        LD      DE,EditorNavPageBuffer + 32
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line03
+        LD      DE,EditorNavPageBuffer + (2 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      HL,ExpectedP0Line15
+        LD      DE,EditorNavPageBuffer + (14 * 32)
+        CALL    AssertRecordEquals
+        JP      C,AssertFail
+        LD      A,15
+        CALL    EditorKeyRecordAtRow
+        CALL    AssertRecordZeroed
+        JP      C,AssertFail
+        XOR     A
+        RET
+
+;!      out       A,carry,zero
+;!      clobbers  A,BC,DE,HL
+@AssertDeleteCurrentLineRows:
+        LD      A,(EditorBlockSelectionActive)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorPendingBlockMode)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorPromptActive)
+        OR      A
+        JP      NZ,AssertFail
+        LD      A,(EditorNavDirty)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorRow)
+        CP      1
+        JP      NZ,AssertFail
+        LD      A,(EditorCursorCol)
+        OR      A
+        JP      NZ,AssertFail
+        LD      HL,ExpectedP0Line00
         LD      DE,EditorNavPageBuffer
         CALL    AssertRecordEquals
         JP      C,AssertFail

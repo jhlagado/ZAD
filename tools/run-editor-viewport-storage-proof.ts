@@ -842,12 +842,12 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
     { symbol: 'MoveScreenCount', expected: 0 },
     { symbol: 'MovePageCount', expected: 0 },
     { symbol: 'MoveRowCount', expected: 0 },
-    { symbol: 'MoveMarkerCount', expected: 4 },
+    { symbol: 'MoveMarkerCount', expected: 0 },
     { symbol: 'MoveFullFlushCount', expected: 0 },
     { symbol: 'MoveRowFlushCount', expected: 0 },
-    { symbol: 'MoveCellFlushCount', expected: 7 },
-    { symbol: 'MoveCellFlushByteCount', expected: 36 },
-    { symbol: 'MoveStepCount', expected: 12 },
+    { symbol: 'MoveCellFlushCount', expected: 3 },
+    { symbol: 'MoveCellFlushByteCount', expected: 24 },
+    { symbol: 'MoveStepCount', expected: 6 },
     { symbol: 'InsertScreenCount', expected: 0 },
     { symbol: 'InsertPageCount', expected: 0 },
     { symbol: 'InsertRowCount', expected: 1 },
@@ -900,19 +900,18 @@ function verifyEditorDirtyRenderProof(runtime: Runtime, platformRuntime: Platfor
   }
 
   const screenDescriptor = symbolAddress(symbols, 'EditorScreenDescriptor');
-  const currentMarker = 2;
   const descriptorStride = 3;
   const row0Marker = runtime.hardware.memory[screenDescriptor];
   const row1Marker = runtime.hardware.memory[screenDescriptor + descriptorStride];
-  if (row0Marker !== currentMarker) {
-    throw new Error(`editor dirty render row 0 marker ${row0Marker}, expected current marker ${currentMarker}`);
+  if (row0Marker !== 0) {
+    throw new Error(`editor dirty render row 0 marker ${row0Marker}, expected no current-line marker`);
   }
   if (row1Marker !== 0) {
     throw new Error(`editor dirty render row 1 marker ${row1Marker}, expected no marker`);
   }
 
   const glcd = getGlcdBytes(platformRuntime);
-  assertGlcdGutterHighNibble(glcd, 0, 0x10);
+  assertGlcdGutterHighNibble(glcd, 0, 0x00);
   assertGlcdGutterHighNibble(glcd, 1, 0x00);
 
   const pageBuffer = symbolAddress(symbols, 'EditorNavPageBuffer');

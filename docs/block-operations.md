@@ -58,8 +58,7 @@ destination selection.
 Implementation note: TECM8's editor key namespace uses `0x03` for arrow up, and
 Ctrl-C is also ASCII control byte `03h`. The live editor therefore keeps the
 raw matrix primary key from `BiosInputPollKey` and only treats Ctrl-`03h` as
-copy when the raw key was not ArrowUp. Alt-C remains the simpler printable
-`C`/`c` plus Alt path.
+copy when the raw key was not ArrowUp.
 
 ## Key Bindings
 
@@ -68,26 +67,26 @@ Preferred bindings:
 ```text
 Shift+Up          extend selection upward by one line
 Shift+Down        extend selection downward by one line
-Shift+Alt+Up      extend selection upward by one page
-Shift+Alt+Down    extend selection downward by one page
+Shift+Ctrl+Up     extend selection upward by one page
+Shift+Ctrl+Down   extend selection downward by one page
 
-Ctrl-C / Alt-C    arm selected block for copy
-Ctrl-X / Alt-X    arm selected block for move
-Ctrl-V / Alt-V    paste/apply pending block
+Ctrl-C            arm selected block for copy
+Ctrl-X            arm selected block for move
+Ctrl-V            paste/apply pending block
 
 Delete            delete selected block
 Backspace         delete selected block, or remain ordinary line-join when no block is selected
 Esc               clear ordinary selection
 
-Ctrl-Q / Alt-Q    exit editor
-Ctrl-Z / Alt-Z    restore from backup
-Ctrl-W / Alt-W    write selected block to a named file, later
-Ctrl-R / Alt-R    read a named block file, later
+Ctrl-Q            exit editor
+Ctrl-Z            restore from backup
+Ctrl-Y            delete current line
+Ctrl-W            write selected block to a named file, later
+Ctrl-R            read a named block file, later
 ```
 
 `Ctrl-R` is intentionally freed for read-block by moving restore-from-backup to
-`Ctrl-Z`. `Ctrl-Q` and `Alt-Q` should be the exit commands; `Alt-X` can then
-mean move/cut once the keymap migration is complete.
+`Ctrl-Z`. `Ctrl-Q` is the exit command, and `Ctrl-X` means pending block move.
 
 ## Gutter Display
 
@@ -243,8 +242,8 @@ can be added later after the basic implementation is proven.
 
 ## Delete Behavior
 
-There is no separate `Alt-D` command in the first design. If a block is
-selected, `Delete` acts on that block.
+There is no separate delete command chord in the first design. If a block is
+selected or armed as a pending copy/move source, `Delete` acts on that block.
 
 Recommended behavior:
 
@@ -267,8 +266,8 @@ file-backed clipboard would feel broken.
 Planned commands:
 
 ```text
-Ctrl-W / Alt-W   write selected block to a named file
-Ctrl-R / Alt-R   read named block file at cursor or over selected destination
+Ctrl-W           write selected block to a named file
+Ctrl-R           read named block file at cursor or over selected destination
 ```
 
 These operations need filename entry or a later file picker. They should show
@@ -353,11 +352,12 @@ the editor will eventually need more than 256 lines.
 
 ### Phase B1: Keymap Cleanup
 
-- Move quit to `Ctrl-Q` and `Alt-Q`.
-- Move restore-from-backup to `Ctrl-Z` and `Alt-Z`.
-- Reserve `Ctrl-R`/`Alt-R` for read block.
-- Reserve `Ctrl-W`/`Alt-W` for write block.
-- Decide whether old aliases remain temporarily for manual testing.
+- Done: move quit to `Ctrl-Q`.
+- Done: move restore-from-backup to `Ctrl-Z`.
+- Reserve `Ctrl-R` for read block.
+- Reserve `Ctrl-W` for write block.
+- Done: remove former Alt command aliases now that Debug80 keyboard focus
+  capture is reliable enough for Control-key testing.
 
 Done when Debug80 live smoke covers the new quit and restore bindings.
 
@@ -367,8 +367,7 @@ Done when Debug80 live smoke covers the new quit and restore bindings.
   then normalizes to an inclusive range for operations.
 - Done: `Shift+Up` and `Shift+Down` extend or shrink the ordinary selection;
   one `Shift+Down` selects only the line the cursor just left.
-- Done in Phase B3: `Shift+Ctrl/Alt+Up` and `Shift+Ctrl/Alt+Down` page
-  selection.
+- Done in Phase B3: `Shift+Ctrl+Up` and `Shift+Ctrl+Down` page selection.
 - Done: selected visible rows render with the thin gutter marker.
 - Done: ordinary movement and editing clear the ordinary selection.
 
@@ -377,7 +376,7 @@ editing clearing, page-range selection, and pending source markers.
 
 ### Phase B3: Page Selection And Gutter Glyph Proofs
 
-- Add `Shift+Alt+Up`/`Shift+Alt+Down` page selection.
+- Done: add `Shift+Ctrl+Up`/`Shift+Ctrl+Down` page selection.
 - Add GLCD tile/display proofs for thin, thick, and sawtooth gutter glyphs.
 - Ensure selection display works through viewport movement.
 
@@ -386,8 +385,8 @@ proofs.
 
 ### Phase B4: Pending Copy/Move Source
 
-- Done: `Ctrl-C`/`Alt-C` arm a selected source as pending copy.
-- Done: `Ctrl-X`/`Alt-X` arm a selected source as pending move.
+- Done: `Ctrl-C` arms a selected source as pending copy.
+- Done: `Ctrl-X` arms a selected source as pending move.
 - Done: pending copy rows render with thick gutter markers.
 - Done: pending move rows render with sawtooth gutter markers.
 - Done: a second ordinary destination selection can coexist while the pending
@@ -399,7 +398,7 @@ copy source plus a second thin destination selection.
 
 ### Phase B5: Paste Insert
 
-- Done: `Ctrl-V`/`Alt-V` with no destination selection.
+- Done: `Ctrl-V` with no destination selection.
 - Done: insert the pending block before the current line.
 - Done: for copy mode, leave source intact.
 - Done: for move mode, remove source after insertion succeeds.
@@ -445,7 +444,7 @@ block.
 
 - Done: `debug80:editor-block-smoke` boots the editor in Debug80 matrix mode,
   selects lines with `Shift+Down`, arms copy with `Ctrl-C`, pastes with `Ctrl-V`,
-  saves with `Alt-S`, and validates the saved TM8 source records from the host
+  saves with `Ctrl-S`, and validates the saved TM8 source records from the host
   side.
 - Done: `acceptance:block-editing-v1` runs the selection/paste proof, the
   delete proof, the Debug80 block smoke, and prepares the manual Debug80 block
@@ -457,8 +456,8 @@ Done when Block Editing V1 is manually testable in Debug80.
 ### Deferred: Named Block Read/Write
 
 - Add filename prompt support if it is not already sufficient.
-- Implement `Ctrl-W`/`Alt-W` write selected block to named file.
-- Implement `Ctrl-R`/`Alt-R` read named block at cursor or over destination
+- Implement `Ctrl-W` write selected block to named file.
+- Implement `Ctrl-R` read named block at cursor or over destination
   selection.
 - Show slow-operation status feedback.
 
@@ -491,7 +490,7 @@ Manual script:
 4. Press Down three times to move to row 4.
 5. Press Ctrl-V. Row 0 should be copied before row 4 and the pasted row should
    become the thin selected destination block.
-6. Press Alt-X. The pasted rows should change to the sawtooth pending-move
+6. Press Ctrl-X. The pasted rows should change to the sawtooth pending-move
    gutter.
 7. Press Down a few rows, then Ctrl-V. The moved rows should reappear at the new
    position and the old source rows should close up.
@@ -501,6 +500,6 @@ Manual script:
 9. Select a block and press Delete. Answer N first; the block should remain.
 10. Press Delete again and answer Y; the selected whole-line block should be
    removed and following lines should shift up.
-11. Press Alt-S. The editor should show saving feedback and return with the
+11. Press Ctrl-S. The editor should show saving feedback and return with the
     edited rows still visible.
 ```

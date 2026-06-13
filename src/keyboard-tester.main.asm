@@ -184,7 +184,7 @@ KbdTestAppendCtrlLetter:
         JP      KbdTestAppendChar
 
 ; Compact names for non-printable/special keys.
-; U/D/L/R = arrows, B = backspace, T = tab, N = enter, E = escape, X = delete.
+; ^/>/</_ = arrows, B = backspace, T = tab, N = enter, E = escape, X = delete.
 ;!      in        A
 ;!      out       carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
@@ -211,19 +211,19 @@ KbdTestAppendCtrlLetter:
         JP      KbdTestAppendChar
 
 KbdTestAppendSpecialUp:
-        LD      A,"U"
+        LD      A,"^"
         JP      KbdTestAppendChar
 
 KbdTestAppendSpecialDown:
-        LD      A,"D"
+        LD      A,"_"
         JP      KbdTestAppendChar
 
 KbdTestAppendSpecialLeft:
-        LD      A,"L"
+        LD      A,"<"
         JP      KbdTestAppendChar
 
 KbdTestAppendSpecialRight:
-        LD      A,"R"
+        LD      A,">"
         JP      KbdTestAppendChar
 
 KbdTestAppendSpecialBackspace:

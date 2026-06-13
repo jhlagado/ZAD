@@ -18,7 +18,6 @@ TECM8_DISPLAY_GUTTER_ROWS           .equ    TECM8_DISPLAY_ROW_HEIGHT
 TECM8_DISPLAY_MAX_TEXT_CHARS        .equ    20
 TECM8_DISPLAY_MARKER_NONE           .equ    0
 TECM8_DISPLAY_MARKER_BREAKPOINT     .equ    1
-TECM8_DISPLAY_MARKER_CURRENT        .equ    2
 TECM8_DISPLAY_MARKER_SELECTED       .equ    4
 TECM8_DISPLAY_MARKER_COPY_SOURCE    .equ    8
 TECM8_DISPLAY_MARKER_MOVE_SOURCE    .equ    16
@@ -130,14 +129,8 @@ DisplayGutterCheckMoveSource:
 
 DisplayGutterCheckCopySource:
         BIT     3,C
-        JR      Z,DisplayGutterCheckCurrent
-        LD      A,0xC0
-        JR      DisplayGutterPatternReady
-
-DisplayGutterCheckCurrent:
-        BIT     1,C
         JR      Z,DisplayGutterCheckSelected
-        LD      A,0x10
+        LD      A,0xC0
         JR      DisplayGutterPatternReady
 
 DisplayGutterCheckSelected:

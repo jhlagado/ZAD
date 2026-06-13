@@ -62,7 +62,7 @@ test('editor viewport module exposes a source-record render entry point', () => 
   assert.match(source, /CALL\s+EditorPendingBlockVisibleRowMode/);
   assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_COPY_SOURCE/);
   assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_MOVE_SOURCE/);
-  assert.match(source, /OR\s+TECM8_DISPLAY_MARKER_CURRENT/);
+  assert.doesNotMatch(source, /OR\s+TECM8_DISPLAY_MARKER_CURRENT/);
   assert.match(source, /^@EditorViewportRenderRowMarker:/m);
   assert.match(source, /^@EditorViewportStoreDescriptorMarker:/m);
   assert.match(source, /EditorViewportRenderRowMarkerCount:\n\s+\.db\s+0/);
@@ -103,7 +103,6 @@ test('editor viewport proof is wired into package checks with content verificati
   assert.match(runner, /EditorRowText0/);
   assert.match(runner, /EditorRowText9/);
   assert.match(runner, /editor viewport proof copied/);
-  assert.match(runner, /editor viewport proof missing current-row gutter bits/);
   assert.match(runner, /editor viewport proof unexpected stale gutter bits/);
 });
 

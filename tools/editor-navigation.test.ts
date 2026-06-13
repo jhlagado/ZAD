@@ -121,7 +121,7 @@ test('editor navigation proof drives page state over storage-backed source', () 
 
   assert.match(proof, /CALL\s+EditorOpenMain/);
   assert.match(proof, /CALL\s+EditorPageDown/);
-  assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_UP\n\s+LD\s+B,TECM8_EDITOR_KEY_MOD_ALT\n\s+CALL\s+EditorRunModifiedKey/);
+  assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_UP\n\s+LD\s+B,TECM8_EDITOR_KEY_MOD_CTRL\n\s+CALL\s+EditorRunModifiedKey/);
   assert.match(proof, /LD\s+A,TECM8_EDITOR_KEY_ARROW_DOWN\n\s+LD\s+B,TECM8_EDITOR_KEY_MOD_CTRL\n\s+CALL\s+EditorRunModifiedKey/);
   assert.match(proof, /\.include\s+"..\/..\/src\/editor-navigation\.asm"/);
   assert.match(runner, /editor-navigation-proof/);

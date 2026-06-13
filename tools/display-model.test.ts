@@ -20,7 +20,6 @@ test('editor design documents the structured display model constants', () => {
     'TECM8_DISPLAY_Y_ORIGIN',
     'TECM8_DISPLAY_STATUS_ROW',
     'TECM8_DISPLAY_MARKER_BREAKPOINT',
-    'TECM8_DISPLAY_MARKER_CURRENT',
     'TECM8_DISPLAY_MARKER_COPY_SOURCE',
     'TECM8_DISPLAY_MARKER_MOVE_SOURCE',
   ]) {
@@ -104,7 +103,6 @@ test('structured GLCD proof calls the display model and renders markers', () => 
   assert.match(source, /CALL\s+GlcdTileFlushFull/);
   assert.match(source, /\.include\s+"..\/..\/src\/glcd-tile\.asm"/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_BREAKPOINT\b/);
-  assert.match(source, /\bTECM8_DISPLAY_MARKER_CURRENT\b/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_COPY_SOURCE\b/);
   assert.match(source, /\bTECM8_DISPLAY_MARKER_MOVE_SOURCE\b/);
   assert.match(source, /\.include\s+"..\/..\/src\/display-model\.asm"/);

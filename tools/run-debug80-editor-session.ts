@@ -574,6 +574,10 @@ async function main(): Promise<void> {
     const selectionAnchorLoAddr = symbolAddress(symbols, 'EditorBlockSelectionAnchorLo');
     const selectionActiveLoAddr = symbolAddress(symbols, 'EditorBlockSelectionActiveLo');
     const pendingBlockModeAddr = symbolAddress(symbols, 'EditorPendingBlockMode');
+    const pendingCharAddr = symbolAddress(symbols, 'EditorPendingChar');
+    const pendingModifierAddr = symbolAddress(symbols, 'EditorPendingModifier');
+    const mainDoneAddr = symbolAddress(symbols, 'MainDone');
+    const mainErrorAddr = symbolAddress(symbols, 'MainErrorMarker');
     const translatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedKey');
     const rawTranslatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedRawKey');
     const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
@@ -599,7 +603,11 @@ async function main(): Promise<void> {
     }
 
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 4, col: 6 }, 200_000, 200_000); // Ctrl+C
-    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    stepRuntime(runtime, platformRuntime);
+    const afterCopyPc = runUntilAnyPc(runtime, platformRuntime, [liveLoopAddr, mainDoneAddr], 20_000_000);
+    if (afterCopyPc === mainDoneAddr) {
+      throw new Error(`block smoke Ctrl-C exited editor error=0x${readRuntimeByte(runtime, mainErrorAddr).toString(16)}`);
+    }
     const copyModifierBits = runtime.hardware.memory[modifierBitsAddr];
     const copyTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
     const copyRawTranslatedKey = runtime.hardware.memory[rawTranslatedKeyAddr];
@@ -607,6 +615,10 @@ async function main(): Promise<void> {
     const copyRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
     const pendingAfterCopy = readRuntimeByte(runtime, pendingBlockModeAddr);
     const selectionAfterCopy = readRuntimeByte(runtime, selectionActiveAddr);
+    const selectionAnchorAfterCopy = readRuntimeByte(runtime, selectionAnchorLoAddr);
+    const selectionEndAfterCopy = readRuntimeByte(runtime, selectionActiveLoAddr);
+    const editorPendingCharAfterCopy = readRuntimeByte(runtime, pendingCharAddr);
+    const editorPendingModifierAfterCopy = readRuntimeByte(runtime, pendingModifierAddr);
     if (copyModifierBits !== 0x02 || copyTranslatedKey !== 0x03 || copyRawTranslatedKey !== 0x03 || copyRawPrimary === 0x03) {
       throw new Error(
         `block smoke Ctrl-C modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)} rawTranslated=0x${copyRawTranslatedKey.toString(16)} rawSecondary=0x${copyRawSecondary.toString(16)} rawPrimary=0x${copyRawPrimary.toString(16)}, expected ctrl-modified control-C with non-arrow raw primary`,
@@ -617,7 +629,7 @@ async function main(): Promise<void> {
       selectionAfterCopy !== 0
     ) {
       throw new Error(
-        `block smoke Ctrl-C pending=${pendingAfterCopy} selection=${selectionAfterCopy} modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)} rawTranslated=0x${copyRawTranslatedKey.toString(16)} rawSecondary=0x${copyRawSecondary.toString(16)} rawPrimary=0x${copyRawPrimary.toString(16)}, expected pending copy`,
+        `block smoke Ctrl-C pending=${pendingAfterCopy} selection=${selectionAfterCopy} range=${selectionAnchorAfterCopy}..${selectionEndAfterCopy} editorPending=0x${editorPendingCharAfterCopy.toString(16)}/0x${editorPendingModifierAfterCopy.toString(16)} modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)} rawTranslated=0x${copyRawTranslatedKey.toString(16)} rawSecondary=0x${copyRawSecondary.toString(16)} rawPrimary=0x${copyRawPrimary.toString(16)}, expected pending copy`,
       );
     }
 
@@ -658,7 +670,7 @@ async function main(): Promise<void> {
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 5, 'B0 LINE 04', 'block smoke row 5 after copy insert');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 6, 'B0 LINE 05', 'block smoke row 6 after copy insert');
 
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // Ctrl+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     if (runtime.hardware.memory[dirtyAddr] !== 0) {
       throw new Error(`block smoke dirty after save ${runtime.hardware.memory[dirtyAddr]}, expected 0`);
@@ -764,20 +776,20 @@ async function main(): Promise<void> {
     assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 00', 'rendered row 0 after Ctrl+ArrowUp');
     assertRuntimeCString(runtime, rowText9Addr, 'R0 LINE 09', 'rendered row 9 after Ctrl+ArrowUp');
     assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after Ctrl+ArrowUp');
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 6 }); // Alt+ArrowRight
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 6 }); // Ctrl+ArrowRight
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    const altModifierBits = runtime.hardware.memory[modifierBitsAddr];
-    const altRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
-    const altRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
-    const altTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const ctrlArrowModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const ctrlArrowRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+    const ctrlArrowRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
+    const ctrlArrowTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
     if (
-      altModifierBits !== 0x08 ||
-      altRawPrimary !== 0x06 ||
-      altRawSecondary !== 0x03 ||
-      altTranslatedKey !== 0x06
+      ctrlArrowModifierBits !== 0x02 ||
+      ctrlArrowRawPrimary !== 0x06 ||
+      ctrlArrowRawSecondary !== 0x01 ||
+      ctrlArrowTranslatedKey !== 0x06
     ) {
       throw new Error(
-        `live editor alt event modifier=0x${altModifierBits.toString(16)} raw=${altRawSecondary.toString(16)}/${altRawPrimary.toString(16)} translated=0x${altTranslatedKey.toString(16)}`,
+        `live editor ctrl event modifier=0x${ctrlArrowModifierBits.toString(16)} raw=${ctrlArrowRawSecondary.toString(16)}/${ctrlArrowRawPrimary.toString(16)} translated=0x${ctrlArrowTranslatedKey.toString(16)}`,
       );
     }
     tapMatrixKey(platformRuntime, runtime, 0, 7); // CapsLock toggles caps state, no editor action
@@ -806,27 +818,27 @@ async function main(): Promise<void> {
     if (dirtyAfterEdit !== 1) {
       throw new Error(`live editor dirty after z ${dirtyAfterEdit}, expected 1`);
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 4 }, 200_000, 200_000); // dirty Alt+ArrowDown within RAM window
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }, 200_000, 200_000); // dirty Ctrl+ArrowDown within RAM window
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const pageAfterDirtyPageDown = runtime.hardware.memory[currentPageAddr];
     const dirtyAfterDirtyPageDown = runtime.hardware.memory[dirtyAddr];
     if (pageAfterDirtyPageDown !== 1 || dirtyAfterDirtyPageDown !== 1) {
       throw new Error(
-        `live editor dirty Alt+ArrowDown page=${pageAfterDirtyPageDown} dirty=${dirtyAfterDirtyPageDown}, expected page=1 dirty=1`,
+        `live editor dirty Ctrl+ArrowDown page=${pageAfterDirtyPageDown} dirty=${dirtyAfterDirtyPageDown}, expected page=1 dirty=1`,
       );
     }
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after dirty Alt+ArrowDown');
-    assertRuntimeSourceRecord(runtime, pageBufferAddr, 9, 'R1 LINE 09', 'after dirty Alt+ArrowDown');
-    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after dirty Alt+ArrowDown');
-    assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 09', 'rendered row 9 after dirty Alt+ArrowDown');
-    assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after dirty Alt+ArrowDown');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after dirty Ctrl+ArrowDown');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 9, 'R1 LINE 09', 'after dirty Ctrl+ArrowDown');
+    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after dirty Ctrl+ArrowDown');
+    assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 09', 'rendered row 9 after dirty Ctrl+ArrowDown');
+    assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after dirty Ctrl+ArrowDown');
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }, 200_000, 200_000); // dirty Ctrl+ArrowUp back to edited page
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     const pageAfterDirtyPageUp = runtime.hardware.memory[currentPageAddr];
     const dirtyAfterDirtyPageUp = runtime.hardware.memory[dirtyAddr];
     if (pageAfterDirtyPageUp !== 0 || dirtyAfterDirtyPageUp !== 1) {
       throw new Error(
-        `live editor dirty Alt+ArrowUp page=${pageAfterDirtyPageUp} dirty=${dirtyAfterDirtyPageUp}, expected page=0 dirty=1`,
+        `live editor dirty Ctrl+ArrowUp page=${pageAfterDirtyPageUp} dirty=${dirtyAfterDirtyPageUp}, expected page=0 dirty=1`,
       );
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after dirty Ctrl+ArrowUp');
@@ -851,31 +863,27 @@ async function main(): Promise<void> {
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after Enter split');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 2, 'Rz0 LINE 01', 'after Enter split');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, 'R0 LINE 14', 'after Enter split');
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // Alt+S
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // Ctrl+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     const dirtyAfterSave = runtime.hardware.memory[dirtyAddr];
     const saveTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
     const saveModifierBits = runtime.hardware.memory[modifierBitsAddr];
-    if (
-      dirtyAfterSave !== 0 ||
-      (saveTranslatedKey !== 0x53 && saveTranslatedKey !== 0x73) ||
-      (saveModifierBits & 0x08) === 0
-    ) {
+    if (dirtyAfterSave !== 0 || saveTranslatedKey !== 0x13 || (saveModifierBits & 0x02) === 0) {
       throw new Error(
-        `live editor Alt-S save dirty=${dirtyAfterSave} modifier=0x${saveModifierBits.toString(16)} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 alt-modified S/s`,
+        `live editor Ctrl-S save dirty=${dirtyAfterSave} modifier=0x${saveModifierBits.toString(16)} translated=0x${saveTranslatedKey.toString(16)}, expected dirty=0 ctrl-save`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 0, col: 4 }, 200_000, 200_000); // Alt+ArrowDown
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }, 200_000, 200_000); // Ctrl+ArrowDown
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     const pageAfterSplitSaveDown = runtime.hardware.memory[currentPageAddr];
     if (pageAfterSplitSaveDown !== 1) {
-      throw new Error(`live editor page after saved split Alt+ArrowDown ${pageAfterSplitSaveDown}, expected 1`);
+      throw new Error(`live editor page after saved split Ctrl+ArrowDown ${pageAfterSplitSaveDown}, expected 1`);
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }, 200_000, 200_000); // Ctrl+ArrowUp
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     const pageAfterSplitSaveUp = runtime.hardware.memory[currentPageAddr];
     if (pageAfterSplitSaveUp !== 0) {
-      throw new Error(`live editor page after saved split Alt+ArrowUp ${pageAfterSplitSaveUp}, expected 0`);
+      throw new Error(`live editor page after saved split Ctrl+ArrowUp ${pageAfterSplitSaveUp}, expected 0`);
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, '', 'after saved split page return');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'R0 LINE 00', 'after saved split page return');
@@ -894,13 +902,13 @@ async function main(): Promise<void> {
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after Backspace join');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 1, 'Rz0 LINE 01', 'after Backspace join');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 15, '', 'after Backspace join');
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // save joined page
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // save joined page
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     const dirtyAfterJoinSave = runtime.hardware.memory[dirtyAddr];
     if (dirtyAfterJoinSave !== 0) {
       throw new Error(`live editor dirty after join save ${dirtyAfterJoinSave}, expected 0`);
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 6 }, 200_000, 200_000); // clean Alt+S no-op
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // clean Ctrl+S no-op
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const dirtyAfterCleanSave = runtime.hardware.memory[dirtyAddr];
     if (dirtyAfterCleanSave !== 0) {
@@ -991,14 +999,14 @@ async function main(): Promise<void> {
         `live editor Ctrl-S save dirty=${dirtyAfterSecondSave} modifier=0x${ctrlSaveModifierBits.toString(16)} translated=0x${ctrlSaveTranslatedKey.toString(16)}, expected dirty=0 ctrl-save`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 5 }, 200_000, 200_000); // Alt+Z
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 5 }, 200_000, 200_000); // Ctrl+Z
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    const promptAfterAltZ = runtime.hardware.memory[promptActiveAddr];
-    if (promptAfterAltZ !== 1) {
-      const restoreModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const promptAfterSecondCtrlZ = runtime.hardware.memory[promptActiveAddr];
+    if (promptAfterSecondCtrlZ !== 1) {
+      const secondRestoreModifierBits = runtime.hardware.memory[modifierBitsAddr];
       const restoreTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
       throw new Error(
-        `live editor Alt-Z prompt active=${promptAfterAltZ}, expected 1; modifier=0x${restoreModifierBits.toString(16)} translated=0x${restoreTranslatedKey.toString(16)}`,
+        `live editor Ctrl-Z prompt active=${promptAfterSecondCtrlZ}, expected 1; modifier=0x${secondRestoreModifierBits.toString(16)} translated=0x${restoreTranslatedKey.toString(16)}`,
       );
     }
     tapMatrixKey(platformRuntime, runtime, 6, 1, 200_000, 200_000); // n: cancel restore prompt
@@ -1011,7 +1019,7 @@ async function main(): Promise<void> {
         `live editor restore cancel prompt=${promptAfterRestoreNo} result=${restoreNoResult} dirty=${dirtyAfterRestoreNo}, expected prompt=0 result=2 dirty=0`,
       );
     }
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 6, col: 4 }, 200_000, 200_000); // Alt+Q
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 4 }, 200_000, 200_000); // Ctrl+Q
     stepRuntime(runtime, platformRuntime);
     let afterQuitPc = runUntilAnyPc(runtime, platformRuntime, [doneAddr, liveLoopAddr], 20_000_000);
     if (afterQuitPc === liveLoopAddr && runtime.hardware.memory[quitRequestedAddr] === 1) {
@@ -1024,13 +1032,13 @@ async function main(): Promise<void> {
       const quitRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
       const quitRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
       throw new Error(
-        `live editor Alt-Q returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
+        `live editor Ctrl-Q returned to loop instead of exiting: modifier=0x${quitModifierBits.toString(16)} raw=${quitRawSecondary.toString(16)}/${quitRawPrimary.toString(16)} translated=0x${quitTranslatedKey.toString(16)}`,
       );
     }
     const quitModifierBits = runtime.hardware.memory[modifierBitsAddr];
-    if ((quitTranslatedKey !== 0x51 && quitTranslatedKey !== 0x71) || (quitModifierBits & 0x08) === 0) {
+    if (quitTranslatedKey !== 0x11 || (quitModifierBits & 0x02) === 0) {
       throw new Error(
-        `live editor quit modifier=0x${quitModifierBits.toString(16)} translated=0x${quitTranslatedKey.toString(16)}, expected alt-modified Q/q`,
+        `live editor quit modifier=0x${quitModifierBits.toString(16)} translated=0x${quitTranslatedKey.toString(16)}, expected ctrl-quit`,
       );
     }
     const summary = {
@@ -1065,13 +1073,13 @@ async function main(): Promise<void> {
       promptAfterCtrlQNo,
       dirtyAfterCtrlQNo,
       quitAfterCtrlQNo,
-      promptAfterCtrlZ,
+      promptAfterSecondCtrlZ,
       actionAfterCtrlZ,
       pendingAfterCtrlZ,
       pendingModifierAfterCtrlZ,
       promptAfterCtrlZNo,
       dirtyAfterCtrlZNo,
-      promptAfterAltZ,
+      promptAfterCtrlZ,
       promptAfterRestoreNo,
       dirtyAfterRestoreNo,
       saveModifierBits,

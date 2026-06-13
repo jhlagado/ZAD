@@ -73,7 +73,7 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         RET
 
 ; EditorNavResetViewport -
-; Reset the in-page viewport to logical row 0 and mark visible row 0 current.
+; Reset the in-page viewport to logical row 0 and sync cursor row bookkeeping.
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorNavResetViewport:

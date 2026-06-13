@@ -94,7 +94,8 @@ at `0x4000`, initializes the GLCD tile display, and then polls
 `BiosInputPollKey` forever. Each key event is appended to a small on-screen
 history so Debug80 mouse-matrix input and physical-keyboard input can be
 compared without involving the editor. Ctrl chords render as `^X`; Alt chords
-render as `\X`. Each history entry includes the raw matrix `D/E` bytes in hex
+render as `\X`. Arrow keys render as `^`, `_`, `<`, and `>`, not alphabet
+aliases. Each history entry includes the raw matrix `D/E` bytes in hex
 before the interpreted token so translated-token issues can be separated from
 raw Debug80 matrix mapping issues.
 
@@ -294,9 +295,9 @@ next marked row when no transfer is pending, then transfers one physical GLCD
 row per call. `GlcdTileFlushRow` is kept as the synchronous compatibility
 wrapper: it first drains any already pending cooperative work, then queues the
 requested row and drains all six steps before returning. The live editor idle
-loop calls `GlcdTileStep`, so current-line edits and vertical cursor row-marker
-movement can schedule GLCD work and return to matrix keyboard polling while the
-display drains in bounded slices.
+loop calls `GlcdTileStep`, so current-line edits and block-marker changes can
+schedule GLCD work and return to matrix keyboard polling while the display
+drains in bounded slices.
 
 The same stepper also understands dirty cell byte ranges. `GlcdTileMarkCellDirty`
 validates a row/column, computes the GLCD byte column touched by the 6-pixel
@@ -304,9 +305,8 @@ cell, coalesces the minimum and maximum dirty bytes for that row, and lets
 `GlcdTileStep` transfer only that byte span across the six physical rows. Cursor
 overlay render/erase uses this path, so ordinary horizontal cursor movement and
 post-edit cursor restore/redraw no longer require full text-row transfers.
-`GlcdTileMarkGutterDirty` uses the same scheduler for the left gutter byte pair,
-so non-scrolling vertical cursor movement can move the current-row marker
-without flushing the whole old and new text rows.
+`GlcdTileMarkGutterDirty` uses the same scheduler for the left gutter byte pair
+when selection or pending copy/move markers change.
 
 This module is the current boundary between TECM8 display policy and MON3 GLCD
 transport. Higher-level display code can stay in row and column coordinates
@@ -335,12 +335,11 @@ calls `DisplayRenderScreen`.
 one visible row and calls `DisplayRenderLine`, which is the dirty-rendering path
 used by ordinary in-line editor mutations.
 
-This module now owns the viewport-facing selection projection. It keeps the
-current visible row marker, maps visible rows back to absolute page-line
-numbers, tests whether those lines fall inside the current ordinary selection
-and layers pending copy or move source markers over the same rows. It is still
-only a viewport and marker surface: selection intervals and block-editing
-commands live in `editor-interaction.asm`.
+This module now owns the viewport-facing selection projection. It maps visible
+rows back to absolute page-line numbers, tests whether those lines fall inside
+the current ordinary selection, and layers pending copy or move source markers
+over the same rows. It is still only a viewport and marker surface: selection
+intervals and block-editing commands live in `editor-interaction.asm`.
 
 ### `src/editor-storage-loader.asm`
 
@@ -478,28 +477,25 @@ back to the source file.
 ### `src/editor-interaction.asm`
 
 This is the early editor interaction loop. It supports both a NUL-terminated
-proof key stream and the live matrix-key path that polls MON3 through
-`BiosInputPollKey`. In command mode:
+translated-key fixture runner and the live matrix-key path that polls MON3
+through `BiosInputPollKey`. In command mode:
 
 - matrix arrows move the cursor
-- Alt+ArrowDown pages down
-- Alt+ArrowUp pages up
-- Ctrl+ArrowDown and Ctrl+ArrowUp remain page-movement compatibility aliases
+- Ctrl+ArrowDown pages down
+- Ctrl+ArrowUp pages up
 - Shift+ArrowDown and Shift+ArrowUp extend or shrink an ordinary whole-line
   selection
-- Shift+Ctrl/Alt+ArrowDown and Shift+Ctrl/Alt+ArrowUp extend that selection by
+- Shift+Ctrl+ArrowDown and Shift+Ctrl+ArrowUp extend that selection by
   page
-- Ctrl-Q/Alt-Q quit the key stream, prompting first when the page is dirty
-- Ctrl-S/Alt-S save the currently loaded page
-- Ctrl-Z/Alt-Z prompt to restore the hidden backup into the current buffer
-- Ctrl and Alt command chords are intentionally kept in parallel for now so
-  manual Debug80 testing does not depend on one host modifier policy
-- Ctrl-C/Alt-C arm the current selection as a pending copy source
-- Ctrl-X/Alt-X arm the current selection as a pending move source
-- Ctrl-V/Alt-V paste the pending source before the cursor or replace an
+- Ctrl-Q quit the key stream, prompting first when the page is dirty
+- Ctrl-S save the currently loaded page
+- Ctrl-Z prompt to restore the hidden backup into the current buffer
+- Ctrl-C arm the current selection as a pending copy source
+- Ctrl-X arm the current selection as a pending move source
+- Ctrl-V paste the pending source before the cursor or replace an
   ordinary destination selection
 - Escape clears ordinary selection and pending copy/move source markers
-- Ctrl-R/Alt-R and Ctrl-W/Alt-W remain reserved for named block read and
+- Ctrl-R and Ctrl-W remain reserved for named block read and
   write
 - TAB enters insert mode for the stream
 - printable ASCII inserts into the current fixed source record
@@ -510,7 +506,7 @@ proof key stream and the live matrix-key path that polls MON3 through
   selected whole-line block
 
 The public interface now exposes the primitive edit operations as separate
-entry points, the proof key-stream runner, and the live polling loop:
+entry points, the translated-key fixture runner, and the live polling loop:
 
 - `EditorRunLive`
 - `EditorInsertChar`
@@ -523,21 +519,21 @@ The editing operations mutate `EditorNavPageBuffer` in memory and then rerender
 the current page buffer. The implementation respects 32-byte source records and
 the 31-character maximum stored line length. It keeps record padding clear so
 host source export can continue validating the fixed-record format. Mutating
-operations mark `EditorNavDirty`; Ctrl-S and Alt-S route through
+operations mark `EditorNavDirty`; Ctrl-S routes through
 `EditorSaveCurrentPage` and clear the flag only after the backup and page
 write-back succeeds.
 Before that save path runs, `EditorHideCursor` removes the XOR cursor overlay
 so the transient `Saving...` redraw and the restored edit row do not inherit
 stale cursor pixels. A clean save is ignored before any storage call. Ctrl-Z
-and Alt-Z arm a status-line restore prompt; a yes answer loads the hidden
+arms a status-line restore prompt; a yes answer loads the hidden
 backup into the current page buffer, rerenders it, and marks it dirty so the
-user can inspect before saving. Ctrl-Q and Alt-Q exit the key stream
+user can inspect before saving. Ctrl-Q exits the key stream
 immediately when clean; when dirty, they ask before discarding changes and only
 exit on yes.
 The same key loop now owns whole-line block editing state. `Shift` movement
-captures an absolute-line selection interval. `Ctrl-C` and `Alt-C` normalize
-that interval into a pending copy source, while `Ctrl-X` and `Alt-X` store the
-same interval as a pending move source. `Ctrl-V` and `Alt-V` either insert the
+captures an absolute-line selection interval. `Ctrl-C` normalizes
+that interval into a pending copy source, while `Ctrl-X` stores the
+same interval as a pending move source. `Ctrl-V` either inserts the
 pending rows before the cursor when no destination selection is active, or
 replace an ordinary destination selection when the source and destination are
 equal-sized resident-page ranges. Move paste deletes the original source only
@@ -574,9 +570,8 @@ join, status restore, and viewport-changing edits still use broader redraw
 paths.
 
 Horizontal cursor movement only redraws the cursor overlay cell range.
-Non-scrolling vertical cursor movement redraws the old and new current-row
-gutter markers and then transfers only the left gutter byte pair for each
-affected row.
+Non-scrolling vertical cursor movement updates only the cursor overlay cell
+range; the gutter is reserved for selection and pending copy/move markers.
 
 The cursor is a one-pixel XOR insertion bar drawn one pixel before the active
 6x6 cell, with a cooperative blink state.
@@ -603,10 +598,9 @@ the editor sees both the translated key byte and modifier flags. Because the
 BIOS layer normalizes Ctrl-letter chords to ASCII control codes, the same
 command loop handles proof streams and live Ctrl-S, Ctrl-Q, and Ctrl-Z input.
 The editor also checks modified printable command letters before normal
-printable insertion, so Alt-S/Alt-Q/Alt-Z are first-class commands and a
+printable insertion, so Ctrl-S/Ctrl-Q/Ctrl-Z are first-class commands and a
 host path that reports Ctrl+S as printable `S` plus a Ctrl modifier will not
-insert `S` before saving. The live smoke deliberately exercises both Ctrl and
-Alt command families. Ctrl+Up/Down and Alt+Up/Down use modifier flags directly
+insert `S` before saving. Ctrl+Up/Down use modifier flags directly
 for page movement.
 
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
@@ -935,7 +929,7 @@ What exists now:
 - The editor can save the currently loaded 512-byte page buffer back to the
   matching TM8 source page, with persisted image verification.
 - The editor tracks dirty state for the loaded page, marks dirty after
-  mutation, saves via Alt-S or Ctrl-S, and clears dirty after successful save.
+  mutation, saves via Ctrl-S, and clears dirty after successful save.
 - Status-line yes/no prompt state exists and is rendered as a transient row 9
   overlay for restore and dirty-quit confirmations; the hidden source row is
   redrawn when the prompt clears.
@@ -947,7 +941,7 @@ What exists now:
   discarding unsaved changes.
 - The live Debug80 editor session now rechecks line split and join behavior
   through the matrix-key path, including save and page-return persistence.
-- Unknown Ctrl/Alt-modified printable keys are silently ignored instead of
+- Unknown Ctrl-modified printable keys are silently ignored instead of
   falling through as plain text or leaving status text behind, and dirty page
   movement is allowed inside the RAM window.
 - Page-up at the first page restores the hidden source row without leaving

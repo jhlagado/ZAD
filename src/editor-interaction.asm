@@ -23,14 +23,13 @@ TECM8_EDITOR_KEY_RESTORE                .equ    26
 TECM8_EDITOR_KEY_CTRL_C                 .equ    0x03
 TECM8_EDITOR_KEY_CTRL_V                 .equ    0x16
 TECM8_EDITOR_KEY_CTRL_X                 .equ    0x18
+TECM8_EDITOR_KEY_CTRL_Y                 .equ    0x19
 TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
 TECM8_EDITOR_KEY_PRINTABLE_MAX          .equ    126
 TECM8_EDITOR_KEY_MOD_CTRL               .equ    0x02
 TECM8_EDITOR_KEY_MOD_SHIFT              .equ    0x01
-TECM8_EDITOR_KEY_MOD_ALT                .equ    0x08
-TECM8_EDITOR_KEY_MOD_PAGE               .equ    0x0A
 TECM8_EDITOR_CURSOR_MAX_ROW             .equ    15
 TECM8_EDITOR_CURSOR_MAX_COL             .equ    30
 TECM8_EDITOR_CURSOR_VISIBLE_ROWS        .equ    10
@@ -229,12 +228,11 @@ EditorCursorBlinkNoop:
         RET
 
 ; EditorRunKeys -
-; Consume a NUL-terminated key stream. Movement and paging are dispatched as
-; editor actions so matrix-key input can bind to the same commands without
-; pretending arrow keys are printable ASCII. TAB enters insert mode, printable
-; ASCII inserts, backspace deletes before the cursor, delete removes the
-; character at the cursor, newline splits the current record, and unknown keys
-; are ignored.
+; Consume a NUL-terminated translated-key stream used by proof fixtures.
+; Movement and paging are physical arrow-key actions only. TAB enters insert
+; mode, printable ASCII inserts, backspace deletes before the cursor, delete
+; removes the character at the cursor, newline splits the current record, and
+; unknown keys are ignored.
 ; Input:
 ;   HL = NUL-terminated key stream
 ;!      in        HL
@@ -249,7 +247,7 @@ EditorCursorBlinkNoop:
         JP      EditorKeyLoop
 
 ; EditorRunModifiedKey -
-; Consume one live key event with modifier flags from BiosInputPollKey.
+; Consume one translated key event with modifier flags.
 ; Input:
 ;   A = translated key
 ;   B = modifier flags
@@ -257,6 +255,32 @@ EditorCursorBlinkNoop:
 ;!      out       A,carry
 ;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
 @EditorRunModifiedKey:
+        LD      C,A
+        LD      A,(BiosInputRawSecondary)
+        CP      0xFF
+        JR      NZ,EditorRunModifiedKeyRawPrimaryReady
+        LD      A,B
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
+        JR      Z,EditorRunModifiedKeyMaybeSyntheticArrow
+        LD      A,C
+        CP      TECM8_EDITOR_KEY_CTRL_C
+        JR      Z,EditorRunModifiedKeyClearRawPrimary
+
+EditorRunModifiedKeyMaybeSyntheticArrow:
+        LD      A,C
+        CP      TECM8_EDITOR_KEY_ARROW_UP
+        JR      C,EditorRunModifiedKeyClearRawPrimary
+        CP      TECM8_EDITOR_KEY_ARROW_RIGHT + 1
+        JR      NC,EditorRunModifiedKeyClearRawPrimary
+        LD      (BiosInputRawPrimary),A
+        JR      EditorRunModifiedKeyRawPrimaryReady
+
+EditorRunModifiedKeyClearRawPrimary:
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+
+EditorRunModifiedKeyRawPrimaryReady:
+        LD      A,C
         LD      (EditorLiveKeyBuffer),A
         LD      A,B
         LD      (EditorKeyStreamModifier),A
@@ -382,6 +406,8 @@ EditorDispatchModifiedCommand:
         JP      Z,EditorKeyMoveBlock
         CP      "V"
         JP      Z,EditorKeyPasteBlock
+        CP      "Y"
+        JP      Z,EditorKeyDeleteCurrentLine
         JP      EditorKeyLoop
 
 EditorKeySave:
@@ -694,6 +720,22 @@ EditorKeyDelete:
         RET     C
         JP      EditorKeyLoop
 
+EditorKeyDeleteCurrentLine:
+        CALL    EditorBlockStateClearForEdit
+        RET     C
+        LD      A,(EditorCursorRow)
+        LD      (EditorPendingBlockSourceStartRow),A
+        LD      A,1
+        LD      (EditorPendingBlockRowCount),A
+        CALL    EditorPendingBlockDeleteOriginalSource
+        RET     C
+        XOR     A
+        LD      (EditorCursorCol),A
+        CALL    EditorMarkDirty
+        CALL    EditorKeyRenderDirty
+        RET     C
+        JP      EditorKeyLoop
+
 EditorKeyDeleteBlockPrompt:
         LD      A,TECM8_EDITOR_PROMPT_ACTION_DELETE_BLOCK
         LD      (EditorPromptAction),A
@@ -807,9 +849,8 @@ EditorLiveDone:
         RET
 
 ; EditorActionFromKey -
-; Map one raw key byte to a named editor action. This isolates the temporary
-; proof key choices from movement semantics; a later matrix-key reader should
-; return these same action values for physical arrow keys and page commands.
+; Map one translated physical arrow key byte to a named editor movement action.
+; Alphabetic keys are never navigation inputs.
 ; Input:
 ;   A = raw key byte
 ; Output:
@@ -831,13 +872,13 @@ EditorLiveDone:
 
 EditorActionArrowUp:
         LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_PAGE
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
         JR      NZ,EditorActionPageUp
         JR      EditorActionCursorUp
 
 EditorActionArrowDown:
         LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_PAGE
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
         JR      NZ,EditorActionPageDown
         JR      EditorActionCursorDown
 
@@ -866,17 +907,16 @@ EditorActionCursorRight:
         RET
 
 ; EditorModifiedCommandFromKey -
-; Prefer modifier-aware editor commands before printable insertion. This keeps
-; Alt-S/Alt-Q/Alt-Z usable for macOS Debug80 testing and also catches Ctrl-letter
-; events when the host path reports a printable letter plus modifier flags
-; instead of an ASCII control byte.
+; Prefer Control-aware editor commands before printable insertion. This catches
+; Ctrl-letter events when the host path reports a printable letter plus modifier
+; flags instead of an ASCII control byte.
 ; Input: EditorPendingChar, EditorPendingModifier
 ; Output: A = TECM8_EDITOR_KEY_* command or 0
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorModifiedCommandFromKey:
         LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_PAGE
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
         JR      Z,EditorModifiedCommandNone
         LD      A,(EditorPendingChar)
         CP      "s"
@@ -903,22 +943,23 @@ EditorActionCursorRight:
         JR      Z,EditorModifiedCommandPaste
         CP      "V"
         JR      Z,EditorModifiedCommandPaste
-        LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_CTRL
-        JR      Z,EditorModifiedCommandNone
         LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_CTRL_C
-        JR      Z,EditorModifiedCommandCtrlCopy
+        JR      Z,EditorModifiedCommandControlByteCopy
         CP      TECM8_EDITOR_KEY_CTRL_X
         JR      Z,EditorModifiedCommandMove
         CP      TECM8_EDITOR_KEY_CTRL_V
         JR      Z,EditorModifiedCommandPaste
+        CP      TECM8_EDITOR_KEY_CTRL_Y
+        JR      Z,EditorModifiedCommandDeleteLine
 
 EditorModifiedCommandNone:
         XOR     A
         RET
 
-EditorModifiedCommandCtrlCopy:
+; Byte 0x03 is a copy command only when it came from the C key with Control.
+; If the physical matrix key was Up Arrow, movement handling owns the event.
+EditorModifiedCommandControlByteCopy:
         LD      A,(BiosInputRawPrimary)
         CP      TECM8_EDITOR_KEY_ARROW_UP
         JR      Z,EditorModifiedCommandNone
@@ -948,14 +989,18 @@ EditorModifiedCommandPaste:
         LD      A,"V"
         RET
 
+EditorModifiedCommandDeleteLine:
+        LD      A,"Y"
+        RET
+
 ; EditorShouldIgnoreModifiedPrintable -
-; Return A=1 when a Ctrl/Alt-modified printable key did not match a known
-; command. This prevents a failed host modifier chord from inserting text.
+; Return A=1 when a Ctrl-modified printable key did not match a known command.
+; This prevents a failed host modifier chord from inserting text.
 ;!      out       A,carry
 ;!      clobbers  A,zero,sign,parity,halfCarry
 @EditorShouldIgnoreModifiedPrintable:
         LD      A,(EditorPendingModifier)
-        AND     TECM8_EDITOR_KEY_MOD_PAGE
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
         JR      Z,EditorShouldIgnoreModifiedPrintableNo
         LD      A,(EditorPendingChar)
         CP      TECM8_EDITOR_KEY_PRINTABLE_MIN
@@ -2502,6 +2547,18 @@ EditorKeyRenderCurrentLineCellsDone:
         RET     C
         CALL    EditorEnsureCursorVisible
         RET     C
+        LD      A,(EditorBlockSelectionActive)
+        LD      B,A
+        LD      A,(EditorPendingBlockMode)
+        OR      B
+        JR      NZ,EditorKeyRenderCursorRowMarkersNeeded
+        LD      A,(EditorCursorVisibleRow)
+        CALL    EditorViewportSetCurrentRow
+        RET     C
+        XOR     A
+        RET
+
+EditorKeyRenderCursorRowMarkersNeeded:
         LD      A,0xFF
         LD      (EditorCursorPreviousVisibleRow),A
         LD      A,(EditorCursorVisibleRow)

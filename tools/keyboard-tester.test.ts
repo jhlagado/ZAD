@@ -23,6 +23,14 @@ test('keyboard tester renders ctrl and alt chords distinctly', () => {
   assert.match(source, /TECM8_BIOS_KEY_MOD_CTRL/);
   assert.match(source, /TECM8_BIOS_KEY_MOD_ALT/);
   assert.match(source, /LD\s+A,"\^"/);
+  assert.match(source, /KbdTestAppendSpecialUp:[\s\S]*?LD\s+A,"\^"/);
+  assert.match(source, /KbdTestAppendSpecialDown:[\s\S]*?LD\s+A,"_"/);
+  assert.match(source, /KbdTestAppendSpecialLeft:[\s\S]*?LD\s+A,"<"/);
+  assert.match(source, /KbdTestAppendSpecialRight:[\s\S]*?LD\s+A,">"/);
+  assert.doesNotMatch(source, /KbdTestAppendSpecialUp:[\s\S]*?LD\s+A,"U"/);
+  assert.doesNotMatch(source, /KbdTestAppendSpecialDown:[\s\S]*?LD\s+A,"D"/);
+  assert.doesNotMatch(source, /KbdTestAppendSpecialLeft:[\s\S]*?LD\s+A,"L"/);
+  assert.doesNotMatch(source, /KbdTestAppendSpecialRight:[\s\S]*?LD\s+A,"R"/);
   assert.match(source, /LD\s+A,0x5C/);
   assert.match(source, /@KbdTestAppendCtrlName:/);
   assert.match(source, /@KbdTestAppendChordName:/);

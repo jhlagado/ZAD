@@ -237,10 +237,9 @@ function verifyStructuredScreen(runtime: Runtime, platformRuntime: PlatformRunti
   const textColumnByte = 1;
   const expectedMarkers = [
     { row: 0, pattern: 0xf0, name: 'breakpoint' },
-    { row: 1, pattern: 0x10, name: 'current' },
     { row: 2, pattern: 0x80, name: 'selected' },
     { row: 3, pattern: 0xc0, name: 'copy source' },
-    { row: 5, pattern: 0xf0, name: 'breakpoint-current' },
+    { row: 5, pattern: 0xf0, name: 'breakpoint' },
     { row: 7, pattern: 0x80, name: 'selected' },
   ];
 
@@ -341,27 +340,16 @@ function verifyEditorViewport(runtime: Runtime, platformRuntime: PlatformRuntime
 
   const mon3Tgbuf = 0x13c0;
   const rowBytes = 16;
-  const expectedMarker = { row: 9, pattern: 0x10 };
   for (let row = 0; row < 10; row += 1) {
     for (let y = 0; y < 6; y += 1) {
       const address = mon3Tgbuf + (row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
       const value = runtime.hardware.memory[address];
       const glcdOffset = (row * 6 + DISPLAY_Y_ORIGIN + y) * rowBytes;
       const visibleValue = glcd[glcdOffset] ?? 0;
-      if (row === expectedMarker.row && (value & expectedMarker.pattern) !== expectedMarker.pattern) {
-        throw new Error(
-          `editor viewport proof missing current-row gutter bits at 0x${address.toString(16)}: got ${resultToString(value)} expected mask ${resultToString(expectedMarker.pattern)}`,
-        );
-      }
-      if (row === expectedMarker.row && (visibleValue & expectedMarker.pattern) !== expectedMarker.pattern) {
-        throw new Error(
-          `editor viewport proof missing visible current-row gutter bits at GLCD offset 0x${glcdOffset.toString(16)}: got ${resultToString(visibleValue)} expected mask ${resultToString(expectedMarker.pattern)}`,
-        );
-      }
-      if (row !== expectedMarker.row && (value & 0xf0) !== 0) {
+      if ((value & 0xf0) !== 0) {
         throw new Error(`editor viewport proof unexpected stale gutter bits at row ${row}: ${resultToString(value)}`);
       }
-      if (row !== expectedMarker.row && (visibleValue & 0xf0) !== 0) {
+      if ((visibleValue & 0xf0) !== 0) {
         throw new Error(
           `editor viewport proof unexpected visible stale gutter bits at row ${row}: ${resultToString(visibleValue)}`,
         );

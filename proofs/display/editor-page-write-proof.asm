@@ -29,9 +29,7 @@ PROOF_FAIL       .equ     0xE0
         CALL    EditorRenderCursor
         JP      C,ProofFailed
 
-        LD      A,TECM8_EDITOR_KEY_ARROW_UP
-        LD      B,TECM8_EDITOR_KEY_MOD_ALT
-        CALL    EditorRunModifiedKey
+        CALL    RunSyntheticControlArrowUp
         JP      C,ProofFailed
         LD      HL,PageUpBoundaryRow9Bytes
         CALL    CaptureStatusRowTextByte
@@ -42,7 +40,7 @@ PROOF_FAIL       .equ     0xE0
         LD      A,127
         LD      (EditorNavCurrentPage),A
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
-        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         CALL    EditorHideCursor
@@ -198,6 +196,32 @@ PROOF_FAIL       .equ     0xE0
 
 ProofDone:
         JP      ProofDone
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@RunSyntheticControlArrowUp:
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      (BiosInputRawPrimary),A
+        LD      A,0x01
+        LD      (BiosInputRawSecondary),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JR      C,RunSyntheticControlArrowUpErr
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        XOR     A
+        RET
+
+RunSyntheticControlArrowUpErr:
+        LD      B,A
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        LD      A,B
+        SCF
+        RET
 
 ProofFailed:
         OR      PROOF_FAIL

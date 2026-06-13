@@ -9,7 +9,6 @@
 PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 PROOF_MOD_SHIFT  .equ     0x01
-PROOF_MOD_ALT    .equ     0x08
 PROOF_MOD_CTRL   .equ     0x02
 
 ;!      out       carry,zero
@@ -80,7 +79,7 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    GlcdTileDrainPending
         JP      C,ProofFailed
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
-        LD      B,PROOF_MOD_SHIFT | PROOF_MOD_ALT
+        LD      B,PROOF_MOD_SHIFT | PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending
@@ -90,9 +89,7 @@ PROOF_MOD_CTRL   .equ     0x02
 
         LD      A,7
         LD      (CaseMarker),A
-        LD      A,TECM8_EDITOR_KEY_ARROW_UP
-        LD      B,PROOF_MOD_SHIFT | PROOF_MOD_ALT
-        CALL    EditorRunModifiedKey
+        CALL    RunSyntheticShiftControlArrowUp
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending
         JP      C,ProofFailed
@@ -163,6 +160,26 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    AssertPendingCopyRowsZeroToTwo
         JP      C,ProofFailed
         CALL    AssertCursorRenderedAtRowTwo
+        JP      C,ProofFailed
+
+        LD      A,21
+        LD      (CaseMarker),A
+        CALL    EditorOpenMain
+        JP      C,ProofFailed
+        CALL    EditorCursorReset
+        JP      C,ProofFailed
+        CALL    SelectRowsZeroToTwo
+        JP      C,ProofFailed
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        LD      A,TECM8_EDITOR_KEY_CTRL_C
+        LD      B,PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JP      C,ProofFailed
+        CALL    GlcdTileDrainPending
+        JP      C,ProofFailed
+        CALL    AssertPendingCopyRowsZeroToTwo
         JP      C,ProofFailed
 
         LD      A,20
@@ -256,7 +273,7 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    SelectRowsZeroToOne
         JP      C,ProofFailed
         LD      A,"x"
-        LD      B,PROOF_MOD_ALT
+        LD      B,PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         LD      A,3
@@ -329,7 +346,7 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    SelectRowsZeroToOne
         JP      C,ProofFailed
         LD      A,"x"
-        LD      B,PROOF_MOD_ALT
+        LD      B,PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         LD      A,2
@@ -339,7 +356,7 @@ PROOF_MOD_CTRL   .equ     0x02
         CALL    SelectRowsZeroToOne
         JP      C,ProofFailed
         LD      A,"v"
-        LD      B,PROOF_MOD_ALT
+        LD      B,PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending
@@ -352,6 +369,32 @@ PROOF_MOD_CTRL   .equ     0x02
 
 ProofDone:
         JP      ProofDone
+
+;!      out       A,carry
+;!      clobbers  A,BC,DE,HL,zero,sign,parity,halfCarry
+@RunSyntheticShiftControlArrowUp:
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      (BiosInputRawPrimary),A
+        LD      A,0x01
+        LD      (BiosInputRawSecondary),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      B,PROOF_MOD_SHIFT | PROOF_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JR      C,RunSyntheticShiftControlArrowUpErr
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        XOR     A
+        RET
+
+RunSyntheticShiftControlArrowUpErr:
+        LD      B,A
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        LD      A,B
+        SCF
+        RET
 
 ProofFailed:
         LD      (ErrorMarker),A
@@ -453,7 +496,7 @@ ProofFailedDone:
         LD      DE,3
         ADD     HL,DE
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -487,7 +530,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 6
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -548,10 +591,6 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 27
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_SELECTED | TECM8_DISPLAY_MARKER_CURRENT
-        JP      Z,AssertFail
-        CP      TECM8_DISPLAY_MARKER_CURRENT
-        JP      Z,AssertFail
         CP      TECM8_DISPLAY_MARKER_SELECTED
         JP      NZ,AssertFail
         XOR     A
@@ -606,7 +645,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -622,7 +661,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -645,7 +684,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 27
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         XOR     A
         RET
@@ -707,7 +746,7 @@ ProofFailedDone:
         JP      NZ,AssertFail
         LD      HL,EditorScreenDescriptor + 15
         LD      A,(HL)
-        CP      TECM8_DISPLAY_MARKER_CURRENT
+        CP      TECM8_DISPLAY_MARKER_NONE
         JP      NZ,AssertFail
         XOR     A
         RET

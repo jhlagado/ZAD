@@ -316,8 +316,8 @@ unmapped-key handling.
 Modifier chords such as `Ctrl+ArrowDown`, `Alt+ArrowDown`, or `Alt+ArrowRight`
 return the real key in `A`, modifier bits in `B`, and the raw modifier/key pair
 in `D/E`. The current MON3-compatible raw scan treats `03h` as the primary
-`ArrowUp` key, so host-side Debug80 modifier mapping may need to synthesize
-Alt+ArrowUp explicitly for macOS testing.
+`ArrowUp` key, so host-side Debug80 modifier mapping must preserve the raw
+modifier/key pair when translated control bytes overlap special-key codes.
 
 The current modifier flags in `B` are:
 

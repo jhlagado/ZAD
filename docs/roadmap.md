@@ -71,7 +71,7 @@ available.
   commit `040dbf5`: matrix Enter splits a line, split contents save and survive
   page movement, matrix Backspace rejoins, and the joined state saves.
 - Phase 1 input polish is complete enough for the current milestone: unknown
-  Ctrl/Alt-modified printable keys are silently ignored, dirty page movement
+  Ctrl-modified printable keys are silently ignored, dirty page movement
   works inside the RAM window, and the live Debug80 smoke covers restore-prompt
   cancel.
 - Phase 15 Debug80 automation is complete at commit `5bcfe80`: the editor can
@@ -100,8 +100,8 @@ Goal: make the current editor behavior predictable under manual Debug80 testing.
 Work:
 
 - Stabilize all live matrix key paths.
-- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Ctrl-S`/`Alt-S`,
-  `Ctrl-Q`/`Alt-Q`, `Ctrl-Z`/`Alt-Z`, and page movement.
+- Confirm `Enter`, `Backspace`, `Delete`, arrows, `Ctrl-S`, `Ctrl-Q`,
+  `Ctrl-Z`, and page movement.
 - Add clear status feedback for ignored commands, failed saves, failed loads,
   and RAM-window/page-boundary limits.
 - Decide whether unknown modified printable keys should insert text or be
@@ -290,15 +290,15 @@ Work:
 - Treat vertical cursor movement as the first display-performance target.
   Manual Debug80 testing shows left/right movement is already acceptably fast
   because it mostly updates the cursor overlay, while up/down movement is slow
-  enough to dominate the editing feel. The current row-change path repaints the
-  old and new source rows so the cursor marker can move; Phase 7 should replace
-  that with a pixel/tile-delta update for only the affected cursor/marker bytes.
+  enough to dominate the editing feel. The current row-change path should stay
+  on cursor-overlay byte ranges unless selection or pending block markers need
+  gutter updates.
 - Done: ordinary full viewport repaint no longer calls `BiosDisplayClear`
   before drawing the tile layout. Each rendered row clears its own text cells and
   overwrites the gutter, so short lines replacing long lines do not leave stale
   glyph pixels.
 - Done: introduced row-scoped GLCD flush scheduling. Cursor overlays, status
-  overlays, current-line redraws, and vertical current-row marker changes now
+  overlays, current-line redraws, and selection/pending marker changes now
   call `GlcdTileFlushRow` instead of the full-flush API.
 - Done: replaced the MON3-backed row flush with a TECM8-owned row-range GLCD
   backend. `GlcdTileFlushRow` now selects ST7920 graphics mode, sets the
@@ -380,11 +380,11 @@ Incremental implementation order:
 3. Done: replace MON3-backed row flushes with a TECM8-owned row-range GLCD
    flush backend.
 4. Done: introduce `GlcdTileStep` and call it from live editor idle.
-5. Done: add a dirty-row mask and use it for current-line edits and vertical
-   cursor row-marker movement.
+5. Done: add a dirty-row mask and use it for current-line edits and block
+   marker movement.
 6. Done: add dirty cell ranges for horizontal movement and edit cursor overlays.
-7. Done: replace non-scrolling vertical current-row marker flushes with gutter
-   byte-range transfers.
+7. Done: remove the persistent current-row gutter marker and keep ordinary
+   vertical movement on cursor-overlay byte ranges.
 8. Done: add cursor blink once cursor updates are cheap.
 9. Done: replace simple printable insert/delete row flushes with clipped dirty
    cell-range transfers.
@@ -463,7 +463,7 @@ Work:
 - Done: the one-shot shell editor launcher runs `edit` and enters the editor.
 - Done: the bounded command loop dispatches `edit`, `asm`, and `run` in order
   through executor stubs.
-- `Alt-Q` or quit returns to shell.
+- `Ctrl-Q` or quit returns to shell.
 - Done: `asm` resolves the project main file and derived `/build/<stem>.bin`
   plus `/build/<stem>.map` request paths; actual assembler execution remains a
   later tool/runtime increment.
@@ -603,11 +603,11 @@ Direction:
   file.
 - Use three gutter states: thin bar for ordinary destination selection, thick
   bar for pending copy source, and sawtooth edge for pending move/cut source.
-- Use `Shift+Up/Down` and later `Shift+Alt+Up/Down` to select whole lines.
-- Use `Ctrl-C`/`Alt-C` to arm a pending copy source, `Ctrl-X`/`Alt-X` to arm a
-  pending move source, and `Ctrl-V`/`Alt-V` to paste or replace.
-- Move quit back to `Ctrl-Q`/`Alt-Q` and move restore-from-backup to
-  `Ctrl-Z`/`Alt-Z`, freeing `Ctrl-R`/`Alt-R` for named block read.
+- Use `Shift+Up/Down` and later `Shift+Ctrl+Up/Down` to select whole lines.
+- Use `Ctrl-C` to arm a pending copy source, `Ctrl-X` to arm a pending move
+  source, and `Ctrl-V` to paste or replace.
+- Move quit back to `Ctrl-Q` and move restore-from-backup to `Ctrl-Z`, freeing
+  `Ctrl-R` for named block read.
 - Use `Delete` on a selected block rather than adding a separate delete-block
   command.
 - Represent source and destination selections as line-range intervals in editor
@@ -619,12 +619,10 @@ Direction:
 Sequenced goals:
 
 1. **Done: Block Phase B1: Keymap Cleanup**
-   - Quit moved to `Ctrl-Q`/`Alt-Q`.
-   - Restore-from-backup moved to `Ctrl-Z`/`Alt-Z`.
-   - `Ctrl-R`/`Alt-R` reserved for read-block and `Ctrl-W`/`Alt-W` reserved for
-     write-block.
-   - Live smoke and manual docs updated to keep Ctrl and Alt command aliases in
-     parallel during host-keyboard testing.
+   - Quit moved to `Ctrl-Q`.
+   - Restore-from-backup moved to `Ctrl-Z`.
+   - `Ctrl-R` reserved for read-block and `Ctrl-W` reserved for write-block.
+   - Live smoke and manual docs updated to use Control command bindings only.
 
 2. **Done: Block Phase B2: Selection Range And Thin Gutter**
    - Ordinary line-selection interval state added as absolute line endpoints.
@@ -634,16 +632,16 @@ Sequenced goals:
    - `editor-selection-proof` covers selection, clearing, and package wiring.
 
 3. **Done: Block Phase B3: Page Selection And Gutter Glyph Proofs**
-   - `Shift+Ctrl/Alt+Up` and `Shift+Ctrl/Alt+Down` extend selection by page.
+   - `Shift+Ctrl+Up` and `Shift+Ctrl+Down` extend selection by page.
    - GLCD tile/display proof coverage added for thin, thick, and sawtooth
      gutter glyphs.
    - `editor-selection-proof` covers page selection and selection display
      through viewport movement.
 
 4. **Done: Block Phase B4: Pending Copy And Move Source**
-   - `Ctrl-C`/`Alt-C` turns the ordinary selection into a pending copy source
+   - `Ctrl-C` turns the ordinary selection into a pending copy source
      with a thick gutter marker.
-   - `Ctrl-X`/`Alt-X` turns the ordinary selection into a pending move source
+   - `Ctrl-X` turns the ordinary selection into a pending move source
      with a sawtooth gutter marker.
    - A second ordinary destination selection can coexist while the pending
      source remains visible.
@@ -651,7 +649,7 @@ Sequenced goals:
      copy source with a second thin destination selection.
 
 5. **Done: Block Phase B5: Paste Insert**
-   - `Ctrl-V`/`Alt-V` inserts the pending source before the cursor when no
+   - `Ctrl-V` inserts the pending source before the cursor when no
      destination selection is active.
    - Copy leaves source intact; move removes source only after insertion
      succeeds.
@@ -663,7 +661,7 @@ Sequenced goals:
      and blank-tail rejection.
 
 6. **Done: Block Phase B6: Paste Replace And Overlap Handling**
-   - `Ctrl-V`/`Alt-V` replaces an ordinary destination selection when the
+   - `Ctrl-V` replaces an ordinary destination selection when the
      pending source and destination are equal-sized resident-page ranges.
    - Copy-replace leaves source intact.
    - Move-replace deletes the original source after replacement succeeds and
@@ -689,8 +687,8 @@ Sequenced goals:
 
 Deferred after Block Editing V1:
 
-- `Ctrl-W`/`Alt-W` named block write.
-- `Ctrl-R`/`Alt-R` named block read.
+- `Ctrl-W` named block write.
+- `Ctrl-R` named block read.
 - Any anonymous hidden block file for cross-document persistence.
 - Character-precise selections.
 

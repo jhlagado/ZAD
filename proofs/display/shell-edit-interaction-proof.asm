@@ -24,7 +24,7 @@ PROOF_FAIL       .equ     0xE0
         LD      A,2
         LD      (CaseMarker),A
         LD      A,"W"
-        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
         CALL    EditorRunModifiedKey
         JR      C,ProofFailed
         LD      A,(EditorNavDirty)
@@ -37,7 +37,7 @@ PROOF_FAIL       .equ     0xE0
         LD      A,3
         LD      (CaseMarker),A
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
-        LD      B,TECM8_EDITOR_KEY_MOD_ALT
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
         CALL    EditorRunModifiedKey
         JR      C,ProofFailed
 
