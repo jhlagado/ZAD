@@ -49,8 +49,8 @@ For the fastest orientation, read these files first:
 7. `src/tecm8-equates.asm`: shared source-record, sector, display, GLCD, and
    keyboard modifier constants used by the Z80 modules.
 8. `src/tecm8-record.asm`: shared fixed source-record helpers for masked
-   length reads, metadata-preserving length writes, padding zeroing, and
-   full-record clear.
+   length reads, metadata-preserving length writes, padding zeroing,
+   full-record clear, in-record text shifts, and up/down record-window shifts.
 9. `src/tecm8-bios.asm`: the current MON3-backed wrapper implementation.
 10. `src/shell-commands.asm`: the current shell resolver and prompt skeleton.
 11. `src/shell-editor-launch.asm`: the bridge from shell resolution into the
@@ -110,6 +110,8 @@ that must treat that format consistently:
 - write an effective length while preserving metadata bits 5-7
 - zero padding bytes after a record's effective length
 - clear a full 32-byte record
+- shift text bytes left or right within one record
+- shift contiguous record windows up or down
 
 `src/editor-interaction.asm` still exposes the older `EditorKey*Record*` entry
 points as compatibility wrappers, but they now delegate to this shared module.

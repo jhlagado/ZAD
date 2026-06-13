@@ -9,14 +9,14 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 16 `.asm` modules, 11,453 lines.
+- Z80 source size: 16 `.asm` modules, 11,451 lines.
 - Largest files:
-  - `src/editor-interaction.asm`: 3,159 lines.
+  - `src/editor-interaction.asm`: 3,048 lines.
   - `src/editor-storage-loader.asm`: 1,628 lines.
   - `src/shell-commands.asm`: 1,380 lines.
   - `src/glcd-tile.asm`: 1,008 lines.
-- Current fresh source build: `npm run z80:size` reports 15,247 bytes emitted
-  at `4000h..7B8Fh`, leaving 1,137 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 15,129 bytes emitted
+  at `4000h..7B19h`, leaving 1,255 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -73,6 +73,9 @@ Accepted findings:
   parallel names. Canonical equates are needed.
 - Native AZM module and layout features are underused. See
   `docs/azm-adoption-opportunities.md` for the adoption sequence.
+- Space-saving opportunities exist in table-shaped error lookup, validation
+  logic, and common render/error tails. See
+  `docs/z80-space-saving-opportunities.md` for recommended pilots.
 - Record shifts, buffer clears, match-byte loops, and GLCD dirty-row masking are
   good candidates for shared routines.
 - `main.asm` currently links more shell machinery into the live editor image
@@ -216,6 +219,34 @@ Done when:
 - Strict register contracts still pass for affected proof/build paths.
 - The successful patterns are folded into the style guide or module templates.
 
+### Q2B: Z80 Space-Saving Pilots
+
+Goal: test compactness techniques in small, measurable increments before making
+them part of the house style.
+
+Actions:
+
+- Follow the ranked recommendations in
+  `docs/z80-space-saving-opportunities.md`.
+- Try only one compactness technique per increment. Keep table-driven lookup,
+  common-tail sharing, table-driven validation, and command normalization in
+  separate changes so each one can be judged and reverted independently.
+- Start with low-risk data-shaped logic, especially editor load error text
+  lookup or exact repeated editor render tails.
+- Use classic jump tables only where the dispatch family is dense, stable, and
+  large enough that the indirect-dispatch scaffold is smaller than the compare
+  chain.
+- Do not share tiny tails such as `XOR A` / `RET` merely for style.
+- Record the binary size before and after every pilot with `npm run z80:size`.
+
+Done when:
+
+- Each pilot has a before/after byte count and targeted proof command.
+- The change improves or preserves readability at the affected label.
+- Any new shared tail or helper has a clear contract when public.
+- Patterns that do not pay for themselves are rejected and documented rather
+  than spread through the codebase.
+
 ### Q3: Shared Record, String, And Path Helpers
 
 Goal: remove duplicated small algorithms before splitting large modules.
@@ -227,10 +258,11 @@ Actions:
   - reading a masked record length,
   - writing a length while preserving bits 5-7,
   - zeroing padding bytes after the effective length,
-  - clearing a 32-byte record.
-- Continue the record helper extraction with:
-  - shifting records up/down inside a page or resident window,
-  - shifting characters inside one record.
+  - clearing a 32-byte record,
+  - shifting text bytes left or right inside one record,
+  - shifting records up/down inside a page or resident window.
+- Continue the record helper extraction by evaluating the remaining
+  block-selection row-shift loops once the helper boundary stays proof-green.
 - The existing `EditorKey*Record*` labels remain as compatibility wrappers and
   now delegate to the shared helpers. Replace duplicate split/join/paste/delete
   shift loops in `src/editor-interaction.asm` only after the small record-helper

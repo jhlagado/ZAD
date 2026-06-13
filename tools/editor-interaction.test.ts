@@ -289,6 +289,14 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(recordSource, /^@Tecm8RecordZeroPadding:/m);
   assert.match(recordSource, /^@Tecm8RecordReadLength:/m);
   assert.match(recordSource, /^@Tecm8RecordWriteLength:/m);
+  assert.match(recordSource, /^@Tecm8RecordShiftTextRight:/m);
+  assert.match(recordSource, /^@Tecm8RecordShiftTextLeft:/m);
+  assert.match(recordSource, /^@Tecm8RecordShiftRecordsDown:/m);
+  assert.match(recordSource, /^@Tecm8RecordShiftRecordsUp:/m);
+  assert.match(source, /CALL\s+Tecm8RecordShiftTextRight/);
+  assert.match(source, /CALL\s+Tecm8RecordShiftTextLeft/);
+  assert.match(source, /CALL\s+Tecm8RecordShiftRecordsDown/);
+  assert.match(source, /CALL\s+Tecm8RecordShiftRecordsUp/);
   assert.match(recordSource, /AND\s+TECM8_SOURCE_RECORD_LENGTH_MASK/);
   assert.match(recordSource, /AND\s+TECM8_SOURCE_RECORD_METADATA_MASK/);
   assert.match(source, /@EditorSplitPushLastRecordToNextPage:/);
@@ -300,6 +308,8 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(recordSource, /^@Tecm8RecordClear:/m);
   assert.match(recordSource, /LD\s+B,TECM8_SOURCE_RECORD_BYTES/);
   assert.match(source, /@EditorJoinPreviousLine:\n\s+LD\s+A,\(EditorCursorCol\)\n\s+OR\s+A\n\s+JP\s+NZ,EditorJoinDone/);
+  assert.doesNotMatch(source, /EditorSplitShiftLoop:/);
+  assert.doesNotMatch(source, /EditorJoinShiftLoop:/);
   assert.match(source, /CP\s+TECM8_EDITOR_NAV_ERR_PAGE/);
   assert.match(source, /CP\s+TECM8_EDITOR_INTERACTION_ERR_EOF/);
 });

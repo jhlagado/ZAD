@@ -1753,25 +1753,8 @@ EditorInsertColReady:
         SUB     C
         LD      B,A
         LD      (EditorRecordBase),HL
-        OR      A
-        JR      Z,EditorInsertWriteChar
         LD      HL,(EditorRecordBase)
-        LD      D,0
-        LD      E,C
-        ADD     HL,DE
-        LD      D,0
-        LD      E,B
-        ADD     HL,DE
-        LD      D,H
-        LD      E,L
-        INC     DE
-
-EditorInsertShiftLoop:
-        LD      A,(HL)
-        LD      (DE),A
-        DEC     HL
-        DEC     DE
-        DJNZ    EditorInsertShiftLoop
+        CALL    Tecm8RecordShiftTextRight
 
 EditorInsertWriteChar:
         LD      HL,(EditorRecordBase)
@@ -1865,26 +1848,10 @@ EditorSplitCursorReady:
         CALL    EditorKeyRecordAtRow
         LD      (EditorLineDest),HL
 
-EditorSplitShiftLoop:
         LD      A,(EditorLineRowsLeft)
-        OR      A
-        JR      Z,EditorSplitShiftDone
         LD      HL,(EditorLineSrc)
         LD      DE,(EditorLineDest)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      HL,(EditorLineSrc)
-        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineSrc),HL
-        LD      HL,(EditorLineDest)
-        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineDest),HL
-        LD      A,(EditorLineRowsLeft)
-        DEC     A
-        LD      (EditorLineRowsLeft),A
-        JR      EditorSplitShiftLoop
+        CALL    Tecm8RecordShiftRecordsDown
 
 EditorSplitShiftDone:
         LD      HL,(EditorRecordBase)
@@ -1981,26 +1948,10 @@ EditorSplitFinalCursorReady:
         LD      A,15
         LD      (EditorLineRowsLeft),A
 
-EditorSplitFinalNextShiftLoop:
         LD      A,(EditorLineRowsLeft)
-        OR      A
-        JR      Z,EditorSplitFinalWriteRecords
         LD      HL,(EditorLineSrc)
         LD      DE,(EditorLineDest)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      HL,(EditorLineSrc)
-        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineSrc),HL
-        LD      HL,(EditorLineDest)
-        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineDest),HL
-        LD      A,(EditorLineRowsLeft)
-        DEC     A
-        LD      (EditorLineRowsLeft),A
-        JR      EditorSplitFinalNextShiftLoop
+        CALL    Tecm8RecordShiftRecordsDown
 
 EditorSplitFinalWriteRecords:
         LD      HL,(EditorRecordBase)
@@ -2106,26 +2057,10 @@ EditorSplitFinalDone:
         LD      A,15
         LD      (EditorLineRowsLeft),A
 
-EditorSplitPushNextShiftLoop:
         LD      A,(EditorLineRowsLeft)
-        OR      A
-        JR      Z,EditorSplitPushCopyLast
         LD      HL,(EditorLineSrc)
         LD      DE,(EditorLineDest)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      HL,(EditorLineSrc)
-        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineSrc),HL
-        LD      HL,(EditorLineDest)
-        LD      DE,0 - TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineDest),HL
-        LD      A,(EditorLineRowsLeft)
-        DEC     A
-        LD      (EditorLineRowsLeft),A
-        JR      EditorSplitPushNextShiftLoop
+        CALL    Tecm8RecordShiftRecordsDown
 
 EditorSplitPushCopyLast:
         LD      HL,EditorNavPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
@@ -2216,26 +2151,10 @@ EditorJoinShiftRows:
         ADD     HL,DE
         LD      (EditorLineSrc),HL
 
-EditorJoinShiftLoop:
         LD      A,(EditorLineRowsLeft)
-        OR      A
-        JR      Z,EditorJoinClearLast
         LD      HL,(EditorLineSrc)
         LD      DE,(EditorLineDest)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      HL,(EditorLineSrc)
-        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineSrc),HL
-        LD      HL,(EditorLineDest)
-        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineDest),HL
-        LD      A,(EditorLineRowsLeft)
-        DEC     A
-        LD      (EditorLineRowsLeft),A
-        JR      EditorJoinShiftLoop
+        CALL    Tecm8RecordShiftRecordsUp
 
 EditorJoinClearLast:
         LD      A,15
@@ -2323,26 +2242,10 @@ EditorJoinPreviousPageZeroPadding:
         LD      A,15
         LD      (EditorLineRowsLeft),A
 
-EditorJoinPreviousPageShiftLoop:
         LD      A,(EditorLineRowsLeft)
-        OR      A
-        JR      Z,EditorJoinPreviousPageClearLast
         LD      HL,(EditorLineSrc)
         LD      DE,(EditorLineDest)
-        LD      BC,TECM8_EDITOR_EDIT_RECORD_BYTES
-        LDIR
-        LD      HL,(EditorLineSrc)
-        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineSrc),HL
-        LD      HL,(EditorLineDest)
-        LD      DE,TECM8_EDITOR_EDIT_RECORD_BYTES
-        ADD     HL,DE
-        LD      (EditorLineDest),HL
-        LD      A,(EditorLineRowsLeft)
-        DEC     A
-        LD      (EditorLineRowsLeft),A
-        JR      EditorJoinPreviousPageShiftLoop
+        CALL    Tecm8RecordShiftRecordsUp
 
 EditorJoinPreviousPageClearLast:
         LD      HL,EditorNavPageBuffer + (15 * TECM8_EDITOR_EDIT_RECORD_BYTES)
@@ -2399,22 +2302,8 @@ EditorJoinPreviousPageClearLast:
         DEC     A
         LD      B,A
         LD      (EditorRecordBase),HL
-        OR      A
-        JR      Z,EditorDeleteShorten
-        INC     HL
-        LD      D,0
-        LD      E,C
-        ADD     HL,DE
-        LD      D,H
-        LD      E,L
-        INC     HL
-
-EditorDeleteShiftLoop:
-        LD      A,(HL)
-        LD      (DE),A
-        INC     HL
-        INC     DE
-        DJNZ    EditorDeleteShiftLoop
+        LD      HL,(EditorRecordBase)
+        CALL    Tecm8RecordShiftTextLeft
 
 EditorDeleteShorten:
         LD      HL,(EditorRecordBase)

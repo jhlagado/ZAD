@@ -643,6 +643,8 @@ skipped until a human can test real hardware.
 ## Quality Phase: Bank-Ready Editor And Resident Shell Boundary
 
 Detailed execution plan: [Code Quality Execution Plan](code-quality-remediation-plan.md).
+Compactness recommendations live in
+[Z80 Space-Saving Opportunities](z80-space-saving-opportunities.md).
 
 Goal: turn the current proof-grown editor into a compact bank-ready tool while
 preserving the shell as the resident TECM8 operating-system personality.
@@ -654,6 +656,9 @@ Work:
   superseded editor behavior.
 - Centralize shared equates for records, TM8 layout, keyboard modifiers,
   display geometry, and memory names.
+- Pilot one space-saving technique at a time: table-shaped error lookup,
+  common render/error tails, table-driven validation, or measured dispatch
+  tables where they are genuinely smaller.
 - Extract record, string, path, and narrow TM8 helpers before splitting large
   modules.
 - Decompose `editor-interaction.asm` into keymap, cursor, line-edit, block,
@@ -671,8 +676,9 @@ Done when:
 - The shell/editor boundary is documented as a resident-to-banked-tool call
   boundary.
 - The editor remains Debug80-runnable and proof-green after each increment.
-- The post-refactor editor binary size is measured against the current fresh
-  AZM source-build baseline of 15,235 bytes.
+- The post-refactor editor binary size is measured against the original
+  quality-phase baseline of 15,235 bytes and the latest fresh AZM source-build
+  size recorded in the code-quality plan.
 - The roadmap names the next tool project: resident shell completion or
   assembler integration.
 

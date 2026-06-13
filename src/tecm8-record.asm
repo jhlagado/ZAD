@@ -70,3 +70,112 @@ Tecm8RecordClearLoop:
         DJNZ    Tecm8RecordClearLoop
         XOR     A
         RET
+
+; Tecm8RecordShiftTextRight -
+; Shift B text bytes right by one byte inside a source record.
+; Input: HL = record base, C = zero-based text column, B = bytes to shift
+;! in B,C,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@Tecm8RecordShiftTextRight:
+        LD      A,B
+        OR      A
+        JR      Z,Tecm8RecordShiftTextRightDone
+        LD      D,0
+        LD      E,C
+        ADD     HL,DE
+        LD      D,0
+        LD      E,B
+        ADD     HL,DE
+        LD      D,H
+        LD      E,L
+        INC     DE
+
+Tecm8RecordShiftTextRightLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        DEC     HL
+        DEC     DE
+        DJNZ    Tecm8RecordShiftTextRightLoop
+
+Tecm8RecordShiftTextRightDone:
+        XOR     A
+        RET
+
+; Tecm8RecordShiftTextLeft -
+; Shift B text bytes left by one byte inside a source record.
+; Input: HL = record base, C = zero-based text column, B = bytes to shift
+;! in B,C,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@Tecm8RecordShiftTextLeft:
+        LD      A,B
+        OR      A
+        JR      Z,Tecm8RecordShiftTextLeftDone
+        INC     HL
+        LD      D,0
+        LD      E,C
+        ADD     HL,DE
+        LD      D,H
+        LD      E,L
+        INC     HL
+
+Tecm8RecordShiftTextLeftLoop:
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        DJNZ    Tecm8RecordShiftTextLeftLoop
+
+Tecm8RecordShiftTextLeftDone:
+        XOR     A
+        RET
+
+; Tecm8RecordShiftRecordsDown -
+; Copy A records from high source to high destination, moving backward.
+; Input: A = record count, HL = highest source record, DE = highest destination
+;! in A,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@Tecm8RecordShiftRecordsDown:
+        OR      A
+        JR      Z,Tecm8RecordShiftRecordsDownDone
+
+Tecm8RecordShiftRecordsDownLoop:
+        PUSH    AF
+        LD      BC,TECM8_SOURCE_RECORD_BYTES
+        LDIR
+        LD      BC,0 - (TECM8_SOURCE_RECORD_BYTES * 2)
+        ADD     HL,BC
+        EX      DE,HL
+        ADD     HL,BC
+        EX      DE,HL
+        POP     AF
+        DEC     A
+        JR      NZ,Tecm8RecordShiftRecordsDownLoop
+
+Tecm8RecordShiftRecordsDownDone:
+        XOR     A
+        RET
+
+; Tecm8RecordShiftRecordsUp -
+; Copy A records from low source to low destination, moving forward.
+; Input: A = record count, HL = lowest source record, DE = lowest destination
+;! in A,DE,HL
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@Tecm8RecordShiftRecordsUp:
+        OR      A
+        JR      Z,Tecm8RecordShiftRecordsUpDone
+
+Tecm8RecordShiftRecordsUpLoop:
+        PUSH    AF
+        LD      BC,TECM8_SOURCE_RECORD_BYTES
+        LDIR
+        POP     AF
+        DEC     A
+        JR      NZ,Tecm8RecordShiftRecordsUpLoop
+
+Tecm8RecordShiftRecordsUpDone:
+        XOR     A
+        RET
