@@ -220,6 +220,7 @@ BiosInputPollKeyNew:
         LD      A,(BiosInputRawPrimary)
         LD      E,A
         CALL    MON3_MATRIX_SCAN_ASCII
+        LD      (BiosInputTranslatedRawKey),A
         LD      (BiosInputTranslatedKey),A
         CALL    MON3_GET_CAPS
         OR      A
@@ -376,6 +377,9 @@ BiosInputRawSecondary:
         .db     0xFF
 
 BiosInputTranslatedKey:
+        .db     0
+
+BiosInputTranslatedRawKey:
         .db     0
 
 BiosInputModifierBits:

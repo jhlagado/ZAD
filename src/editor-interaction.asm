@@ -20,6 +20,9 @@ TECM8_EDITOR_KEY_NEWLINE                .equ    13
 TECM8_EDITOR_KEY_QUIT                   .equ    17
 TECM8_EDITOR_KEY_SAVE                   .equ    19
 TECM8_EDITOR_KEY_RESTORE                .equ    26
+TECM8_EDITOR_KEY_CTRL_C                 .equ    0x03
+TECM8_EDITOR_KEY_CTRL_V                 .equ    0x16
+TECM8_EDITOR_KEY_CTRL_X                 .equ    0x18
 TECM8_EDITOR_KEY_ESCAPE                 .equ    27
 TECM8_EDITOR_KEY_DELETE                 .equ    127
 TECM8_EDITOR_KEY_PRINTABLE_MIN          .equ    32
@@ -900,10 +903,26 @@ EditorActionCursorRight:
         JR      Z,EditorModifiedCommandPaste
         CP      "V"
         JR      Z,EditorModifiedCommandPaste
+        LD      A,(EditorPendingModifier)
+        AND     TECM8_EDITOR_KEY_MOD_CTRL
+        JR      Z,EditorModifiedCommandNone
+        LD      A,(EditorPendingChar)
+        CP      TECM8_EDITOR_KEY_CTRL_C
+        JR      Z,EditorModifiedCommandCtrlCopy
+        CP      TECM8_EDITOR_KEY_CTRL_X
+        JR      Z,EditorModifiedCommandMove
+        CP      TECM8_EDITOR_KEY_CTRL_V
+        JR      Z,EditorModifiedCommandPaste
 
 EditorModifiedCommandNone:
         XOR     A
         RET
+
+EditorModifiedCommandCtrlCopy:
+        LD      A,(BiosInputRawPrimary)
+        CP      TECM8_EDITOR_KEY_ARROW_UP
+        JR      Z,EditorModifiedCommandNone
+        JP      EditorModifiedCommandCopy
 
 EditorModifiedCommandSave:
         LD      A,TECM8_EDITOR_KEY_SAVE

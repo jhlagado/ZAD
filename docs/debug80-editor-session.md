@@ -33,8 +33,8 @@ This assembles `src/keyboard-tester.main.asm` and writes:
 
 Load `build/keyboard-tester.bin` at `0x4000` from MON3 and press GO. The
 program does not use the FAT32/TM8 editor image. It initializes the GLCD, clears
-the screen, shows the latest raw matrix bytes on row 1, and appends one compact
-token for each key event returned by `BiosInputPollKey`.
+the screen, and appends a compact history entry for each key event returned by
+`BiosInputPollKey`.
 
 Display convention:
 
@@ -43,8 +43,8 @@ Display convention:
 - Alt chords are shown with `\`, so Alt-C appears as `\C`.
 - Special keys use compact names: `U`, `D`, `L`, `R` for arrows, `B` for
   backspace, `T` for tab, `N` for enter, `E` for escape, and `X` for delete.
-- The `RAW dd ee` row shows the latest raw secondary byte `D` and primary byte
-  `E` returned by `BiosInputPollKey`, in hex.
+- Each history entry starts with the raw secondary byte `D` and primary byte
+  `E` returned by `BiosInputPollKey`, in hex, then the interpreted token.
 
 The target is meant to separate three failure classes while Debug80 keyboard
 handling is being tuned:
@@ -56,15 +56,16 @@ handling is being tuned:
 - Debug80 physical keyboard mapping problems: mouse matrix input works, but the
   host keyboard produces a different token.
 
-For example, press Alt-C three times. The expected display history is:
+For example, press Ctrl-C three times. The expected display history is:
 
 ```text
-\C \C \C
+dd ee ^C dd ee ^C dd ee ^C
 ```
 
-The `RAW` row should update each time. If the compact token looks right but the
-raw bytes differ between mouse-matrix input and host-keyboard input, the problem
-is in Debug80's host-keyboard mapping path rather than the TECM8 editor.
+The `dd ee` bytes should be stable for the same matrix chord. If the compact
+token looks right but the raw bytes differ between mouse-matrix input and
+host-keyboard input, the problem is in Debug80's host-keyboard mapping path
+rather than the TECM8 editor.
 
 For launching the `main` target from the Debug80 UI, prepare the disk image
 without running the scripted edit session:
@@ -269,9 +270,9 @@ For an interactive Debug80 UI check:
    movement.
 7. `Ctrl-S` or `Alt-S` saves, `Ctrl-Q` or `Alt-Q` quits, and `Ctrl-Z` or
    `Alt-Z` asks to restore from the hidden backup file. Both modifier families
-   are intentionally active for now. Ctrl-X/Alt-X are reserved for future block
-   move/cut, Ctrl-R/Alt-R for future block read, and Ctrl-W/Alt-W for future
-   block write.
+   are intentionally active for now. Ctrl-C/Alt-C arm a selected block for
+   copy, Ctrl-X/Alt-X arm a selected block for move, and Ctrl-V/Alt-V applies
+   the pending block.
 8. Unknown modified printable keys, for example `Alt-W`, should do nothing and
    should not type `w` or leave status text behind. Page movement while the
    page is dirty should show `Save first` and stay on the current page.
@@ -410,8 +411,8 @@ GLCD. Use this exact smoke test:
    question first.
 
    Ctrl-Q and Alt-Q are both valid exit paths. Keep testing both while host
-   keyboard behavior is still settling. Ctrl-X and Alt-X are reserved for
-   future block move/cut.
+   keyboard behavior is still settling. Ctrl-X and Alt-X now arm a selected
+   block for move/cut.
 
 The current phase uses tile/dirty-region GLCD transfer for ordinary cursor
 movement. Horizontal cursor keys redraw the cursor overlay cell range, and

@@ -155,6 +155,13 @@ test('editor interaction module exposes a key-stream runner', () => {
   assert.match(source, /CP\s+"X"\n\s+JR\s+Z,EditorModifiedCommandMove/);
   assert.match(source, /CP\s+"v"\n\s+JR\s+Z,EditorModifiedCommandPaste/);
   assert.match(source, /CP\s+"V"\n\s+JR\s+Z,EditorModifiedCommandPaste/);
+  assert.match(source, /TECM8_EDITOR_KEY_CTRL_C\s+\.equ\s+0x03/);
+  assert.match(source, /TECM8_EDITOR_KEY_CTRL_V\s+\.equ\s+0x16/);
+  assert.match(source, /TECM8_EDITOR_KEY_CTRL_X\s+\.equ\s+0x18/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_CTRL_C\n\s+JR\s+Z,EditorModifiedCommandCtrlCopy/);
+  assert.match(source, /EditorModifiedCommandCtrlCopy:\n\s+LD\s+A,\(BiosInputRawPrimary\)\n\s+CP\s+TECM8_EDITOR_KEY_ARROW_UP[\s\S]*?JR\s+Z,EditorModifiedCommandNone[\s\S]*?JP\s+EditorModifiedCommandCopy/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_CTRL_X\n\s+JR\s+Z,EditorModifiedCommandMove/);
+  assert.match(source, /CP\s+TECM8_EDITOR_KEY_CTRL_V\n\s+JR\s+Z,EditorModifiedCommandPaste/);
   assert.match(source, /CP\s+"q"\n\s+JR\s+Z,EditorModifiedCommandQuit/);
   assert.match(source, /CP\s+"Q"\n\s+JR\s+Z,EditorModifiedCommandQuit/);
   assert.match(source, /CP\s+"z"\n\s+JR\s+Z,EditorModifiedCommandRestore/);

@@ -31,9 +31,9 @@ test('keyboard tester renders ctrl and alt chords distinctly', () => {
 test('keyboard tester exposes raw matrix bytes for diagnostics', () => {
   const source = readFileSync(sourcePath, 'utf8');
 
-  assert.match(source, /KbdTestRawLine:/);
-  assert.match(source, /@KbdTestRenderRawLine:/);
+  assert.match(source, /CALL\s+KbdTestAppendHexByte/);
   assert.match(source, /@KbdTestWriteHexByte:/);
+  assert.match(source, /@KbdTestAppendHexByte:/);
   assert.match(source, /KbdTestRawSecondary/);
   assert.match(source, /KbdTestRawPrimary/);
 });

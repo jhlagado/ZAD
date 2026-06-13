@@ -94,9 +94,9 @@ at `0x4000`, initializes the GLCD tile display, and then polls
 `BiosInputPollKey` forever. Each key event is appended to a small on-screen
 history so Debug80 mouse-matrix input and physical-keyboard input can be
 compared without involving the editor. Ctrl chords render as `^X`; Alt chords
-render as `\X`. The second display row shows the latest raw matrix `D/E` bytes
-in hex so translated-token issues can be separated from raw Debug80 matrix
-mapping issues.
+render as `\X`. Each history entry includes the raw matrix `D/E` bytes in hex
+before the interpreted token so translated-token issues can be separated from
+raw Debug80 matrix mapping issues.
 
 ### `src/tecm8-bios.asm` and `src/mon3.asmi`
 

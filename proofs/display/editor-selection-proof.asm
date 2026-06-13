@@ -207,8 +207,8 @@ PROOF_MOD_CTRL   .equ     0x02
         JP      C,ProofFailed
         CALL    SelectRowsZeroToTwo
         JP      C,ProofFailed
-        LD      A,"x"
-        LD      B,PROOF_MOD_ALT
+        LD      A,TECM8_EDITOR_KEY_CTRL_X
+        LD      B,PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending
@@ -263,8 +263,8 @@ PROOF_MOD_CTRL   .equ     0x02
         LD      (PlainDownCount),A
         CALL    RunPlainDownCount
         JP      C,ProofFailed
-        LD      A,"v"
-        LD      B,PROOF_MOD_ALT
+        LD      A,TECM8_EDITOR_KEY_CTRL_V
+        LD      B,PROOF_MOD_CTRL
         CALL    EditorRunModifiedKey
         JP      C,ProofFailed
         CALL    GlcdTileDrainPending
@@ -899,16 +899,6 @@ LoadProjectStubOk:
         XOR     A
         RET
 
-        .include "../../src/glcd-tile.asm"
-        .include "../../src/display-model.asm"
-        .include "../../src/editor-viewport.asm"
-        .include "../../src/editor-storage-loader.asm"
-        .include "../../src/editor-navigation.asm"
-        .include "../../src/editor-interaction.asm"
-        .include "../../src/shell-commands.asm"
-        .include "../../src/shell-editor-launch.asm"
-        .include "../../src/tecm8-bios.asm"
-
 CmdEdit:
         .db     "edit",0
 
@@ -932,3 +922,13 @@ ShiftDownCount:
 
 PlainDownCount:
         .db     0
+
+        .include "../../src/glcd-tile.asm"
+        .include "../../src/display-model.asm"
+        .include "../../src/editor-viewport.asm"
+        .include "../../src/editor-storage-loader.asm"
+        .include "../../src/editor-navigation.asm"
+        .include "../../src/editor-interaction.asm"
+        .include "../../src/shell-commands.asm"
+        .include "../../src/shell-editor-launch.asm"
+        .include "../../src/tecm8-bios.asm"

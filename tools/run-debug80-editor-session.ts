@@ -575,6 +575,9 @@ async function main(): Promise<void> {
     const selectionActiveLoAddr = symbolAddress(symbols, 'EditorBlockSelectionActiveLo');
     const pendingBlockModeAddr = symbolAddress(symbols, 'EditorPendingBlockMode');
     const translatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedKey');
+    const rawTranslatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedRawKey');
+    const rawPrimaryAddr = symbolAddress(symbols, 'BiosInputRawPrimary');
+    const rawSecondaryAddr = symbolAddress(symbols, 'BiosInputRawSecondary');
     const modifierBitsAddr = symbolAddress(symbols, 'BiosInputModifierBits');
     const { runtime, platformRuntime } = loadRuntime(bytes, sessionImagePath, APP_START, true);
     platformRuntime.setMatrixMode?.(true);
@@ -595,18 +598,26 @@ async function main(): Promise<void> {
       );
     }
 
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 4, col: 6 }, 200_000, 200_000); // Alt+C
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 4, col: 6 }, 200_000, 200_000); // Ctrl+C
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const copyModifierBits = runtime.hardware.memory[modifierBitsAddr];
     const copyTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const copyRawTranslatedKey = runtime.hardware.memory[rawTranslatedKeyAddr];
+    const copyRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
+    const copyRawSecondary = runtime.hardware.memory[rawSecondaryAddr];
     const pendingAfterCopy = readRuntimeByte(runtime, pendingBlockModeAddr);
     const selectionAfterCopy = readRuntimeByte(runtime, selectionActiveAddr);
+    if (copyModifierBits !== 0x02 || copyTranslatedKey !== 0x03 || copyRawTranslatedKey !== 0x03 || copyRawPrimary === 0x03) {
+      throw new Error(
+        `block smoke Ctrl-C modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)} rawTranslated=0x${copyRawTranslatedKey.toString(16)} rawSecondary=0x${copyRawSecondary.toString(16)} rawPrimary=0x${copyRawPrimary.toString(16)}, expected ctrl-modified control-C with non-arrow raw primary`,
+      );
+    }
     if (
       pendingAfterCopy !== 1 ||
       selectionAfterCopy !== 0
     ) {
       throw new Error(
-        `block smoke Alt-C pending=${pendingAfterCopy} selection=${selectionAfterCopy} modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)}, expected pending copy`,
+        `block smoke Ctrl-C pending=${pendingAfterCopy} selection=${selectionAfterCopy} modifier=0x${copyModifierBits.toString(16)} translated=0x${copyTranslatedKey.toString(16)} rawTranslated=0x${copyRawTranslatedKey.toString(16)} rawSecondary=0x${copyRawSecondary.toString(16)} rawPrimary=0x${copyRawPrimary.toString(16)}, expected pending copy`,
       );
     }
 
@@ -618,7 +629,7 @@ async function main(): Promise<void> {
       throw new Error(`block smoke cursor row before paste ${runtime.hardware.memory[cursorRowAddr]}, expected 4`);
     }
 
-    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 3 }, { row: 7, col: 1 }, 200_000, 200_000); // Alt+V
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 1 }, 200_000, 200_000); // Ctrl+V
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const pasteModifierBits = runtime.hardware.memory[modifierBitsAddr];
     const pasteTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
@@ -626,9 +637,9 @@ async function main(): Promise<void> {
     const selectionAfterPaste = readRuntimeByte(runtime, selectionActiveAddr);
     const selectionAnchorAfterPaste = readRuntimeByte(runtime, selectionAnchorLoAddr);
     const selectionEndAfterPaste = readRuntimeByte(runtime, selectionActiveLoAddr);
-    if (pasteModifierBits !== 0x08 || (pasteTranslatedKey !== 0x76 && pasteTranslatedKey !== 0x56)) {
+    if (pasteModifierBits !== 0x02 || pasteTranslatedKey !== 0x16) {
       throw new Error(
-        `block smoke Alt-V modifier=0x${pasteModifierBits.toString(16)} translated=0x${pasteTranslatedKey.toString(16)}, expected alt-modified V/v`,
+        `block smoke Ctrl-V modifier=0x${pasteModifierBits.toString(16)} translated=0x${pasteTranslatedKey.toString(16)}, expected ctrl-modified V`,
       );
     }
     if (
@@ -638,7 +649,7 @@ async function main(): Promise<void> {
       selectionEndAfterPaste !== 5
     ) {
       throw new Error(
-        `block smoke Alt-V pending=${pendingAfterPaste} selection=${selectionAfterPaste} anchor=${selectionAnchorAfterPaste} activeLo=${selectionEndAfterPaste}, expected pasted selection 4..5`,
+        `block smoke Ctrl-V pending=${pendingAfterPaste} selection=${selectionAfterPaste} anchor=${selectionAnchorAfterPaste} activeLo=${selectionEndAfterPaste}, expected pasted selection 4..5`,
       );
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'B0 LINE 00', 'block smoke row 0 after copy insert');

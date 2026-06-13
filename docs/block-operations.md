@@ -55,9 +55,11 @@ the relevant source glyph. The user can then create a second ordinary selection
 elsewhere. On paste, the pending source block is copied or moved into the
 destination selection.
 
-Implementation note: TECM8's editor key namespace uses `0x03` for arrow up, so
-block copy/move are recognized as printable `C`/`X` plus Ctrl or Alt modifier
-flags. They are not dispatched from raw ASCII control bytes.
+Implementation note: TECM8's editor key namespace uses `0x03` for arrow up, and
+Ctrl-C is also ASCII control byte `03h`. The live editor therefore keeps the
+raw matrix primary key from `BiosInputPollKey` and only treats Ctrl-`03h` as
+copy when the raw key was not ArrowUp. Alt-C remains the simpler printable
+`C`/`c` plus Alt path.
 
 ## Key Bindings
 
@@ -442,7 +444,7 @@ block.
 ### Phase B8: Debug80 Block Editing V1 Acceptance
 
 - Done: `debug80:editor-block-smoke` boots the editor in Debug80 matrix mode,
-  selects lines with `Shift+Down`, arms copy with `Alt-C`, pastes with `Alt-V`,
+  selects lines with `Shift+Down`, arms copy with `Ctrl-C`, pastes with `Ctrl-V`,
   saves with `Alt-S`, and validates the saved TM8 source records from the host
   side.
 - Done: `acceptance:block-editing-v1` runs the selection/paste proof, the
@@ -483,18 +485,18 @@ Manual script:
 ```text
 1. Press Shift+Down once. Row 0 should show the thin selection gutter and row
    1 should remain the current cursor row.
-2. Press Alt-C. Row 0 should change to the thick pending-copy gutter.
+2. Press Ctrl-C. Row 0 should change to the thick pending-copy gutter.
 3. Press Escape. The pending-copy gutter should clear. Select row 0 again with
-   Shift+Down and press Alt-C to re-arm copy.
+   Shift+Down and press Ctrl-C to re-arm copy.
 4. Press Down three times to move to row 4.
-5. Press Alt-V. Row 0 should be copied before row 4 and the pasted row should
+5. Press Ctrl-V. Row 0 should be copied before row 4 and the pasted row should
    become the thin selected destination block.
 6. Press Alt-X. The pasted rows should change to the sawtooth pending-move
    gutter.
-7. Press Down a few rows, then Alt-V. The moved rows should reappear at the new
+7. Press Down a few rows, then Ctrl-V. The moved rows should reappear at the new
    position and the old source rows should close up.
-8. Select a destination range with Shift+Down, arm another source with Alt-C or
-   Alt-X, and press Alt-V. Equal-sized resident-page ranges should replace;
+8. Select a destination range with Shift+Down, arm another source with Ctrl-C or
+   Ctrl-X, and press Ctrl-V. Equal-sized resident-page ranges should replace;
    unsafe overlaps should leave the text unchanged.
 9. Select a block and press Delete. Answer N first; the block should remain.
 10. Press Delete again and answer Y; the selected whole-line block should be
