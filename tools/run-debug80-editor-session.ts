@@ -28,6 +28,7 @@ const MON3_ROM_PATH = resolve(
 );
 
 const SOURCE_FILE = resolve(TECM8_ROOT, 'src/main.asm');
+const SCRIPT_SOURCE_FILE = resolve(TECM8_ROOT, 'src/editor-session-script.main.asm');
 const MON3_INTERFACE = resolve(TECM8_ROOT, 'src/mon3.asmi');
 const APP_START = 0x4000;
 const PASS = 0x42;
@@ -82,12 +83,12 @@ function requireFromDebug80(modulePath: string): unknown {
   return require(resolve(DEBUG80_ROOT, modulePath));
 }
 
-async function compileMain(): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
+async function compileMain(sourceFile = SOURCE_FILE): Promise<{ bytes: Uint8Array; symbols: D8Symbol[] }> {
   const { compile, defaultFormatWriters } = AZM_ROOT
     ? await import(resolve(AZM_ROOT, 'dist/src/api-compile.js'))
     : await import('@jhlagado/azm/compile');
   const result = await compile(
-    SOURCE_FILE,
+    sourceFile,
     {
       emitBin: true,
       emitD8m: true,
@@ -564,7 +565,10 @@ async function main(): Promise<void> {
       ensureSessionImage(sessionImagePath);
     }
 
-    const { bytes, symbols } = await compileMain();
+    const sourceFile = process.argv.includes('--live-smoke') || process.argv.includes('--block-smoke')
+      ? SOURCE_FILE
+      : SCRIPT_SOURCE_FILE;
+    const { bytes, symbols } = await compileMain(sourceFile);
     if (process.argv.includes('--block-smoke')) {
     const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
     const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');

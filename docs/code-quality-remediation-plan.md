@@ -9,7 +9,7 @@ improved without destabilizing that progress.
 
 ## Current Baseline
 
-- Z80 source size: 28 `.asm` modules, roughly 11,400 lines.
+- Z80 source size: 30 `.asm` modules, roughly 11,500 lines.
 - Largest files:
   - `src/editor-storage-loader.asm`: 1,463 lines.
   - `src/shell-resolver.asm`: command resolution and executor stubs.
@@ -19,8 +19,8 @@ improved without destabilizing that progress.
   - `src/editor-block.asm`: 760 lines.
   - `src/editor-interaction.asm`: 741 lines.
   - `src/editor-line-edit.asm`: 595 lines.
-- Current fresh source build: `npm run z80:size` reports 14,549 bytes emitted
-  at `4000h..78D5h`, leaving 1,835 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 14,477 bytes emitted
+  at `4000h..788Dh`, leaving 1,907 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -358,6 +358,12 @@ Actions:
   `main.asm` now includes only the resolver plus `shell-editor-launch.asm`; the
   full shell-command proof includes both halves. This reduces the live editor
   image to 14,549 bytes, leaving 1,835 bytes free in the current 16K bank.
+- Done: move the automated Debug80 save/reopen script entry to
+  `editor-session-script.main.asm` and the proof-only key-stream bridge to
+  `shell-editor-session.asm`. The default automated runner compiles the script
+  target, while live smoke paths compile `src/main.asm`. This reduces the live
+  editor image to 14,477 bytes, leaving 1,907 bytes free in the current 16K
+  bank.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and

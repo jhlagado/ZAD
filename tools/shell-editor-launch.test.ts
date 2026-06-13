@@ -11,9 +11,9 @@ function readRepoFile(path: string): string {
 
 test('shell editor launcher exposes edit launch entries', () => {
   const source = readRepoFile('src/shell-editor-launch.asm');
+  const sessionSource = readRepoFile('src/shell-editor-session.asm');
 
   assert.match(source, /^@ShellRunEditorLine:/m);
-  assert.match(source, /^@ShellRunEditorSession:/m);
   assert.match(source, /CALL\s+RunShellCommandLine/);
   assert.match(source, /LD\s+A,\(ShellLastExecAction\)\n\s+CP\s+SHELL_CMD_EDIT/);
   assert.match(source, /CALL\s+EditorOpenPath/);
@@ -23,20 +23,32 @@ test('shell editor launcher exposes edit launch entries', () => {
   assert.match(source, /CALL\s+EditorCursorReset/);
   assert.doesNotMatch(source, /LD\s+DE,ShellMainPath/);
   assert.doesNotMatch(source, /CALL\s+EditorOpenMain/);
+  assert.doesNotMatch(source, /^@ShellRunEditorSession:/m);
+
+  assert.match(sessionSource, /^@ShellRunEditorSession:/m);
+  assert.match(sessionSource, /CALL\s+ShellRunEditorLine/);
+  assert.match(sessionSource, /CALL\s+EditorRunKeys/);
+  assert.match(sessionSource, /ShellEditorSessionKeys:\n\s+\.dw\s+0/);
 });
 
 test('Debug80 main entry separates live launch from scripted verification', () => {
   const mainSource = readRepoFile('src/main.asm');
+  const scriptSource = readRepoFile('src/editor-session-script.main.asm');
   const runner = readRepoFile('tools/run-debug80-editor-session.ts');
   const packageJson = readRepoFile('package.json');
 
   assert.match(mainSource, /^@Start:\n\s+JP\s+LiveStart/m);
-  assert.match(mainSource, /^@ScriptStart:/m);
+  assert.doesNotMatch(mainSource, /^@ScriptStart:/m);
+  assert.doesNotMatch(mainSource, /MainEditSaveQuitKeys:/);
   assert.match(mainSource, /^@LiveStart:/m);
   assert.match(mainSource, /CALL\s+ShellRunEditorLine\n\s+JP\s+C,MainFailed\n\s+CALL\s+EditorCursorReset\n\s+CALL\s+EditorRunLive/);
   assert.match(mainSource, /LD\s+HL,MainShellReadyText\n\s+CALL\s+EditorKeyShowStatus/);
   assert.match(mainSource, /MainShellReadyText:\n\s+\.db\s+"Shell",0/);
+  assert.match(scriptSource, /^@ScriptStart:/m);
+  assert.match(scriptSource, /CALL\s+ShellRunEditorSession/);
+  assert.match(scriptSource, /\.include\s+"shell-editor-session\.asm"/);
   assert.match(runner, /symbolAddress\(symbols, 'ScriptStart'\)/);
+  assert.match(runner, /SCRIPT_SOURCE_FILE/);
   assert.match(runner, /process\.argv\.includes\('--live-smoke'\)/);
   assert.match(runner, /const MON3_SYS_MODE = 0x089d/);
   assert.match(runner, /forceMemWrite\?\.\(MON3_SYS_MODE, SHADOW_OFF\)/);

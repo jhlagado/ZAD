@@ -1,7 +1,7 @@
-; TECM8 Debug80 editor session entry.
+; TECM8 Debug80 automated editor session entry.
 ;
-; Runs under Debug80's TEC-1G runtime with MON3 loaded and an SD/FAT32 image
-; containing VOLUME.TM8. The 4000h entry is the manual live editor path.
+; This target keeps the scripted save/reopen smoke path out of the live editor
+; image while preserving the same Debug80 automation surface.
 
         .org    0x4000
 
@@ -13,7 +13,30 @@ TECM8_MAIN_FAIL        .equ     0xE0
 ;! out carry,zero
 ;! clobbers sign,parity,halfCarry,A,BC,DE,HL
 @Start:
-        JP      LiveStart
+        JP      ScriptStart
+
+;! out carry,zero
+;! clobbers sign,parity,halfCarry,A,BC,DE,HL
+@ScriptStart:
+        CALL    DisplayInit
+        JP      C,MainFailed
+
+        LD      A,1
+        LD      (MainCaseMarker),A
+        LD      HL,MainEditCommand
+        LD      DE,MainEditSaveQuitKeys
+        CALL    ShellRunEditorSession
+        JP      C,MainFailed
+
+        LD      A,2
+        LD      (MainCaseMarker),A
+        LD      HL,MainEditCommand
+        LD      DE,MainReopenQuitKeys
+        CALL    ShellRunEditorSession
+        JP      C,MainFailed
+
+        LD      A,TECM8_MAIN_PASS
+        LD      (MainResultMarker),A
 
 MainDone:
         JP      MainDone
@@ -23,24 +46,6 @@ MainFailed:
         CALL    EditorNavShowError
         LD      A,(MainCaseMarker)
         OR      TECM8_MAIN_FAIL
-        LD      (MainResultMarker),A
-        JP      MainDone
-
-;! out carry,zero
-;! clobbers sign,parity,halfCarry,A,BC,DE,HL
-@LiveStart:
-        CALL    DisplayInit
-        JP      C,MainFailed
-        LD      HL,MainEditCommand
-        CALL    ShellRunEditorLine
-        JP      C,MainFailed
-        CALL    EditorCursorReset
-        CALL    EditorRunLive
-        JP      C,MainFailed
-        LD      HL,MainShellReadyText
-        CALL    EditorKeyShowStatus
-        JP      C,MainFailed
-        LD      A,TECM8_MAIN_PASS
         LD      (MainResultMarker),A
         JP      MainDone
 
@@ -65,13 +70,17 @@ MainFailed:
         .include "editor-render.asm"
         .include "shell-resolver.asm"
         .include "shell-editor-launch.asm"
+        .include "shell-editor-session.asm"
         .include "tecm8-bios.asm"
 
 MainEditCommand:
         .db     "edit",0
 
-MainShellReadyText:
-        .db     "Shell",0
+MainEditSaveQuitKeys:
+        .db     "AB",19,17,0
+
+MainReopenQuitKeys:
+        .db     17,0
 
 MainResultMarker:
         .db     0

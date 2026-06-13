@@ -1,16 +1,17 @@
 # Debug80 Editor Session
 
 This is the user-testable Debug80 session for the GLCD Editor V1 milestone.
-It is not only an isolated proof harness: it assembles `src/main.asm`, boots it
-in Debug80's TEC-1G runtime with MON3 loaded, mounts a generated FAT32 SD image,
-opens `VOLUME.TM8`, reads `/tecm8.prj`, and launches the GLCD editor.
+It is not only an isolated proof harness: it boots TECM8 in Debug80's TEC-1G
+runtime with MON3 loaded, mounts a generated FAT32 SD image, opens
+`VOLUME.TM8`, reads `/tecm8.prj`, and launches the GLCD editor.
 
 The manual entry at `4000h` opens the editor and enters a live MON3 matrix
-keyboard polling loop. The automated runner enters `ScriptStart` instead: it
-saves the project source file, quits, reopens it, and leaves the final editor
-screen on the GLCD for verification. Scripted runs use a temporary copy of the
-SD-card image, so they can test destructive editor saves without changing the
-manual Debug80 image.
+keyboard polling loop from `src/main.asm`. The automated runner compiles
+`src/editor-session-script.main.asm` and enters `ScriptStart` instead: it saves
+the project source file, quits, reopens it, and leaves the final editor screen
+on the GLCD for verification. Scripted runs use a temporary copy of the SD-card
+image, so they can test destructive editor saves without changing the manual
+Debug80 image.
 
 Run it with:
 

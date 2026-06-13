@@ -275,8 +275,8 @@ npm run z80:size
 
 The command performs a fresh AZM strict-contract compile of `src/main.asm`,
 rather than trusting checked-in build artifacts. As of June 14, 2026, the
-fresh source build is 15,235 bytes emitted at `4000h..7B82h`, which fits in
-the `4000h..7FFFh` execution bank with 1,149 bytes remaining. The previously
+fresh source build is 14,477 bytes emitted at `4000h..788Dh`, which fits in
+the `4000h..7FFFh` execution bank with 1,907 bytes remaining. The previously
 checked-in `build/main.bin` was 15,189 bytes and should be treated as stale for
 planning.
 

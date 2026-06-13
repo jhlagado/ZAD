@@ -2,7 +2,7 @@
 
 **Purpose:** Actionable plan for a coding agent to improve compactness, structure, and coherence without breaking the proof-driven editor milestone.
 
-**Scope:** 28 assembly modules under `src/` (~11,400 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,549 bytes** at `0x4000`, leaving **1,835 bytes** in the 16 KiB bank.
+**Scope:** 30 assembly modules under `src/` (~11,500 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,477 bytes** at `0x4000`, leaving **1,907 bytes** in the 16 KiB bank.
 
 **Date:** June 2026 (post editor milestone / block-editing V1 automation)
 
@@ -22,7 +22,7 @@ The main problem is **incremental growth without consolidation**. Features lande
 | Legacy state kept for compatibility | `EditorNavDirty` vs `EditorNavDirtySectors` |
 | Dead code kept alive by tests | Fixed: `EditorKeyDirtyPageBlocked` removed |
 | Docs describing superseded V1 policy | `docs/editor-design.md`, `docs/codebase.md` |
-| Full shell linked into editor entry | Fixed: `main.asm` now includes `shell-resolver.asm` only |
+| Full shell linked into editor entry | Fixed: `main.asm` now includes resolver plus launch bridge only |
 
 **Estimated recoverable ROM** from deduplication and module factoring (not splitting features): **~800–1,200 bytes** in the current editor binary, plus substantial maintainability gains. The first shell split has already removed the unused prompt program from the live editor image; further large savings require preparing **banked overlays** (already planned in docs, not implemented).
 
@@ -157,8 +157,11 @@ Six routines repeat the same “row < 8 → low mask table, else high mask table
 The shell has now been split into `shell-resolver.asm` and `shell-program.asm`.
 The live editor image includes only the resolver and launch bridge. The complete
 shell command proof includes both halves so prompt-loop behavior remains tested.
+The scripted Debug80 editor session has also moved to
+`editor-session-script.main.asm`, with `shell-editor-session.asm` holding the
+proof-only key-stream helper.
 
-Result: `npm run z80:size` reports 14,549 bytes, leaving 1,835 bytes free in the
+Result: `npm run z80:size` reports 14,477 bytes, leaving 1,907 bytes free in the
 current 16K bank.
 
 ### 9. Stale documentation describing superseded behavior
@@ -338,7 +341,7 @@ Copy this section directly to the implementing agent:
 [ ] Phase B: split editor-interaction.asm (B1→B5 order)
 [ ] Phase C: tm8-catalog.asm
 [x] Phase C shell split: shell-resolver.asm + shell-program.asm
-[x] Phase C3: main.asm includes shell-resolver only; re-measure ROM at 14,549 bytes
+[x] Phase C3: main.asm includes shell-resolver plus launch bridge only; re-measure ROM at 14,477 bytes
 [ ] Phase D: dirty state unification; dead code removal; doc updates
 [ ] Add tools/measure-z80-modules.ts
 [ ] Optional: tools/debug80-proof-runtime.ts for TS dedup

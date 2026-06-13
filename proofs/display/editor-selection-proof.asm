@@ -983,4 +983,5 @@ PlainDownCount:
         .include "../../src/editor-render.asm"
         .include "../../src/shell-resolver.asm"
         .include "../../src/shell-editor-launch.asm"
+        .include "../../src/shell-editor-session.asm"
         .include "../../src/tecm8-bios.asm"

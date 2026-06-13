@@ -179,14 +179,22 @@ the two live readers.
 ### `src/main.asm`
 
 This is now the Debug80-testable TECM8 editor session entry. It runs at `4000h`
-under the TEC-1G/MON3 profile and splits into two entry paths. `Start` jumps to
+under the TEC-1G/MON3 profile. `Start` jumps to
 `LiveStart`, which initializes the GLCD, resolves `edit`, resets the cursor,
 and enters `EditorRunLive` for manual matrix-key testing against the real
-storage-backed editor path. `ScriptStart` is the automated proof entry: it
-opens the project main source through `edit`, inserts a small visible edit,
-saves, quits, reopens the same file, and leaves the final editor screen
-visible. Both paths include the real project config loader and storage-backed
-editor path rather than a stub.
+storage-backed editor path. The automated save/reopen proof has moved to
+`src/editor-session-script.main.asm` so the live image does not carry the
+script entry and key-stream fixture data. Both targets include the real project
+config loader and storage-backed editor path rather than a stub.
+
+### `src/editor-session-script.main.asm`
+
+This is the Debug80 automated editor-session target. It also starts at `4000h`
+but enters `ScriptStart`, opens the project main source through `edit`, inserts
+a small visible edit, saves, quits, reopens the same file, and leaves the final
+editor screen visible. `tools/run-debug80-editor-session.ts` compiles this
+target for the default automated session and compiles `src/main.asm` for live
+and block smoke testing.
 
 ### `src/keyboard-tester.main.asm`
 
@@ -330,12 +338,15 @@ creates a one-block source file in the existing prefix and retries the open.
 Missing prefixes still fail; this path is for normal project cases such as
 `edit fresh` inside `/src`.
 
-`ShellRunEditorSession` adds a proof-oriented editor key stream: run
-the shell edit command, reset the cursor, then pass the key stream to
-`EditorRunKeys`.
-
 This file is where shell-to-editor composition starts. `asm` and `run` are
 still unsupported here because no assembler or runner exists yet.
+
+### `src/shell-editor-session.asm`
+
+This proof-oriented helper runs one shell edit command line, resets the cursor,
+then passes a NUL-terminated translated-key stream to `EditorRunKeys`.
+`src/editor-session-script.main.asm` includes it; the live editor image does
+not.
 
 ### `src/display-model.asm`
 
@@ -1083,12 +1094,14 @@ paste reshaping and prompted delete
 behavior through the same storage-backed editor path.
 
 `tools/run-debug80-editor-session.ts` is the milestone runner for the first
-user-testable editor session. Its default path assembles `src/main.asm`,
-generates `demos/debug80/editor-session-fat32.img`, mounts it in Debug80's
-TEC-1G runtime, verifies `/src/main.asm` was saved as fixed source records,
-verifies the hidden backup, and writes
+user-testable editor session. Its default automated path assembles
+`src/editor-session-script.main.asm`, generates
+`demos/debug80/editor-session-fat32.img`, mounts it in Debug80's TEC-1G
+runtime, verifies `/src/main.asm` was saved as fixed source records, verifies
+the hidden backup, and writes
 `demos/debug80/editor-session-glcd.pgm` as a local GLCD capture. Its
-`--live-smoke` path boots the manual `LiveStart` entry, injects matrix-key
+`--live-smoke` and `--block-smoke` paths assemble `src/main.asm`, boot the
+manual `LiveStart` entry, inject matrix-key
 events, and checks that live cursor movement, page movement, split-line,
 join-line, save, saved-page round-trip, clean-save no-op, post-save input,
 second save, and quit commands reach the same dirty-state and translated-key
