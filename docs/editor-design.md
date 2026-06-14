@@ -267,6 +267,10 @@ later permits a controlled window flush.
 
 Design direction:
 
+- Move toward the rolling 2K source-window design in
+  [Editor Rolling Source Window](editor-rolling-window.md): four 512-byte slots,
+  absolute-line cursor coordinates, one-sector eviction/load, and explicit-save
+  dirty-sector policy.
 - Prefer preloading adjacent sectors around the visible viewport.
 - Avoid SD reads for ordinary up/down movement inside the cached window.
 - Avoid SD writes except explicit save or a future clearly signposted flush.

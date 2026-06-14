@@ -247,6 +247,65 @@ Done when:
   and viewport top row; a richer user-facing status string remains part of
   Phase 6 command/status UX.
 
+## Phase 3A: Rolling Source Window V1
+
+Detailed design: [Editor Rolling Source Window](editor-rolling-window.md).
+
+Goal: replace the current sector-page navigation feel with a continuous
+document model backed by a 2K rolling source window.
+
+Context:
+
+- The current editor already uses several 512-byte buffers, but they are not a
+  true continuous 2K document window. They are active page, adjacent next page,
+  previous-page cache, and backup scratch.
+- Plain Up/Down currently clamp inside one 16-record source sector. `Ctrl-Up`
+  and `Ctrl-Down` are the only way to cross into the adjacent source sector,
+  which makes one file feel like separate pages.
+- MON3 SD/FAT32 operations are slow enough that ordinary line navigation should
+  avoid storage calls whenever the target line is resident.
+
+Work:
+
+- Allocate the editor source window as four 512-byte slots representing up to
+  64 resident source lines.
+- Track cursor and viewport using absolute document-line coordinates, with
+  sector/page and row-in-sector derived from the absolute line.
+- Add slot metadata: page number, valid state, dirty state, and synthetic
+  beyond-EOF state.
+- Use 4-bit window-local masks for valid/dirty/synthetic state; do not use a
+  global bitset that limits file size.
+- Make plain Up/Down cross resident source-sector boundaries.
+- Keep `Ctrl-Up` and `Ctrl-Down` as faster movement commands over the same
+  continuous document, not as the only cross-sector movement.
+- On a window miss, load or evict one source sector rather than reloading the
+  whole 2K window.
+- Preserve explicit-save semantics: dirty sector eviction is blocked in V1 with
+  a save/dirty status instead of silently writing source sectors to disk.
+- Save all dirty resident sectors on `Ctrl-S`.
+- Before first writing a dirty source sector in a session, copy the old on-disk
+  sector to the hidden backup file at the same page number.
+- Track backed-up pages with a small dynamic session table rather than a global
+  file-size mask.
+- Keep `Ctrl-Z` restore scoped to backed-up sectors in the resident window for
+  V1.
+
+Done when:
+
+- Plain Down moves from the final visible/reachable `R0` source line into
+  `R1 LINE 00` in the standard Debug80 fixture.
+- Plain Up moves from `R1 LINE 00` back into the previous `R0` source line.
+- Moving within the loaded 64-line window does not issue SD reads.
+- A movement that would evict a dirty sector is rejected with a clear status
+  until the user explicitly saves.
+- `Ctrl-S` persists dirty resident sectors and preserves pre-session backup
+  sectors.
+- `Ctrl-Z` restores the currently resident backed-up sectors.
+- Debug80 proofs cover resident cross-sector Up/Down, dirty-eviction blocking,
+  and multi-sector save/restore.
+- The manual Debug80 script in `docs/debug80-editor-session.md` is updated with
+  the new continuous-navigation test.
+
 ## Phase 4: Horizontal Editing
 
 Goal: support the full 31-character source record.
