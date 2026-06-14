@@ -71,10 +71,12 @@ For the fastest orientation, read these files first:
     `src/editor-render.asm`, and `src/editor-interaction.asm`: the current editor
     path.
 18. `proofs/display/glcd-tile-proof.asm`,
-    `proofs/display/editor-selection-proof.asm`, and
-    `proofs/display/editor-line-editing-proof.asm`: focused proofs for the tile
-    cell renderer, the current block-editing state, and the fixed-record line
-    editing behavior.
+    `proofs/display/editor-selection-proof.asm`,
+    `proofs/display/editor-line-editing-proof.asm`,
+    `proofs/display/editor-rolling-window-proof.asm`, and
+    `proofs/display/editor-rolling-window-miss-proof.asm`: focused proofs for
+    the tile cell renderer, the current block-editing state, the fixed-record
+    line editing behavior, and the four-slot resident editor window.
 
 ## Z80 Source Tree
 
@@ -535,14 +537,24 @@ Public entries:
 
 The module stores a 64-byte path buffer and legacy aggregate `EditorNavDirty`.
 The source-sector buffers now live in a fixed workspace at `3000h-37FFh`:
-previous-page cache at `3000h`, active page at `3200h`, adjacent next page at
-`3400h`, and backup/save scratch at `3600h`. This keeps the 2K resident source
-workspace below the `4000h` MON3 launch address and away from MON3's lower
-GLCD/storage volatile RAM. `EditorNavDirtySectors` tracks the active/next
-sector dirty bits, while `EditorNavCachedPageDirty` preserves dirty state for
-the previous-page cache. This is now a small two-sector edit window plus one
-previous-page cache: page-down/page-up movement can stay in RAM, and dirty
-movement no longer forces an immediate save. The RAM policy is tracked in
+slot 0/current page at `3200h`, slot 1/adjacent next page at `3400h`, slot
+2/cache page at `3000h`, and slot 3/fourth resident page or backup/save scratch
+at `3600h`. This keeps the 2K resident source workspace below the `4000h` MON3
+launch address and away from MON3's lower GLCD/storage volatile RAM.
+`EditorNavWindowBasePage`, `EditorNavWindowSlotPages`, and the 4-bit valid,
+dirty, and synthetic masks record that workspace as a contiguous four-page
+rolling window even though the compatibility API still exposes current/next/
+cache names. `EditorOpenPath` now seeds slots 0-3 with pages 0-3 when the file
+has them, marks beyond-EOF slots synthetic when it does not, and records that
+shape through `EditorNavRecordInitialWindow`.
+
+`EditorNavDirtySectors` still tracks the live current/next dirty bits, while
+`EditorNavCachedPageDirty` preserves dirty state for the cached low page that
+can rotate back into the active buffer. Clean `EditorPageDown` misses now keep
+the resident window contiguous: the buffers rotate in RAM, exactly one new
+sector is loaded into the high slot, and the proof-visible miss counter
+increments. Dirty low-page eviction is still blocked until the user saves, so
+the editor does not autosave during navigation. The RAM policy is tracked in
 [Memory and Code Quality Manifest](memory-and-code-quality.md).
 
 `EditorNavViewportTopRow` is the logical source row currently shown at GLCD
@@ -595,6 +607,9 @@ create a one-block file first, then retries the backup write. Backup writes use
 the same growing save path as source writes, so a backup can extend across 4K
 allocation boundaries. This is still a resident-window backup policy rather
 than a whole-file copy policy; truncation/freeing behavior remains future work.
+The save path now also keeps a small session backed-page table so repeated saves
+of the same resident source page preserve the first pre-session backup sector
+rather than overwriting it with a newer edited version.
 
 `EditorNavDeriveBackupPath` implements the current naming convention. It keeps
 the original prefix, prepends `.` to the local filename, and appends `.b`.
@@ -1084,17 +1099,21 @@ glyph rows against the MON3 font table, and that the flush path reaches the
 visible GLCD image.
 
 `tools/run-editor-viewport-storage-proof.ts` is the main editor proof runner.
-It now includes `editor-line-editing-proof`, `editor-page-write-proof`, and
-`editor-nonfirst-catalog-save-proof` cases and verifies not just result markers,
+It now includes `editor-line-editing-proof`, `editor-page-write-proof`,
+`editor-nonfirst-catalog-save-proof`, `editor-rolling-window-proof`, and
+`editor-rolling-window-miss-proof` cases and verifies not just result markers,
 but also source-record text, zeroed padding, cursor positions after split/join
-operations, dirty/prompt state, and persisted TM8 image bytes after save. Backup
-proof coverage starts without `/src/.main.asm.b`, verifies that the Z80 save
-path creates that hidden backup, and checks that resident-window saves preserve
-the old on-disk text for both the active page and dirty adjacent next page
-before the edited source pages are written. It also runs the selection and
-block-delete proofs, checking visible marker state, selected-row intervals,
-paste reshaping and prompted delete
-behavior through the same storage-backed editor path.
+operations, dirty/prompt state, resident window metadata, and persisted TM8
+image bytes after save. The rolling-window cases check the initial four-slot
+shape, synthetic beyond-EOF slots, clean one-sector miss loads, and the dirty
+eviction block. Backup proof coverage starts without `/src/.main.asm.b`,
+verifies that the Z80 save path creates that hidden backup, checks that
+resident-window saves preserve the old on-disk text for both the active page
+and dirty adjacent next page before the edited source pages are written, and
+now also checks that repeated saves keep the first pre-session backup sector.
+It also runs the selection and block-delete proofs, checking visible marker
+state, selected-row intervals, paste reshaping and prompted delete behavior
+through the same storage-backed editor path.
 
 `tools/run-debug80-editor-session.ts` is the milestone runner for the first
 user-testable editor session. Its default automated path assembles
@@ -1223,6 +1242,9 @@ What exists now:
   redrawn when the prompt clears.
 - The editor derives a hidden one-level backup path and can preserve the
   previous on-disk page there before save, creating the backup file when needed.
+- Repeated saves of the same resident source page preserve the first
+  pre-session backup sector instead of rewriting the hidden backup with newer
+  edited data.
 - The editor can restore the hidden backup into the current buffer and mark the
   restored buffer dirty for inspection.
 - The editor can quit from the key stream, with dirty-state confirmation before
@@ -1242,14 +1264,17 @@ What exists now:
   record. The GLCD text viewport pans horizontally, with
   `EditorCursorVisibleCol` tracking the physical column used for cursor
   rendering.
+- `EditorOpenPath` now seeds a four-slot 2K resident source window. Plain
+  movement inside that 64-line window reuses RAM, and the first clean window
+  miss rotates the window forward by loading exactly one new source sector.
 
 What is still missing or intentionally skeletal:
 
 - `asm` and `run` resolve request blocks but do not launch real tools.
 - The editor has no search behavior yet.
-- The current RAM edit window is deliberately small: active sector, adjacent
-  next sector, and one previous-page cache. A later 2K or 4K window should
-  reduce SD reads further for 100-200 line source files.
+- The current rolling source window is fixed at four 512-byte sectors and still
+  uses page-based navigation rules. Wider windows or a different RAM tradeoff
+  may still make sense later for larger source files.
 - Split can push row 15 into the adjacent sector, row-15 Enter can create the
   first record in the adjacent sector, and Backspace at row 0 can join into
   cached previous row 15. Saving can grow the catalog byte size when the new
