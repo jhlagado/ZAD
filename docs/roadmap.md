@@ -803,6 +803,9 @@ Work:
 - Pilot one space-saving technique at a time: table-shaped error lookup,
   common render/error tails, table-driven validation, or measured dispatch
   tables where they are genuinely smaller.
+- Add a label-length hygiene pass: keep PascalCase, but audit and shorten
+  sentence-length private labels as part of nearby refactors. Do not churn
+  public `@` routine names without a wrapper/deprecation path.
 - Extract record, string, path, and narrow TM8 helpers before splitting large
   modules.
 - Decompose `editor-interaction.asm` into keymap, cursor, line-edit, block,

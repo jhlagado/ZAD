@@ -8,7 +8,10 @@ TECM8 Z80 source follows the style used by Tetro and the AZM manuals.
 - Use PascalCase labels. Prefix callable routine entries with `@`, such as
   `@ParseProjectConfig:`.
 - Keep branch labels globally unique by prefixing them with the routine name
-  when needed, such as `ParseCfgPathLoop`.
+  when needed, such as `ParseCfgPathLoop`, but do not turn PascalCase into
+  sentence-length labels. Prefer a short module or routine stem plus a precise
+  local noun/verb. If a label grows past roughly four words, split the routine,
+  introduce a shorter local stem, or move the repeated idea into a helper.
 - Put constants on the left with `.equ`. Use uppercase with underscores for
   constants, with clear prefixes for related groups such as `PROJECT_CFG_*`.
 - Use PascalCase for routine entries, branch labels, data labels, type names,

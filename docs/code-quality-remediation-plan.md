@@ -256,6 +256,45 @@ Done when:
 - Patterns that do not pay for themselves are rejected and documented rather
   than spread through the codebase.
 
+### Q2C: Label-Length And Naming Hygiene
+
+Goal: make Z80 labels readable enough for banked-ROM maintenance without
+creating broad rename churn.
+
+Context:
+
+- The AZM style guide uses PascalCase labels and globally unique helper labels.
+  That remains correct, but it has led to some labels that read like long
+  English sentences.
+- Long labels are not a resident byte-size problem, but they are a review,
+  navigation, and refactoring problem. They make the source harder to scan and
+  encourage routines to keep accumulating special-case labels instead of being
+  split into smaller helpers.
+
+Actions:
+
+- Audit labels over a conservative threshold, such as 28-32 characters or more
+  than four PascalCase words.
+- Classify each long label as public API, proof/test-pinned, or private helper.
+- Do not rename public `@` entries casually. Prefer compatibility wrappers or
+  defer public renames until the owning module is already being refactored.
+- Rename private helper labels opportunistically when touching the owning
+  routine for real work.
+- Use shorter module/routine stems for branch labels. Prefer a compact local
+  stem plus `Loop`, `Done`, `Error`, `Store`, or `Render` over repeating every
+  concept in the full call path.
+- Update structural tests that pin labels only when the label is part of a
+  public contract. Remove tests that pin private helper names without behavior
+  value.
+
+Done when:
+
+- The style guide states the label-length policy.
+- A label audit exists with keep/rename/defer decisions.
+- The worst private helper labels are shortened as part of nearby refactors.
+- Public entry names remain stable unless a wrapper/deprecation path is
+  documented.
+
 ### Q3: Shared Record, String, And Path Helpers
 
 Goal: remove duplicated small algorithms before splitting large modules.
