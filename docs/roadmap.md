@@ -5,6 +5,11 @@ completed foundation, substantial future phases, milestone definitions, and
 manual testing expectations. Update this file after meaningful phase changes so
 the roadmap does not live only in conversation history.
 
+Completed milestone history lives in the root `CHANGELOG.md`. When a roadmap
+milestone is complete, commit and push the reviewed work, update the changelog,
+and tag the milestone. Use patch versions for coherent internal progress and
+minor versions for larger user-visible TECM8 editor/shell/tool increments.
+
 ## Current Goal: Post-Milestone Manual Validation
 
 The Debug80-testable editor milestone has been reached in the local automated

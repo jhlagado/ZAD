@@ -39,6 +39,11 @@ npm run audit:storage
 npm run quality
 ```
 
+Milestone history is tracked in the root [Changelog](../CHANGELOG.md). TECM8
+uses version tags for reviewed, pushed, locally verified Z80/editor milestones;
+the npm package metadata is incidental to the host tooling and is not the main
+release surface.
+
 Start here:
 
 - [Live Roadmap](roadmap.md)
