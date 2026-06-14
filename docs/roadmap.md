@@ -53,7 +53,9 @@ separated from resident shell/kernel services.
 ## Native AZM Quality Track
 
 TECM8 should gradually adopt native AZM features where they improve code
-quality without destabilizing the editor milestone:
+quality without destabilizing the editor milestone. This is a low-priority
+quality track: each feature should be piloted in a small, measured increment
+rather than applied as broad syntax churn.
 
 - `.import` for routine modules with explicit public `@` entries and private
   helper labels.
