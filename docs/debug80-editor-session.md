@@ -117,7 +117,7 @@ The generated TM8 volume contains:
 The generated `/src/main.asm` fixture has two source pages. Page 0 contains
 `R0 LINE 00` through `R0 LINE 14` plus an empty final record so Enter/split-line
 can be tested without crossing a sector boundary. Page 1 contains `R1 LINE 00`
-through `R1 LINE 15` for page movement tests.
+through `R1 LINE 15` for continuous resident-window movement tests.
 
 `/tecm8.prj` contains:
 
@@ -186,10 +186,11 @@ other modified arrows reserved for later word/page movement
 
 Plain Up/Down now treats resident adjacent source pages as one continuous
 document. In the generated manual image, repeated `ArrowDown` should move from
-`R0 LINE 15` directly to `R1 LINE 00` without pressing `Ctrl+ArrowDown`.
+the page-0 blank record after `R0 LINE 14` directly to `R1 LINE 00` without
+pressing `Ctrl+ArrowDown`.
 Pressing `ArrowUp` from `R1 LINE 00` should return to the previous `R0` page at
-`R0 LINE 15`. `Ctrl+ArrowDown` and `Ctrl+ArrowUp` remain faster page movement
-commands over the same source file.
+that same blank record. `Ctrl+ArrowDown` and `Ctrl+ArrowUp` remain faster page
+movement commands over the same source file.
 
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
@@ -397,16 +398,21 @@ GLCD. Use this exact smoke test:
    Expected: after saving, the generated two-page fixture moves to the second
    source page and the visible rows begin with `R1 LINE 00`, `R1 LINE 01`, and
    later `R1 LINE ...` records. Page movement is tested against this prepared
-   fixture. V1 can grow into the adjacent source sector, including the next 4K
-   allocation block, when the resident page window and conservative size limits
-   allow it.
+   fixture.
 
-15. Press `Ctrl+ArrowUp`.
+15. Move to `R1 LINE 00`, press `ArrowRight` twice, type `Y`, then press
+   `Ctrl-S`.
+
+   Expected: page 1 becomes dirty, `Saving...` appears, and the save returns to
+   the source view. This proves that edits outside page 0 are saved through the
+   resident window path.
+
+16. Press `Ctrl+ArrowUp` until page 0 is visible again.
 
    Expected: the editor returns to the first page and shows `R0 LINE ...`
    records again.
 
-16. Press `Ctrl-Q`.
+17. Press `Ctrl-Q`.
 
    Expected: if the page is clean after save, the editor exits without a dirty
    discard prompt and shows `Shell` on the bottom row. This is the current
@@ -415,6 +421,13 @@ GLCD. Use this exact smoke test:
    question first.
 
    Ctrl-Q is the exit path. Ctrl-X arms a selected block for move/cut.
+
+18. Reset Debug80, launch `main` again, let MON3 initialize, and GO `4000h`.
+
+   Expected: the editor reopens `/src/main.asm` from the same mounted SD image.
+   The page 0 edit from step 7 and the page 1 edit from step 15 should still be
+   visible after navigating back to those rows. This is the manual persistence
+   check for Phase 3A.
 
 The current phase uses tile/dirty-region GLCD transfer for ordinary cursor
 movement. Horizontal cursor keys redraw the cursor overlay cell range, and

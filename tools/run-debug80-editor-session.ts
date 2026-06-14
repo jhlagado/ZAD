@@ -156,44 +156,21 @@ function encodeProjectConfig(mainFile: string): Buffer {
   return Buffer.from(['tm8project=1', `main=${mainFile}`, ''].join('\n'), 'ascii');
 }
 
+function sourcePageLines(prefix: string): string[] {
+  return Array.from({ length: 16 }, (_unused, index) => (
+    `${prefix} LINE ${index.toString().padStart(2, '0')}`
+  ));
+}
+
 function manifestPath(imagePath: string): string {
   return imagePath.replace(/\.[^.]*$/, '.json');
 }
 
 function defaultSessionSourceLines(): string[] {
   return [
-    'R0 LINE 00',
-    'R0 LINE 01',
-    'R0 LINE 02',
-    'R0 LINE 03',
-    'R0 LINE 04',
-    'R0 LINE 05',
-    'R0 LINE 06',
-    'R0 LINE 07',
-    'R0 LINE 08',
-    'R0 LINE 09',
-    'R0 LINE 10',
-    'R0 LINE 11',
-    'R0 LINE 12',
-    'R0 LINE 13',
-    'R0 LINE 14',
+    ...sourcePageLines('R0').slice(0, 15),
     '',
-    'R1 LINE 00',
-    'R1 LINE 01',
-    'R1 LINE 02',
-    'R1 LINE 03',
-    'R1 LINE 04',
-    'R1 LINE 05',
-    'R1 LINE 06',
-    'R1 LINE 07',
-    'R1 LINE 08',
-    'R1 LINE 09',
-    'R1 LINE 10',
-    'R1 LINE 11',
-    'R1 LINE 12',
-    'R1 LINE 13',
-    'R1 LINE 14',
-    'R1 LINE 15',
+    ...sourcePageLines('R1'),
   ];
 }
 
@@ -706,6 +683,8 @@ async function main(): Promise<void> {
     if (process.argv.includes('--live-smoke')) {
     const liveLoopAddr = symbolAddress(symbols, 'EditorLiveLoop');
     const doneAddr = symbolAddress(symbols, 'MainDone');
+    const mainErrorAddr = symbolAddress(symbols, 'MainErrorMarker');
+    const mainResultAddr = symbolAddress(symbols, 'MainResultMarker');
     const cursorRowAddr = symbolAddress(symbols, 'EditorCursorRow');
     const cursorColAddr = symbolAddress(symbols, 'EditorCursorCol');
     const dirtyAddr = symbolAddress(symbols, 'EditorNavDirty');
@@ -748,7 +727,12 @@ async function main(): Promise<void> {
           }
         }
         platformRuntime.applyMatrixKey(row, col, false);
-        runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+        const reachedPc = runUntilAnyPc(runtime, platformRuntime, [liveLoopAddr, doneAddr], 20_000_000);
+        if (reachedPc === doneAddr) {
+          throw new Error(
+            `live editor ${label} exited result=0x${runtime.hardware.memory[mainResultAddr].toString(16)} error=0x${runtime.hardware.memory[mainErrorAddr].toString(16)} page=${runtime.hardware.memory[currentPageAddr]} row=${runtime.hardware.memory[cursorRowAddr]}`,
+          );
+        }
         if (changed) {
           return;
         }
