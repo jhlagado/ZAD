@@ -39,6 +39,8 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         LD      (EditorNavCurrentPage),A
         LD      (EditorNavCacheValid),A
         LD      (EditorNavCachedPageSynthetic),A
+        LD      (EditorNavBackupPageValid),A
+        LD      (EditorNavBackupPageSynthetic),A
         LD      (EditorNavNextPageValid),A
         LD      (EditorNavNextPageSynthetic),A
         LD      (EditorNavDirtySectors),A
@@ -74,6 +76,12 @@ EditorRenderCurrentSlot3:
         ; expects out carry
         CALL    EditorLoadSourcePage
         JR      C,EditorRenderCurrentSlot3Error
+        LD      A,1
+        LD      (EditorNavBackupPageValid),A
+        XOR     A
+        LD      (EditorNavBackupPageSynthetic),A
+        LD      A,3
+        LD      (EditorNavBackupPage),A
 
 EditorRenderCurrentRecordWindow:
         CALL    EditorNavRecordInitialWindow
@@ -98,6 +106,11 @@ EditorRenderCurrentSlot3Error:
         LD      A,(EditorNavWindowPendingSyntheticMask)
         OR      8
         LD      (EditorNavWindowPendingSyntheticMask),A
+        LD      A,1
+        LD      (EditorNavBackupPageValid),A
+        LD      (EditorNavBackupPageSynthetic),A
+        LD      A,3
+        LD      (EditorNavBackupPage),A
         JR      EditorRenderCurrentRecordWindow
 
 ; EditorRenderPageBuffer -
@@ -499,7 +512,7 @@ EditorLoadCurrentBackupWindowError:
 ; EditorPageDown -
 ; Advance one page, render it, and commit the page only if rendering succeeds.
 ;! out A,carry,zero
-;! clobbers sign,parity,halfCarry,BC,DE,HL
+;! clobbers sign,parity,halfCarry,BC,DE,HL,IX,IY
 @EditorPageDown:
         LD      A,(EditorNavCurrentPage)
         CP      127
@@ -542,9 +555,6 @@ EditorNavCommitPendingPageFromWindow:
         CALL    EditorNavResetViewport
         RET     C
         CALL    EditorRenderPageBuffer
-        RET     C
-        CALL    EditorNavLoadNextWindowPage
-        RET     C
         XOR     A
         RET
 
@@ -588,7 +598,7 @@ EditorPageUpCanMove:
 ; preloading another source sector. Used by plain line movement at the row-15
 ; boundary; explicit page movement still preloads ahead.
 ;! out A,carry,zero
-;! clobbers sign,parity,halfCarry,BC,DE,HL
+;! clobbers sign,parity,halfCarry,BC,DE,HL,IX,IY
 @EditorPageDownResidentNoPreload:
         LD      A,(EditorNavCurrentPage)
         CP      127
@@ -606,18 +616,11 @@ EditorPageUpCanMove:
         JP      Z,EditorNavPageErr
 
 EditorPageDownResidentReady:
-        CALL    EditorNavRememberCurrentPage
-        CALL    EditorNavSlideNextPageToCurrent
+        CALL    EditorNavRenderNextWindowPage
+        RET     C
+        OR      A
+        JP      Z,EditorNavPageErr
         XOR     A
-        LD      (EditorNavNextPageValid),A
-        LD      (EditorNavNextPageSynthetic),A
-        LD      A,(EditorNavWindowHitCount)
-        INC     A
-        LD      (EditorNavWindowHitCount),A
-        LD      A,(EditorNavDirtySectors)
-        SRL     A
-        LD      (EditorNavDirtySectors),A
-        CALL    EditorNavRefreshAggregateDirty
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
         LD      A,7
@@ -750,11 +753,6 @@ EditorNavRestoreNextWindowUnavailable:
         LD      (EditorNavCachedPage),A
         LD      A,(EditorNavDirtySectors)
         AND     1
-        JR      NZ,EditorNavRememberCurrentDirtyReady
-        LD      A,(EditorNavDirty)
-        OR      A
-        JR      Z,EditorNavRememberCurrentDirtyReady
-        LD      A,1
 
 EditorNavRememberCurrentDirtyReady:
         LD      (EditorNavCachedPageDirty),A
@@ -818,7 +816,7 @@ EditorNavCachedPageMiss:
 ; one sector. The caller commits page/viewport state and renders afterward.
 ; Returns NC,A=1 on window hit, NC,A=0 on miss, or C on preparation failure.
 ;! out A,carry,zero
-;! clobbers sign,parity,halfCarry,BC,DE,HL
+;! clobbers sign,parity,halfCarry,BC,DE,HL,IX,IY
 @EditorNavRenderNextWindowPage:
         LD      A,(EditorNavNextPageValid)
         OR      A
@@ -827,7 +825,7 @@ EditorNavCachedPageMiss:
         LD      HL,EditorNavCurrentPage
         DEC     A
         CP      (HL)
-        JR      NZ,EditorNavNextWindowPageMiss
+        JP      NZ,EditorNavNextWindowPageMiss
         LD      A,(EditorNavNextPageSynthetic)
         OR      A
         JR      Z,EditorNavNextWindowPageReady
@@ -836,15 +834,139 @@ EditorNavCachedPageMiss:
         JP      Z,EditorNavPageErr
 
 EditorNavNextWindowPageReady:
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JR      Z,EditorNavNextWindowUseBackup
+        LD      A,(EditorNavCurrentPage)
+        ADD     A,2
+        LD      B,A
+        LD      A,(EditorNavCachedPage)
+        CP      B
+        JR      NZ,EditorNavNextWindowUseBackup
+        CALL    EditorNavRotatePageNextCacheForward
+        LD      A,(EditorNavCurrentPage)
+        LD      (EditorNavCachedPage),A
+        LD      A,(EditorNavDirtySectors)
+        AND     1
+        LD      (EditorNavCachedPageDirty),A
+        LD      A,(EditorNavCachedPageSynthetic)
+        LD      (EditorNavNextPageSynthetic),A
+        XOR     A
+        LD      (EditorNavCachedPageSynthetic),A
+        LD      A,(EditorNavCurrentPage)
+        ADD     A,2
+        LD      (EditorNavNextPageNumber),A
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        SRL     A
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        JP      EditorNavNextWindowPageReadyDone
+
+EditorNavNextWindowUseBackup:
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JR      Z,EditorNavNextWindowUseBackupReady
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorNavNextWindowUseBackupReady
+        LD      A,(EditorNavCachedPage)
+        LD      B,A
+        LD      A,(EditorNavPendingPage)
+        CP      B
+        JP      NZ,EditorNavPageErr
+
+EditorNavNextWindowUseBackupReady:
+        LD      A,(EditorNavBackupPageValid)
+        OR      A
+        JR      Z,EditorNavNextWindowUseAdjacentOnly
+        LD      A,(EditorNavCurrentPage)
+        ADD     A,2
+        LD      B,A
+        LD      A,(EditorNavBackupPage)
+        CP      B
+        JR      NZ,EditorNavNextWindowUseAdjacentOnly
+        CALL    EditorNavRotatePageNextBackupForward
+        LD      A,(EditorNavCurrentPage)
+        LD      (EditorNavCachedPage),A
+        LD      A,(EditorNavDirtySectors)
+        AND     1
+        LD      (EditorNavCachedPageDirty),A
+        XOR     A
+        LD      (EditorNavCachedPageSynthetic),A
+        LD      A,1
+        LD      (EditorNavCacheValid),A
+        LD      A,(EditorNavCurrentPage)
+        ADD     A,2
+        LD      (EditorNavNextPageNumber),A
+        LD      A,(EditorNavBackupPageSynthetic)
+        LD      (EditorNavNextPageSynthetic),A
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        SRL     A
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,(EditorNavCurrentPage)
+        ADD     A,3
+        LD      (EditorNavBackupPage),A
+        CALL    EditorNavLoadBackupWindowPage
+        JR      C,EditorNavNextWindowBackupPreloadFailed
+        JR      EditorNavNextWindowPageReadyDone
+
+EditorNavNextWindowBackupPreloadFailed:
+        XOR     A
+        LD      (EditorNavBackupPageValid),A
+        LD      (EditorNavBackupPageSynthetic),A
+        JR      EditorNavNextWindowPageReadyDone
+
+EditorNavNextWindowUseAdjacentOnly:
         CALL    EditorNavRememberCurrentPage
+        RET     C
         CALL    EditorNavSlideNextPageToCurrent
-        LD      A,(EditorNavWindowHitCount)
-        INC     A
-        LD      (EditorNavWindowHitCount),A
         LD      A,(EditorNavDirtySectors)
         SRL     A
         LD      (EditorNavDirtySectors),A
         CALL    EditorNavRefreshAggregateDirty
+        LD      A,(EditorNavPendingPage)
+        CP      127
+        JR      Z,EditorNavNextWindowAdjacentNoPreload
+        INC     A
+        LD      (EditorNavNextPageNumber),A
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavNextPageBuffer
+        ; expects out carry
+        CALL    EditorLoadSourcePage
+        JR      C,EditorNavNextWindowAdjacentLoadError
+        XOR     A
+        LD      (EditorNavNextPageSynthetic),A
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        JR      EditorNavNextWindowPageReadyDone
+
+EditorNavNextWindowAdjacentLoadError:
+        CP      EDITOR_LOAD_ERR_SIZE
+        JR      NZ,EditorNavNextWindowAdjacentPreloadFailed
+        CALL    EditorNavClearNextPageBuffer
+        LD      A,1
+        LD      (EditorNavNextPageSynthetic),A
+        LD      (EditorNavNextPageValid),A
+        JR      EditorNavNextWindowPageReadyDone
+
+EditorNavNextWindowAdjacentPreloadFailed:
+        XOR     A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
+        JR      EditorNavNextWindowPageReadyDone
+
+EditorNavNextWindowAdjacentNoPreload:
+        XOR     A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
+
+EditorNavNextWindowPageReadyDone:
+        LD      A,(EditorNavWindowHitCount)
+        INC     A
+        LD      (EditorNavWindowHitCount),A
         LD      A,1
         RET
 
@@ -874,6 +996,68 @@ EditorNavSwapCachePageLoop:
         LD      A,B
         OR      C
         JR      NZ,EditorNavSwapCachePageLoop
+        XOR     A
+        RET
+
+; EditorNavRotatePageNextCacheForward -
+; Move one page down when the cache holds the already-loaded page after next:
+; page <- next, next <- cache, cache <- old page.
+;! out DE,HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,IX
+@EditorNavRotatePageNextCacheForward:
+        LD      HL,EditorNavPageBuffer
+        LD      DE,EditorNavNextPageBuffer
+        LD      IX,EditorNavCachePageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+
+EditorNavRotatePageNextCacheForwardLoop:
+        LD      A,(HL)
+        LD      (EditorNavSwapByte),A
+        LD      A,(DE)
+        LD      (HL),A
+        LD      A,(IX+0)
+        LD      (DE),A
+        LD      A,(EditorNavSwapByte)
+        LD      (IX+0),A
+        INC     HL
+        INC     DE
+        INC     IX
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorNavRotatePageNextCacheForwardLoop
+        XOR     A
+        RET
+
+; EditorNavRotatePageNextBackupForward -
+; Move one page down once cache is the previous-page victim:
+; page <- next, next <- backup, cache <- old page.
+;! out DE,HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,IX,IY
+@EditorNavRotatePageNextBackupForward:
+        LD      HL,EditorNavPageBuffer
+        LD      DE,EditorNavNextPageBuffer
+        LD      IX,EditorNavBackupPageBuffer
+        LD      IY,EditorNavCachePageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+
+EditorNavRotatePageNextBackupForwardLoop:
+        LD      A,(HL)
+        LD      (EditorNavSwapByte),A
+        LD      A,(DE)
+        LD      (HL),A
+        LD      A,(IX+0)
+        LD      (DE),A
+        LD      A,(EditorNavSwapByte)
+        LD      (IY+0),A
+        INC     HL
+        INC     DE
+        INC     IX
+        INC     IY
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorNavRotatePageNextBackupForwardLoop
         XOR     A
         RET
 
@@ -1001,6 +1185,41 @@ EditorNavNextWindowUnavailable:
         LD      (EditorNavNextPageSynthetic),A
         RET
 
+; EditorNavLoadBackupWindowPage -
+; Load the high edge of the rolling source window into the backup/slot-3
+; buffer. A short file is represented as a clean synthetic blank page.
+;! out carry,zero,A
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@EditorNavLoadBackupWindowPage:
+        LD      A,(EditorNavBackupPage)
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavBackupPageBuffer
+        ; expects out carry
+        CALL    EditorLoadSourcePage
+        JR      C,EditorNavLoadBackupWindowError
+        LD      A,(EditorNavWindowMissLoadCount)
+        INC     A
+        LD      (EditorNavWindowMissLoadCount),A
+        XOR     A
+        LD      (EditorNavBackupPageSynthetic),A
+        LD      A,1
+        LD      (EditorNavBackupPageValid),A
+        XOR     A
+        RET
+
+EditorNavLoadBackupWindowError:
+        CP      EDITOR_LOAD_ERR_SIZE
+        RET     NZ
+        CALL    EditorNavClearBackupPageBuffer
+        LD      A,(EditorNavWindowMissLoadCount)
+        INC     A
+        LD      (EditorNavWindowMissLoadCount),A
+        LD      A,1
+        LD      (EditorNavBackupPageSynthetic),A
+        LD      (EditorNavBackupPageValid),A
+        XOR     A
+        RET
+
 ; EditorNavRecordInitialWindow -
 ; Record the V1 four-slot source window after slots 0-3 have been populated.
 ; This compatibility layer keeps the current active/next/cache APIs while
@@ -1075,6 +1294,9 @@ EditorNavInitialSlot2SyntheticReady:
         LD      A,(EditorNavWindowSyntheticMask)
         AND     0xF7
         LD      (EditorNavWindowSyntheticMask),A
+        XOR     A
+        LD      (EditorNavBackupPageValid),A
+        LD      (EditorNavBackupPageSynthetic),A
         XOR     A
         RET
 
@@ -1410,7 +1632,19 @@ EditorNavCachedPageDirty:
 EditorNavCachedPageSynthetic:
         .db     0
 
+EditorNavBackupPage:
+        .db     0
+
+EditorNavBackupPageValid:
+        .db     0
+
+EditorNavBackupPageSynthetic:
+        .db     0
+
 EditorNavWindowHitCount:
+        .db     0
+
+EditorNavWindowMissLoadCount:
         .db     0
 
 EditorNavNextPageValid:

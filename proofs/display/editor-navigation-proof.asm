@@ -13,7 +13,7 @@ PROOF_PASS       .equ     0x42
 PROOF_FAIL       .equ     0xE0
 
 ;! out carry,zero
-;! clobbers A,BC,DE,HL
+;! clobbers A,BC,DE,HL,IX,IY
 @Start:
         CALL    DisplayInit
         JR      C,ProofFailed
@@ -33,8 +33,8 @@ ProofPageDownLoop:
         CALL    RunSyntheticControlArrowUp
         JR      C,ProofFailed
 
-        LD      A,1
-        LD      (EditorNavDirty),A
+        CALL    EditorMarkCurrentSectorDirty
+        JR      C,ProofFailed
         LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
         LD      B,TECM8_EDITOR_KEY_MOD_CTRL
         CALL    EditorRunModifiedKey

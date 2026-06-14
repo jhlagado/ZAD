@@ -955,7 +955,9 @@ async function main(): Promise<void> {
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     const pageAfterSplitSaveDown = readRuntimeByte(runtime, currentPageAddr);
     if (pageAfterSplitSaveDown !== 1) {
-      throw new Error(`live editor page after saved split Ctrl+ArrowDown ${pageAfterSplitSaveDown}, expected 1`);
+      throw new Error(
+        `live editor page after saved split Ctrl+ArrowDown ${pageAfterSplitSaveDown}, expected 1; nextValid=${runtime.hardware.memory[nextPageValidAddr]} nextSynthetic=${runtime.hardware.memory[nextPageSyntheticAddr]} dirtySectors=0x${runtime.hardware.memory[dirtySectorsAddr].toString(16)} cacheDirty=${runtime.hardware.memory[symbolAddress(symbols, 'EditorNavCachedPageDirty')]}`,
+      );
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 3 }, 200_000, 200_000); // Ctrl+ArrowUp
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);

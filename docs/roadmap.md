@@ -318,6 +318,10 @@ Progress:
   propagation when slots 2 and 3 are synthetic.
 - Done: the initial-open dirty mask is recorded as clean; dirty-slot
   propagation and save/eviction policy remain Slice 4 work.
+- Done: `editor-rolling-window-miss-proof` covers the first clean rolling miss
+  from page 1 to page 2, verifies that exactly one high source sector is
+  loaded into the rolling window, and verifies that moving again with a dirty
+  cached low victim is blocked instead of autosaving.
 
 Execution slices:
 
@@ -334,7 +338,9 @@ Execution slices:
 3. **One-sector miss and dirty eviction policy.** On a clean miss, rotate or
    reuse one slot and load exactly one new source sector. If the required
    eviction victim is dirty, block movement with a clear status until explicit
-   save; do not silently autosave.
+   save; do not silently autosave. Done for page-level downward rolling and
+   dirty low-victim blocking; broader dirty-slot save/restore accounting
+   remains Slice 4.
 4. **Multi-sector save, backup, and restore.** `Ctrl-S` writes all dirty
    resident sectors and preserves pre-session backup sectors. `Ctrl-Z` restores
    only resident sectors present in `BackedPageTable`.

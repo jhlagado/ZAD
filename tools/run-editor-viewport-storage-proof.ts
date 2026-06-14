@@ -200,6 +200,13 @@ const PROOF_CASES = {
     lines: makeTwoPageLines(),
     verify: verifyEditorRollingWindowSlot2SyntheticProof,
   },
+  'editor-rolling-window-miss-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-miss-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-miss-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-miss-fat32.img'),
+    lines: makeFivePageLines(),
+    verify: verifyEditorRollingWindowMissProof,
+  },
   'editor-horizontal-scroll-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-horizontal-scroll-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-horizontal-scroll-proof-last-run.json'),
@@ -365,6 +372,14 @@ function makeThreePageLines(): string[] {
 
 function makeFourPageLines(): string[] {
   return Array.from({ length: 64 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `R${page} LINE ${line.toString().padStart(2, '0')}`;
+  });
+}
+
+function makeFivePageLines(): string[] {
+  return Array.from({ length: 80 }, (_, index) => {
     const page = Math.floor(index / 16);
     const line = index % 16;
     return `R${page} LINE ${line.toString().padStart(2, '0')}`;
@@ -1218,7 +1233,7 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
     { symbol: 'CursorRowAfterCrossDown', expected: 0 },
     { symbol: 'VisibleRowAfterCrossDown', expected: 9 },
     { symbol: 'TopRowAfterCrossDown', expected: 7 },
-    { symbol: 'NextPageValidAfterCrossDown', expected: 0 },
+    { symbol: 'NextPageValidAfterCrossDown', expected: 1 },
     { symbol: 'NextPageSyntheticAfterCrossDown', expected: 0 },
     { symbol: 'PageAfterMixedCtrlUp', expected: 0 },
     { symbol: 'CursorRowAfterMixedCtrlUp', expected: 0 },
@@ -1376,6 +1391,55 @@ function verifyEditorRollingWindowShape(
     const expected = expectedSlotTexts[slot];
     if (text !== expected) {
       throw new Error(`editor rolling window slot ${slot} record0 "${text}", expected "${expected}"`);
+    }
+  }
+}
+
+function verifyEditorRollingWindowMissProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  const memory = runtime.hardware.memory;
+  const checks = [
+    { symbol: 'CleanPageAfterFirstDown', expected: 1 },
+    { symbol: 'CleanPageAfterSecondDown', expected: 2 },
+    { symbol: 'StalePageAfterReturnDown', expected: 1 },
+    { symbol: 'StalePageAfterSecondDown', expected: 2 },
+    { symbol: 'DirtyAdjacentPageAfterUp', expected: 1 },
+    { symbol: 'DirtyAdjacentCacheDirtyAfterUp', expected: 1 },
+    { symbol: 'DirtyAdjacentPageAfterReturnDown', expected: 2 },
+    { symbol: 'DirtyAdjacentDirtySectorsAfterReturnDown', expected: 1 },
+    { symbol: 'DirtyAdjacentPageAfterContinueDown', expected: 3 },
+    { symbol: 'DirtyPageAfterFirstDown', expected: 1 },
+    { symbol: 'DirtyPageAfterBlockedDown', expected: 1 },
+    { symbol: 'DirtyCachedPageDirtyAfterFirstDown', expected: 1 },
+    { symbol: 'DirtyEvictionError', expected: 0x50 },
+  ];
+  for (const check of checks) {
+    const value = memory[symbolAddress(symbols, check.symbol)];
+    if (value !== check.expected) {
+      throw new Error(`editor rolling miss ${check.symbol} ${value}, expected ${check.expected}`);
+    }
+  }
+
+  const missBefore = memory[symbolAddress(symbols, 'CleanMissCountBefore')];
+  const missAfter = memory[symbolAddress(symbols, 'CleanMissCountAfter')];
+  if (((missAfter - missBefore) & 0xff) !== 1) {
+    throw new Error(`editor rolling miss load count before=${missBefore} after=${missAfter}, expected +1`);
+  }
+
+  const texts = [
+    { symbol: 'CleanCurrentRecord0', expected: 'R2 LINE 00' },
+    { symbol: 'CleanNextRecord0', expected: 'R3 LINE 00' },
+    { symbol: 'CleanCacheRecord0', expected: 'R1 LINE 00' },
+    { symbol: 'CleanBackupRecord0', expected: 'R4 LINE 00' },
+    { symbol: 'StaleNextRecordAfterReturnDown', expected: 'R2 LINE 00' },
+    { symbol: 'StaleCurrentRecordAfterSecondDown', expected: 'R2 LINE 00' },
+    { symbol: 'StaleNextRecordAfterSecondDown', expected: 'R3 LINE 00' },
+    { symbol: 'DirtyAdjacentRecordAfterReturnDown', expected: 'R2 LINE 00' },
+    { symbol: 'DirtyAdjacentRecordAfterContinueDown', expected: 'R3 LINE 00' },
+  ];
+  for (const check of texts) {
+    const text = readCString(memory, symbolAddress(symbols, check.symbol));
+    if (text !== check.expected) {
+      throw new Error(`editor rolling miss ${check.symbol} "${text}", expected "${check.expected}"`);
     }
   }
 }

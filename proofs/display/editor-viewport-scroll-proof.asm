@@ -208,6 +208,8 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,MoveDownAcrossPage
         CALL    EditorRunKeys
         JP      C,ProofFailed
+        CALL    EditorNavLoadNextWindowPage
+        JP      C,ProofFailed
         CALL    RunSyntheticControlArrowDown
         JP      C,ProofFailed
         LD      A,(EditorNavCurrentPage)
