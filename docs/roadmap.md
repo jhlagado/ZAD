@@ -313,12 +313,18 @@ Done when:
   navigated after creation.
 - Movement beyond the V1 page-127 limit is rejected with a clear unsupported or
   page-boundary status rather than wrapping the page byte.
+- Opening or preparing a source file whose size requires page 128 or beyond is
+  rejected or reported as unsupported for V1 before page indexes can wrap.
 - `Ctrl-S` persists dirty resident sectors and preserves pre-session backup
   sectors.
-- `Ctrl-Z` restores the currently resident backed-up sectors.
+- Repeated saves of the same source sector preserve the pre-session backup
+  sector rather than replacing it with the first edited save.
+- `Ctrl-Z` restores only resident sectors whose pages are present in
+  `BackedPageTable`; unbacked resident and clean synthetic slots are skipped.
 - Debug80 proofs cover resident cross-sector Up/Down, EOF/synthetic handling,
-  page-127 boundary handling, dirty-eviction blocking, and multi-sector
-  save/restore.
+  page-127 boundary and oversized-open handling, dirty-eviction blocking,
+  repeated-save backup preservation, BackedPageTable-gated restore, and
+  multi-sector save/restore.
 - The manual Debug80 script in `docs/debug80-editor-session.md` is updated with
   the new continuous-navigation test.
 

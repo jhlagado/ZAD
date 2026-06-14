@@ -325,6 +325,9 @@ Manual Debug80 acceptance:
   state and can be navigated as part of the document.
 - At the page-127 boundary, movement is blocked with a clear unsupported/page
   status rather than wrapping to page 0.
+- Opening a file whose size requires page 128 or beyond is rejected or clearly
+  reported as unsupported for V1, rather than being accepted with wrap-prone
+  state.
 
 Automated acceptance:
 
@@ -338,5 +341,13 @@ Automated acceptance:
   document state.
 - A proof or structural test covers page-127 boundary handling and rejects
   page-byte wraparound.
+- A proof covers opening or preparing a source file whose size implies page 128
+  or beyond, and verifies that V1 rejects or reports it without wrapping page
+  state.
+- A proof covers repeated saves of the same dirty source sector and verifies
+  the hidden backup still contains the pre-session original, not the first
+  edited save.
+- A proof covers `Ctrl-Z` restore skipping resident sectors that are not present
+  in `BackedPageTable`, including unbacked clean/synthetic resident slots.
 - Existing save, restore, row-15 growth, allocation growth, block editing, and
   live-smoke checks remain green.
