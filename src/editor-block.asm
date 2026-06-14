@@ -414,6 +414,7 @@ EditorPendingBlockTailNo:
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockCopySourceToScratch:
+        CALL    EditorNavInvalidateWindowSlot3
         LD      A,(EditorPendingBlockSourceStartRow)
         CALL    EditorKeyRecordAtRow
         LD      DE,EditorNavBackupPageBuffer
@@ -465,6 +466,7 @@ EditorPendingBlockShiftDone:
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorPendingBlockCopyScratchToDest:
+        CALL    EditorNavInvalidateWindowSlot3
         LD      A,(EditorPendingBlockDestRow)
         ; expects out HL
         CALL    EditorKeyRecordAtRow

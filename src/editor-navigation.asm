@@ -7,7 +7,7 @@ TECM8_EDITOR_NAV_ERR_PATH       .equ    0x51
 TECM8_EDITOR_NAV_ERR_BACKUP     .equ    0x52
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 TECM8_EDITOR_NAV_PAGE_BYTES     .equ    TECM8_SECTOR_BYTES
-TECM8_EDITOR_NAV_WINDOW_BYTES   .equ    TECM8_SECTOR_BYTES * 2
+TECM8_EDITOR_NAV_WINDOW_BYTES   .equ    TECM8_SECTOR_BYTES * 4
 TECM8_EDITOR_NAV_WORKSPACE_BASE .equ    0x3000
 TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
 TECM8_EDITOR_NAV_PAGE_BASE      .equ    0x3200
@@ -38,6 +38,7 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         XOR     A
         LD      (EditorNavCurrentPage),A
         LD      (EditorNavCacheValid),A
+        LD      (EditorNavCachedPageSynthetic),A
         LD      (EditorNavNextPageValid),A
         LD      (EditorNavNextPageSynthetic),A
         LD      (EditorNavDirtySectors),A
@@ -54,9 +55,50 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         RET     C
         CALL    EditorRenderPageBuffer
         RET     C
+        ; expects out carry
         CALL    EditorNavLoadNextWindowPage
         RET     C
+        XOR     A
+        LD      (EditorNavWindowPendingSyntheticMask),A
+        LD      A,2
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavCachePageBuffer
+        ; expects out carry
+        CALL    EditorLoadSourcePage
+        JR      C,EditorRenderCurrentSlot2Error
+
+EditorRenderCurrentSlot3:
+        LD      A,3
+        LD      DE,(EditorNavPathPtr)
+        LD      HL,EditorNavBackupPageBuffer
+        ; expects out carry
+        CALL    EditorLoadSourcePage
+        JR      C,EditorRenderCurrentSlot3Error
+
+EditorRenderCurrentRecordWindow:
+        CALL    EditorNavRecordInitialWindow
+        RET     C
         JP      EditorClearDirty
+
+EditorRenderCurrentSlot2Error:
+        CP      EDITOR_LOAD_ERR_SIZE
+        RET     NZ
+        CALL    EditorNavClearCachePageBuffer
+        RET     C
+        LD      A,(EditorNavWindowPendingSyntheticMask)
+        OR      4
+        LD      (EditorNavWindowPendingSyntheticMask),A
+        JR      EditorRenderCurrentSlot3
+
+EditorRenderCurrentSlot3Error:
+        CP      EDITOR_LOAD_ERR_SIZE
+        RET     NZ
+        CALL    EditorNavClearBackupPageBuffer
+        RET     C
+        LD      A,(EditorNavWindowPendingSyntheticMask)
+        OR      8
+        LD      (EditorNavWindowPendingSyntheticMask),A
+        JR      EditorRenderCurrentRecordWindow
 
 ; EditorRenderPageBuffer -
 ; Render the already-loaded page buffer without reloading it from storage.
@@ -245,6 +287,7 @@ EditorSaveCurrentPageRestoreError:
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorBackupCurrentPage:
+        CALL    EditorNavInvalidateWindowSlot3
         LD      HL,(EditorNavPathPtr)
         LD      DE,EditorNavBackupPathBuffer
         LD      B,TECM8_EDITOR_NAV_PATH_LEN
@@ -715,6 +758,8 @@ EditorNavRestoreNextWindowUnavailable:
 
 EditorNavRememberCurrentDirtyReady:
         LD      (EditorNavCachedPageDirty),A
+        XOR     A
+        LD      (EditorNavCachedPageSynthetic),A
         LD      A,1
         LD      (EditorNavCacheValid),A
         XOR     A
@@ -753,6 +798,8 @@ EditorNavCachedCurrentDirtyReady:
         LD      (EditorNavDirtySectors),A
         LD      A,(EditorNavSwapByte)
         LD      (EditorNavCachedPageDirty),A
+        XOR     A
+        LD      (EditorNavCachedPageSynthetic),A
         CALL    EditorNavRefreshAggregateDirty
         LD      A,(EditorNavCurrentPage)
         LD      (EditorNavCachedPage),A
@@ -875,6 +922,7 @@ EditorNavRefreshAggregateClean:
         LD      A,(EditorNavRenderPageInput)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavPageBuffer
+        ; expects out carry
         CALL    EditorLoadSourcePage
         JR      C,EditorNavRenderPageRestoreError
         XOR     A
@@ -915,7 +963,7 @@ EditorNavRenderPageRestoreError:
         CALL    EditorNavRefreshAggregateDirty
 
 EditorNavLoadNextWindowCachedClean:
-        XOR     A
+        LD      A,(EditorNavCachedPageSynthetic)
         LD      (EditorNavNextPageSynthetic),A
         LD      A,1
         LD      (EditorNavNextPageValid),A
@@ -926,6 +974,7 @@ EditorNavLoadNextWindowFromDisk:
         LD      A,(EditorNavNextPageNumber)
         LD      DE,(EditorNavPathPtr)
         LD      HL,EditorNavNextPageBuffer
+        ; expects out carry
         CALL    EditorLoadSourcePage
         JR      C,EditorNavLoadNextWindowError
         XOR     A
@@ -950,6 +999,101 @@ EditorNavNextWindowUnavailable:
         XOR     A
         LD      (EditorNavNextPageValid),A
         LD      (EditorNavNextPageSynthetic),A
+        RET
+
+; EditorNavRecordInitialWindow -
+; Record the V1 four-slot source window after slots 0-3 have been populated.
+; This compatibility layer keeps the current active/next/cache APIs while
+; recording the four-slot rolling-window shape.
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
+@EditorNavRecordInitialWindow:
+        XOR     A
+        LD      (EditorNavWindowBasePage),A
+        LD      (EditorNavWindowDirtyMask),A
+        LD      A,(EditorNavWindowPendingSyntheticMask)
+        LD      (EditorNavWindowSyntheticMask),A
+        XOR     A
+        LD      (EditorNavWindowSlotPages),A
+        LD      A,1
+        LD      (EditorNavWindowSlotPages + 1),A
+        LD      A,2
+        LD      (EditorNavWindowSlotPages + 2),A
+        LD      A,3
+        LD      (EditorNavWindowSlotPages + 3),A
+        LD      A,1
+        LD      (EditorNavWindowValidMask),A
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorNavInitialSlot1Done
+        LD      A,(EditorNavWindowValidMask)
+        OR      2
+        LD      (EditorNavWindowValidMask),A
+        LD      A,(EditorNavNextPageSynthetic)
+        OR      A
+        JR      Z,EditorNavInitialSlot1Done
+        LD      A,(EditorNavWindowSyntheticMask)
+        OR      2
+        LD      (EditorNavWindowSyntheticMask),A
+
+EditorNavInitialSlot1Done:
+        LD      A,(EditorNavWindowValidMask)
+        OR      4
+        LD      (EditorNavWindowValidMask),A
+        LD      A,1
+        LD      (EditorNavCacheValid),A
+        LD      A,2
+        LD      (EditorNavCachedPage),A
+        LD      A,(EditorNavWindowSyntheticMask)
+        AND     4
+        JR      Z,EditorNavInitialSlot2Real
+        LD      A,1
+        JR      EditorNavInitialSlot2SyntheticReady
+
+EditorNavInitialSlot2Real:
+        XOR     A
+
+EditorNavInitialSlot2SyntheticReady:
+        LD      (EditorNavCachedPageSynthetic),A
+        XOR     A
+        LD      (EditorNavCachedPageDirty),A
+        LD      A,(EditorNavWindowValidMask)
+        OR      8
+        LD      (EditorNavWindowValidMask),A
+        XOR     A
+        RET
+
+; EditorNavInvalidateWindowSlot3 -
+; Mark the fourth source-window slot invalid when its physical buffer is reused
+; as backup/block scratch.
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
+@EditorNavInvalidateWindowSlot3:
+        LD      A,(EditorNavWindowValidMask)
+        AND     0xF7
+        LD      (EditorNavWindowValidMask),A
+        LD      A,(EditorNavWindowSyntheticMask)
+        AND     0xF7
+        LD      (EditorNavWindowSyntheticMask),A
+        XOR     A
+        RET
+
+;! out HL,A,carry,zero
+;! clobbers sign,parity,halfCarry,BC
+@EditorNavClearCachePageBuffer:
+        LD      HL,EditorNavCachePageBuffer
+        LD      BC,TECM8_EDITOR_NAV_PAGE_BYTES
+        XOR     A
+
+EditorNavClearCachePageBufferLoop:
+        XOR     A
+        LD      (HL),A
+        INC     HL
+        DEC     BC
+        LD      A,B
+        OR      C
+        JR      NZ,EditorNavClearCachePageBufferLoop
+        XOR     A
         RET
 
 ;! out HL,A,carry,zero
@@ -1263,6 +1407,9 @@ EditorNavCacheStoreCount:
 EditorNavCachedPageDirty:
         .db     0
 
+EditorNavCachedPageSynthetic:
+        .db     0
+
 EditorNavWindowHitCount:
         .db     0
 
@@ -1292,6 +1439,24 @@ EditorNavBackupSavedCurrentPage:
 
 EditorNavBackupError:
         .db     0
+
+EditorNavWindowBasePage:
+        .db     0
+
+EditorNavWindowValidMask:
+        .db     0
+
+EditorNavWindowDirtyMask:
+        .db     0
+
+EditorNavWindowSyntheticMask:
+        .db     0
+
+EditorNavWindowPendingSyntheticMask:
+        .db     0
+
+EditorNavWindowSlotPages:
+        .ds     4
 
 EditorNavPathPtr:
         .dw     0
@@ -1384,3 +1549,8 @@ EditorNavPageBuffer            .equ    TECM8_EDITOR_NAV_PAGE_BASE
 EditorNavNextPageBuffer        .equ    TECM8_EDITOR_NAV_NEXT_BASE
 
 EditorNavBackupPageBuffer      .equ    TECM8_EDITOR_NAV_BACKUP_BASE
+
+EditorNavWindowSlot0           .equ    EditorNavPageBuffer
+EditorNavWindowSlot1           .equ    EditorNavNextPageBuffer
+EditorNavWindowSlot2           .equ    EditorNavCachePageBuffer
+EditorNavWindowSlot3           .equ    EditorNavBackupPageBuffer

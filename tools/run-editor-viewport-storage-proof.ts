@@ -31,6 +31,9 @@ const INTERFACES = [
 ];
 const NODE_TS_ARGS = ['--experimental-strip-types'];
 const APP_START = 0x4000;
+// Storage-backed proofs can assemble close to 0x8000; keep their stack below
+// the 0x4000 app image and above the 0x3800 editor workspace.
+const APP_STACK = 0x3ff0;
 const PROOF_PASS = 0x42;
 const SYS_CTRL = 0xff;
 const SHADOW_OFF = 0x01;
@@ -132,6 +135,7 @@ const PROOF_CASES = {
     image: resolve(TECM8_ROOT, 'proofs/display/editor-selection-fat32.img'),
     lines: makeMultiBlockLines(),
     verify: verifyNoopProof,
+    maxInstructions: 180_000_000,
   },
   'editor-block-delete-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-block-delete-proof.asm'),
@@ -174,6 +178,27 @@ const PROOF_CASES = {
     image: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-scroll-fat32.img'),
     lines: makeThreePageLines(),
     verify: verifyEditorViewportScrollProof,
+  },
+  'editor-rolling-window-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-fat32.img'),
+    lines: makeFourPageLines(),
+    verify: verifyEditorRollingWindowProof,
+  },
+  'editor-rolling-window-synthetic-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-synthetic-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-synthetic-fat32.img'),
+    lines: makeThreePageLines(),
+    verify: verifyEditorRollingWindowSlot3SyntheticProof,
+  },
+  'editor-rolling-window-slot2-synthetic-proof': {
+    source: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-proof.asm'),
+    lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-slot2-synthetic-proof-last-run.json'),
+    image: resolve(TECM8_ROOT, 'proofs/display/editor-rolling-window-slot2-synthetic-fat32.img'),
+    lines: makeTwoPageLines(),
+    verify: verifyEditorRollingWindowSlot2SyntheticProof,
   },
   'editor-horizontal-scroll-proof': {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-horizontal-scroll-proof.asm'),
@@ -332,6 +357,14 @@ function makeTwoPageLines(): string[] {
 
 function makeThreePageLines(): string[] {
   return Array.from({ length: 48 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `R${page} LINE ${line.toString().padStart(2, '0')}`;
+  });
+}
+
+function makeFourPageLines(): string[] {
+  return Array.from({ length: 64 }, (_, index) => {
     const page = Math.floor(index / 16);
     const line = index % 16;
     return `R${page} LINE ${line.toString().padStart(2, '0')}`;
@@ -549,13 +582,17 @@ function loadRuntime(bytes: Uint8Array, imagePath: string): { runtime: Runtime; 
   tec1gRuntime.ioHandlers.write?.(SYS_CTRL, SHADOW_OFF);
   runtime.hardware.memory.set(runtime.hardware.memory.subarray(0xc000, 0xc100), 0x0000);
   runtime.hardware.forceMemWrite?.(MCB, MCB_SD_CARD);
-  runtime.cpu.sp = 0x7ff0;
+  runtime.cpu.sp = APP_STACK;
   runtime.cpu.pc = APP_START;
   return { runtime, platformRuntime: tec1gRuntime };
 }
 
-function runUntil(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: number): number {
-  const maxInstructions = 100_000_000;
+function runUntil(
+  runtime: Runtime,
+  platformRuntime: PlatformRuntime,
+  doneAddr: number,
+  maxInstructions = 100_000_000,
+): number {
   for (let i = 0; i < maxInstructions; i += 1) {
     if ((runtime.cpu.pc & 0xffff) === doneAddr) {
       return i;
@@ -1275,6 +1312,74 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
   }
 }
 
+function verifyEditorRollingWindowProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
+  verifyEditorRollingWindowShape(runtime, symbols, 0, 0, ['R0 LINE 00', 'R1 LINE 00', 'R2 LINE 00', 'R3 LINE 00']);
+}
+
+function verifyEditorRollingWindowSlot3SyntheticProof(
+  runtime: Runtime,
+  _platformRuntime: PlatformRuntime,
+  symbols: D8Symbol[],
+): void {
+  verifyEditorRollingWindowShape(runtime, symbols, 8, 0, ['R0 LINE 00', 'R1 LINE 00', 'R2 LINE 00', '']);
+}
+
+function verifyEditorRollingWindowSlot2SyntheticProof(
+  runtime: Runtime,
+  _platformRuntime: PlatformRuntime,
+  symbols: D8Symbol[],
+): void {
+  verifyEditorRollingWindowShape(runtime, symbols, 12, 1, ['R0 LINE 00', 'R1 LINE 00', '', '']);
+}
+
+function verifyEditorRollingWindowShape(
+  runtime: Runtime,
+  symbols: D8Symbol[],
+  expectedSyntheticMask: number,
+  expectedNextSyntheticAfterCache: number,
+  expectedSlotTexts: string[],
+): void {
+  const memory = runtime.hardware.memory;
+  const checks = [
+    { symbol: 'WindowBasePageOut', expected: 0 },
+    { symbol: 'WindowValidMaskOut', expected: 0x0f },
+    { symbol: 'WindowDirtyMaskOut', expected: 0 },
+    { symbol: 'WindowSyntheticMaskOut', expected: expectedSyntheticMask },
+  ];
+  for (const check of checks) {
+    const value = memory[symbolAddress(symbols, check.symbol)];
+    if (value !== check.expected) {
+      throw new Error(`editor rolling window ${check.symbol} ${value}, expected ${check.expected}`);
+    }
+  }
+
+  const slotPagesAddr = symbolAddress(symbols, 'WindowSlotPagesOut');
+  const slotPages = Array.from(memory.slice(slotPagesAddr, slotPagesAddr + 4));
+  if (slotPages.join(',') !== '0,1,2,3') {
+    throw new Error(`editor rolling window slot pages [${slotPages.join(',')}], expected [0,1,2,3]`);
+  }
+
+  const nextSynthetic = memory[symbolAddress(symbols, 'NextPageSyntheticAfterCacheOut')];
+  if (nextSynthetic !== expectedNextSyntheticAfterCache) {
+    throw new Error(
+      `editor rolling window cached next synthetic ${nextSynthetic}, expected ${expectedNextSyntheticAfterCache}`,
+    );
+  }
+
+  const validAfterInvalidate = memory[symbolAddress(symbols, 'WindowValidMaskAfterInvalidateOut')];
+  if (validAfterInvalidate !== 0x07) {
+    throw new Error(`editor rolling window valid mask after slot3 invalidate ${validAfterInvalidate}, expected 7`);
+  }
+
+  for (let slot = 0; slot < 4; slot += 1) {
+    const text = readCString(memory, symbolAddress(symbols, `Slot${slot}Record0`));
+    const expected = expectedSlotTexts[slot];
+    if (text !== expected) {
+      throw new Error(`editor rolling window slot ${slot} record0 "${text}", expected "${expected}"`);
+    }
+  }
+}
+
 function verifyEditorHorizontalScrollProof(runtime: Runtime, _platformRuntime: PlatformRuntime, symbols: D8Symbol[]): void {
   const checks = [
     { symbol: 'CursorColAfterInsert', expected: 30 },
@@ -1823,7 +1928,14 @@ async function main(): Promise<void> {
   const doneAddr = symbolAddress(symbols, 'ProofDone');
   const resultAddr = symbolAddress(symbols, 'ResultMarker');
   const { runtime, platformRuntime } = loadRuntime(bytes, imagePath);
-  const instructions = runUntil(runtime, platformRuntime, doneAddr);
+  let instructions: number;
+  try {
+    const maxInstructions = 'maxInstructions' in proofCase ? proofCase.maxInstructions : undefined;
+    instructions = runUntil(runtime, platformRuntime, doneAddr, maxInstructions);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${message}${describeProofFailure(runtime, symbols)}`);
+  }
   const result = runtime.hardware.memory[resultAddr];
   if (result !== PROOF_PASS) {
     throw new Error(

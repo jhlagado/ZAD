@@ -324,7 +324,7 @@ function loadRuntime(
 }
 
 function runUntil(runtime: Runtime, platformRuntime: PlatformRuntime, doneAddr: number): number {
-  const maxInstructions = 80_000_000;
+  const maxInstructions = 140_000_000;
   for (let i = 0; i < maxInstructions; i += 1) {
     if ((runtime.cpu.pc & 0xffff) === doneAddr) {
       return i;

@@ -310,6 +310,14 @@ Progress:
 - Done: plain Up moves from resident page 1 row 0 back to page 0 row 15.
 - Done: `editor-viewport-scroll-proof` and `debug80:editor-live-smoke` cover
   the resident adjacent-page crossing.
+- Done: `EditorOpenMain` now fills a four-slot, 2K source window for pages
+  `0..3`, records slot page numbers, and exposes valid/dirty/synthetic masks.
+- Done: `editor-rolling-window-proof` covers four real resident pages,
+  `editor-rolling-window-synthetic-proof` covers a valid synthetic beyond-EOF
+  slot 3, and `editor-rolling-window-slot2-synthetic-proof` covers cache
+  propagation when slots 2 and 3 are synthetic.
+- Done: the initial-open dirty mask is recorded as clean; dirty-slot
+  propagation and save/eviction policy remain Slice 4 work.
 
 Execution slices:
 
@@ -321,7 +329,8 @@ Execution slices:
 2. **Four-sector rolling window.** Replace the active/next/cache arrangement
    with a 2K, four-slot window and slot metadata for page, valid, dirty, and
    synthetic state. Plain movement within the resident 64-line window performs
-   no SD reads.
+   no SD reads. Done for initial open and metadata; slot rotation on misses is
+   Slice 3.
 3. **One-sector miss and dirty eviction policy.** On a clean miss, rotate or
    reuse one slot and load exactly one new source sector. If the required
    eviction victim is dirty, block movement with a clear status until explicit

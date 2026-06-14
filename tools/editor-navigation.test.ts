@@ -30,6 +30,9 @@ test('editor navigation module exposes open, render, and page movement entries',
     'EditorPageUp',
     'EditorNavDeriveBackupPath',
     'EditorNavShowStatus',
+    'EditorNavRecordInitialWindow',
+    'EditorNavClearCachePageBuffer',
+    'EditorNavInvalidateWindowSlot3',
   ]) {
     assert.match(source, new RegExp(`^@${name}:`, 'm'));
   }
@@ -46,7 +49,7 @@ test('editor navigation module exposes open, render, and page movement entries',
   assert.match(source, /TECM8_EDITOR_NAV_WORKSPACE_END\s+\.equ\s+0x3800/);
   assert.match(source, /EditorNavCachePageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_CACHE_BASE/);
   assert.match(source, /EditorNavPageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_PAGE_BASE/);
-  assert.match(source, /TECM8_EDITOR_NAV_WINDOW_BYTES\s+\.equ\s+TECM8_SECTOR_BYTES \* 2/);
+  assert.match(source, /TECM8_EDITOR_NAV_WINDOW_BYTES\s+\.equ\s+TECM8_SECTOR_BYTES \* 4/);
   assert.match(equates, /TECM8_SECTOR_BYTES\s+\.equ\s+512/);
   assert.match(source, /EditorNavNextPageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_NEXT_BASE/);
   assert.match(source, /EditorNavBackupPageBuffer\s+\.equ\s+TECM8_EDITOR_NAV_BACKUP_BASE/);
@@ -54,7 +57,18 @@ test('editor navigation module exposes open, render, and page movement entries',
   assert.match(source, /EditorNavViewportTopRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavCurrentRow:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavCachedPageDirty:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavCachedPageSynthetic:\n\s+\.db\s+0/);
   assert.match(source, /EditorNavNextPageNumber:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavWindowBasePage:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavWindowValidMask:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavWindowDirtyMask:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavWindowSyntheticMask:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavWindowPendingSyntheticMask:\n\s+\.db\s+0/);
+  assert.match(source, /EditorNavWindowSlotPages:\n\s+\.ds\s+4/);
+  assert.match(source, /EditorNavWindowSlot0\s+\.equ\s+EditorNavPageBuffer/);
+  assert.match(source, /EditorNavWindowSlot1\s+\.equ\s+EditorNavNextPageBuffer/);
+  assert.match(source, /EditorNavWindowSlot2\s+\.equ\s+EditorNavCachePageBuffer/);
+  assert.match(source, /EditorNavWindowSlot3\s+\.equ\s+EditorNavBackupPageBuffer/);
 });
 
 test('editor navigation commits page movement only after successful render', () => {
@@ -62,7 +76,11 @@ test('editor navigation commits page movement only after successful render', () 
 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
-  assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+CALL\s+EditorRenderPageBuffer\n\s+RET\s+C\n\s+CALL\s+EditorNavLoadNextWindowPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+CALL\s+EditorRenderPageBuffer\n\s+RET\s+C[\s\S]*?CALL\s+EditorNavLoadNextWindowPage\n\s+RET\s+C[\s\S]*?LD\s+A,2\n\s+LD\s+DE,\(EditorNavPathPtr\)\n\s+LD\s+HL,EditorNavCachePageBuffer[\s\S]*?LD\s+A,3\n\s+LD\s+DE,\(EditorNavPathPtr\)\n\s+LD\s+HL,EditorNavBackupPageBuffer[\s\S]*?CALL\s+EditorNavRecordInitialWindow\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /EditorRenderCurrentSlot2Error:[\s\S]*?CP\s+EDITOR_LOAD_ERR_SIZE[\s\S]*?CALL\s+EditorNavClearCachePageBuffer[\s\S]*?OR\s+4/);
+  assert.match(source, /EditorRenderCurrentSlot3Error:[\s\S]*?CP\s+EDITOR_LOAD_ERR_SIZE[\s\S]*?CALL\s+EditorNavClearBackupPageBuffer[\s\S]*?OR\s+8/);
+  assert.match(source, /@EditorNavLoadNextWindowPage:[\s\S]*?CALL\s+EditorNavCopyCachedPageToNext[\s\S]*?LD\s+A,\(EditorNavCachedPageSynthetic\)\n\s+LD\s+\(EditorNavNextPageSynthetic\),A/);
+  assert.match(source, /@EditorNavInvalidateWindowSlot3:[\s\S]*?AND\s+0xF7[\s\S]*?LD\s+\(EditorNavWindowValidMask\),A[\s\S]*?AND\s+0xF7[\s\S]*?LD\s+\(EditorNavWindowSyntheticMask\),A/);
   assert.match(source, /@EditorRenderPageBuffer:[\s\S]*?CALL\s+EditorNavSyncViewport\n\s+RET\s+C[\s\S]*?CALL\s+EditorViewportRender/);
   assert.match(source, /@EditorNavResetViewport:[\s\S]*?CALL\s+EditorViewportSetTopRow[\s\S]*?CALL\s+EditorViewportSetColOffset[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /@EditorNavSyncViewport:[\s\S]*?LD\s+A,\(EditorNavCurrentRow\)[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
@@ -82,7 +100,7 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /LD\s+DE,EditorNavBackupPathBuffer/);
   assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);
-  assert.match(source, /CALL\s+EditorRenderPageBuffer\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /CALL\s+EditorRenderPageBuffer\n\s+RET\s+C[\s\S]*?CALL\s+EditorNavRecordInitialWindow\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
   assert.match(source, /CALL\s+EditorLoadSourcePage\n\s+JR\s+C,EditorNavRenderPageRestoreError\n\s+XOR\s+A\n\s+RET/);
   assert.match(source, /@EditorNavRememberCurrentPage:/);
   assert.match(source, /@EditorNavRenderCachedPendingPage:/);
