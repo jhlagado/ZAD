@@ -306,6 +306,29 @@ data read every time.
 
 The first milestone is **Rolling Source Window V1**.
 
+Recommended execution slices:
+
+1. **Continuous viewport across resident pages.** The current active/adjacent
+   buffers are enough to prove the visible behavior first. Plain Up/Down should
+   scroll across the R0/R1 boundary one line at a time, with mixed-sector lines
+   visible when the viewport straddles a boundary.
+2. **Four-sector rolling window.** Replace the current active/next/cache shape
+   with the 2K four-slot model described above. Movement inside the resident
+   64-line window should not touch SD.
+3. **One-sector miss and dirty eviction policy.** A clean miss loads or rotates
+   one sector only. A dirty eviction is blocked until explicit save; V1 does
+   not autosave while navigating.
+4. **Multi-sector save, backup, and restore.** Save writes all dirty resident
+   sectors, backup remains pre-session and sector-based, and restore is limited
+   to resident pages listed in `BackedPageTable`.
+5. **Manual Debug80 milestone.** Provide a fixture and script that demonstrate
+   continuous multi-page movement, edits in more than one sector, save, reset,
+   reopen, and persistence.
+
+Each code slice should be completed as a reviewed, committed, and pushed goal
+before starting the next slice. That keeps the rolling-window transition
+recoverable if one step exposes a bad assumption.
+
 Manual Debug80 acceptance with the standard two-page fixture:
 
 - Open the editor on the standard `/src/main.asm` fixture.

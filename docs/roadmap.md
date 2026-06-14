@@ -311,6 +311,33 @@ Progress:
 - Done: `editor-viewport-scroll-proof` and `debug80:editor-live-smoke` cover
   the resident adjacent-page crossing.
 
+Execution slices:
+
+1. **Continuous viewport across resident pages.** Keep the current resident
+   active/adjacent buffers, but make plain line scrolling render across the
+   sector boundary instead of replacing the whole screen with the next sector.
+   Manual test: moving down from the bottom of the `R0` view scrolls mixed
+   `R0`/`R1` lines into view one line at a time.
+2. **Four-sector rolling window.** Replace the active/next/cache arrangement
+   with a 2K, four-slot window and slot metadata for page, valid, dirty, and
+   synthetic state. Plain movement within the resident 64-line window performs
+   no SD reads.
+3. **One-sector miss and dirty eviction policy.** On a clean miss, rotate or
+   reuse one slot and load exactly one new source sector. If the required
+   eviction victim is dirty, block movement with a clear status until explicit
+   save; do not silently autosave.
+4. **Multi-sector save, backup, and restore.** `Ctrl-S` writes all dirty
+   resident sectors and preserves pre-session backup sectors. `Ctrl-Z` restores
+   only resident sectors present in `BackedPageTable`.
+5. **Manual Debug80 milestone.** Update the manual script and fixture so the
+   editor can be visibly tested as a multi-page file editor: continuous
+   scrolling, edits in more than one sector, save, reset, reopen, and verify
+   persistence.
+
+Each slice is its own goal. Code slices require proof-first implementation,
+high-effort review, commit, push, and remote CI/run check where available.
+Docs-only updates may use the short process, but still get committed and pushed.
+
 Done when:
 
 - Done: Plain Down moves from the final visible/reachable `R0` source line into
