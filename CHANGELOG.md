@@ -16,6 +16,33 @@ progression and to make the project history easier to navigate.
 - Each milestone tag should point at a committed, pushed, reviewed, and locally
   verified state.
 
+## [0.1.1] - 2026-06-15
+
+Phase 3A milestone: Rolling Source Window V1 manual validation.
+
+### User-Facing Editor Behavior
+
+- The Debug80 manual editor script now covers the multi-page source editing
+  milestone: continuous `R0`/`R1` navigation, edits in more than one sector,
+  save, reset, reopen, and persistence verification.
+- Plain `Up`/`Down` treats resident adjacent source pages as one continuous
+  document instead of making page movement feel like switching files.
+- `Ctrl-S` preserves pre-session hidden backup sectors while saving later edits
+  to resident source sectors.
+- `Ctrl-Z` restore is limited to resident sectors that were actually backed up
+  during the session.
+
+### Engineering Notes
+
+- Added the rolling-window slice sequence and completed the five Phase 3A slice
+  commits through local verification and high-effort review for code changes.
+- Added session backed-page tracking so repeated saves do not overwrite the
+  original backup sector with the first edited save.
+- Updated the Debug80 session runner fixture construction and diagnostics used
+  by the live smoke path.
+- Added a low-priority roadmap item for Z80 label-length hygiene so PascalCase
+  labels do not grow into sentence-length names.
+
 ## [0.1.0] - 2026-06-14
 
 Initial milestone tag for the Debug80-testable TECM8 editor line.
