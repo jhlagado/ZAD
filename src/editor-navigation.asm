@@ -446,6 +446,15 @@ EditorNavCommitPendingPageFromWindow:
         LD      A,(EditorNavCurrentPage)
         OR      A
         JP      Z,EditorNavPageErr
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorPageUpCanMove
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        JP      NZ,EditorNavPageErr
+
+EditorPageUpCanMove:
+        LD      A,(EditorNavCurrentPage)
         DEC     A
         LD      (EditorNavPendingPage),A
         CALL    EditorNavRenderCachedPendingPage
@@ -463,6 +472,153 @@ EditorNavCommitPendingPageFromWindow:
         CALL    EditorRenderPageBuffer
         RET     C
         JP      EditorClearDirty
+
+; EditorPageDownResidentNoPreload -
+; Cross from the active page to the already-resident adjacent next page without
+; preloading another source sector. Used by plain line movement at the row-15
+; boundary; explicit page movement still preloads ahead.
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@EditorPageDownResidentNoPreload:
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JP      Z,EditorNavPageErr
+        INC     A
+        LD      (EditorNavPendingPage),A
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JP      Z,EditorNavPageErr
+        LD      A,(EditorNavNextPageSynthetic)
+        OR      A
+        JR      Z,EditorPageDownResidentReady
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        JP      Z,EditorNavPageErr
+
+EditorPageDownResidentReady:
+        CALL    EditorNavRememberCurrentPage
+        CALL    EditorNavSlideNextPageToCurrent
+        XOR     A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
+        LD      A,(EditorNavWindowHitCount)
+        INC     A
+        LD      (EditorNavWindowHitCount),A
+        LD      A,(EditorNavDirtySectors)
+        SRL     A
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,(EditorNavPendingPage)
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorNavResetViewport
+        RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
+        XOR     A
+        RET
+
+; EditorPageUpResidentNoPreload -
+; Cross from row 0 to the cached previous page without loading another sector.
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@EditorPageUpResidentNoPreload:
+        LD      A,(EditorNavCurrentPage)
+        OR      A
+        JP      Z,EditorNavPageErr
+        DEC     A
+        LD      (EditorNavPendingPage),A
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JP      Z,EditorNavPageErr
+        LD      A,(EditorNavPendingPage)
+        LD      HL,EditorNavCachedPage
+        CP      (HL)
+        JP      NZ,EditorNavPageErr
+        LD      A,(EditorNavNextPageValid)
+        OR      A
+        JR      Z,EditorPageUpResidentCanSwap
+        LD      A,(EditorNavDirtySectors)
+        AND     2
+        JP      NZ,EditorNavPageErr
+
+EditorPageUpResidentCanSwap:
+        CALL    EditorNavSwapCachePage
+        LD      A,(EditorNavDirtySectors)
+        AND     1
+        LD      (EditorNavSwapByte),A
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorPageUpResidentCleanToCurrent
+        LD      A,(EditorNavDirtySectors)
+        OR      1
+        JR      EditorPageUpResidentCurrentDirtyReady
+
+EditorPageUpResidentCleanToCurrent:
+        LD      A,(EditorNavDirtySectors)
+        AND     0xFE
+
+EditorPageUpResidentCurrentDirtyReady:
+        LD      (EditorNavDirtySectors),A
+        LD      A,(EditorNavSwapByte)
+        LD      (EditorNavCachedPageDirty),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,(EditorNavCurrentPage)
+        LD      (EditorNavCachedPage),A
+        LD      A,(EditorNavCacheHitCount)
+        INC     A
+        LD      (EditorNavCacheHitCount),A
+        LD      A,(EditorNavPendingPage)
+        LD      (EditorNavCurrentPage),A
+        CALL    EditorNavRestoreNextWindowFromCache
+        RET     C
+        CALL    EditorNavResetViewport
+        RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
+        XOR     A
+        RET
+
+; EditorNavRestoreNextWindowFromCache -
+; After a resident Up crossing, the page below the cursor is the active page and
+; the page above it is still resident in the previous-page cache. Mirror that
+; cache page back into the adjacent-next buffer so another plain Down can cross
+; without storage.
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@EditorNavRestoreNextWindowFromCache:
+        LD      A,(EditorNavCurrentPage)
+        CP      127
+        JR      Z,EditorNavRestoreNextWindowUnavailable
+        INC     A
+        LD      B,A
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JR      Z,EditorNavRestoreNextWindowUnavailable
+        LD      A,(EditorNavCachedPage)
+        CP      B
+        JR      NZ,EditorNavRestoreNextWindowUnavailable
+        CALL    EditorNavCopyCachedPageToNext
+        XOR     A
+        LD      (EditorNavNextPageSynthetic),A
+        LD      A,(EditorNavCachedPageDirty)
+        OR      A
+        JR      Z,EditorNavRestoreNextWindowClean
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+
+EditorNavRestoreNextWindowClean:
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        XOR     A
+        RET
+
+EditorNavRestoreNextWindowUnavailable:
+        XOR     A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
+        RET
 
 ; EditorNavRememberCurrentPage -
 ; Keep the clean current page in the one-page RAM cache before loading another.

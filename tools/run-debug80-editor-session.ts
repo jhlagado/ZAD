@@ -728,6 +728,34 @@ async function main(): Promise<void> {
     const translatedKeyAddr = symbolAddress(symbols, 'BiosInputTranslatedKey');
     const { runtime, platformRuntime } = loadRuntime(bytes, sessionImagePath, APP_START, true);
     platformRuntime.setMatrixMode?.(true);
+    const tapCursorKeyAndWait = (row: number, col: number, label: string): void => {
+      if (!platformRuntime.applyMatrixKey) {
+        throw new Error('Debug80 runtime does not expose matrix key injection');
+      }
+      const beforePage = runtime.hardware.memory[currentPageAddr];
+      const beforeRow = runtime.hardware.memory[cursorRowAddr];
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        platformRuntime.applyMatrixKey(row, col, false);
+        runInstructions(runtime, platformRuntime, 200_000);
+        platformRuntime.applyMatrixKey(row, col, true);
+        let changed = false;
+        for (let step = 0; step < 20_000; step += 1) {
+          runInstructions(runtime, platformRuntime, 1_000);
+          if (runtime.hardware.memory[currentPageAddr] !== beforePage || runtime.hardware.memory[cursorRowAddr] !== beforeRow) {
+            changed = true;
+            break;
+          }
+        }
+        platformRuntime.applyMatrixKey(row, col, false);
+        runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+        if (changed) {
+          return;
+        }
+      }
+      throw new Error(
+        `live editor ${label} did not move cursor from page=${beforePage} row=${beforeRow}`,
+      );
+    };
     const bootInstructions = runUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
     tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown: raw key 04h
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
@@ -780,6 +808,46 @@ async function main(): Promise<void> {
     assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 00', 'rendered row 0 after Ctrl+ArrowUp');
     assertRuntimeCString(runtime, rowText9Addr, 'R0 LINE 09', 'rendered row 9 after Ctrl+ArrowUp');
     assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after Ctrl+ArrowUp');
+    for (let move = 0; move < 16; move += 1) {
+      tapCursorKeyAndWait(0, 4, `plain ArrowDown ${move + 1}`);
+    }
+    const pageAfterPlainDownCross = runtime.hardware.memory[currentPageAddr];
+    const rowAfterPlainDownCross = runtime.hardware.memory[cursorRowAddr];
+    if (pageAfterPlainDownCross !== 1 || rowAfterPlainDownCross !== 0) {
+      throw new Error(
+        `live editor after plain ArrowDown cross page=${pageAfterPlainDownCross} row=${rowAfterPlainDownCross}, expected page=1 row=0`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after plain ArrowDown cross');
+    tapCursorKeyAndWait(0, 3, 'plain ArrowUp cross');
+    const pageAfterPlainUpCross = runtime.hardware.memory[currentPageAddr];
+    const rowAfterPlainUpCross = runtime.hardware.memory[cursorRowAddr];
+    if (pageAfterPlainUpCross !== 0 || rowAfterPlainUpCross !== 15) {
+      throw new Error(
+        `live editor after plain ArrowUp cross page=${pageAfterPlainUpCross} row=${rowAfterPlainUpCross}, expected page=0 row=15`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R0 LINE 00', 'after plain ArrowUp cross');
+    assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 06', 'rendered row 0 after plain ArrowUp cross');
+    tapCursorKeyAndWait(0, 4, 'second plain ArrowDown cross');
+    const pageAfterSecondPlainDownCross = runtime.hardware.memory[currentPageAddr];
+    const rowAfterSecondPlainDownCross = runtime.hardware.memory[cursorRowAddr];
+    if (pageAfterSecondPlainDownCross !== 1 || rowAfterSecondPlainDownCross !== 0) {
+      throw new Error(
+        `live editor after second plain ArrowDown cross page=${pageAfterSecondPlainDownCross} row=${rowAfterSecondPlainDownCross}, expected page=1 row=0`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after second plain ArrowDown cross');
+    tapCursorKeyAndWait(0, 3, 'second plain ArrowUp cross');
+    for (let move = 0; move < 15; move += 1) {
+      tapCursorKeyAndWait(0, 3, `plain ArrowUp reset ${move + 1}`);
+    }
+    if (runtime.hardware.memory[currentPageAddr] !== 0 || runtime.hardware.memory[cursorRowAddr] !== 0) {
+      throw new Error(
+        `live editor after plain ArrowUp reset page=${runtime.hardware.memory[currentPageAddr]} row=${runtime.hardware.memory[cursorRowAddr]}, expected page=0 row=0`,
+      );
+    }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 6 }); // Ctrl+ArrowRight
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     const ctrlArrowModifierBits = runtime.hardware.memory[modifierBitsAddr];
@@ -800,8 +868,8 @@ async function main(): Promise<void> {
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
     tapMatrixKey(platformRuntime, runtime, 0, 4); // ArrowDown with caps state set
     runUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    const cursorRow = runtime.hardware.memory[cursorRowAddr];
-    const cursorCol = runtime.hardware.memory[cursorColAddr];
+    const cursorRow = readRuntimeByte(runtime, cursorRowAddr);
+    const cursorCol = readRuntimeByte(runtime, cursorColAddr);
     const modifierBits = runtime.hardware.memory[modifierBitsAddr];
     const rawPrimary = runtime.hardware.memory[rawPrimaryAddr];
     const rawSecondary = runtime.hardware.memory[rawSecondaryAddr];
@@ -824,7 +892,7 @@ async function main(): Promise<void> {
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }, 200_000, 200_000); // dirty Ctrl+ArrowDown within RAM window
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    const pageAfterDirtyPageDown = runtime.hardware.memory[currentPageAddr];
+    const pageAfterDirtyPageDown = readRuntimeByte(runtime, currentPageAddr);
     const dirtyAfterDirtyPageDown = runtime.hardware.memory[dirtyAddr];
     if (pageAfterDirtyPageDown !== 1 || dirtyAfterDirtyPageDown !== 1) {
       throw new Error(
@@ -852,8 +920,8 @@ async function main(): Promise<void> {
     assertGlcdDisplayRows(platformRuntime, [0, 1, 9], 'after dirty Ctrl+ArrowUp');
     tapMatrixKey(platformRuntime, runtime, 1, 2); // Enter: split line
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
-    const cursorRowAfterEnter = runtime.hardware.memory[cursorRowAddr];
-    const cursorColAfterEnter = runtime.hardware.memory[cursorColAddr];
+    const cursorRowAfterEnter = readRuntimeByte(runtime, cursorRowAddr);
+    const cursorColAfterEnter = readRuntimeByte(runtime, cursorColAddr);
     if (cursorRowAfterEnter !== 1 || cursorColAfterEnter !== 0) {
       const enterModifierBits = runtime.hardware.memory[modifierBitsAddr];
       const enterRawPrimary = runtime.hardware.memory[rawPrimaryAddr];
@@ -879,7 +947,7 @@ async function main(): Promise<void> {
     }
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 0, col: 4 }, 200_000, 200_000); // Ctrl+ArrowDown
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 60_000_000);
-    const pageAfterSplitSaveDown = runtime.hardware.memory[currentPageAddr];
+    const pageAfterSplitSaveDown = readRuntimeByte(runtime, currentPageAddr);
     if (pageAfterSplitSaveDown !== 1) {
       throw new Error(`live editor page after saved split Ctrl+ArrowDown ${pageAfterSplitSaveDown}, expected 1`);
     }
@@ -1057,6 +1125,12 @@ async function main(): Promise<void> {
       pageAfterCtrlDown,
       rowAfterCtrlDown,
       pageAfterCtrlUp,
+      pageAfterPlainDownCross,
+      rowAfterPlainDownCross,
+      pageAfterPlainUpCross,
+      rowAfterPlainUpCross,
+      pageAfterSecondPlainDownCross,
+      rowAfterSecondPlainDownCross,
       dirtyAfterEdit,
       pageAfterDirtyPageDown,
       cursorRowAfterEnter,

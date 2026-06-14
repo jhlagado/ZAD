@@ -1,8 +1,9 @@
 ; Editor viewport scroll proof.
 ;
 ; Opens /src/main.asm, moves the logical cursor through all 16 records of the
-; first source page, and verifies that the 10-row GLCD viewport scrolls to show
-; rows 6-15 without changing dirty state.
+; first source page, verifies that the 10-row GLCD viewport scrolls to show
+; rows 6-15 without changing dirty state, then proves plain Up/Down crosses the
+; resident adjacent source page as one continuous document.
 
         .org    0x4000
 
@@ -46,6 +47,119 @@ PROOF_FAIL       .equ     0xE0
         CALL    CopyRowText
 
         LD      A,4
+        LD      (CaseMarker),A
+        LD      HL,MoveDownAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterCrossDown),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterCrossDown),A
+        LD      A,(EditorCursorVisibleRow)
+        LD      (VisibleRowAfterCrossDown),A
+        LD      A,(EditorNavViewportTopRow)
+        LD      (TopRowAfterCrossDown),A
+        LD      A,(EditorNavNextPageValid)
+        LD      (NextPageValidAfterCrossDown),A
+        LD      A,(EditorNavNextPageSynthetic)
+        LD      (NextPageSyntheticAfterCrossDown),A
+        LD      HL,EditorRowText0
+        LD      DE,CrossDownRowText0
+        CALL    CopyRowText
+        LD      HL,EditorRowText9
+        LD      DE,CrossDownRowText9
+        CALL    CopyRowText
+
+        LD      A,5
+        LD      (CaseMarker),A
+        LD      A,1
+        LD      (EditorNavNextPageValid),A
+        XOR     A
+        LD      (EditorNavNextPageSynthetic),A
+        LD      A,(EditorNavDirtySectors)
+        OR      2
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        LD      A,1
+        LD      (EditorNavNextPageBuffer),A
+        LD      A,"!"
+        LD      (EditorNavNextPageBuffer + 1),A
+        LD      HL,MoveUpAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterDirtyNextCrossUp),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterDirtyNextCrossUp),A
+        LD      A,(EditorNavDirtySectors)
+        LD      (DirtySectorsAfterDirtyNextCrossUp),A
+        LD      A,(EditorNavNextPageBuffer + 1)
+        LD      (NextPageMarkerAfterDirtyNextCrossUp),A
+        CALL    RunSyntheticControlArrowUp
+        JP      C,ProofFailed
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterDirtyNextCtrlUp),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterDirtyNextCtrlUp),A
+        LD      A,(EditorNavDirtySectors)
+        LD      (DirtySectorsAfterDirtyNextCtrlUp),A
+        LD      A,(EditorNavNextPageBuffer + 1)
+        LD      (NextPageMarkerAfterDirtyNextCtrlUp),A
+        LD      A,(EditorNavDirtySectors)
+        AND     0xFD
+        LD      (EditorNavDirtySectors),A
+        CALL    EditorNavRefreshAggregateDirty
+        XOR     A
+        LD      (EditorNavNextPageValid),A
+        LD      (EditorNavNextPageSynthetic),A
+
+        LD      A,6
+        LD      (CaseMarker),A
+        LD      HL,MoveUpAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterCrossUp),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterCrossUp),A
+        LD      A,(EditorCursorVisibleRow)
+        LD      (VisibleRowAfterCrossUp),A
+        LD      A,(EditorNavViewportTopRow)
+        LD      (TopRowAfterCrossUp),A
+        LD      HL,EditorRowText0
+        LD      DE,CrossUpRowText0
+        CALL    CopyRowText
+        LD      HL,EditorRowText9
+        LD      DE,CrossUpRowText9
+        CALL    CopyRowText
+
+        LD      A,7
+        LD      (CaseMarker),A
+        LD      HL,MoveDownAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterSecondCrossDown),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterSecondCrossDown),A
+        LD      A,(EditorCursorVisibleRow)
+        LD      (VisibleRowAfterSecondCrossDown),A
+        LD      A,(EditorNavViewportTopRow)
+        LD      (TopRowAfterSecondCrossDown),A
+        LD      HL,EditorRowText0
+        LD      DE,SecondCrossDownRowText0
+        CALL    CopyRowText
+
+        LD      A,8
+        LD      (CaseMarker),A
+        LD      HL,MoveUpAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+
+        LD      A,9
         LD      (CaseMarker),A
         LD      HL,MoveUpToTop
         CALL    EditorRunKeys
@@ -92,6 +206,32 @@ CopyRowTextLoop:
         XOR     A
         RET
 
+;! out A,carry
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+@RunSyntheticControlArrowUp:
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      (BiosInputRawPrimary),A
+        LD      A,0x01
+        LD      (BiosInputRawSecondary),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_UP
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JR      C,RunSyntheticControlArrowUpErr
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        XOR     A
+        RET
+
+RunSyntheticControlArrowUpErr:
+        LD      C,A
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        LD      A,C
+        SCF
+        RET
+
         .include "../../src/glcd-tile.asm"
         .include "../../src/display-model.asm"
         .include "../../src/editor-block-state.asm"
@@ -131,6 +271,12 @@ MoveUpToTop:
         .db     TECM8_EDITOR_KEY_ARROW_UP,TECM8_EDITOR_KEY_ARROW_UP
         .db     TECM8_EDITOR_KEY_ARROW_UP,0
 
+MoveDownAcrossPage:
+        .db     TECM8_EDITOR_KEY_ARROW_DOWN,0
+
+MoveUpAcrossPage:
+        .db     TECM8_EDITOR_KEY_ARROW_UP,0
+
 ResultMarker:
         .db     0
 CaseMarker:
@@ -148,6 +294,60 @@ DirtyAfterDown:
 BottomRowText0:
         .ds     32
 BottomRowText9:
+        .ds     32
+PageAfterCrossDown:
+        .db     0
+CursorRowAfterCrossDown:
+        .db     0
+VisibleRowAfterCrossDown:
+        .db     0
+TopRowAfterCrossDown:
+        .db     0
+NextPageValidAfterCrossDown:
+        .db     0
+NextPageSyntheticAfterCrossDown:
+        .db     0
+CrossDownRowText0:
+        .ds     32
+CrossDownRowText9:
+        .ds     32
+PageAfterDirtyNextCrossUp:
+        .db     0
+CursorRowAfterDirtyNextCrossUp:
+        .db     0
+DirtySectorsAfterDirtyNextCrossUp:
+        .db     0
+NextPageMarkerAfterDirtyNextCrossUp:
+        .db     0
+PageAfterDirtyNextCtrlUp:
+        .db     0
+CursorRowAfterDirtyNextCtrlUp:
+        .db     0
+DirtySectorsAfterDirtyNextCtrlUp:
+        .db     0
+NextPageMarkerAfterDirtyNextCtrlUp:
+        .db     0
+PageAfterCrossUp:
+        .db     0
+CursorRowAfterCrossUp:
+        .db     0
+VisibleRowAfterCrossUp:
+        .db     0
+TopRowAfterCrossUp:
+        .db     0
+CrossUpRowText0:
+        .ds     32
+CrossUpRowText9:
+        .ds     32
+PageAfterSecondCrossDown:
+        .db     0
+CursorRowAfterSecondCrossDown:
+        .db     0
+VisibleRowAfterSecondCrossDown:
+        .db     0
+TopRowAfterSecondCrossDown:
+        .db     0
+SecondCrossDownRowText0:
         .ds     32
 CursorRowAfterUp:
         .db     0

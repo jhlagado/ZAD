@@ -259,9 +259,9 @@ Context:
 - The current editor already uses several 512-byte buffers, but they are not a
   true continuous 2K document window. They are active page, adjacent next page,
   previous-page cache, and backup scratch.
-- Plain Up/Down currently clamp inside one 16-record source sector. `Ctrl-Up`
-  and `Ctrl-Down` are the only way to cross into the adjacent source sector,
-  which makes one file feel like separate pages.
+- Plain Up/Down now cross the already-resident adjacent source sector in the
+  standard two-page fixture. The remaining work is to generalize this into a
+  full four-slot rolling window instead of the current active/next/cache shape.
 - MON3 SD/FAT32 operations are slow enough that ordinary line navigation should
   avoid storage calls whenever the target line is resident.
 
@@ -299,11 +299,19 @@ Work:
 - Keep `Ctrl-Z` restore scoped to resident slots whose page appears in the
   backed-page table for V1.
 
+Progress:
+
+- Done: plain Down moves from page 0 row 15 to resident page 1 row 0.
+- Done: plain Up moves from resident page 1 row 0 back to page 0 row 15.
+- Done: `editor-viewport-scroll-proof` and `debug80:editor-live-smoke` cover
+  the resident adjacent-page crossing.
+
 Done when:
 
-- Plain Down moves from the final visible/reachable `R0` source line into
+- Done: Plain Down moves from the final visible/reachable `R0` source line into
   `R1 LINE 00` in the standard Debug80 fixture.
-- Plain Up moves from `R1 LINE 00` back into the previous `R0` source line.
+- Done: Plain Up moves from `R1 LINE 00` back into the previous `R0` source
+  line.
 - Moving within the loaded 64-line window does not issue SD reads.
 - A clean window miss in a five-sector fixture preserves the contiguous
   four-page window and loads exactly one new source sector.

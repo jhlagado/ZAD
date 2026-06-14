@@ -184,6 +184,13 @@ Ctrl+ArrowUp         page up
 other modified arrows reserved for later word/page movement
 ```
 
+Plain Up/Down now treats resident adjacent source pages as one continuous
+document. In the generated manual image, repeated `ArrowDown` should move from
+`R0 LINE 15` directly to `R1 LINE 00` without pressing `Ctrl+ArrowDown`.
+Pressing `ArrowUp` from `R1 LINE 00` should return to the previous `R0` page at
+`R0 LINE 15`. `Ctrl+ArrowDown` and `Ctrl+ArrowUp` remain faster page movement
+commands over the same source file.
+
 Debug80's visible matrix-keyboard UI now maps browser arrow keys to the TEC-1G
 matrix arrow codes. The live smoke test covers `ArrowDown`, `ArrowUp`,
 `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`, `Ctrl+ArrowRight`, `CapsLock`,
@@ -224,15 +231,19 @@ npm run debug80:editor-live-smoke
 It launches the manual `4000h` path under Debug80 with the MON3 `SYS_MODE`
 RAM mirror initialized to match shadow-ROM-off state, injects `ArrowDown`,
 `ArrowUp`, `ArrowDown`, `ArrowRight`, `Ctrl+ArrowDown`, `Ctrl+ArrowUp`,
-`Ctrl+ArrowRight`, `CapsLock`, `ArrowDown`, CapsLock back off, `z`,
-dirty-window `Ctrl+ArrowDown`, `Enter`, `Backspace`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a
+sixteen plain `ArrowDown` keypresses to cross from `R0` into `R1`, one plain
+`ArrowUp` keypress to cross back to `R0`, fifteen plain `ArrowUp` keypresses to
+return to the top, `Ctrl+ArrowRight`, `CapsLock`, `ArrowDown`, CapsLock back
+off, `z`, dirty-window `Ctrl+ArrowDown`, `Enter`, `Backspace`, `Ctrl-S`, a clean `Ctrl-S`, another `z`, a
 dirty `Ctrl-Q`, `n`, `Ctrl-S`, `Ctrl-Z`, `n`, `Ctrl-Z`, `n`, and `Ctrl-Q`, then
 verifies that
 `Ctrl+ArrowDown` is treated as page movement rather than cursor movement. The
 generated image has two source pages, so the smoke verifies that
 `Ctrl+ArrowDown` changes to page 1 and `Ctrl+ArrowUp` returns to page 0 while
-the cursor resets to the top row of the new page. It also verifies that the
-editor cursor reaches row 1, column 1 before save/quit. It also checks that
+the cursor resets to the top row of the new page. It also verifies that plain
+`ArrowDown` crosses from page 0 row 15 to page 1 row 0, and plain `ArrowUp`
+crosses back to page 0 row 15. It also verifies that the editor cursor reaches
+row 1, column 1 before save/quit. It also checks that
 `Ctrl+ArrowRight` reports modifier bit `0x02`, raw secondary `01h`, raw primary
 `06h`, translated key `06h`, that the final post-CapsLock `ArrowDown` reports
 caps modifier bit `0x10`, raw primary `04h`, translated key `04h`, that `z`

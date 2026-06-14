@@ -770,6 +770,8 @@ translated-key fixture runner and the live matrix-key path that polls MON3
 through `BiosInputPollKey`. In command mode:
 
 - matrix arrows move the cursor
+- plain ArrowDown/ArrowUp cross the resident adjacent source-sector boundary,
+  so page 0 row 15 and page 1 row 0 behave as adjacent document lines
 - Ctrl+ArrowDown pages down
 - Ctrl+ArrowUp pages up
 - Shift+ArrowDown and Shift+ArrowUp extend or shrink an ordinary whole-line
@@ -881,8 +883,9 @@ command loop handles proof streams and live Ctrl-S, Ctrl-Q, and Ctrl-Z input.
 The editor also checks modified printable command letters before normal
 printable insertion, so Ctrl-S/Ctrl-Q/Ctrl-Z are first-class commands and a
 host path that reports Ctrl+S as printable `S` plus a Ctrl modifier will not
-insert `S` before saving. Ctrl+Up/Down use modifier flags directly
-for page movement.
+insert `S` before saving. Ctrl+Up/Down use modifier flags directly for faster
+page movement, while plain Up/Down use the resident adjacent-page window when
+the cursor crosses row 0 or row 15.
 
 The first backup path is deliberately narrow: `EditorSaveCurrentPage` derives
 the hidden backup path (`/src/main.asm` -> `/src/.main.asm.b`), loads the
@@ -1102,12 +1105,13 @@ the hidden backup, and writes
 `demos/debug80/editor-session-glcd.pgm` as a local GLCD capture. Its
 `--live-smoke` and `--block-smoke` paths assemble `src/main.asm`, boot the
 manual `LiveStart` entry, inject matrix-key
-events, and checks that live cursor movement, page movement, split-line,
-join-line, save, saved-page round-trip, clean-save no-op, post-save input,
-second save, and quit commands reach the same dirty-state and translated-key
-results as the scripted editor loop. The generated fixture now carries two
-source pages, with page 0 ending in an empty record so the live smoke can split
-and rejoin a line without crossing a sector boundary.
+events, and checks that live cursor movement, plain Up/Down resident page
+crossing, page movement, split-line, join-line, save, saved-page round-trip,
+clean-save no-op, post-save input, second save, and quit commands reach the
+same dirty-state and translated-key results as the scripted editor loop. The
+generated fixture now carries two source pages, with page 0 ending in an empty
+record so the live smoke can split and rejoin a line without crossing a sector
+boundary.
 
 The same runner now has a block-editing acceptance path. `--block-smoke` builds
 an editor fixture with spare tail rows, boots the live matrix-key path, drives

@@ -383,13 +383,32 @@ EditorKeyCursorDown:
         RET     C
         LD      A,(EditorCursorRow)
         CP      TECM8_EDITOR_CURSOR_MAX_ROW
-        JP      Z,EditorKeyLoop
+        JP      Z,EditorKeyCursorDownAtPageBottom
         LD      (EditorCursorPreviousRow),A
         INC     A
         LD      (EditorCursorRow),A
         CALL    EditorKeyRenderCursorMove
         RET     C
         JP      EditorKeyLoop
+
+EditorKeyCursorDownAtPageBottom:
+        LD      A,(EditorCursorCol)
+        LD      (EditorCursorSavedCol),A
+        CALL    EditorPageDownResidentNoPreload
+        JR      C,EditorKeyCursorDownAtPageBottomErr
+        CALL    EditorCursorResetState
+        LD      A,(EditorCursorSavedCol)
+        LD      (EditorCursorCol),A
+        CALL    EditorKeyRenderCursorMove
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyCursorDownAtPageBottomErr:
+        CP      TECM8_EDITOR_NAV_ERR_PAGE
+        JP      Z,EditorKeyLoop
+        CP      EDITOR_LOAD_ERR_SIZE
+        JP      Z,EditorKeyLoop
+        JP      EditorKeyNavigationErr
 
 EditorKeyCursorUp:
         LD      A,(EditorPendingModifier)
@@ -399,13 +418,32 @@ EditorKeyCursorUp:
         RET     C
         LD      A,(EditorCursorRow)
         OR      A
-        JP      Z,EditorKeyLoop
+        JP      Z,EditorKeyCursorUpAtPageTop
         LD      (EditorCursorPreviousRow),A
         DEC     A
         LD      (EditorCursorRow),A
         CALL    EditorKeyRenderCursorMove
         RET     C
         JP      EditorKeyLoop
+
+EditorKeyCursorUpAtPageTop:
+        LD      A,(EditorCursorCol)
+        LD      (EditorCursorSavedCol),A
+        CALL    EditorPageUpResidentNoPreload
+        JR      C,EditorKeyCursorUpAtPageTopErr
+        CALL    EditorCursorResetState
+        LD      A,TECM8_EDITOR_CURSOR_MAX_ROW
+        LD      (EditorCursorRow),A
+        LD      A,(EditorCursorSavedCol)
+        LD      (EditorCursorCol),A
+        CALL    EditorKeyRenderCursorMove
+        RET     C
+        JP      EditorKeyLoop
+
+EditorKeyCursorUpAtPageTopErr:
+        CP      TECM8_EDITOR_NAV_ERR_PAGE
+        JP      Z,EditorKeyLoop
+        JP      EditorKeyNavigationErr
 
 EditorKeySelectDown:
         LD      A,(EditorCursorRow)
@@ -681,6 +719,9 @@ EditorPendingModifier:
         .db     0
 
 EditorPendingChar:
+        .db     0
+
+EditorCursorSavedCol:
         .db     0
 
 EditorInsertMode:
