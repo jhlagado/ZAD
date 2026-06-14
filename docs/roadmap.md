@@ -17,6 +17,12 @@ proof harness. The remaining validation is human-facing: run the manual Debug80
 script in the UI, then defer Phase 14 real-hardware checks until a TEC-1G is
 available.
 
+Recommended next user-facing task: validate and harden Block Editing V1 in
+Debug80. The automation already proves the main block operations, but the next
+manual milestone should confirm that the keyboard workflow is understandable:
+select lines, mark copy/move sources, paste or replace, delete selected lines,
+save, reset, reopen, and verify persistence.
+
 ## System Vision: TECM8 As A ROM-Based OS
 
 TECM8 is more than the editor. The long-term shape is a small ROM-based
@@ -543,14 +549,11 @@ Work:
 - Done: added bounded-step measurements for common dirty-render operations:
   movement, insert, delete, non-joining backspace, and cursor blink now record
   and assert `GlcdTileStepCount` as well as byte counts.
-- Add a small display work queue or dirty mask:
-  - full viewport dirty for page loads, restore, and explicit redraw
-  - dirty row for vertical cursor movement, line edits, status prompt restore
-  - dirty cell range for simple character insert/delete
-  - cursor dirty for cursor blink/overlay updates
-- Add a `DisplayStep`-style primitive that performs one bounded GLCD update
-  slice and returns whether more display work remains.
-- Refactor the live editor loop toward:
+- Next optimization: interleave matrix keyboard polling between display-update
+  slices. The matrix keyboard is quick to scan, but it has no interrupt; the
+  live loop should opportunistically poll between bounded GLCD transfers so
+  user input does not wait behind a full row or viewport update.
+- Keep the display/input scheduler shaped around:
 
   ```text
   poll keyboard
@@ -559,7 +562,11 @@ Work:
   repeat
   ```
 
-- Coalesce display work when keys arrive faster than the GLCD can update. The
+- Consider a narrower low-level hook where a long GLCD drain can ask for a
+  matrix scan between physical-row slices. This is deliberately tight coupling,
+  so it should stay behind one display/input scheduler boundary rather than
+  spreading keyboard calls through drawing code.
+- Done: coalesce display work when keys arrive faster than the GLCD can update. The
   latest editor state should win; stale intermediate cursor paints should not
   build up as a backlog.
 - Preserve the optimized cursor redraw rule: cursor movement and blinking
@@ -589,6 +596,8 @@ Incremental implementation order:
    cell-range transfers.
 10. Done: coalesce dirty row work against stale dirty cell ranges.
 11. Done: measure bounded GLCD steps for common dirty render paths.
+12. Poll the matrix keyboard between longer GLCD update slices and prove that a
+    queued or newly pressed key can be noticed before a full repaint drains.
 
 Proofs:
 
@@ -953,6 +962,19 @@ Block Editing V1 done criteria:
 
 Status: reached in automation. Stop here for manual Debug80 validation before
 starting named block read/write or character-precise selections.
+
+Next validation goal:
+
+- Run the manual Debug80 block-editing script from
+  [Editor Block Operations](block-operations.md).
+- Confirm selection with `Shift+Up/Down` and page selection with
+  `Shift+Ctrl+Up/Down` are usable from the matrix keyboard.
+- Confirm `Ctrl-C`, `Ctrl-X`, `Ctrl-V`, and selected-block `Delete` behave
+  predictably on the GLCD.
+- Save, reset, reopen, and verify that copied, moved, replaced, or deleted
+  lines persisted in `/src/main.asm`.
+- Fix any manual-test issues before starting named `Ctrl-W` write-block,
+  `Ctrl-R` read-block, or character-precise selections.
 
 ## Likely Next Practical Milestone After Phase 1
 
