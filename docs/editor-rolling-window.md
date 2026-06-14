@@ -46,6 +46,19 @@ The display viewport then maps absolute lines to visible rows. The physical
 GLCD screen is not the source model; it is only a renderer over the source
 window.
 
+V1 may keep the existing one-byte source page API limit while it is being
+rewired:
+
+```text
+page number range = 0..127
+maximum source span = 128 sectors = 64K = 2048 source lines
+```
+
+That is a practical limit for the current editor, but it should be named rather
+than hidden. Use one byte for `slotPage` and backed-page entries in V1. Keep the
+absolute line as a 16-bit value so later storage code can lift the page limit
+without changing the editor's public coordinate model.
+
 ## Window Slots
 
 The 2K source window is four independent 512-byte slots:
@@ -75,12 +88,28 @@ syntheticMask  4 bits
 ```
 
 These masks are window-local. They do not limit file size because each slot also
-stores its absolute source page number.
+stores its absolute source page number. V1 is still limited by the current
+one-byte page-indexed storage API, not by these masks.
 
 ## Rolling Policy
 
-When the cursor needs a source page, the editor first checks whether any valid
-slot already contains that page.
+The window should represent four contiguous source pages:
+
+```text
+windowBasePage = N
+slot 0 = page N
+slot 1 = page N+1
+slot 2 = page N+2
+slot 3 = page N+3
+```
+
+The slot layout can be implemented as a physical ring buffer, but the logical
+invariant remains contiguous. Do not let the cache become four arbitrary recent
+pages; that would make line movement and redraw policy harder to reason about.
+
+When the cursor needs a source page, the editor first checks whether that page
+is inside `windowBasePage..windowBasePage+3` and whether the matching logical
+slot is valid.
 
 If the page is resident:
 
@@ -92,10 +121,19 @@ no storage operation
 If the page is not resident:
 
 ```text
-choose one slot to evict
-if the slot is clean, replace it with the requested source sector
-if the slot is dirty, block movement and request an explicit save
+scrolling down past windowBasePage+3:
+  the natural victim is windowBasePage
+  if clean, evict it, increment windowBasePage, and load the new high page
+  if dirty, block movement and request an explicit save
+
+scrolling up before windowBasePage:
+  the natural victim is windowBasePage+3
+  if clean, evict it, decrement windowBasePage, and load the new low page
+  if dirty, block movement and request an explicit save
 ```
+
+Do not evict a different clean slot just because the natural rolling victim is
+dirty. That would break the contiguous 64-line window invariant.
 
 The first implementation should not autosave dirty sectors on eviction. A
 dirty-eviction write would change the editor from explicit-save semantics to a
@@ -130,6 +168,32 @@ This startup still performs several slow storage operations. A later
 optimization should cache file metadata so page loads do not repeat the whole
 TM8 prefix/catalog/superblock lookup. The first rolling-window milestone can
 still use existing loader calls if that keeps the behavioral change contained.
+
+## EOF And Synthetic Pages
+
+Synthetic pages are a growth mechanism, not ordinary navigable document
+content. A synthetic blank page beyond EOF may be resident so Enter/split/growth
+logic can use it, but plain Down must not move into that page merely because it
+is cached.
+
+V1 should track the current source byte size or effective last source line well
+enough to answer:
+
+```text
+is absoluteLine inside the existing file?
+is absoluteLine the first legal growth line created by an edit?
+```
+
+Navigation rule:
+
+```text
+plain Up/Down may cross between existing resident source lines
+plain Down at EOF stops unless an edit has created/grown the next line
+Ctrl-Down should not jump into clean synthetic blank territory
+```
+
+Once an edit creates content in a synthetic page, that page becomes dirty source
+state and is no longer just a blank EOF placeholder.
 
 ## Backup Policy
 
@@ -198,6 +262,14 @@ That failure is explicit and safer than silently losing restore information.
 `Ctrl-Z` should restore backed-up sectors for the currently resident window in
 the first implementation. That gives the user a practical escape hatch for the
 area they are editing.
+
+The backed-page table is authoritative. Restore should only touch a resident
+slot when that slot's `slotPage` appears in `BackedPageTable`. Resident sectors
+that have not been backed up in this session must be skipped. Clean synthetic
+pages with no backed-page entry should remain blank; dirty synthetic pages that
+were created during the session need an explicit policy before broader restore
+is implemented, so V1 should avoid treating them as restorable unless their page
+has been entered in `BackedPageTable`.
 
 Later, restore can grow into a broader session restore that walks the backed
 page table and restores every backed page, but that is not required for the

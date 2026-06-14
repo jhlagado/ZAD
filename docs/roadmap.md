@@ -275,11 +275,20 @@ Work:
   beyond-EOF state.
 - Use 4-bit window-local masks for valid/dirty/synthetic state; do not use a
   global bitset that limits file size.
+- Keep the logical window contiguous: `windowBasePage..windowBasePage+3`.
+  Physical slots may rotate, but the cache must not become four arbitrary
+  recent pages.
+- Name the current V1 page-number limit explicitly: the existing storage API
+  uses one-byte page indexes `0..127`, while editor absolute-line state should
+  be 16-bit so the limit can be lifted later.
 - Make plain Up/Down cross resident source-sector boundaries.
 - Keep `Ctrl-Up` and `Ctrl-Down` as faster movement commands over the same
   continuous document, not as the only cross-sector movement.
 - On a window miss, load or evict one source sector rather than reloading the
   whole 2K window.
+- Do not enter clean synthetic beyond-EOF pages through navigation alone.
+  Synthetic pages become real dirty source state only when an edit grows into
+  them.
 - Preserve explicit-save semantics: dirty sector eviction is blocked in V1 with
   a save/dirty status instead of silently writing source sectors to disk.
 - Save all dirty resident sectors on `Ctrl-S`.
@@ -287,8 +296,8 @@ Work:
   sector to the hidden backup file at the same page number.
 - Track backed-up pages with a small dynamic session table rather than a global
   file-size mask.
-- Keep `Ctrl-Z` restore scoped to backed-up sectors in the resident window for
-  V1.
+- Keep `Ctrl-Z` restore scoped to resident slots whose page appears in the
+  backed-page table for V1.
 
 Done when:
 

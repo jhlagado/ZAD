@@ -350,7 +350,9 @@ The editor should support paging source sectors from the virtual filesystem:
 - Keep a small sector window, likely previous/current/next.
 - Modify line records.
 - Mark sector dirty.
-- Write dirty sector on save or when evicted.
+- Write dirty sectors only on explicit save in the v1 editor policy. Dirty
+  eviction is blocked until the user saves; automatic dirty-sector eviction is
+  a later autosave/journaling decision.
 - Redraw from source records when the viewport crosses a sector boundary.
 
 For v1, it is acceptable to load a small file entirely if that gets the editor
