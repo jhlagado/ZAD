@@ -67,11 +67,37 @@ PROOF_FAIL       .equ     0xE0
         LD      HL,EditorRowText0
         LD      DE,CrossDownRowText0
         CALL    CopyRowText
+        LD      HL,EditorRowText8
+        LD      DE,CrossDownRowText8
+        CALL    CopyRowText
         LD      HL,EditorRowText9
         LD      DE,CrossDownRowText9
         CALL    CopyRowText
 
         LD      A,5
+        LD      (CaseMarker),A
+        CALL    RunSyntheticControlArrowUp
+        JP      C,ProofFailed
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterMixedCtrlUp),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterMixedCtrlUp),A
+        LD      A,(EditorNavViewportTopRow)
+        LD      (TopRowAfterMixedCtrlUp),A
+        LD      HL,EditorRowText0
+        LD      DE,MixedCtrlUpRowText0
+        CALL    CopyRowText
+
+        LD      A,6
+        LD      (CaseMarker),A
+        LD      HL,MoveDownToBottom
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      HL,MoveDownAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+
+        LD      A,7
         LD      (CaseMarker),A
         LD      A,1
         LD      (EditorNavNextPageValid),A
@@ -114,7 +140,7 @@ PROOF_FAIL       .equ     0xE0
         LD      (EditorNavNextPageValid),A
         LD      (EditorNavNextPageSynthetic),A
 
-        LD      A,6
+        LD      A,8
         LD      (CaseMarker),A
         LD      HL,MoveUpAcrossPage
         CALL    EditorRunKeys
@@ -135,7 +161,7 @@ PROOF_FAIL       .equ     0xE0
         LD      DE,CrossUpRowText9
         CALL    CopyRowText
 
-        LD      A,7
+        LD      A,9
         LD      (CaseMarker),A
         LD      HL,MoveDownAcrossPage
         CALL    EditorRunKeys
@@ -153,13 +179,13 @@ PROOF_FAIL       .equ     0xE0
         LD      DE,SecondCrossDownRowText0
         CALL    CopyRowText
 
-        LD      A,8
+        LD      A,10
         LD      (CaseMarker),A
         LD      HL,MoveUpAcrossPage
         CALL    EditorRunKeys
         JP      C,ProofFailed
 
-        LD      A,9
+        LD      A,11
         LD      (CaseMarker),A
         LD      HL,MoveUpToTop
         CALL    EditorRunKeys
@@ -173,6 +199,26 @@ PROOF_FAIL       .equ     0xE0
         LD      (TopRowAfterUp),A
         LD      A,(EditorNavDirty)
         LD      (DirtyAfterUp),A
+
+        LD      A,12
+        LD      (CaseMarker),A
+        LD      HL,MoveDownToBottom
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        LD      HL,MoveDownAcrossPage
+        CALL    EditorRunKeys
+        JP      C,ProofFailed
+        CALL    RunSyntheticControlArrowDown
+        JP      C,ProofFailed
+        LD      A,(EditorNavCurrentPage)
+        LD      (PageAfterMixedCtrlDown),A
+        LD      A,(EditorCursorRow)
+        LD      (CursorRowAfterMixedCtrlDown),A
+        LD      A,(EditorNavViewportTopRow)
+        LD      (TopRowAfterMixedCtrlDown),A
+        LD      HL,EditorRowText0
+        LD      DE,MixedCtrlDownRowText0
+        CALL    CopyRowText
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -224,6 +270,32 @@ CopyRowTextLoop:
         RET
 
 RunSyntheticControlArrowUpErr:
+        LD      C,A
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        LD      A,C
+        SCF
+        RET
+
+;! out A,carry
+;! clobbers A,BC,DE,HL,zero,sign,parity,halfCarry
+@RunSyntheticControlArrowDown:
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      (BiosInputRawPrimary),A
+        LD      A,0x01
+        LD      (BiosInputRawSecondary),A
+        LD      A,TECM8_EDITOR_KEY_ARROW_DOWN
+        LD      B,TECM8_EDITOR_KEY_MOD_CTRL
+        CALL    EditorRunModifiedKey
+        JR      C,RunSyntheticControlArrowDownErr
+        LD      A,0xFF
+        LD      (BiosInputRawPrimary),A
+        LD      (BiosInputRawSecondary),A
+        XOR     A
+        RET
+
+RunSyntheticControlArrowDownErr:
         LD      C,A
         LD      A,0xFF
         LD      (BiosInputRawPrimary),A
@@ -309,7 +381,17 @@ NextPageSyntheticAfterCrossDown:
         .db     0
 CrossDownRowText0:
         .ds     32
+CrossDownRowText8:
+        .ds     32
 CrossDownRowText9:
+        .ds     32
+PageAfterMixedCtrlUp:
+        .db     0
+CursorRowAfterMixedCtrlUp:
+        .db     0
+TopRowAfterMixedCtrlUp:
+        .db     0
+MixedCtrlUpRowText0:
         .ds     32
 PageAfterDirtyNextCrossUp:
         .db     0
@@ -357,3 +439,11 @@ TopRowAfterUp:
         .db     0
 DirtyAfterUp:
         .db     0
+PageAfterMixedCtrlDown:
+        .db     0
+CursorRowAfterMixedCtrlDown:
+        .db     0
+TopRowAfterMixedCtrlDown:
+        .db     0
+MixedCtrlDownRowText0:
+        .ds     32

@@ -172,7 +172,7 @@ const PROOF_CASES = {
     source: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-scroll-proof.asm'),
     lastRun: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-scroll-proof-last-run.json'),
     image: resolve(TECM8_ROOT, 'proofs/display/editor-viewport-scroll-fat32.img'),
-    lines: makeTwoPageLines(),
+    lines: makeThreePageLines(),
     verify: verifyEditorViewportScrollProof,
   },
   'editor-horizontal-scroll-proof': {
@@ -324,6 +324,14 @@ function makeSinglePageLines(): string[] {
 
 function makeTwoPageLines(): string[] {
   return Array.from({ length: 32 }, (_, index) => {
+    const page = Math.floor(index / 16);
+    const line = index % 16;
+    return `R${page} LINE ${line.toString().padStart(2, '0')}`;
+  });
+}
+
+function makeThreePageLines(): string[] {
+  return Array.from({ length: 48 }, (_, index) => {
     const page = Math.floor(index / 16);
     const line = index % 16;
     return `R${page} LINE ${line.toString().padStart(2, '0')}`;
@@ -1036,6 +1044,18 @@ function verifyEditorCrossPageJoinProof(runtime: Runtime, _platformRuntime: Plat
   if (cursorRow !== 15 || cursorCol !== 4) {
     throw new Error(`editor cross-page join cursor ${cursorRow},${cursorCol}; expected 15,4`);
   }
+  const viewportTop = runtime.hardware.memory[symbolAddress(symbols, 'ViewportTopAfterJoin')];
+  if (viewportTop !== 6) {
+    throw new Error(`editor cross-page join viewport top ${viewportTop}, expected 6`);
+  }
+  const navCurrentRow = runtime.hardware.memory[symbolAddress(symbols, 'NavCurrentRowAfterJoin')];
+  if (navCurrentRow !== 15) {
+    throw new Error(`editor cross-page join nav current row ${navCurrentRow}, expected 15`);
+  }
+  const visibleRow = runtime.hardware.memory[symbolAddress(symbols, 'VisibleRowAfterJoin')];
+  if (visibleRow !== 9) {
+    throw new Error(`editor cross-page join visible row ${visibleRow}, expected 9`);
+  }
   const dirtySectors = runtime.hardware.memory[symbolAddress(symbols, 'EditorNavDirtySectors')];
   if ((dirtySectors & 3) !== 3) {
     throw new Error(`editor cross-page join dirty sectors ${dirtySectors}, expected bits 0 and 1 set`);
@@ -1159,10 +1179,13 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
     { symbol: 'DirtyAfterDown', expected: 0 },
     { symbol: 'PageAfterCrossDown', expected: 1 },
     { symbol: 'CursorRowAfterCrossDown', expected: 0 },
-    { symbol: 'VisibleRowAfterCrossDown', expected: 0 },
-    { symbol: 'TopRowAfterCrossDown', expected: 0 },
+    { symbol: 'VisibleRowAfterCrossDown', expected: 9 },
+    { symbol: 'TopRowAfterCrossDown', expected: 7 },
     { symbol: 'NextPageValidAfterCrossDown', expected: 0 },
     { symbol: 'NextPageSyntheticAfterCrossDown', expected: 0 },
+    { symbol: 'PageAfterMixedCtrlUp', expected: 0 },
+    { symbol: 'CursorRowAfterMixedCtrlUp', expected: 0 },
+    { symbol: 'TopRowAfterMixedCtrlUp', expected: 0 },
     { symbol: 'PageAfterDirtyNextCrossUp', expected: 1 },
     { symbol: 'CursorRowAfterDirtyNextCrossUp', expected: 0 },
     { symbol: 'DirtySectorsAfterDirtyNextCrossUp', expected: 2 },
@@ -1177,12 +1200,15 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
     { symbol: 'TopRowAfterCrossUp', expected: 6 },
     { symbol: 'PageAfterSecondCrossDown', expected: 1 },
     { symbol: 'CursorRowAfterSecondCrossDown', expected: 0 },
-    { symbol: 'VisibleRowAfterSecondCrossDown', expected: 0 },
-    { symbol: 'TopRowAfterSecondCrossDown', expected: 0 },
+    { symbol: 'VisibleRowAfterSecondCrossDown', expected: 9 },
+    { symbol: 'TopRowAfterSecondCrossDown', expected: 7 },
     { symbol: 'CursorRowAfterUp', expected: 0 },
     { symbol: 'VisibleRowAfterUp', expected: 0 },
     { symbol: 'TopRowAfterUp', expected: 0 },
     { symbol: 'DirtyAfterUp', expected: 0 },
+    { symbol: 'PageAfterMixedCtrlDown', expected: 2 },
+    { symbol: 'CursorRowAfterMixedCtrlDown', expected: 0 },
+    { symbol: 'TopRowAfterMixedCtrlDown', expected: 0 },
     { symbol: 'EditorCursorRow', expected: 0 },
     { symbol: 'EditorCursorVisibleRow', expected: 0 },
     { symbol: 'EditorNavViewportTopRow', expected: 0 },
@@ -1200,21 +1226,30 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
   const bottomRow0 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'BottomRowText0'));
   const bottomRow9 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'BottomRowText9'));
   const crossDownRow0 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'CrossDownRowText0'));
+  const crossDownRow8 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'CrossDownRowText8'));
   const crossDownRow9 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'CrossDownRowText9'));
+  const mixedCtrlUpRow0 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'MixedCtrlUpRowText0'));
   const crossUpRow0 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'CrossUpRowText0'));
   const crossUpRow9 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'CrossUpRowText9'));
   const secondCrossDownRow0 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'SecondCrossDownRowText0'));
+  const mixedCtrlDownRow0 = readCString(runtime.hardware.memory, symbolAddress(symbols, 'MixedCtrlDownRowText0'));
   if (bottomRow0 !== 'R0 LINE 06') {
     throw new Error(`editor viewport scroll bottom row0 "${bottomRow0}", expected "R0 LINE 06"`);
   }
   if (bottomRow9 !== 'R0 LINE 15') {
     throw new Error(`editor viewport scroll bottom row9 "${bottomRow9}", expected "R0 LINE 15"`);
   }
-  if (crossDownRow0 !== 'R1 LINE 00') {
-    throw new Error(`editor viewport scroll cross-down row0 "${crossDownRow0}", expected "R1 LINE 00"`);
+  if (crossDownRow0 !== 'R0 LINE 07') {
+    throw new Error(`editor viewport scroll cross-down row0 "${crossDownRow0}", expected "R0 LINE 07"`);
   }
-  if (crossDownRow9 !== 'R1 LINE 09') {
-    throw new Error(`editor viewport scroll cross-down row9 "${crossDownRow9}", expected "R1 LINE 09"`);
+  if (crossDownRow8 !== 'R0 LINE 15') {
+    throw new Error(`editor viewport scroll cross-down row8 "${crossDownRow8}", expected "R0 LINE 15"`);
+  }
+  if (crossDownRow9 !== 'R1 LINE 00') {
+    throw new Error(`editor viewport scroll cross-down row9 "${crossDownRow9}", expected "R1 LINE 00"`);
+  }
+  if (mixedCtrlUpRow0 !== 'R0 LINE 00') {
+    throw new Error(`editor viewport scroll mixed ctrl-up row0 "${mixedCtrlUpRow0}", expected "R0 LINE 00"`);
   }
   if (crossUpRow0 !== 'R0 LINE 06') {
     throw new Error(`editor viewport scroll cross-up row0 "${crossUpRow0}", expected "R0 LINE 06"`);
@@ -1222,16 +1257,21 @@ function verifyEditorViewportScrollProof(runtime: Runtime, _platformRuntime: Pla
   if (crossUpRow9 !== 'R0 LINE 15') {
     throw new Error(`editor viewport scroll cross-up row9 "${crossUpRow9}", expected "R0 LINE 15"`);
   }
-  if (secondCrossDownRow0 !== 'R1 LINE 00') {
+  if (secondCrossDownRow0 !== 'R0 LINE 07') {
     throw new Error(
-      `editor viewport scroll second cross-down row0 "${secondCrossDownRow0}", expected "R1 LINE 00"`,
+      `editor viewport scroll second cross-down row0 "${secondCrossDownRow0}", expected "R0 LINE 07"`,
     );
   }
-  if (row0 !== 'R0 LINE 00') {
-    throw new Error(`editor viewport scroll row0 "${row0}", expected "R0 LINE 00"`);
+  if (mixedCtrlDownRow0 !== 'R2 LINE 00') {
+    throw new Error(
+      `editor viewport scroll mixed ctrl-down row0 "${mixedCtrlDownRow0}", expected "R2 LINE 00"`,
+    );
   }
-  if (row9 !== 'R0 LINE 09') {
-    throw new Error(`editor viewport scroll row9 "${row9}", expected "R0 LINE 09"`);
+  if (row0 !== 'R2 LINE 00') {
+    throw new Error(`editor viewport scroll row0 "${row0}", expected "R2 LINE 00"`);
+  }
+  if (row9 !== 'R2 LINE 09') {
+    throw new Error(`editor viewport scroll row9 "${row9}", expected "R2 LINE 09"`);
   }
 }
 

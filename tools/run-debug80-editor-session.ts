@@ -712,6 +712,7 @@ async function main(): Promise<void> {
     const currentPageAddr = symbolAddress(symbols, 'EditorNavCurrentPage');
     const pageBufferAddr = symbolAddress(symbols, 'EditorNavPageBuffer');
     const rowText0Addr = symbolAddress(symbols, 'EditorRowText0');
+    const rowText8Addr = symbolAddress(symbols, 'EditorRowText8');
     const rowText9Addr = symbolAddress(symbols, 'EditorRowText9');
     const promptActiveAddr = symbolAddress(symbols, 'EditorPromptActive');
     const promptResultAddr = symbolAddress(symbols, 'EditorPromptResult');
@@ -819,7 +820,9 @@ async function main(): Promise<void> {
       );
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after plain ArrowDown cross');
-    assertRuntimeCString(runtime, rowText0Addr, 'R1 LINE 00', 'rendered row 0 after plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 07', 'rendered row 0 after plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText8Addr, '', 'rendered row 8 after plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 00', 'rendered row 9 after plain ArrowDown cross');
     tapCursorKeyAndWait(0, 3, 'plain ArrowUp cross');
     const pageAfterPlainUpCross = runtime.hardware.memory[currentPageAddr];
     const rowAfterPlainUpCross = runtime.hardware.memory[cursorRowAddr];
@@ -839,6 +842,9 @@ async function main(): Promise<void> {
       );
     }
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 0, 'R1 LINE 00', 'after second plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText0Addr, 'R0 LINE 07', 'rendered row 0 after second plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText8Addr, '', 'rendered row 8 after second plain ArrowDown cross');
+    assertRuntimeCString(runtime, rowText9Addr, 'R1 LINE 00', 'rendered row 9 after second plain ArrowDown cross');
     tapCursorKeyAndWait(0, 3, 'second plain ArrowUp cross');
     for (let move = 0; move < 15; move += 1) {
       tapCursorKeyAndWait(0, 3, `plain ArrowUp reset ${move + 1}`);

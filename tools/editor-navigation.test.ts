@@ -62,7 +62,7 @@ test('editor navigation commits page movement only after successful render', () 
 
   assert.match(source, /CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+LD\s+A,\(EditorNavPendingPage\)\n\s+LD\s+\(EditorNavCurrentPage\),A/);
   assert.match(source, /CALL\s+EditorLoadSourcePage/);
-  assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+CALL\s+EditorNavLoadNextWindowPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /@EditorRenderCurrent:\n\s+LD\s+A,\(EditorNavCurrentPage\)\n\s+CALL\s+EditorNavRenderPage\n\s+RET\s+C\n\s+CALL\s+EditorRenderPageBuffer\n\s+RET\s+C\n\s+CALL\s+EditorNavLoadNextWindowPage\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
   assert.match(source, /@EditorRenderPageBuffer:[\s\S]*?CALL\s+EditorNavSyncViewport\n\s+RET\s+C[\s\S]*?CALL\s+EditorViewportRender/);
   assert.match(source, /@EditorNavResetViewport:[\s\S]*?CALL\s+EditorViewportSetTopRow[\s\S]*?CALL\s+EditorViewportSetColOffset[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
   assert.match(source, /@EditorNavSyncViewport:[\s\S]*?LD\s+A,\(EditorNavCurrentRow\)[\s\S]*?JP\s+EditorViewportSetCurrentRow/);
@@ -82,7 +82,8 @@ test('editor navigation commits page movement only after successful render', () 
   assert.match(source, /LD\s+DE,EditorNavBackupPathBuffer/);
   assert.match(source, /LD\s+HL,EditorNavBackupPageBuffer/);
   assert.match(source, /CALL\s+EditorSaveSourcePage/);
-  assert.match(source, /JP\s+EditorRenderPageBuffer/);
+  assert.match(source, /CALL\s+EditorRenderPageBuffer\n\s+RET\s+C\n\s+JP\s+EditorClearDirty/);
+  assert.match(source, /CALL\s+EditorLoadSourcePage\n\s+JR\s+C,EditorNavRenderPageRestoreError\n\s+XOR\s+A\n\s+RET/);
   assert.match(source, /@EditorNavRememberCurrentPage:/);
   assert.match(source, /@EditorNavRenderCachedPendingPage:/);
   assert.match(source, /@EditorNavRenderNextWindowPage:/);

@@ -42,6 +42,61 @@ EditorViewportBuildLoop:
         CALL    DisplayRenderScreen
         RET
 
+; EditorViewportRenderPreviousCurrent -
+; Render a viewport whose top row starts in the previous page and continues
+; into the current page. This is the transitional two-buffer path used before
+; the full four-sector rolling window exists.
+; Input: HL = previous page records, DE = current page records
+;! in DE,HL
+;! out carry,A
+;! clobbers zero,sign,parity,halfCarry,BC,DE,HL
+@EditorViewportRenderPreviousCurrent:
+        LD      (EditorViewportPreviousBasePtr),HL
+        LD      (EditorViewportCurrentBasePtr),DE
+        LD      HL,EditorRowText0
+        LD      (EditorTextPtr),HL
+        XOR     A
+        LD      (EditorRowIndex),A
+        LD      A,(EditorViewportTopRow)
+        LD      (EditorViewportMixedSourceRow),A
+        CALL    EditorViewportPreviousRecordPtr
+        LD      (EditorRecordPtr),HL
+
+EditorViewportMixedPreviousLoop:
+        CALL    EditorViewportCopyRecord
+        RET     C
+        LD      A,(EditorRowIndex)
+        INC     A
+        LD      (EditorRowIndex),A
+        CP      TECM8_EDITOR_VISIBLE_ROWS
+        JR      Z,EditorViewportMixedDone
+        LD      A,(EditorViewportMixedSourceRow)
+        INC     A
+        LD      (EditorViewportMixedSourceRow),A
+        CP      TECM8_SOURCE_RECORDS_PER_PAGE
+        JR      Z,EditorViewportMixedCurrentStart
+        JR      EditorViewportMixedPreviousLoop
+
+EditorViewportMixedCurrentStart:
+        LD      HL,(EditorViewportCurrentBasePtr)
+        LD      (EditorRecordPtr),HL
+
+EditorViewportMixedCurrentLoop:
+        CALL    EditorViewportCopyRecord
+        RET     C
+        LD      A,(EditorRowIndex)
+        INC     A
+        LD      (EditorRowIndex),A
+        CP      TECM8_EDITOR_VISIBLE_ROWS
+        JR      Z,EditorViewportMixedDone
+        JR      EditorViewportMixedCurrentLoop
+
+EditorViewportMixedDone:
+        CALL    EditorViewportRefreshMarkers
+        LD      HL,EditorScreenDescriptor
+        CALL    DisplayRenderScreen
+        RET
+
 ; EditorViewportRenderRecordRow -
 ; Copy one source record into its row text buffer and redraw that display row.
 ; Input: A = visible row (0-9), HL = source record
@@ -95,12 +150,12 @@ EditorViewportBuildLoop:
 
 ; EditorViewportSetTopRow -
 ; Select the first logical source row rendered at visible row 0.
-; Input: A = logical row 0-6
+; Input: A = logical source row 0-15
 ;! in A
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry
 @EditorViewportSetTopRow:
-        CP      7
+        CP      TECM8_SOURCE_RECORDS_PER_PAGE
         JP      NC,EditorViewportRowError
         LD      (EditorViewportTopRow),A
         XOR     A
@@ -127,6 +182,18 @@ EditorViewportBuildLoop:
 ;! clobbers sign,parity,halfCarry
 @EditorViewportSetCurrentPage:
         LD      (EditorViewportCurrentPage),A
+        LD      (EditorViewportTopPage),A
+        XOR     A
+        RET
+
+; EditorViewportSetTopPage -
+; Select the source page that owns visible row 0.
+; Input: A = source page number
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry
+@EditorViewportSetTopPage:
+        LD      (EditorViewportTopPage),A
         XOR     A
         RET
 
@@ -143,6 +210,22 @@ EditorViewportBuildLoop:
 EditorViewportTopRecordPtrLoop:
         ADD     HL,DE
         DJNZ    EditorViewportTopRecordPtrLoop
+        XOR     A
+        RET
+
+;! out A,carry,zero,HL
+;! clobbers sign,parity,halfCarry,B,DE
+@EditorViewportPreviousRecordPtr:
+        LD      HL,(EditorViewportPreviousBasePtr)
+        LD      A,(EditorViewportTopRow)
+        OR      A
+        RET     Z
+        LD      B,A
+        LD      DE,TECM8_EDITOR_RECORD_BYTES
+
+EditorViewportPreviousRecordPtrLoop:
+        ADD     HL,DE
+        DJNZ    EditorViewportPreviousRecordPtrLoop
         XOR     A
         RET
 
@@ -315,7 +398,7 @@ EditorPendingBlockVisibleNo:
 ;! out HL,A,carry,zero
 ;! clobbers sign,parity,halfCarry,B
 @EditorBlockSelectionVisibleLine:
-        LD      A,(EditorViewportCurrentPage)
+        LD      A,(EditorViewportTopPage)
         LD      H,0
         LD      L,A
         ADD     HL,HL
@@ -612,6 +695,14 @@ EditorViewportCurrentRow:
         .db     0
 
 EditorViewportCurrentPage:
+        .db     0
+EditorViewportTopPage:
+        .db     0
+EditorViewportPreviousBasePtr:
+        .dw     0
+EditorViewportCurrentBasePtr:
+        .dw     0
+EditorViewportMixedSourceRow:
         .db     0
 
 EditorBlockSelectionStartLo:

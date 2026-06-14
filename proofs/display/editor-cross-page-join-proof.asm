@@ -41,6 +41,12 @@ PROOF_FAIL       .equ     0xE0
         LD      (EditorNavCachedPage),A
         LD      (EditorCursorRow),A
         LD      (EditorCursorCol),A
+        LD      (EditorNavCurrentRow),A
+        LD      A,7
+        LD      (EditorNavViewportTopRow),A
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
+        LD      (EditorCursorVisibleRow),A
+        XOR     A
         LD      (EditorNavDirty),A
         LD      (EditorNavDirtySectors),A
         LD      (EditorNavCachedPageDirty),A
@@ -49,6 +55,13 @@ PROOF_FAIL       .equ     0xE0
         JR      C,ProofFailed
         OR      A
         JR      Z,ProofFailed
+
+        LD      A,(EditorNavViewportTopRow)
+        LD      (ViewportTopAfterJoin),A
+        LD      A,(EditorNavCurrentRow)
+        LD      (NavCurrentRowAfterJoin),A
+        LD      A,(EditorCursorVisibleRow)
+        LD      (VisibleRowAfterJoin),A
 
         LD      A,PROOF_PASS
         LD      (ResultMarker),A
@@ -119,4 +132,10 @@ ProofCurrentSecondRecord:
         .ds     27
 
 ResultMarker:
+        .db     0
+ViewportTopAfterJoin:
+        .db     0
+NavCurrentRowAfterJoin:
+        .db     0
+VisibleRowAfterJoin:
         .db     0

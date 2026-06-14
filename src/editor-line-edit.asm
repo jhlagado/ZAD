@@ -550,6 +550,13 @@ EditorJoinPreviousPageClearLast:
         CALL    EditorNavRefreshAggregateDirty
         LD      A,15
         LD      (EditorCursorRow),A
+        LD      (EditorNavCurrentRow),A
+        LD      A,6
+        LD      (EditorNavViewportTopRow),A
+        CALL    EditorNavSyncViewport
+        RET     C
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
+        LD      (EditorCursorVisibleRow),A
         LD      A,(EditorLinePrevLength)
         LD      (EditorCursorCol),A
         LD      A,1

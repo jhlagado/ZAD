@@ -52,6 +52,8 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         LD      A,(EditorNavCurrentPage)
         CALL    EditorNavRenderPage
         RET     C
+        CALL    EditorRenderPageBuffer
+        RET     C
         CALL    EditorNavLoadNextWindowPage
         RET     C
         JP      EditorClearDirty
@@ -66,9 +68,15 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         LD      (EditorRenderPageBufferCount),A
         CALL    EditorNavSyncViewport
         RET     C
+        CALL    EditorNavRenderMixedPreviousCurrent
+        RET     C
+        OR      A
+        JR      NZ,EditorRenderPageBufferFlush
         LD      HL,EditorNavPageBuffer
         CALL    EditorViewportRender
         RET     C
+
+EditorRenderPageBufferFlush:
         CALL    GlcdTileFlushFull
         RET
 
@@ -97,6 +105,23 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         CALL    EditorViewportSetCurrentPage
         RET     C
         LD      A,(EditorNavViewportTopRow)
+        LD      B,A
+        LD      A,(EditorNavCurrentRow)
+        CP      B
+        JR      NC,EditorNavSyncViewportTopCurrent
+        LD      A,(EditorNavCurrentPage)
+        OR      A
+        JP      Z,EditorNavPageErr
+        DEC     A
+        JR      EditorNavSyncViewportTopPageReady
+
+EditorNavSyncViewportTopCurrent:
+        LD      A,(EditorNavCurrentPage)
+
+EditorNavSyncViewportTopPageReady:
+        CALL    EditorViewportSetTopPage
+        RET     C
+        LD      A,(EditorNavViewportTopRow)
         CALL    EditorViewportSetTopRow
         RET     C
         LD      A,(EditorNavCurrentRow)
@@ -104,8 +129,50 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         LD      A,(EditorNavViewportTopRow)
         LD      C,A
         LD      A,B
+        CP      C
+        JR      NC,EditorNavSyncViewportVisibleCurrent
+        LD      A,TECM8_SOURCE_RECORDS_PER_PAGE
+        SUB     C
+        ADD     A,B
+        JP      EditorViewportSetCurrentRow
+
+EditorNavSyncViewportVisibleCurrent:
         SUB     C
         JP      EditorViewportSetCurrentRow
+
+; EditorNavRenderMixedPreviousCurrent -
+; Return A=1 after rendering when the viewport starts in the cached previous
+; page and continues into the current page. Return A=0 when normal rendering
+; should proceed.
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,BC,DE,HL
+@EditorNavRenderMixedPreviousCurrent:
+        LD      A,(EditorNavViewportTopRow)
+        LD      B,A
+        LD      A,(EditorNavCurrentRow)
+        CP      B
+        JR      NC,EditorNavRenderMixedNo
+        LD      A,(EditorNavCacheValid)
+        OR      A
+        JP      Z,EditorNavPageErr
+        LD      A,(EditorNavCurrentPage)
+        OR      A
+        JP      Z,EditorNavPageErr
+        DEC     A
+        LD      HL,EditorNavCachedPage
+        CP      (HL)
+        JP      NZ,EditorNavPageErr
+        LD      HL,EditorNavCachePageBuffer
+        LD      DE,EditorNavPageBuffer
+        CALL    EditorViewportRenderPreviousCurrent
+        RET     C
+        LD      A,1
+        OR      A
+        RET
+
+EditorNavRenderMixedNo:
+        XOR     A
+        RET
 
 ; EditorSaveCurrentPage -
 ; Save the already-loaded page buffer back to the current source page.
@@ -510,7 +577,11 @@ EditorPageDownResidentReady:
         CALL    EditorNavRefreshAggregateDirty
         LD      A,(EditorNavPendingPage)
         LD      (EditorNavCurrentPage),A
-        CALL    EditorNavResetViewport
+        LD      A,7
+        LD      (EditorNavViewportTopRow),A
+        XOR     A
+        LD      (EditorNavCurrentRow),A
+        CALL    EditorNavSyncViewport
         RET     C
         CALL    EditorRenderPageBuffer
         RET     C
@@ -651,7 +722,8 @@ EditorNavRememberCurrentDirtyReady:
 
 ; EditorNavRenderCachedPendingPage -
 ; Swap the pending page from the RAM cache into the live buffer when available.
-; Returns NC,A=1 on cache hit, NC,A=0 on miss, or C on render failure.
+; The caller commits page/viewport state and renders afterward.
+; Returns NC,A=1 on cache hit, NC,A=0 on miss.
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorNavRenderCachedPendingPage:
@@ -687,8 +759,6 @@ EditorNavCachedCurrentDirtyReady:
         LD      A,(EditorNavCacheHitCount)
         INC     A
         LD      (EditorNavCacheHitCount),A
-        CALL    EditorRenderPageBuffer
-        RET     C
         LD      A,1
         RET
 
@@ -698,8 +768,8 @@ EditorNavCachedPageMiss:
 
 ; EditorNavRenderNextWindowPage -
 ; Slide the preloaded adjacent sector into the active page when paging down by
-; one sector. Returns NC,A=1 on window hit, NC,A=0 on miss, or C on render
-; failure.
+; one sector. The caller commits page/viewport state and renders afterward.
+; Returns NC,A=1 on window hit, NC,A=0 on miss, or C on preparation failure.
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorNavRenderNextWindowPage:
@@ -728,8 +798,6 @@ EditorNavNextWindowPageReady:
         SRL     A
         LD      (EditorNavDirtySectors),A
         CALL    EditorNavRefreshAggregateDirty
-        CALL    EditorRenderPageBuffer
-        RET     C
         LD      A,1
         RET
 
@@ -809,7 +877,8 @@ EditorNavRefreshAggregateClean:
         LD      HL,EditorNavPageBuffer
         CALL    EditorLoadSourcePage
         JR      C,EditorNavRenderPageRestoreError
-        JP      EditorRenderPageBuffer
+        XOR     A
+        RET
 
 EditorNavRenderPageRestoreError:
         PUSH    AF

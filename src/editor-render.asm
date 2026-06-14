@@ -215,6 +215,12 @@ EditorKeyRenderCursorFlushCurrent:
         LD      C,A
         LD      A,B
         CP      C
+        JR      C,EditorEnsureCursorVisibleMixedPrevious
+        LD      A,C
+        CP      TECM8_SOURCE_RECORDS_PER_PAGE
+        JR      NC,EditorEnsureCursorScrollUp
+        LD      A,B
+        CP      C
         JR      C,EditorEnsureCursorScrollUp
         LD      A,C
         ADD     A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS
@@ -234,6 +240,21 @@ EditorKeyRenderCursorFlushCurrent:
         XOR     A
         RET
 
+EditorEnsureCursorVisibleMixedPrevious:
+        LD      A,(EditorNavCurrentPage)
+        OR      A
+        JR      Z,EditorEnsureCursorScrollUp
+        LD      A,TECM8_SOURCE_RECORDS_PER_PAGE
+        SUB     C
+        ADD     A,B
+        CP      TECM8_EDITOR_CURSOR_VISIBLE_ROWS
+        JR      NC,EditorEnsureCursorScrollDown
+        LD      (EditorCursorVisibleRow),A
+        LD      A,B
+        LD      (EditorNavCurrentRow),A
+        XOR     A
+        RET
+
 EditorEnsureCursorScrollUp:
         LD      A,(EditorCursorRow)
         LD      (EditorNavViewportTopRow),A
@@ -249,6 +270,37 @@ EditorEnsureCursorScrollUp:
 EditorEnsureCursorScrollDown:
         LD      A,(EditorCursorRow)
         LD      (EditorNavCurrentRow),A
+        LD      B,A
+        LD      A,(EditorNavViewportTopRow)
+        CP      TECM8_SOURCE_RECORDS_PER_PAGE
+        JR      NC,EditorEnsureCursorScrollDownCurrent
+        CP      B
+        JR      C,EditorEnsureCursorScrollDownCurrent
+        CP      TECM8_SOURCE_RECORDS_PER_PAGE - 1
+        JR      Z,EditorEnsureCursorScrollDownWrapCurrent
+        INC     A
+        LD      (EditorNavViewportTopRow),A
+        CALL    EditorNavSyncViewport
+        RET     C
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
+        LD      (EditorCursorVisibleRow),A
+        LD      A,1
+        OR      A
+        RET
+
+EditorEnsureCursorScrollDownWrapCurrent:
+        XOR     A
+        LD      (EditorNavViewportTopRow),A
+        CALL    EditorNavSyncViewport
+        RET     C
+        LD      A,TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
+        LD      (EditorCursorVisibleRow),A
+        LD      A,1
+        OR      A
+        RET
+
+EditorEnsureCursorScrollDownCurrent:
+        LD      A,(EditorCursorRow)
         SUB     TECM8_EDITOR_CURSOR_VISIBLE_ROWS - 1
         LD      (EditorNavViewportTopRow),A
         CALL    EditorNavSyncViewport
