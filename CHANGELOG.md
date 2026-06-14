@@ -16,6 +16,45 @@ progression and to make the project history easier to navigate.
 - Each milestone tag should point at a committed, pushed, reviewed, and locally
   verified state.
 
+## [0.1.3] - 2026-06-15
+
+Code Quality Phase A2: shared source-record row-shift helpers.
+
+### Engineering Notes
+
+- Confirmed `Tecm8RecordShiftRecordsDown` and `Tecm8RecordShiftRecordsUp` as
+  the shared 32-byte row-shift helpers used by split, join, block paste, block
+  copy, and block delete paths.
+- Removed stale quality-plan wording that still described the former duplicate
+  `LDIR` row-shift loops as open work.
+- Updated the roadmap to mark Phase A2 complete and point the next
+  agent-owned compactness work at TM8 byte/path helper extraction.
+
+### Verification
+
+- Covered by the existing structural interaction tests, line-editing proof,
+  mutation-boundary proof, block-selection proof, block-delete proof, Block
+  Editing V1 acceptance, and full `npm run check` gate.
+
+## [0.1.2] - 2026-06-15
+
+Block Editing V1 validation milestone.
+
+### User-Facing Editor Behavior
+
+- The Debug80 matrix-key smoke now proves block selection, copy, move/cut,
+  paste, save, and reset/reopen persistence through the live editor path.
+- Block Editing V1 manual notes now distinguish live matrix-key coverage from
+  selected-block `Delete`, which remains Z80-proof-covered until Debug80
+  exposes a live `Delete` key path.
+
+### Engineering Notes
+
+- Expanded `debug80:editor-block-smoke` to inspect saved source records and
+  reopen the saved Debug80 image in a fresh runtime.
+- `acceptance:block-editing-v1` remains the focused automated gate for the
+  block editing milestone.
+
 ## [0.1.1] - 2026-06-15
 
 Phase 3A milestone: Rolling Source Window V1 manual validation.

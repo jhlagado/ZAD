@@ -2,7 +2,7 @@
 
 **Purpose:** Actionable plan for a coding agent to improve compactness, structure, and coherence without breaking the proof-driven editor milestone.
 
-**Scope:** 30 assembly modules under `src/` (~11,500 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **14,477 bytes** at `0x4000`, leaving **1,907 bytes** in the 16 KiB bank.
+**Scope:** 30 assembly modules under `src/` (~11,500 lines), 30+ display proofs, TypeScript harness. Full editor binary (`src/main.asm`) currently assembles to **15,922 bytes** at `4000h..7E32h`, leaving **462 bytes** in the 16 KiB bank.
 
 **Date:** June 2026 (post editor milestone / block-editing V1 automation)
 
@@ -115,11 +115,17 @@ Quit/save prompts in interaction read **`EditorNavDirty` only** (L406, L430). Cr
 
 **Recommendation:** One `EditorNavIsDirty` helper; retire `EditorNavDirty` byte once all call sites use sector+cache bits.
 
-### 4. Nine near-identical 32-byte row-shift loops
+### 4. Fixed: near-identical 32-byte row-shift loops
 
-Split, join, block paste, insert, and cross-page paths each implement their own `LDIR`-based shift loop with `EditorLineRowsLeft` countdown. Same algorithm, different labels (`EditorSplitShiftLoop`, `EditorJoinShiftLoop`, `EditorPendingBlockShiftLoop`, `EditorSplitFinalNextShiftLoop`, etc.).
+Phase A2 extracted the duplicated source-record row movement into
+`Tecm8RecordShiftRecordsDown` and `Tecm8RecordShiftRecordsUp` in
+`src/tecm8-record.asm`. Split, join, block paste, copy, and delete paths now
+call those shared helpers instead of carrying separate `LDIR` shift loops such
+as the former `EditorSplitShiftLoop`, `EditorJoinShiftLoop`, and
+`EditorPendingBlockShiftLoop` families.
 
-**Estimated duplication:** 400–500 bytes.
+The remaining `LDIR` uses in editor code are whole-buffer or whole-record copy
+sites, not the repeated row-shift algorithm targeted by Phase A2.
 
 ### 5. Parallel display geometry constants
 
@@ -161,8 +167,8 @@ The scripted Debug80 editor session has also moved to
 `editor-session-script.main.asm`, with `shell-editor-session.asm` holding the
 proof-only key-stream helper.
 
-Result: `npm run z80:size` reports 14,477 bytes, leaving 1,907 bytes free in the
-current 16K bank.
+Current result: `npm run z80:size` reports 15,922 bytes, leaving 462 bytes free
+in the current 16K bank.
 
 ### 9. Stale documentation describing superseded behavior
 
@@ -246,7 +252,7 @@ Execute **incrementally**; run `npm run check` (or targeted proof npm scripts) a
 | Step | Action | New file | Gate |
 |------|--------|----------|------|
 | A1 | Extract shared record constants + helpers | `src/editor-record.asm` | `proof:display:editor-line-editing`, `editor-mutation-boundary` |
-| A2 | Extract `ShiftRecordsDown` / `ShiftRecordsUp` parameterized by count | same | split/join proofs |
+| A2 | Done: extract `ShiftRecordsDown` / `ShiftRecordsUp` parameterized by count | `src/tecm8-record.asm` | split/join/block proofs |
 | A3 | Extract `Tm8MatchBytes`, shared TM8 layout equates | `src/tm8-bytes.asm` | project-config + storage proofs |
 | A4 | Extract `Tm8OpenVolumePath(DE)` prefix-ready block | `src/tm8-path.asm` | storage + file-list proofs |
 | A5 | Unify display geometry equates | `src/tecm8-display-equ.asm` | glcd-tile, display-model, viewport tests |
@@ -334,7 +340,7 @@ Copy this section directly to the implementing agent:
 [x] Baseline: assemble main.asm, record 14948 bytes and symbol map
 [x] Phase A1: create editor-record.asm, move editor-facing record wrappers and line scratch
 [x] Phase B line-edit slice: create editor-line-edit.asm, move fixed-record insert/delete/split/join
-[ ] Phase A2: EditorShiftRecordsDown/Up — replace 9 duplicate loops
+[x] Phase A2: Tecm8RecordShiftRecordsDown/Up — replace duplicated 32-byte row-shift loops
 [ ] Phase A3–A4: tm8-bytes.asm + tm8-path.asm — collapse 3× prefix-open blocks
 [ ] Phase A5: tecm8-display-equ.asm — unify geometry constants
 [ ] npm run check after each sub-step

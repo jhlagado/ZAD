@@ -10,18 +10,21 @@ milestone is complete, commit and push the reviewed work, update the changelog,
 and tag the milestone. Use patch versions for coherent internal progress and
 minor versions for larger user-visible TECM8 editor/shell/tool increments.
 
-## Current Goal: Post-Milestone Manual Validation
+## Current Roadmap Focus: Code Quality And Compactness
 
-The Debug80-testable editor milestone has been reached in the local automated
-proof harness. The remaining validation is human-facing: run the manual Debug80
-script in the UI, then defer Phase 14 real-hardware checks until a TEC-1G is
-available.
+The Debug80-testable editor milestone and Block Editing V1 automation have been
+reached in the local proof harness. Remaining Block Editing V1 UI validation is
+human-facing: run the manual Debug80 script in the UI, then defer Phase 14
+real-hardware checks until a TEC-1G is available.
 
-Recommended next user-facing task: validate and harden Block Editing V1 in
-Debug80. The automation already proves the main block operations, but the next
-manual milestone should confirm that the keyboard workflow is understandable:
-select lines, mark copy/move sources, paste or replace, delete selected lines,
+Recommended next user-facing task: manually validate the Block Editing V1
+keyboard workflow in Debug80: select lines, mark copy/move sources, paste or
+replace, delete selected lines when Debug80 exposes a live `Delete` key path,
 save, reset, reopen, and verify persistence.
+
+Recommended next agent-owned task after Phase A2: continue the code-quality
+compactness plan with Phase A3/A4, extracting shared TM8 byte/path helpers so
+storage and project-config scans stop carrying repeated prefix/catalog logic.
 
 ## System Vision: TECM8 As A ROM-Based OS
 
@@ -833,11 +836,14 @@ Done when:
   proof-only scripted key-session scaffolding.
 - Done: the shell/editor boundary is documented as a resident-to-banked-tool
   call boundary.
+- Done: Phase A2 shared source-record shift helpers
+  `Tecm8RecordShiftRecordsDown` and `Tecm8RecordShiftRecordsUp` replace the
+  duplicated 32-byte row-shift loops in split, join, and block mutation paths.
 - Done: the editor remains Debug80-runnable and proof-green after each
   increment.
 - Done: the post-refactor editor binary size is measured against the original
-  quality-phase baseline of 15,235 bytes. The fresh source build is 14,477
-  bytes, leaving 1,907 bytes in the current 16K bank.
+  quality-phase baseline of 15,235 bytes. The fresh source build is 15,922
+  bytes, leaving 462 bytes in the current 16K bank.
 - Done: the next tool-project direction is resident shell completion and later
   assembler integration; the immediate editor-facing roadmap returns to Block
   Editing V1 manual validation unless a measured space-saving pilot is chosen

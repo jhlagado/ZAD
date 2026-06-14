@@ -19,8 +19,8 @@ improved without destabilizing that progress.
   - `src/editor-block.asm`: 760 lines.
   - `src/editor-interaction.asm`: 741 lines.
   - `src/editor-line-edit.asm`: 595 lines.
-- Current fresh source build: `npm run z80:size` reports 14,477 bytes emitted
-  at `4000h..788Dh`, leaving 1,907 bytes before the `8000h` bank boundary. The
+- Current fresh source build: `npm run z80:size` reports 15,922 bytes emitted
+  at `4000h..7E32h`, leaving 462 bytes before the `8000h` bank boundary. The
   checked-in `build/main.bin` artifact may be stale; use the size command for
   baselines.
 - Current product shape: Debug80-runnable editor at `0x4000`, launched under
@@ -312,9 +312,10 @@ Actions:
 - Done: route the remaining resident-page block copy, paste, insert-space, and
   delete-source row-copy loops through those shared record-window helpers.
 - The existing `EditorKey*Record*` labels remain as compatibility wrappers and
-  now delegate to the shared helpers. Replace duplicate split/join/paste/delete
-  shift loops in `src/editor-line-edit.asm` and `src/editor-block.asm` only after
-  the small record-helper boundary is proof-green.
+  now delegate to the shared helpers.
+- Done: replace the duplicate split/join/paste/delete shift loops in
+  `src/editor-line-edit.asm` and `src/editor-block.asm` with calls to the shared
+  record-window helpers.
 - Done: create `src/tecm8-string.asm` for the first shared byte/string/path
   helpers:
   - bounded byte matching with carry clear on match and carry set on mismatch,
@@ -404,9 +405,10 @@ Actions:
 - Done: move the automated Debug80 save/reopen script entry to
   `editor-session-script.main.asm` and the proof-only key-stream bridge to
   `shell-editor-session.asm`. The default automated runner compiles the script
-  target, while live smoke paths compile `src/main.asm`. This reduces the live
-  editor image to 14,477 bytes, leaving 1,907 bytes free in the current 16K
-  bank.
+  target, while live smoke paths compile `src/main.asm`. At that checkpoint this
+  reduced the live editor image to 14,477 bytes, leaving 1,907 bytes free in the
+  current 16K bank; later editor work has raised the current source build to
+  15,922 bytes, leaving 462 bytes free.
 - Extract shared superblock validation, byte matching, prefix scan, catalog
   scan, allocation-chain follow, and file-relative sector read/write helpers.
 - Route `project-config-loader`, `editor-storage-loader`, and
@@ -568,9 +570,9 @@ and list the exact manual keys to test.
 ## Immediate Next Goal
 
 The Bank-Ready Editor V1 quality pass has reached its planned stopping point:
-the live editor path is smaller than the 15,235-byte baseline, proof-only script
-support is out of the live image, and the shell/editor boundary is documented as
-a resident-to-banked-tool boundary.
+proof-only script support is out of the live image, the shell/editor boundary is
+documented as a resident-to-banked-tool boundary, and the current source build
+has been remeasured at 15,922 bytes, leaving 462 bytes free in the 16K bank.
 
 The next practical goal should be chosen explicitly from the roadmap rather than
 continued automatically. The two strongest candidates are:

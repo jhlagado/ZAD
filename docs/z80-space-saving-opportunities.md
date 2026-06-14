@@ -13,8 +13,8 @@ reduce bytes while keeping the behavior and contracts easier to understand?
 
 ## Baseline And Guardrails
 
-The current source-size check puts the live editor image at 14,477 bytes emitted
-at `4000h..788Dh`, leaving 1,907 bytes inside the current 16K bank. Treat that
+The current source-size check puts the live editor image at 15,922 bytes emitted
+at `4000h..7E32h`, leaving 462 bytes inside the current 16K bank. Treat that
 as a snapshot only. Every space-saving increment should record a fresh
 before/after result from:
 
