@@ -59,6 +59,14 @@ than hidden. Use one byte for `slotPage` and backed-page entries in V1. Keep the
 absolute line as a 16-bit value so later storage code can lift the page limit
 without changing the editor's public coordinate model.
 
+V1 boundary behavior:
+
+```text
+opening or navigating beyond page 127 is unsupported
+movement that would wrap a page byte must be blocked
+show a compact unsupported-size/page-boundary status rather than wrapping
+```
+
 ## Window Slots
 
 The 2K source window is four independent 512-byte slots:
@@ -310,6 +318,13 @@ Manual Debug80 acceptance:
   saved content survives.
 - Attempt to move far enough that a dirty sector would be evicted; V1 should
   block with a save/dirty status instead of silently writing to disk.
+- At EOF, plain Down stops instead of entering a clean synthetic page.
+- `Ctrl-Down` also stops at EOF instead of jumping into clean synthetic
+  territory.
+- After an edit grows into a synthetic page, that page becomes dirty source
+  state and can be navigated as part of the document.
+- At the page-127 boundary, movement is blocked with a clear unsupported/page
+  status rather than wrapping to page 0.
 
 Automated acceptance:
 
@@ -317,5 +332,11 @@ Automated acceptance:
   1 when both are resident.
 - A proof covers plain Up crossing from page 1 back to page 0.
 - A proof covers dirty eviction being blocked before explicit save.
+- Proofs cover EOF behavior: plain Down and `Ctrl-Down` do not enter clean
+  synthetic pages.
+- A proof covers an edit-created synthetic page becoming dirty/growable
+  document state.
+- A proof or structural test covers page-127 boundary handling and rejects
+  page-byte wraparound.
 - Existing save, restore, row-15 growth, allocation growth, block editing, and
   live-smoke checks remain green.

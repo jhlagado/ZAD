@@ -347,7 +347,8 @@ pretend the whole document is resident.
 The editor should support paging source sectors from the virtual filesystem:
 
 - Load sector containing visible lines.
-- Keep a small sector window, likely previous/current/next.
+- Keep the v1 rolling 2K sector window as four contiguous 512-byte source
+  slots, as specified in [Editor Rolling Source Window](editor-rolling-window.md).
 - Modify line records.
 - Mark sector dirty.
 - Write dirty sectors only on explicit save in the v1 editor policy. Dirty
@@ -562,8 +563,10 @@ Policy:
 
 - Edits live in the editor's RAM page/window until the user saves.
 - `Ctrl-S` or the final save command explicitly commits changes.
-- Before replacing an existing file, save creates or replaces a hidden backup of
-  the previous saved file.
+- In the rolling-window editor, backup is sector-based. Before first writing a
+  dirty sector in an editor session, save preserves that sector's original
+  on-disk contents in the hidden backup file. Repeated saves of the same sector
+  must not overwrite the pre-session backup copy.
 - The backup path is derived from the original local filename as
   `.` + filename + `.b`.
 - Example: `/src/main.asm` backs up to `/src/.main.asm.b`.
@@ -574,11 +577,11 @@ Policy:
 - Autosave should not be part of v1; autosave is much safer once undo, journaling,
   or version history exists.
 
-The restore command should be conservative: confirm or clearly indicate that the
-current buffer will be replaced, load the hidden backup if present, and mark the
-buffer dirty so the user can inspect it before saving it back over the original
-file. Exact key bindings can be chosen with the rest of the TEC-1G keyboard
-mapping.
+The restore command should be conservative. In the rolling-window editor,
+`BackedPageTable` is the authority: restore only resident sectors whose page is
+listed there, skip unbacked sectors, and mark restored sectors dirty so the user
+can inspect them before saving them back over the original file. Exact key
+bindings can be chosen with the rest of the TEC-1G keyboard mapping.
 
 ## Source Text Import And Export
 

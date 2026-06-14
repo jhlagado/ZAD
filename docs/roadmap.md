@@ -307,11 +307,18 @@ Done when:
 - Moving within the loaded 64-line window does not issue SD reads.
 - A movement that would evict a dirty sector is rejected with a clear status
   until the user explicitly saves.
+- Plain Down and `Ctrl-Down` stop at EOF instead of entering clean synthetic
+  pages.
+- Edit-created synthetic pages become dirty/growable source state and can be
+  navigated after creation.
+- Movement beyond the V1 page-127 limit is rejected with a clear unsupported or
+  page-boundary status rather than wrapping the page byte.
 - `Ctrl-S` persists dirty resident sectors and preserves pre-session backup
   sectors.
 - `Ctrl-Z` restores the currently resident backed-up sectors.
-- Debug80 proofs cover resident cross-sector Up/Down, dirty-eviction blocking,
-  and multi-sector save/restore.
+- Debug80 proofs cover resident cross-sector Up/Down, EOF/synthetic handling,
+  page-127 boundary handling, dirty-eviction blocking, and multi-sector
+  save/restore.
 - The manual Debug80 script in `docs/debug80-editor-session.md` is updated with
   the new continuous-navigation test.
 
