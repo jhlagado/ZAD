@@ -969,8 +969,10 @@ Next validation goal:
   [Editor Block Operations](block-operations.md).
 - Confirm selection with `Shift+Up/Down` and page selection with
   `Shift+Ctrl+Up/Down` are usable from the matrix keyboard.
-- Confirm `Ctrl-C`, `Ctrl-X`, `Ctrl-V`, and selected-block `Delete` behave
-  predictably on the GLCD.
+- Confirm `Ctrl-C`, `Ctrl-X`, and `Ctrl-V` behave predictably on the GLCD.
+- Confirm selected-block `Delete` manually once Debug80 exposes a live
+  `Delete` key path; the editor behavior itself is covered by the Z80
+  block-delete proof.
 - Save, reset, reopen, and verify that copied, moved, replaced, or deleted
   lines persisted in `/src/main.asm`.
 - Fix any manual-test issues before starting named `Ctrl-W` write-block,

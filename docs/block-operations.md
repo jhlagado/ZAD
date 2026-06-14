@@ -503,3 +503,17 @@ Manual script:
 11. Press Ctrl-S. The editor should show saving feedback and return with the
     edited rows still visible.
 ```
+
+Automated acceptance:
+
+```sh
+npm run acceptance:block-editing-v1
+```
+
+That acceptance path now includes the live Debug80 matrix-key smoke for
+`Shift+Down`, `Ctrl-C`, `Ctrl-X`, `Ctrl-V`, `Ctrl-S`, saved source inspection,
+and a fresh reset/reopen of the saved image. Equal-sized replace and selected
+block delete are still covered by the Z80 proof programs. The Debug80 matrix
+request map does not currently expose a live `Delete` matrix coordinate, so
+manual `Delete` validation depends on Debug80 sending `7Fh` through another
+input path.

@@ -651,17 +651,76 @@ async function main(): Promise<void> {
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 5, 'B0 LINE 04', 'block smoke row 5 after copy insert');
     assertRuntimeSourceRecord(runtime, pageBufferAddr, 6, 'B0 LINE 05', 'block smoke row 6 after copy insert');
 
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 3 }, 200_000, 200_000); // Ctrl+X
+    stepRuntime(runtime, platformRuntime);
+    const afterMovePc = runUntilAnyPc(runtime, platformRuntime, [liveLoopAddr, mainDoneAddr], 20_000_000);
+    if (afterMovePc === mainDoneAddr) {
+      throw new Error(`block smoke Ctrl-X exited editor error=0x${readRuntimeByte(runtime, mainErrorAddr).toString(16)}`);
+    }
+    const moveModifierBits = runtime.hardware.memory[modifierBitsAddr];
+    const moveTranslatedKey = runtime.hardware.memory[translatedKeyAddr];
+    const pendingAfterMove = readRuntimeByte(runtime, pendingBlockModeAddr);
+    const selectionAfterMove = readRuntimeByte(runtime, selectionActiveAddr);
+    if (moveModifierBits !== 0x02 || moveTranslatedKey !== 0x18) {
+      throw new Error(
+        `block smoke Ctrl-X modifier=0x${moveModifierBits.toString(16)} translated=0x${moveTranslatedKey.toString(16)}, expected ctrl-modified X`,
+      );
+    }
+    if (pendingAfterMove !== 2 || selectionAfterMove !== 0) {
+      throw new Error(
+        `block smoke Ctrl-X pending=${pendingAfterMove} selection=${selectionAfterMove}, expected pending move`,
+      );
+    }
+
+    for (let i = 0; i < 6 && readRuntimeByte(runtime, cursorRowAddr) < 7; i += 1) {
+      tapMatrixKey(platformRuntime, runtime, 0, 4, 200_000, 200_000); // ArrowDown
+      stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    }
+    const cursorRowBeforeMovePaste = readRuntimeByte(runtime, cursorRowAddr);
+    if (cursorRowBeforeMovePaste !== 7) {
+      throw new Error(`block smoke cursor row before move paste ${cursorRowBeforeMovePaste}, expected 7`);
+    }
+
+    tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 7, col: 1 }, 200_000, 200_000); // Ctrl+V
+    stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 20_000_000);
+    const pendingAfterMovePaste = readRuntimeByte(runtime, pendingBlockModeAddr);
+    const selectionAfterMovePaste = readRuntimeByte(runtime, selectionActiveAddr);
+    const selectionAnchorAfterMovePaste = readRuntimeByte(runtime, selectionAnchorLoAddr);
+    const selectionEndAfterMovePaste = readRuntimeByte(runtime, selectionActiveLoAddr);
+    if (
+      pendingAfterMovePaste !== 0 ||
+      selectionAfterMovePaste !== 1 ||
+      selectionAnchorAfterMovePaste !== 6 ||
+      selectionEndAfterMovePaste !== 7
+    ) {
+      throw new Error(
+        `block smoke move Ctrl-V pending=${pendingAfterMovePaste} selection=${selectionAfterMovePaste} anchor=${selectionAnchorAfterMovePaste} activeLo=${selectionEndAfterMovePaste}, expected moved selection 6..7`,
+      );
+    }
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 4, 'B0 LINE 04', 'block smoke row 4 after move insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 5, 'B0 LINE 05', 'block smoke row 5 after move insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 6, 'B0 LINE 00', 'block smoke row 6 after move insert');
+    assertRuntimeSourceRecord(runtime, pageBufferAddr, 7, 'B0 LINE 06', 'block smoke row 7 after move insert');
+
     tapMatrixCombo(platformRuntime, runtime, { row: 0, col: 1 }, { row: 6, col: 6 }, 200_000, 200_000); // Ctrl+S
     stepThenRunUntilPc(runtime, platformRuntime, liveLoopAddr, 120_000_000);
     if (runtime.hardware.memory[dirtyAddr] !== 0) {
       throw new Error(`block smoke dirty after save ${runtime.hardware.memory[dirtyAddr]}, expected 0`);
     }
     const savedSource = readTm8File(sessionImagePath, '/src/main.asm');
-    const savedRows = [0, 1, 4, 5, 6].map((row) => readSourceRecord(savedSource, row));
-    const expectedRows = ['B0 LINE 00', 'B0 LINE 01', 'B0 LINE 00', 'B0 LINE 04', 'B0 LINE 05'];
+    const savedRows = [0, 1, 2, 3, 4, 5, 6, 7].map((row) => readSourceRecord(savedSource, row));
+    const expectedRows = ['B0 LINE 00', 'B0 LINE 01', 'B0 LINE 02', 'B0 LINE 03', 'B0 LINE 04', 'B0 LINE 05', 'B0 LINE 00', 'B0 LINE 06'];
     if (JSON.stringify(savedRows) !== JSON.stringify(expectedRows)) {
       throw new Error(`block smoke saved rows ${JSON.stringify(savedRows)}, expected ${JSON.stringify(expectedRows)}`);
     }
+
+    const { runtime: reopenRuntime, platformRuntime: reopenPlatformRuntime } = loadRuntime(bytes, sessionImagePath, APP_START, true);
+    reopenPlatformRuntime.setMatrixMode?.(true);
+    const reopenInstructions = runUntilPc(reopenRuntime, reopenPlatformRuntime, liveLoopAddr, 60_000_000);
+    assertRuntimeSourceRecord(reopenRuntime, pageBufferAddr, 4, 'B0 LINE 04', 'block smoke reopen row 4');
+    assertRuntimeSourceRecord(reopenRuntime, pageBufferAddr, 5, 'B0 LINE 05', 'block smoke reopen row 5');
+    assertRuntimeSourceRecord(reopenRuntime, pageBufferAddr, 6, 'B0 LINE 00', 'block smoke reopen row 6');
+    assertRuntimeSourceRecord(reopenRuntime, pageBufferAddr, 7, 'B0 LINE 06', 'block smoke reopen row 7');
 
     const summary = {
       result: 'ok',
@@ -670,8 +729,11 @@ async function main(): Promise<void> {
       temporaryImage: true,
       temporaryImageRetained: false,
       bootInstructions,
+      reopenInstructions,
       copyModifierBits,
       copyTranslatedKey,
+      moveModifierBits,
+      moveTranslatedKey,
       pasteModifierBits,
       pasteTranslatedKey,
       savedRows,
