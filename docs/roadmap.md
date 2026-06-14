@@ -305,6 +305,8 @@ Done when:
   `R1 LINE 00` in the standard Debug80 fixture.
 - Plain Up moves from `R1 LINE 00` back into the previous `R0` source line.
 - Moving within the loaded 64-line window does not issue SD reads.
+- A clean window miss in a five-sector fixture preserves the contiguous
+  four-page window and loads exactly one new source sector.
 - A movement that would evict a dirty sector is rejected with a clear status
   until the user explicitly saves.
 - Plain Down and `Ctrl-Down` stop at EOF instead of entering clean synthetic
@@ -322,9 +324,9 @@ Done when:
 - `Ctrl-Z` restores only resident sectors whose pages are present in
   `BackedPageTable`; unbacked resident and clean synthetic slots are skipped.
 - Debug80 proofs cover resident cross-sector Up/Down, EOF/synthetic handling,
-  page-127 boundary and oversized-open handling, dirty-eviction blocking,
-  repeated-save backup preservation, BackedPageTable-gated restore, and
-  multi-sector save/restore.
+  clean one-sector rolling on window miss, page-127 boundary and oversized-open
+  handling, dirty-eviction blocking, repeated-save backup preservation,
+  BackedPageTable-gated restore, and multi-sector save/restore.
 - The manual Debug80 script in `docs/debug80-editor-session.md` is updated with
   the new continuous-navigation test.
 
@@ -366,13 +368,16 @@ Work:
   restored sectors dirty.
 - Deferred: ensure failed save is atomic across all dirty resident pages.
 - Done: keep restore-from-backup UX status-line based and recoverable.
-- Decide whether backup is per file, per page, or whole file.
+- Superseded for Rolling Source Window V1: backup is sector-based, preserves the
+  pre-session source sector before first write, and is gated by the backed-page
+  table.
 
 Important:
 
 The current implementation is a resident-window backup, not a full-file backup.
-For a real editor, backup should probably preserve the previous full file, but
-that requires whole-file copy/truncation behavior that is beyond this phase.
+Rolling Source Window V1 keeps that sector-level direction deliberately. A later
+whole-file snapshot or journal may still be designed, but it is not the V1
+policy.
 
 Done when:
 

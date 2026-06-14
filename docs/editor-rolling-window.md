@@ -306,7 +306,7 @@ data read every time.
 
 The first milestone is **Rolling Source Window V1**.
 
-Manual Debug80 acceptance:
+Manual Debug80 acceptance with the standard two-page fixture:
 
 - Open the editor on the standard `/src/main.asm` fixture.
 - Use plain Down to move from `R0 LINE 14` or `R0 LINE 15` into `R1 LINE 00`
@@ -316,24 +316,33 @@ Manual Debug80 acceptance:
   switching between separate documents.
 - Edit lines in more than one resident sector, save, reset, and confirm the
   saved content survives.
-- Attempt to move far enough that a dirty sector would be evicted; V1 should
-  block with a save/dirty status instead of silently writing to disk.
 - At EOF, plain Down stops instead of entering a clean synthetic page.
 - `Ctrl-Down` also stops at EOF instead of jumping into clean synthetic
   territory.
 - After an edit grows into a synthetic page, that page becomes dirty source
   state and can be navigated as part of the document.
-- At the page-127 boundary, movement is blocked with a clear unsupported/page
-  status rather than wrapping to page 0.
-- Opening a file whose size requires page 128 or beyond is rejected or clearly
-  reported as unsupported for V1, rather than being accepted with wrap-prone
-  state.
+
+Manual Debug80 acceptance with large/boundary fixtures:
+
+- Use a fixture of at least five source sectors. Move far enough that a clean
+  window miss occurs; the window remains four contiguous source pages and only
+  one new source sector is loaded for the miss.
+- In the same large fixture, dirty the natural eviction victim and attempt to
+  move past the window. V1 blocks with a save/dirty status instead of silently
+  writing to disk or evicting a different clean slot.
+- Use a page-127 boundary fixture. At the page-127 boundary, movement is
+  blocked with a clear unsupported/page status rather than wrapping to page 0.
+- Use an oversized fixture whose source size requires page 128 or beyond.
+  Opening the file is rejected or clearly reported as unsupported for V1,
+  rather than being accepted with wrap-prone state.
 
 Automated acceptance:
 
 - A Debug80 proof covers plain Down crossing from source page 0 to source page
   1 when both are resident.
 - A proof covers plain Up crossing from page 1 back to page 0.
+- A proof covers a clean window miss in a five-sector fixture and verifies the
+  window remains contiguous while exactly one new source sector is loaded.
 - A proof covers dirty eviction being blocked before explicit save.
 - Proofs cover EOF behavior: plain Down and `Ctrl-Down` do not enter clean
   synthetic pages.
