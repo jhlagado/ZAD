@@ -1137,6 +1137,7 @@ function verifyEditorWindowSaveProof(runtime: Runtime, _platformRuntime: Platfor
   }
   const restoreChecks = [
     { symbol: 'RestoreWindowDirtySectors', expected: 3 },
+    { symbol: 'BackedPageCountAfterSecondSave', expected: 2 },
   ];
   for (const check of restoreChecks) {
     const value = runtime.hardware.memory[symbolAddress(symbols, check.symbol)];
@@ -1155,7 +1156,7 @@ function verifyEditorWindowSaveProof(runtime: Runtime, _platformRuntime: Platfor
   const stored = readFileFromProofImage(PROOF_CASES['editor-window-save-proof'], '/src/main.asm');
   const backup = readFileFromProofImage(PROOF_CASES['editor-window-save-proof'], '/src/.main.asm.b');
   const expected = [
-    { record: 0, text: 'ZP0 LINE 00' },
+    { record: 0, text: 'YZP0 LINE 00' },
     { record: 14, text: 'LE' },
     { record: 15, text: 'FT' },
     { record: 16, text: 'PUSH' },

@@ -77,6 +77,21 @@ PROOF_FAIL       .equ     0xE0
 
         LD      A,9
         LD      (CaseMarker),A
+        XOR     A
+        LD      (EditorCursorRow),A
+        LD      (EditorCursorCol),A
+        LD      A,"Y"
+        CALL    EditorInsertChar
+        JP      C,ProofFailed
+        CALL    EditorMarkDirty
+        JP      C,ProofFailed
+        CALL    EditorSaveCurrentPage
+        JP      C,ProofFailed
+        LD      A,(EditorNavBackedPageCount)
+        LD      (BackedPageCountAfterSecondSave),A
+
+        LD      A,10
+        LD      (CaseMarker),A
         LD      HL,WindowBadCurrent
         LD      DE,EditorNavPageBuffer
         CALL    WindowCopyRecord
@@ -153,6 +168,9 @@ WindowBadNext:
         .ds     27
 
 RestoreWindowDirtySectors:
+        .db     0
+
+BackedPageCountAfterSecondSave:
         .db     0
 
 RestoreWindowRecord0:

@@ -8,6 +8,7 @@ TECM8_EDITOR_NAV_ERR_BACKUP     .equ    0x52
 TECM8_EDITOR_NAV_PATH_LEN       .equ    64
 TECM8_EDITOR_NAV_PAGE_BYTES     .equ    TECM8_SECTOR_BYTES
 TECM8_EDITOR_NAV_WINDOW_BYTES   .equ    TECM8_SECTOR_BYTES * 4
+TECM8_EDITOR_NAV_BACKED_PAGE_MAX .equ   16
 TECM8_EDITOR_NAV_WORKSPACE_BASE .equ    0x3000
 TECM8_EDITOR_NAV_CACHE_BASE     .equ    0x3000
 TECM8_EDITOR_NAV_PAGE_BASE      .equ    0x3200
@@ -44,6 +45,7 @@ TECM8_EDITOR_NAV_WORKSPACE_END  .equ    0x3800
         LD      (EditorNavNextPageValid),A
         LD      (EditorNavNextPageSynthetic),A
         LD      (EditorNavDirtySectors),A
+        LD      (EditorNavBackedPageCount),A
         CALL    EditorNavResetViewport
         JP      EditorRenderCurrent
 
@@ -300,6 +302,9 @@ EditorSaveCurrentPageRestoreError:
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorBackupCurrentPage:
+        LD      A,(EditorNavCurrentPage)
+        CALL    EditorNavBackedPageContains
+        RET     Z
         CALL    EditorNavInvalidateWindowSlot3
         LD      HL,(EditorNavPathPtr)
         LD      DE,EditorNavBackupPathBuffer
@@ -317,7 +322,7 @@ EditorBackupCurrentPageLoaded:
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavBackupPageBuffer
         CALL    EditorSaveSourcePage
-        RET     NC
+        JR      NC,EditorBackupCurrentPageSaved
         CP      EDITOR_LOAD_ERR_FIND
         JR      NZ,EditorBackupCurrentPageError
         LD      DE,EditorNavBackupPathBuffer
@@ -326,7 +331,12 @@ EditorBackupCurrentPageLoaded:
         LD      A,(EditorNavCurrentPage)
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavBackupPageBuffer
-        JP      EditorSaveSourcePage
+        CALL    EditorSaveSourcePage
+        JR      C,EditorBackupCurrentPageError
+
+EditorBackupCurrentPageSaved:
+        LD      A,(EditorNavCurrentPage)
+        JP      EditorNavBackedPageAdd
 
 EditorBackupCurrentPageLoadError:
         CP      EDITOR_LOAD_ERR_SIZE
@@ -442,17 +452,26 @@ EditorLoadCurrentBackupPageRestoreError:
 ;! out A,carry,zero
 ;! clobbers sign,parity,halfCarry,BC,DE,HL
 @EditorLoadCurrentBackupWindow:
+        LD      A,(EditorNavCurrentPage)
+        CALL    EditorNavBackedPageContains
+        JR      NZ,EditorLoadCurrentBackupWindowMaybeNext
         CALL    EditorLoadCurrentBackupPage
         RET     C
         LD      A,(EditorNavDirtySectors)
         OR      1
         LD      (EditorNavDirtySectors),A
+
+EditorLoadCurrentBackupWindowMaybeNext:
         LD      A,(EditorNavNextPageValid)
         OR      A
         JR      Z,EditorLoadCurrentBackupWindowDone
         LD      A,(EditorNavCurrentPage)
         CP      127
         JR      Z,EditorLoadCurrentBackupWindowDone
+        INC     A
+        CALL    EditorNavBackedPageContains
+        JR      NZ,EditorLoadCurrentBackupWindowDone
+        LD      A,(EditorNavCurrentPage)
         INC     A
         LD      DE,EditorNavBackupPathBuffer
         LD      HL,EditorNavNextPageBuffer
@@ -482,6 +501,70 @@ EditorLoadCurrentBackupWindowDone:
         RET
 
 EditorLoadCurrentBackupWindowError:
+        SCF
+        RET
+
+; EditorNavBackedPageContains -
+; Return Z when A is present in the session backed-page table.
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,C,HL
+@EditorNavBackedPageContains:
+        LD      C,A
+        LD      A,(EditorNavBackedPageCount)
+        OR      A
+        JR      Z,EditorNavBackedPageMissing
+        LD      B,A
+        LD      HL,EditorNavBackedPageTable
+
+EditorNavBackedPageContainsLoop:
+        LD      A,(HL)
+        CP      C
+        JR      Z,EditorNavBackedPageFound
+        INC     HL
+        DJNZ    EditorNavBackedPageContainsLoop
+
+EditorNavBackedPageMissing:
+        LD      A,1
+        OR      A
+        RET
+
+EditorNavBackedPageFound:
+        XOR     A
+        RET
+
+; EditorNavBackedPageAdd -
+; Add A to the session backed-page table if it is not already present.
+;! in A
+;! out A,carry,zero
+;! clobbers sign,parity,halfCarry,B,C,HL
+@EditorNavBackedPageAdd:
+        LD      (EditorNavBackedPageCandidate),A
+        CALL    EditorNavBackedPageContains
+        RET     Z
+        LD      A,(EditorNavBackedPageCount)
+        CP      TECM8_EDITOR_NAV_BACKED_PAGE_MAX
+        JR      NC,EditorNavBackedPageAddFull
+        LD      HL,EditorNavBackedPageTable
+        LD      B,A
+        OR      A
+        JR      Z,EditorNavBackedPageAddStore
+
+EditorNavBackedPageAddOffset:
+        INC     HL
+        DJNZ    EditorNavBackedPageAddOffset
+
+EditorNavBackedPageAddStore:
+        LD      A,(EditorNavBackedPageCandidate)
+        LD      (HL),A
+        LD      A,(EditorNavBackedPageCount)
+        INC     A
+        LD      (EditorNavBackedPageCount),A
+        XOR     A
+        RET
+
+EditorNavBackedPageAddFull:
+        LD      A,TECM8_EDITOR_NAV_ERR_BACKUP
         SCF
         RET
 
@@ -1673,6 +1756,15 @@ EditorNavBackupSavedCurrentPage:
 
 EditorNavBackupError:
         .db     0
+
+EditorNavBackedPageCount:
+        .db     0
+
+EditorNavBackedPageCandidate:
+        .db     0
+
+EditorNavBackedPageTable:
+        .ds     TECM8_EDITOR_NAV_BACKED_PAGE_MAX
 
 EditorNavWindowBasePage:
         .db     0

@@ -322,6 +322,9 @@ Progress:
   from page 1 to page 2, verifies that exactly one high source sector is
   loaded into the rolling window, and verifies that moving again with a dirty
   cached low victim is blocked instead of autosaving.
+- Done: `editor-window-save-proof` covers repeated save of a resident source
+  sector and verifies that the hidden backup remains the pre-session sector
+  while the source sector receives later edits.
 
 Execution slices:
 
